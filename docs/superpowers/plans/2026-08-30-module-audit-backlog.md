@@ -412,3 +412,27 @@ correctly company-attributed. Spec:
    B4; projects audit (D4) absorbs B1, B2.
 4. **B5–B7** (pwa / dist-serve / notification-publisher) — standalone triage.
 5. **D3 → D9**, then **C** follow-ups and **E** debt.
+
+---
+
+## atlas.pfm — Phase 1 UI deferred refinements (added 2026-08-31)
+
+Non-blocking polish tracked during the Phase 1 build of `atlas.pfm` (Finanzas
+personales). Spec: `docs/superpowers/specs/2026-08-31-atlas-pfm-design.md`.
+
+- [ ] **PFM-1 — Ledger-account picker** in `WalletFormSheet` so a wallet can be
+  linked to an `atlas.ledger` account (`ledgerAccountId`). Backend already
+  supports it end-to-end (read-only mirror); only the create/edit UI control is
+  missing.
+- [ ] **PFM-2 — Inline "+ Crear «X»" category creation** from
+  `QuickAddMovementSheet` — swap `ComboboxField` back to `CreatableComboboxField`
+  and wire `onCreate` to `useCreatePfmCategory` (hook already exists) with an
+  optimistic select.
+- [ ] **PFM-3 — Company-member picker** in `WalletMembersDialog` (replace the raw
+  user-id `TextField`; reuse the `ContactPicker` pattern) and resolve member
+  `userId` to a display name in the dialog and in `MovementRow`.
+- [ ] **PFM-4 — Editable confirm amount** for variable pending charges (matters
+  once Phase 2 recurring rules land — API `confirmMovement` already accepts an
+  `amount` override).
+- [ ] **PFM-5 — Browser QA at 390px + 1440px** with the 14-aspect checklist —
+  could not run during the build (Playwright MCP bridge extension not connected).
