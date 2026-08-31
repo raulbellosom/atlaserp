@@ -276,6 +276,57 @@ function useCardLongPress(moduleKey, onLongPress) {
   return { longPressHandlers, guardClick };
 }
 
+// ---- CardShell: card <a>/<button> + a sibling overlay, never nested buttons ----
+// The favorite toggle is its own <button>; nesting it inside the card's
+// <button>/<a> is invalid HTML, so it is rendered as an absolutely-positioned
+// sibling within a `relative` wrapper.
+function CardShell({
+  href,
+  cardClassName,
+  wrapperClassName,
+  longPressHandlers,
+  guardClick,
+  onClick,
+  onContextMenu,
+  isOfflineBlocked,
+  overlay,
+  children,
+}) {
+  const card = href ? (
+    <a
+      href={href}
+      onContextMenu={onContextMenu}
+      {...longPressHandlers}
+      onClick={(e) => {
+        if (shouldOpenInNewTab(e)) return;
+        e.preventDefault();
+        guardClick(e, () => onClick?.());
+      }}
+      aria-disabled={isOfflineBlocked || undefined}
+      className={cardClassName}
+    >
+      {children}
+    </a>
+  ) : (
+    <button
+      onContextMenu={onContextMenu}
+      {...longPressHandlers}
+      onClick={(e) => guardClick(e, () => onClick?.())}
+      disabled={isOfflineBlocked}
+      className={cardClassName}
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <div className={cn("relative", wrapperClassName)}>
+      {card}
+      {overlay}
+    </div>
+  );
+}
+
 // ---- ModuleCardGrid: grid card for navigation (HomeScreen, AppLauncher) ----
 export function ModuleCardGrid({
   module,
@@ -291,15 +342,38 @@ export function ModuleCardGrid({
   const { color, accentColor } = visuals;
   const { longPressHandlers, guardClick } = useCardLongPress(module.key, onLongPress);
 
-  const rootClass = cn(
-    "group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden text-left transition-all duration-200",
+  const cardClassName = cn(
+    "group flex w-full flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden text-left transition-all duration-200",
     isOfflineBlocked
       ? "opacity-40 cursor-not-allowed pointer-events-none"
       : "cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
   );
 
-  const inner = (
-    <>
+  const overlay = isOfflineBlocked ? (
+    <WifiOff
+      size={11}
+      className="absolute top-3 right-3 text-[hsl(var(--muted-foreground))]"
+    />
+  ) : (
+    <FavoriteStarButton
+      moduleKey={module.key}
+      isFavorite={isFavorite}
+      onToggleFavorite={onToggleFavorite}
+      className="absolute top-1.5 right-1.5 z-20"
+    />
+  );
+
+  return (
+    <CardShell
+      href={href}
+      cardClassName={cardClassName}
+      longPressHandlers={longPressHandlers}
+      guardClick={guardClick}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      isOfflineBlocked={isOfflineBlocked}
+      overlay={overlay}
+    >
       {/* Gradient header */}
       <div
         className="relative h-16 overflow-hidden shrink-0"
@@ -315,19 +389,6 @@ export function ModuleCardGrid({
           className="absolute right-8 top-2 h-8 w-8 rounded-full opacity-[0.08]"
           style={{ background: color }}
         />
-        {isOfflineBlocked ? (
-          <WifiOff
-            size={11}
-            className="absolute top-3 right-3 text-[hsl(var(--muted-foreground))]"
-          />
-        ) : (
-          <FavoriteStarButton
-            moduleKey={module.key}
-            isFavorite={isFavorite}
-            onToggleFavorite={onToggleFavorite}
-            className="absolute top-1.5 right-1.5 z-20"
-          />
-        )}
       </div>
 
       {/* Icon overlapping header/body boundary */}
@@ -344,38 +405,7 @@ export function ModuleCardGrid({
           {module.summary || module.description}
         </p>
       </div>
-    </>
-  );
-
-  if (href) {
-    return (
-      <a
-        href={href}
-        onContextMenu={onContextMenu}
-        {...longPressHandlers}
-        onClick={(e) => {
-          if (shouldOpenInNewTab(e)) return;
-          e.preventDefault();
-          guardClick(e, () => onClick?.());
-        }}
-        aria-disabled={isOfflineBlocked || undefined}
-        className={rootClass}
-      >
-        {inner}
-      </a>
-    );
-  }
-
-  return (
-    <button
-      onContextMenu={onContextMenu}
-      {...longPressHandlers}
-      onClick={(e) => guardClick(e, () => onClick?.())}
-      disabled={isOfflineBlocked}
-      className={rootClass}
-    >
-      {inner}
-    </button>
+    </CardShell>
   );
 }
 
@@ -392,15 +422,38 @@ export function ModuleListRow({
 }) {
   const { longPressHandlers, guardClick } = useCardLongPress(module.key, onLongPress);
 
-  const rootClass = cn(
-    "flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-200 px-4 py-3 text-left",
+  const cardClassName = cn(
+    "flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-200 py-3 pl-4 pr-12 text-left",
     isOfflineBlocked
       ? "opacity-40 cursor-not-allowed pointer-events-none"
       : "cursor-pointer hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]",
   );
 
-  const inner = (
-    <>
+  const overlay = isOfflineBlocked ? (
+    <WifiOff
+      size={13}
+      className="absolute right-4 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))]"
+    />
+  ) : (
+    <FavoriteStarButton
+      moduleKey={module.key}
+      isFavorite={isFavorite}
+      onToggleFavorite={onToggleFavorite}
+      className="absolute right-2 top-1/2 z-20 -translate-y-1/2"
+    />
+  );
+
+  return (
+    <CardShell
+      href={href}
+      cardClassName={cardClassName}
+      longPressHandlers={longPressHandlers}
+      guardClick={guardClick}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      isOfflineBlocked={isOfflineBlocked}
+      overlay={overlay}
+    >
       <ModuleIcon module={module} size="sm" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[hsl(var(--foreground))] leading-tight">
@@ -410,50 +463,6 @@ export function ModuleListRow({
           {module.summary || module.description}
         </p>
       </div>
-      {isOfflineBlocked ? (
-        <WifiOff
-          size={13}
-          className="text-[hsl(var(--muted-foreground))] shrink-0"
-        />
-      ) : (
-        <FavoriteStarButton
-          moduleKey={module.key}
-          isFavorite={isFavorite}
-          onToggleFavorite={onToggleFavorite}
-          className="shrink-0 -mr-1"
-        />
-      )}
-    </>
-  );
-
-  if (href) {
-    return (
-      <a
-        href={href}
-        onContextMenu={onContextMenu}
-        {...longPressHandlers}
-        onClick={(e) => {
-          if (shouldOpenInNewTab(e)) return;
-          e.preventDefault();
-          guardClick(e, () => onClick?.());
-        }}
-        aria-disabled={isOfflineBlocked || undefined}
-        className={rootClass}
-      >
-        {inner}
-      </a>
-    );
-  }
-
-  return (
-    <button
-      onContextMenu={onContextMenu}
-      {...longPressHandlers}
-      onClick={(e) => guardClick(e, () => onClick?.())}
-      disabled={isOfflineBlocked}
-      className={rootClass}
-    >
-      {inner}
-    </button>
+    </CardShell>
   );
 }
