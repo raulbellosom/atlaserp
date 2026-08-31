@@ -2989,6 +2989,13 @@ enum PfmMovementStatus {
   @@map("pfm_movement_status")
 }
 
+enum PfmRecurringAmountMode {
+  FIXED
+  VARIABLE
+
+  @@map("pfm_recurring_amount_mode")
+}
+
 model PfmWallet {
   id              String        @id @default(uuid(7)) @db.Uuid
   companyId       String        @map("company_id") @db.Uuid
@@ -3004,8 +3011,9 @@ model PfmWallet {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  members   PfmWalletMember[]
-  movements PfmMovement[]
+  members        PfmWalletMember[]
+  movements      PfmMovement[]
+  recurringRules PfmRecurringRule[]
 
   @@index([companyId, ownerId, enabled])
   @@index([ledgerAccountId])
@@ -3083,4 +3091,30 @@ model PfmLedgerEnrichment {
 
   @@index([walletId])
   @@map("pfm_ledger_enrichment")
+}
+
+model PfmRecurringRule {
+  id              String                 @id @default(uuid(7)) @db.Uuid
+  companyId       String                 @map("company_id") @db.Uuid
+  ownerId         String                 @map("owner_id") @db.Uuid
+  walletId        String                 @map("wallet_id") @db.Uuid
+  label           String
+  categoryId      String?                @map("category_id") @db.Uuid
+  direction       PfmMovementDirection
+  amountMode      PfmRecurringAmountMode  @map("amount_mode")
+  amount          Decimal?               @db.Decimal(15, 2)
+  rrule           Json
+  autoPost        Boolean                @default(false) @map("auto_post")
+  nextRunAt       DateTime               @map("next_run_at")
+  endOn           DateTime?              @map("end_on") @db.Date
+  calendarEventId String?                @map("calendar_event_id") @db.Uuid
+  enabled         Boolean                @default(true)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  wallet PfmWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([nextRunAt, enabled])
+  @@index([walletId, enabled])
+  @@map("pfm_recurring_rule")
 }
