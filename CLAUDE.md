@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # First-time setup
 cp .env.example .env
 # Fill in SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL, JWT_SECRET
+# GROQ_API_KEY is optional (atlas.pfm receipt OCR); without it that feature degrades to manual entry
 # Get connection strings from https://studio.supabase.racoondevs.com
 
 pnpm install          # install all dependencies

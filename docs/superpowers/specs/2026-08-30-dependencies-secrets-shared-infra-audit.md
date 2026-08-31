@@ -27,6 +27,14 @@ platform/shared infrastructure that isn't itself a business module
 - No accidental `console.log` of a token/password/secret found in
   `packages/sdk`, `packages/storefront-sdk`, or `apps/desktop/src`.
 
+### Env vars added since this audit
+
+- `GROQ_API_KEY` (+ `PFM_VISION_PROVIDER` / `GROQ_BASE_URL` / `PFM_VISION_MODEL`
+  / `PFM_VISION_TIMEOUT_MS`) — added 2026-08-31 for `atlas.pfm` receipt OCR
+  (`apps/api/src/services/vision-service.js`). Optional: absent → the feature
+  degrades to manual entry, the API and worker still boot. Placeholder-only in
+  `.env.example`. Never logged (the adapter logs only status codes / messages).
+
 ## 2. Dependency CVEs — 51 → 9 advisories fixed
 
 `pnpm audit --prod` started at **51 advisories (21 high, 25 moderate, 5
