@@ -24,11 +24,15 @@ export const createWalletSchema = z.object({
   icon: z.string().max(48).optional().nullable(),
   ledgerAccountId: z.string().uuid().optional().nullable(),
   reference: z.string().max(40).optional().nullable(),
+  creditLimit: z.number().positive().max(9_999_999_999).optional().nullable(),
+  statementDay: z.number().int().min(1).max(31).optional().nullable(),
+  paymentDueDay: z.number().int().min(1).max(31).optional().nullable(),
+  openingUsed: z.number().min(0).max(9_999_999_999).optional().nullable(),
 });
 
 export const updateWalletSchema = createWalletSchema
   .partial()
-  .omit({ ledgerAccountId: true })
+  .omit({ ledgerAccountId: true, openingUsed: true })
   .extend({
     ledgerAccountId: z.string().uuid().nullable().optional(),
   });
@@ -167,8 +171,8 @@ export const contributeGoalSchema = z.object({
   amount: z.number().refine((n) => n !== 0, "El monto no puede ser cero"),
 });
 
-export const creditCardSchema = z.object({
-  creditLimit: z.number().positive().max(9_999_999_999).nullable().optional(),
-  statementDay: z.number().int().min(1).max(31).nullable().optional(),
-  paymentDueDay: z.number().int().min(1).max(31).nullable().optional(),
+export const adjustBalanceSchema = z.object({
+  targetBalance: z.number().max(9_999_999_999),
+  note: z.string().max(500).optional().nullable(),
+  occurredOn: isoDateSchema.optional(),
 });
