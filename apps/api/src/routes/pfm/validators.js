@@ -17,7 +17,7 @@ export const isoDateSchema = z.string().refine(isValidIsoDate, {
 
 export const createWalletSchema = z.object({
   name: z.string().min(1).max(120),
-  kind: z.enum(["CASH", "DEBIT", "CREDIT"]),
+  kind: z.enum(["CASH", "DEBIT", "CREDIT", "INVESTMENT"]),
   currency: z.enum(["MXN", "USD"]).default("MXN"),
   openingBalance: z.number().default(0),
   color: z.string().max(32).optional().nullable(),
@@ -28,6 +28,7 @@ export const createWalletSchema = z.object({
   statementDay: z.number().int().min(1).max(31).optional().nullable(),
   paymentDueDay: z.number().int().min(1).max(31).optional().nullable(),
   openingUsed: z.number().min(0).max(9_999_999_999).optional().nullable(),
+  expectedRate: z.number().min(0).max(1).optional().nullable(),
 });
 
 export const updateWalletSchema = createWalletSchema
