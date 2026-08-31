@@ -330,24 +330,31 @@ memory. Priority order:
   `website-service.js` (878 lines, ~60 functions) otherwise clean — every
   function company-scoped with ownership checks before every write. Spec:
   `docs/superpowers/specs/2026-08-30-atlas-calls-storefront-website-current-state.md`.
-- [ ] **F1 — `atlas.calls`: no mid-call audio→video upgrade (requested by user
-  2026-08-30).** Today `kind` (`AUDIO`/`VIDEO`, a `CallKind` enum) is fixed
-  forever at `createCall` — there is no route/service function to change it
-  later. On the frontend, `CallRoomLayout.jsx` only renders the camera-toggle
-  button when `session.call.kind === "VIDEO"` (`CallRoomLayout.jsx:206`); the
-  underlying LiveKit mechanism (`room.localParticipant.setCameraEnabled`,
-  already wired as `toggleCamera()` in `CallRoom.jsx:172`) has no gate of its
-  own and would work fine if exposed during an AUDIO call — so this is a UI +
-  small API gap, not a transport limitation. To implement: (1) show the camera
-  toggle regardless of `kind`, or add an explicit "Cambiar a videollamada"
-  action visible only during AUDIO calls; (2) once video is enabled, flip
-  `session.call.kind` (or a new local `isVideoActive` flag) so
-  `CallRoomLayout`'s `isDirectVideo`/grid-layout logic switches to the video
-  UI; (3) decide whether the DB `Call.kind` row should be updated for call-
-  history accuracy (needs a small `call-service.js` mutation + route — none
-  exists today) and whether the other participant(s) need a signal/toast that
-  video was just turned on. Needs its own spec before implementation per
-  CLAUDE.md's spec-driven-development workflow. — _medium, feature request_
+- [x] **F1 — `atlas.calls`: mid-call audio→video upgrade + full-scale screen
+  share + draggable/hideable camera PIP (requested by user 2026-08-30).**
+  Done: 2026-08-30, frontend-only. Spec:
+  `docs/superpowers/specs/2026-08-30-atlas-calls-video-upgrade-and-pip-design.md`.
+  - Dropped the `session.call.kind === "VIDEO"` gate on the camera /
+    screen-share buttons in `CallRoomLayout.jsx` — always rendered now.
+  - `CallRoom.jsx` derives `isVideoActive` (kind==VIDEO || local camera/screen
+    on || any remote video track) and drives `isDirectVideo` + the header
+    badge off it, so a call started as voice flips to the video/focus layout
+    the moment anyone turns on a camera.
+  - New `screenShareEntry` derivation → when any participant is sharing, a new
+    layout branch makes the shared screen fill the full viewport
+    (`object-contain`, black ground, no cropped content) and floats every
+    camera feed over it.
+  - New `calls/DraggablePip.jsx` — pointer-events drag (mouse+touch), clamped
+    to the call `<main>`, with a collapse-to-pill / tap-to-restore toggle.
+    Used for the screen-share camera bubbles AND the 2-person focus-layout
+    self-view (which was a fixed, non-hideable box before).
+  - Verified: `pnpm --filter @atlas/desktop build:web` clean; calls+chat
+    backend suites 195/195 (no backend change).
+  - [ ] **F1-a** — persist the upgrade to the DB `Call.kind` (+ tweak the
+    incoming-call notification wording) so call *history* shows "Videollamada"
+    when a voice call became a video call. Purely cosmetic for history — needs
+    a `call-service.js` mutation + route + a `chat.call.kind_changed`
+    broadcast. — _low_
 
 ---
 

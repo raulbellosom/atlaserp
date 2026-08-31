@@ -245,8 +245,23 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
   const localEntry = { participant: room.localParticipant, isLocal: true };
   const remoteEntries = remoteParticipants.map((participant) => ({ participant, isLocal: false }));
   const participants = [localEntry, ...remoteEntries];
-  const isDirectVideo = session.call.kind === "VIDEO" && participants.length === 2;
-  const useFocusLayout = isDirectVideo && layoutMode === "focus";
+
+  const hasLiveTrack = (participant, source) => {
+    const pub = participant?.getTrackPublication?.(source);
+    return Boolean(pub?.track && !pub.isMuted);
+  };
+  const anyRemoteHasVideo = remoteParticipants.some(
+    (p) => hasLiveTrack(p, Track.Source.Camera) || hasLiveTrack(p, Track.Source.ScreenShare),
+  );
+  // A call created as AUDIO becomes a video call the moment anyone turns on a
+  // camera or starts sharing — the UI must follow the tracks, not the frozen
+  // session.call.kind (there is no backend endpoint to change kind mid-call).
+  const isVideoActive =
+    session.call.kind === "VIDEO" || cameraEnabled || screenEnabled || anyRemoteHasVideo;
+  const screenShareEntry =
+    participants.find(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare)) ?? null;
+  const isDirectVideo = isVideoActive && participants.length === 2;
+  const useFocusLayout = isDirectVideo && layoutMode === "focus" && !screenShareEntry;
   const mirrorLocalCamera = cameraFacing !== "environment";
   const gridClass = participants.length === 1
     ? "grid-cols-1 grid-rows-1"
@@ -269,6 +284,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
         localEntry,
         participants,
         useFocusLayout,
+        screenShareEntry,
+        isVideoActive,
         mirrorLocalCamera,
         gridClass,
         needsAudio,

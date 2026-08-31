@@ -37,7 +37,7 @@ async function readJsonResponse(response, message) {
 }
 
 export function createGoogleCalendarEventsService({ fetchImpl = fetch }) {
-  async function listAllEvents({ accessToken, calendarId }) {
+  async function listAllEvents({ accessToken, calendarId, onPage }) {
     const items = []
     let pageToken = null
 
@@ -81,6 +81,12 @@ export function createGoogleCalendarEventsService({ fetchImpl = fetch }) {
       }
 
       pageToken = payload.nextPageToken ?? null
+
+      // Lets callers (the importer) persist a running total as pages arrive,
+      // instead of only knowing the total once every page has been fetched.
+      if (typeof onPage === 'function') {
+        await onPage({ totalSoFar: items.length, done: !pageToken })
+      }
     } while (pageToken)
 
     return items

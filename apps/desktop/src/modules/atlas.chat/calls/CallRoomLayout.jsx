@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Track } from "livekit-client";
 import { playCallSound } from "./callSounds";
+import { DraggablePip } from "./DraggablePip";
 
 function formatDuration(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -24,7 +25,7 @@ function formatDuration(totalSeconds) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function TrackRenderer({ participant, source, muted = false, mirror = false }) {
+function TrackRenderer({ participant, source, muted = false, mirror = false, fit = "cover" }) {
   const elementRef = useRef(null);
   const publication = participant?.getTrackPublication?.(source);
   const track = publication?.track;
@@ -44,18 +45,33 @@ function TrackRenderer({ participant, source, muted = false, mirror = false }) {
       autoPlay
       playsInline
       muted={muted}
-      className={`h-full w-full object-cover ${mirror ? "-scale-x-100" : ""}`}
+      className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"} ${mirror ? "-scale-x-100" : ""}`}
     />
   );
 }
 
-function ParticipantTile({ participant, isLocal, mirrorLocalCamera = true, className = "" }) {
+function ParticipantTile({
+  participant,
+  isLocal,
+  mirrorLocalCamera = true,
+  className = "",
+  preferSource = "auto",
+}) {
   const screen = participant?.getTrackPublication?.(Track.Source.ScreenShare);
   const camera = participant?.getTrackPublication?.(Track.Source.Camera);
-  const hasVideo = Boolean(
-    (screen?.track && !screen.isMuted) || (camera?.track && !camera.isMuted),
-  );
-  const source = screen?.track && !screen.isMuted ? Track.Source.ScreenShare : Track.Source.Camera;
+  const screenLive = Boolean(screen?.track && !screen.isMuted);
+  const cameraLive = Boolean(camera?.track && !camera.isMuted);
+  const source =
+    preferSource === "screen"
+      ? Track.Source.ScreenShare
+      : preferSource === "camera"
+        ? Track.Source.Camera
+        : screenLive
+          ? Track.Source.ScreenShare
+          : Track.Source.Camera;
+  const hasVideo =
+    source === Track.Source.ScreenShare ? screenLive : cameraLive || (preferSource === "auto" && screenLive);
+  const isScreen = source === Track.Source.ScreenShare;
   const name = participant?.name || (isLocal ? "Tu" : participant?.identity) || "Participante";
 
   return (
@@ -65,6 +81,7 @@ function ParticipantTile({ participant, isLocal, mirrorLocalCamera = true, class
           participant={participant}
           source={source}
           muted={isLocal}
+          fit={isScreen ? "contain" : "cover"}
           mirror={isLocal && source === Track.Source.Camera && mirrorLocalCamera}
         />
       ) : (
@@ -120,6 +137,8 @@ export function CallRoomLayout({ view, actions }) {
     localEntry,
     participants,
     useFocusLayout,
+    screenShareEntry,
+    isVideoActive,
     mirrorLocalCamera,
     gridClass,
     needsAudio,
@@ -133,6 +152,16 @@ export function CallRoomLayout({ view, actions }) {
     isDirectVideo,
     layoutMode,
   } = view;
+
+  // While a screen share is live it becomes the full-viewport main view and
+  // every camera feed (local + remote) floats over it as a draggable,
+  // collapsible bubble.
+  const cameraPips = screenShareEntry
+    ? participants.filter(({ participant }) => {
+        const cam = participant?.getTrackPublication?.(Track.Source.Camera);
+        return Boolean(cam?.track && !cam.isMuted);
+      })
+    : [];
 
   return (
     <div className="fixed inset-0 z-[10020] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-slate-950 text-white">
@@ -157,17 +186,45 @@ export function CallRoomLayout({ view, actions }) {
           </p>
         </div>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
-          {session.call.kind === "VIDEO" ? "Videollamada" : "Llamada de voz"}
+          {isVideoActive ? "Videollamada" : "Llamada de voz"}
         </span>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
-        {useFocusLayout ? (
+      <main className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+        {screenShareEntry ? (
+          <div className="relative mx-auto h-full max-w-6xl">
+            <ParticipantTile
+              participant={screenShareEntry.participant}
+              isLocal={screenShareEntry.isLocal}
+              preferSource="screen"
+              className="rounded-[1.5rem] bg-black"
+            />
+            {cameraPips.map(({ participant, isLocal }, index) => (
+              <DraggablePip
+                key={`pip-${participant.sid || participant.identity || "local"}`}
+                label={participant?.name || (isLocal ? "Tú" : participant?.identity) || "Participante"}
+                initial={(participant?.name || (isLocal ? "T" : participant?.identity) || "?").slice(0, 1).toUpperCase()}
+                anchorOffset={index * 12}
+              >
+                <ParticipantTile
+                  participant={participant}
+                  isLocal={isLocal}
+                  preferSource="camera"
+                  mirrorLocalCamera={mirrorLocalCamera}
+                  className="rounded-2xl"
+                />
+              </DraggablePip>
+            ))}
+          </div>
+        ) : useFocusLayout ? (
           <div className="relative mx-auto h-full max-w-6xl">
             <ParticipantTile participant={remoteEntries[0].participant} isLocal={false} className="rounded-[1.5rem]" />
-            <div className="absolute bottom-3 right-3 z-10 aspect-[3/4] w-[34%] max-w-56 overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/20 sm:aspect-video sm:w-[28%]">
+            <DraggablePip
+              label={localEntry.participant?.name || "Tú"}
+              initial={(localEntry.participant?.name || "T").slice(0, 1).toUpperCase()}
+            >
               <ParticipantTile participant={localEntry.participant} isLocal mirrorLocalCamera={mirrorLocalCamera} className="rounded-2xl" />
-            </div>
+            </DraggablePip>
           </div>
         ) : (
           <div className={`mx-auto grid h-full max-w-6xl gap-2 sm:gap-3 ${gridClass}`}>
@@ -203,30 +260,28 @@ export function CallRoomLayout({ view, actions }) {
         <Button type="button" variant={micEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleMicrophone} title={micEnabled ? "Silenciar" : "Activar microfono"}>
           {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
         </Button>
-        {session.call.kind === "VIDEO" && (
-          <>
-            <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleCamera} title={cameraEnabled ? "Apagar camara" : "Encender camara"}>
-              {cameraEnabled ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
-            </Button>
-            {cameraEnabled && canSwitchCamera && (
-              <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.switchCamera} title="Cambiar camara">
-                <SwitchCamera className="h-5 w-5" />
-              </Button>
-            )}
-            {cameraEnabled && torchSupported && (
-              <Button type="button" variant={torchEnabled ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleTorch} title={torchEnabled ? "Apagar linterna" : "Encender linterna"}>
-                {torchEnabled ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
-              </Button>
-            )}
-            <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" className={`h-11 w-11 rounded-full ${screenShareSupported ? "" : "opacity-50"}`} onClick={actions.toggleScreen} aria-disabled={!screenShareSupported} title={screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}>
-              {screenShareSupported ? <MonitorUp className="h-5 w-5" /> : <ScreenShareOff className="h-5 w-5" />}
-            </Button>
-            {isDirectVideo && (
-              <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleLayout} title={layoutMode === "focus" ? "Usar vista 50/50" : "Destacar al otro participante"}>
-                {layoutMode === "focus" ? <LayoutGrid className="h-5 w-5" /> : <PictureInPicture2 className="h-5 w-5" />}
-              </Button>
-            )}
-          </>
+        {/* Camera + screen-share are always available — a call created as voice
+            can be upgraded to video mid-call (no kind gate). */}
+        <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleCamera} title={cameraEnabled ? "Apagar camara" : "Encender camara"}>
+          {cameraEnabled ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
+        </Button>
+        {cameraEnabled && canSwitchCamera && (
+          <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.switchCamera} title="Cambiar camara">
+            <SwitchCamera className="h-5 w-5" />
+          </Button>
+        )}
+        {cameraEnabled && torchSupported && (
+          <Button type="button" variant={torchEnabled ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleTorch} title={torchEnabled ? "Apagar linterna" : "Encender linterna"}>
+            {torchEnabled ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
+          </Button>
+        )}
+        <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" className={`h-11 w-11 rounded-full ${screenShareSupported ? "" : "opacity-50"}`} onClick={actions.toggleScreen} aria-disabled={!screenShareSupported} title={screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}>
+          {screenShareSupported ? <MonitorUp className="h-5 w-5" /> : <ScreenShareOff className="h-5 w-5" />}
+        </Button>
+        {isDirectVideo && (
+          <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleLayout} title={layoutMode === "focus" ? "Usar vista 50/50" : "Destacar al otro participante"}>
+            {layoutMode === "focus" ? <LayoutGrid className="h-5 w-5" /> : <PictureInPicture2 className="h-5 w-5" />}
+          </Button>
         )}
         <Button type="button" variant="destructive" size="icon" className="h-11 w-11 rounded-full sm:w-auto sm:px-6" onClick={actions.leave} title="Colgar">
           <PhoneOff className="h-5 w-5 sm:mr-2" />

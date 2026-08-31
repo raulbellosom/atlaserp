@@ -1,3 +1,9 @@
+// How often (in processed events) the running progress is persisted to the
+// DB while importing. Writing on every single event would double the DB
+// round-trips of a large import for marginal UI benefit; this still updates
+// often enough to feel live for anyone polling the source list.
+const PROGRESS_PERSIST_EVERY = 5
+
 export function createGoogleCalendarInitialImportService({
   prisma,
   eventsService,
@@ -15,16 +21,27 @@ export function createGoogleCalendarInitialImportService({
       syncStatus: 'SYNCING',
       lastErrorAt: null,
       lastErrorMessage: null,
+      importTotalEvents: null,
+      importProcessedEvents: 0,
     })
 
     try {
       const googleEvents = await eventsService.listAllEvents({
         accessToken,
         calendarId: source.googleCalendarId,
+        onPage: async ({ totalSoFar }) => {
+          await updateSourceStatus(source.id, { importTotalEvents: totalSoFar })
+        },
       })
 
+      let processed = 0
       for (const googleEvent of googleEvents) {
         await linkService.upsertImportedEvent({ source, googleEvent })
+        processed += 1
+
+        if (processed % PROGRESS_PERSIST_EVERY === 0 || processed === googleEvents.length) {
+          await updateSourceStatus(source.id, { importProcessedEvents: processed })
+        }
       }
 
       await updateSourceStatus(source.id, {
@@ -32,6 +49,8 @@ export function createGoogleCalendarInitialImportService({
         lastFullSyncAt: new Date(),
         lastErrorAt: null,
         lastErrorMessage: null,
+        importTotalEvents: googleEvents.length,
+        importProcessedEvents: googleEvents.length,
       })
     } catch (error) {
       await updateSourceStatus(source.id, {

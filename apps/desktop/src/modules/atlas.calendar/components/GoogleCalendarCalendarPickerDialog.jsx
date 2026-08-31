@@ -21,6 +21,7 @@ import {
   DialogTitle,
   EmptyState,
   ErrorState,
+  ProgressBar,
   Skeleton,
 } from "@atlas/ui";
 import { toast } from "sonner";
@@ -33,15 +34,19 @@ import {
   useStartGoogleCalendarConnect,
 } from "../hooks/useGoogleCalendarData";
 
-function SourceStatusBadge({ status }) {
+function SourceStatusBadge({ status, processed, total }) {
   if (status === "ACTIVE") return <Badge variant="success">Activo</Badge>;
-  if (status === "SYNCING")
+  if (status === "SYNCING") {
+    const label = typeof total === "number"
+      ? `Importando ${processed ?? 0}/${total}`
+      : "Buscando eventos...";
     return (
       <Badge variant="secondary" className="gap-1">
         <Loader2 className="h-2.5 w-2.5 animate-spin" />
-        Sincronizando
+        {label}
       </Badge>
     );
+  }
   if (status === "PENDING_INITIAL_SYNC")
     return <Badge variant="outline">Pendiente</Badge>;
   if (status === "ERROR") return <Badge variant="destructive">Error</Badge>;
@@ -79,6 +84,13 @@ function CalendarRow({ item, checked, linkedSource, onToggle }) {
     onToggle(item.id);
   }
 
+  const isSyncing = linkedSource?.syncStatus === "SYNCING";
+  const total = linkedSource?.importTotalEvents ?? null;
+  const processed = linkedSource?.importProcessedEvents ?? 0;
+  const progressValue = isSyncing && typeof total === "number" && total > 0
+    ? Math.round((processed / total) * 100)
+    : null;
+
   return (
     <div
       role="button"
@@ -113,13 +125,22 @@ function CalendarRow({ item, checked, linkedSource, onToggle }) {
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {linkedSource ? (
-                <SourceStatusBadge status={linkedSource.syncStatus} />
+                <SourceStatusBadge
+                  status={linkedSource.syncStatus}
+                  processed={processed}
+                  total={total}
+                />
               ) : null}
             </div>
           </div>
           <p className="mt-0.5 text-[11px] text-[hsl(var(--muted-foreground))]">
             {item.timeZone || "Sin zona horaria"}
           </p>
+          {isSyncing ? (
+            <div className="mt-1.5">
+              <ProgressBar value={progressValue} />
+            </div>
+          ) : null}
         </div>
 
         <Checkbox

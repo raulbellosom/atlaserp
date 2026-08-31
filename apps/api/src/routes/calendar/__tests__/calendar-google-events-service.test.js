@@ -35,6 +35,38 @@ describe('google-calendar-events-service', () => {
     assert.equal(fetchCalls[0].options.headers.Authorization, 'Bearer tok')
   })
 
+  it('reports a running total via onPage as each page arrives', async () => {
+    const svc = createGoogleCalendarEventsService({
+      fetchImpl: async (url) => {
+        const hasPage2 = String(url).includes('pageToken=page-2')
+
+        return {
+          ok: true,
+          json: async () => (
+            hasPage2
+              ? { items: [{ id: 'evt-2' }] }
+              : { items: [{ id: 'evt-1' }], nextPageToken: 'page-2' }
+          ),
+        }
+      },
+    })
+
+    const pages = []
+    const items = await svc.listAllEvents({
+      accessToken: 'tok',
+      calendarId: 'primary',
+      onPage: async (info) => {
+        pages.push(info)
+      },
+    })
+
+    assert.deepEqual(items, [{ id: 'evt-1' }, { id: 'evt-2' }])
+    assert.deepEqual(pages, [
+      { totalSoFar: 1, done: false },
+      { totalSoFar: 2, done: true },
+    ])
+  })
+
   it('throws an error with status when google returns a non-ok response', async () => {
     const svc = createGoogleCalendarEventsService({
       fetchImpl: async () => ({

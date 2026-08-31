@@ -348,6 +348,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Badge`, `badgeVariants` | Status and label badge |
 | `Separator` | Horizontal or vertical divider |
 | `Skeleton` | Loading placeholder |
+| `ProgressBar` | Determinate (`value` 0-100) or indeterminate (`value={null}`) progress bar for long-running background operations |
 | `Avatar`, `AvatarImage`, `AvatarFallback` | User avatar with fallback initials |
 
 ### Forms

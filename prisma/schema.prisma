@@ -1732,6 +1732,8 @@ model GoogleCalendarSource {
   lastIncrementalSyncAt  DateTime?                  @map("last_incremental_sync_at")
   lastErrorAt            DateTime?                  @map("last_error_at")
   lastErrorMessage       String?                    @map("last_error_message")
+  importTotalEvents      Int?                       @map("import_total_events")
+  importProcessedEvents  Int?                       @map("import_processed_events")
   enabled                Boolean                    @default(true)
   createdAt              DateTime                   @default(now()) @map("created_at")
   updatedAt              DateTime                   @updatedAt @map("updated_at")
