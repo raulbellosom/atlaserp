@@ -37,7 +37,16 @@ import {
 } from "../lib/format";
 
 export default function WalletDetailScreen() {
-  const { id } = useParams();
+  // ModuleOutlet mounts screens under `m/:moduleKey/*`, so the wallet id lives
+  // in the splat param (e.g. "wallets/<id>"), not in a `:id` route param.
+  const { "*": wildcard } = useParams();
+  const id = useMemo(() => {
+    const segs = String(wildcard ?? "")
+      .replace(/^\/+/, "")
+      .split("/")
+      .filter(Boolean);
+    return segs[segs.length - 1] || undefined;
+  }, [wildcard]);
   const navigate = useNavigate();
   const [month, setMonth] = useState(currentMonthKey());
   const [search, setSearch] = useState("");
