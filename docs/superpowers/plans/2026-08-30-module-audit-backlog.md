@@ -306,7 +306,48 @@ memory. Priority order:
   - [ ] **D8-a** — `HrEmployeeDetail.jsx` (1196, already CLAUDE.md-named) and
     `HrEmployeeForm.jsx` (1048, newly over 1000) need decomposition — deferred,
     same call as other large-file splits this campaign. — _low_
-- [ ] **D9 — `atlas.calls` / `atlas.storefront` / `atlas.website`.** Peripheral. — _low_
+- [x] **D9 — `atlas.calls` / `atlas.storefront` / `atlas.website`.** Done:
+  2026-08-30. `atlas.calls` is clean — the best-engineered module in the whole
+  campaign (deadlock-avoiding locked transactions for simultaneous calls,
+  race-free busy-detection, membership-scoped LiveKit tokens). `atlas.storefront`
+  clean (self-registration role is allowlist-checked against instance config).
+  **Found and fixed a real-money bug in `atlas.website`:** `POST
+  /public/checkout` built Stripe line items straight from client-supplied
+  `item.price`/`currency`/`name` with zero server-side re-validation — a
+  tampered request could buy anything for any price (this route has no
+  first-party caller in the repo — `packages/storefront-sdk` has no checkout
+  support yet — so it looks like it was built ahead of its own cart UI, but
+  the bug is real regardless of caller). Fixed: the route now only trusts
+  `{productId, variantId?, qty}` per line and re-derives price/currency/name
+  server-side from `catalog_product`/`catalog_product_variant` (raw
+  `$queryRaw` — confirmed these AME3-managed tables have no
+  `prisma.<model>` accessor on the generated client despite a `model
+  CatalogProduct` block existing in `schema.prisma`), scoped to the site's own
+  company and `published`/`enabled`. Added `StripeImpl`/`decryptPasswordImpl`
+  injection points (same pattern as `call-service.js`) so this is now
+  unit-tested: new `checkout-routes.test.js` (7 tests) proves a `price: 0.01`
+  attempt against a 500.00 catalog item still charges 500.00.
+  `website-service.js` (878 lines, ~60 functions) otherwise clean — every
+  function company-scoped with ownership checks before every write. Spec:
+  `docs/superpowers/specs/2026-08-30-atlas-calls-storefront-website-current-state.md`.
+- [ ] **F1 — `atlas.calls`: no mid-call audio→video upgrade (requested by user
+  2026-08-30).** Today `kind` (`AUDIO`/`VIDEO`, a `CallKind` enum) is fixed
+  forever at `createCall` — there is no route/service function to change it
+  later. On the frontend, `CallRoomLayout.jsx` only renders the camera-toggle
+  button when `session.call.kind === "VIDEO"` (`CallRoomLayout.jsx:206`); the
+  underlying LiveKit mechanism (`room.localParticipant.setCameraEnabled`,
+  already wired as `toggleCamera()` in `CallRoom.jsx:172`) has no gate of its
+  own and would work fine if exposed during an AUDIO call — so this is a UI +
+  small API gap, not a transport limitation. To implement: (1) show the camera
+  toggle regardless of `kind`, or add an explicit "Cambiar a videollamada"
+  action visible only during AUDIO calls; (2) once video is enabled, flip
+  `session.call.kind` (or a new local `isVideoActive` flag) so
+  `CallRoomLayout`'s `isDirectVideo`/grid-layout logic switches to the video
+  UI; (3) decide whether the DB `Call.kind` row should be updated for call-
+  history accuracy (needs a small `call-service.js` mutation + route — none
+  exists today) and whether the other participant(s) need a signal/toast that
+  video was just turned on. Needs its own spec before implementation per
+  CLAUDE.md's spec-driven-development workflow. — _medium, feature request_
 
 ---
 
