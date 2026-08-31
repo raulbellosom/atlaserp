@@ -192,6 +192,7 @@ export { SectionCard } from "./components/SectionCard.jsx";
 export { SearchInput } from "./components/SearchInput.jsx";
 export { FilterBar } from "./components/FilterBar.jsx";
 export { IconPickerField } from "./components/IconPickerField.jsx";
+export { ICON_CATALOG, resolveLucideIcon } from "./components/icon-catalog.js";
 export { DynamicTable } from "./components/DynamicTable.jsx";
 export { DynamicForm } from "./components/DynamicForm.jsx";
 export { ActionMenu } from "./components/ActionMenu.jsx";

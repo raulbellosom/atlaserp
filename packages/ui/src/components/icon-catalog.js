@@ -1,0 +1,128 @@
+// Shared lucide icon catalog for IconPickerField and any renderer that needs to
+// turn a stored icon name back into a component. Keep the picker and the
+// renderer pointed at the same list so they never drift.
+import {
+  // Tech
+  Laptop,
+  Monitor,
+  Keyboard,
+  Mouse,
+  Printer,
+  Phone,
+  Tablet,
+  HardDrive,
+  Cpu,
+  Server,
+  Wifi,
+  Camera,
+  // Tools
+  Wrench,
+  Hammer,
+  Scissors,
+  Ruler,
+  Plug,
+  Battery,
+  Flashlight,
+  // Office/Furniture
+  BookOpen,
+  Archive,
+  Inbox,
+  Clipboard,
+  FileText,
+  Folder,
+  // Vehicles
+  Car,
+  Truck,
+  Bike,
+  // General
+  Box,
+  Boxes,
+  Package,
+  Tag,
+  Barcode,
+  Warehouse,
+  Building,
+  Home,
+  Globe,
+  Shield,
+  Key,
+  Lock,
+  // People
+  User,
+  Users,
+  UserCheck,
+  // Finance
+  CreditCard,
+  DollarSign,
+  Receipt,
+  Wallet,
+  PiggyBank,
+  Landmark,
+  Banknote,
+  Coins,
+  TrendingUp,
+} from "lucide-react";
+
+export const ICON_CATALOG = [
+  { name: "Laptop", component: Laptop },
+  { name: "Monitor", component: Monitor },
+  { name: "Keyboard", component: Keyboard },
+  { name: "Mouse", component: Mouse },
+  { name: "Printer", component: Printer },
+  { name: "Phone", component: Phone },
+  { name: "Tablet", component: Tablet },
+  { name: "HardDrive", component: HardDrive },
+  { name: "Cpu", component: Cpu },
+  { name: "Server", component: Server },
+  { name: "Wifi", component: Wifi },
+  { name: "Camera", component: Camera },
+  { name: "Wrench", component: Wrench },
+  { name: "Hammer", component: Hammer },
+  { name: "Scissors", component: Scissors },
+  { name: "Ruler", component: Ruler },
+  { name: "Plug", component: Plug },
+  { name: "Battery", component: Battery },
+  { name: "Flashlight", component: Flashlight },
+  { name: "BookOpen", component: BookOpen },
+  { name: "Archive", component: Archive },
+  { name: "Inbox", component: Inbox },
+  { name: "Clipboard", component: Clipboard },
+  { name: "FileText", component: FileText },
+  { name: "Folder", component: Folder },
+  { name: "Car", component: Car },
+  { name: "Truck", component: Truck },
+  { name: "Bike", component: Bike },
+  { name: "Box", component: Box },
+  { name: "Boxes", component: Boxes },
+  { name: "Package", component: Package },
+  { name: "Tag", component: Tag },
+  { name: "Barcode", component: Barcode },
+  { name: "Warehouse", component: Warehouse },
+  { name: "Building", component: Building },
+  { name: "Home", component: Home },
+  { name: "Globe", component: Globe },
+  { name: "Shield", component: Shield },
+  { name: "Key", component: Key },
+  { name: "Lock", component: Lock },
+  { name: "User", component: User },
+  { name: "Users", component: Users },
+  { name: "UserCheck", component: UserCheck },
+  { name: "CreditCard", component: CreditCard },
+  { name: "DollarSign", component: DollarSign },
+  { name: "Receipt", component: Receipt },
+  { name: "Wallet", component: Wallet },
+  { name: "PiggyBank", component: PiggyBank },
+  { name: "Landmark", component: Landmark },
+  { name: "Banknote", component: Banknote },
+  { name: "Coins", component: Coins },
+  { name: "TrendingUp", component: TrendingUp },
+];
+
+const BY_NAME = new Map(ICON_CATALOG.map((i) => [i.name, i.component]));
+
+// Returns the lucide component for a stored icon name, or null when the name is
+// empty / unknown.
+export function resolveLucideIcon(name) {
+  if (!name || typeof name !== "string") return null;
+  return BY_NAME.get(name) ?? null;
+}

@@ -1,122 +1,13 @@
 import { useState } from "react";
-import {
-  // Tech
-  Laptop,
-  Monitor,
-  Keyboard,
-  Mouse,
-  Printer,
-  Phone,
-  Tablet,
-  HardDrive,
-  Cpu,
-  Server,
-  Wifi,
-  Camera,
-  // Tools
-  Wrench,
-  Hammer,
-  Scissors,
-  Ruler,
-  Plug,
-  Battery,
-  Flashlight,
-  // Office/Furniture
-  BookOpen,
-  Archive,
-  Inbox,
-  Clipboard,
-  FileText,
-  Folder,
-  // Vehicles
-  Car,
-  Truck,
-  Bike,
-  // General
-  Box,
-  Boxes,
-  Package,
-  Tag,
-  Barcode,
-  Warehouse,
-  Building,
-  Home,
-  Globe,
-  Shield,
-  Key,
-  Lock,
-  // People
-  User,
-  Users,
-  UserCheck,
-  // Finance
-  CreditCard,
-  DollarSign,
-  Receipt,
-  // Placeholder
-  Grid3x3,
-} from "lucide-react";
+import { Grid3x3 } from "lucide-react";
+import { ICON_CATALOG } from "./icon-catalog.js";
 import { Popover, PopoverTrigger, PopoverContent } from "./Popover.jsx";
 import { Input } from "./Input.jsx";
 import { Label } from "./Label.jsx";
 import { fieldCls } from "./form-field-base.jsx";
 import { cn } from "../lib/utils.js";
 
-const ICONS = [
-  // Tech
-  { name: "Laptop", component: Laptop },
-  { name: "Monitor", component: Monitor },
-  { name: "Keyboard", component: Keyboard },
-  { name: "Mouse", component: Mouse },
-  { name: "Printer", component: Printer },
-  { name: "Phone", component: Phone },
-  { name: "Tablet", component: Tablet },
-  { name: "HardDrive", component: HardDrive },
-  { name: "Cpu", component: Cpu },
-  { name: "Server", component: Server },
-  { name: "Wifi", component: Wifi },
-  { name: "Camera", component: Camera },
-  // Tools
-  { name: "Wrench", component: Wrench },
-  { name: "Hammer", component: Hammer },
-  { name: "Scissors", component: Scissors },
-  { name: "Ruler", component: Ruler },
-  { name: "Plug", component: Plug },
-  { name: "Battery", component: Battery },
-  { name: "Flashlight", component: Flashlight },
-  // Office/Furniture
-  { name: "BookOpen", component: BookOpen },
-  { name: "Archive", component: Archive },
-  { name: "Inbox", component: Inbox },
-  { name: "Clipboard", component: Clipboard },
-  { name: "FileText", component: FileText },
-  { name: "Folder", component: Folder },
-  // Vehicles
-  { name: "Car", component: Car },
-  { name: "Truck", component: Truck },
-  { name: "Bike", component: Bike },
-  // General
-  { name: "Box", component: Box },
-  { name: "Boxes", component: Boxes },
-  { name: "Package", component: Package },
-  { name: "Tag", component: Tag },
-  { name: "Barcode", component: Barcode },
-  { name: "Warehouse", component: Warehouse },
-  { name: "Building", component: Building },
-  { name: "Home", component: Home },
-  { name: "Globe", component: Globe },
-  { name: "Shield", component: Shield },
-  { name: "Key", component: Key },
-  { name: "Lock", component: Lock },
-  // People
-  { name: "User", component: User },
-  { name: "Users", component: Users },
-  { name: "UserCheck", component: UserCheck },
-  // Finance
-  { name: "CreditCard", component: CreditCard },
-  { name: "DollarSign", component: DollarSign },
-  { name: "Receipt", component: Receipt },
-];
+const ICONS = ICON_CATALOG;
 
 export function IconPickerField({
   value,
