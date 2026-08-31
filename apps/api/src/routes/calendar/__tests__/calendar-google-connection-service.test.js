@@ -111,4 +111,37 @@ describe('google-connection-service', () => {
     assert.equal(payload.refreshTokenEncrypted, null)
     assert.equal(payload.revokedAt instanceof Date, true)
   })
+
+  it('persists a refreshed access token without touching the refresh token', async () => {
+    let payload = null
+    let where = null
+    const prisma = makePrisma({
+      googleCalendarConnection: {
+        update: async (args) => {
+          where = args.where
+          payload = args.data
+          return { id: 'gconn-1', ...args.data }
+        },
+      },
+    })
+    const svc = createGoogleCalendarConnectionService({
+      prisma,
+      tokenCrypto: {
+        encrypt: (value) => `enc:${value}`,
+        decrypt: (value) => value.replace(/^enc:/, ''),
+      },
+    })
+
+    const tokenExpiresAt = new Date('2026-06-08T13:00:00.000Z')
+    const connection = await svc.updateAccessToken('user-1', {
+      accessToken: 'access-refreshed',
+      tokenExpiresAt,
+    })
+
+    assert.deepEqual(where, { userId: 'user-1' })
+    assert.equal(payload.accessTokenEncrypted, 'enc:access-refreshed')
+    assert.equal(payload.tokenExpiresAt, tokenExpiresAt)
+    assert.equal('refreshTokenEncrypted' in payload, false)
+    assert.equal(connection.accessTokenEncrypted, 'enc:access-refreshed')
+  })
 })

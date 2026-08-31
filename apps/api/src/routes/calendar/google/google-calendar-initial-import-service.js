@@ -43,7 +43,16 @@ export function createGoogleCalendarInitialImportService({
     }
   }
 
+  async function markSourceError(sourceId, error) {
+    return updateSourceStatus(sourceId, {
+      syncStatus: 'ERROR',
+      lastErrorAt: new Date(),
+      lastErrorMessage: error?.message ?? 'Google initial import failed.',
+    })
+  }
+
   return {
     importSource,
+    markSourceError,
   }
 }

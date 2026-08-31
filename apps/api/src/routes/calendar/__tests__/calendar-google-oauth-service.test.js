@@ -394,6 +394,83 @@ describe('google-oauth-service', () => {
       /missing openid\/email identity/i
     )
   })
+
+  it('refreshes an access token using the refresh token', async () => {
+    const fetchCalls = []
+    const svc = createGoogleOAuthService({
+      config: {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://atlas.example.com/api/calendar/google/connect/callback',
+        scopes: ['openid', 'email'],
+      },
+      fetchImpl: async (url, options) => {
+        fetchCalls.push({ url, options })
+        return createJsonResponse({
+          payload: {
+            access_token: 'access-2',
+            expires_in: 3600,
+            scope: 'openid email',
+          },
+        })
+      },
+    })
+
+    const startedAt = Date.now()
+    const result = await svc.refreshAccessToken({ refreshToken: 'refresh-1' })
+
+    assert.equal(fetchCalls.length, 1)
+    assert.equal(fetchCalls[0].url, 'https://oauth2.googleapis.com/token')
+    assert.equal(fetchCalls[0].options.method, 'POST')
+    assert.equal(fetchCalls[0].options.body.get('refresh_token'), 'refresh-1')
+    assert.equal(fetchCalls[0].options.body.get('client_id'), 'client-id')
+    assert.equal(fetchCalls[0].options.body.get('client_secret'), 'client-secret')
+    assert.equal(fetchCalls[0].options.body.get('grant_type'), 'refresh_token')
+
+    assert.equal(result.accessToken, 'access-2')
+    assert.equal(result.tokenExpiresAt instanceof Date, true)
+    assert.equal(result.tokenExpiresAt.getTime() >= startedAt + 3_590_000, true)
+  })
+
+  it('rejects a refresh response missing an access token', async () => {
+    const svc = createGoogleOAuthService({
+      config: {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://atlas.example.com/api/calendar/google/connect/callback',
+        scopes: ['openid', 'email'],
+      },
+      fetchImpl: async () => createJsonResponse({
+        payload: { expires_in: 3600 },
+      }),
+    })
+
+    await assert.rejects(
+      () => svc.refreshAccessToken({ refreshToken: 'refresh-1' }),
+      /token refresh failed/i
+    )
+  })
+
+  it('rejects a non-ok refresh response (e.g. revoked refresh token)', async () => {
+    const svc = createGoogleOAuthService({
+      config: {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        redirectUri: 'https://atlas.example.com/api/calendar/google/connect/callback',
+        scopes: ['openid', 'email'],
+      },
+      fetchImpl: async () => createJsonResponse({
+        ok: false,
+        status: 400,
+        payload: { error: 'invalid_grant' },
+      }),
+    })
+
+    await assert.rejects(
+      () => svc.refreshAccessToken({ refreshToken: 'revoked' }),
+      /token refresh failed/i
+    )
+  })
 })
 
 describe('google-calendar-discovery-service', () => {

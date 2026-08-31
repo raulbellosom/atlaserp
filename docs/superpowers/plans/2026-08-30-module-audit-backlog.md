@@ -371,6 +371,32 @@ memory. Priority order:
 
 ---
 
+## G. Dependencies / secrets / shared infrastructure (2026-08-30, post-campaign)
+
+Done: `pnpm audit --prod` 51 → 9 advisories (hono, @hono/node-server,
+react-router-dom, sharp bumped directly; ws + dompurify + tmp + js-yaml +
+brace-expansion + nanoid pinned via `pnpm.overrides` since they're transitive
+through real runtime deps — supabase-realtime, atlas-web-builder, exceljs,
+mdxeditor). Secrets scan clean (no committed .env, ever, in git history; no
+hardcoded keys in source). `module-lifecycle-service.js` / `-migration-`
+confirmed safe (table names/migration SQL both allowlist-gated before any
+raw-SQL interpolation). `apps/worker` is no longer a stub (242-line
+multi-job cron runner) — spot-checked, no HTTP surface, growth aggregation
+correctly company-attributed. Spec:
+`docs/superpowers/specs/2026-08-30-dependencies-secrets-shared-infra-audit.md`.
+
+- [ ] **G1 — bump `nodemailer` 8→9** (fixes a high-severity SSRF/arbitrary-file-read
+  CVE via the message-level `raw` option — confirmed unused in
+  `smtp-service.js`, so not currently exploitable, but the dependency itself
+  stays flagged). Needs a dedicated pass with a live-SMTP send test before
+  merging, not a blind bump. — _medium_
+- [ ] **G2 — `uuid@8.3.2`** (transitive via `exceljs`) has a CVE in
+  `v3()/v5()/v6()` + a custom `buf` argument; exceljs only calls `v4()` with
+  no `buf`, so this is not currently exploitable through our usage. No action
+  needed unless that changes. — _informational_
+
+---
+
 ## Suggested order
 
 1. **A1** (calendar cross-tenant) — quick, security.

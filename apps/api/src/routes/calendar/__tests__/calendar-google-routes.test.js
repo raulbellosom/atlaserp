@@ -665,4 +665,145 @@ describe('calendar google routes', () => {
     assert.deepEqual(disconnectCalls, [])
     assert.deepEqual(payload, { ok: true })
   })
+
+  it('deletes google-imported calendars and events when deleteEvents is true', async () => {
+    const prismaCalls = []
+    const disconnectCalls = []
+    const disableCalls = []
+    const app = createCalendarRouter({
+      prisma: {
+        googleCalendarSource: {
+          findMany: async (input) => {
+            prismaCalls.push({ type: 'source.findMany', input })
+            return [
+              { id: 'gsrc-1', atlasCalendarId: 'cal-1' },
+              { id: 'gsrc-2', atlasCalendarId: 'cal-2' },
+            ]
+          },
+          deleteMany: async (input) => {
+            prismaCalls.push({ type: 'source.deleteMany', input })
+            return { count: 2 }
+          },
+        },
+        calendarCalendar: {
+          deleteMany: async (input) => {
+            prismaCalls.push({ type: 'calendar.deleteMany', input })
+            return { count: 2 }
+          },
+        },
+      },
+      requirePermission: makeRequirePermission([]),
+      google: {
+        resolveConfig: () => ({
+          configured: true,
+          missing: [],
+          clientId: 'client-id',
+          clientSecret: 'client-secret',
+          redirectUri: 'https://atlas.example.com/app/google/calendar/callback',
+          encryptionKey: Buffer.alloc(32, 7).toString('base64'),
+          scopes: ['openid', 'email'],
+        }),
+        connectionService: {
+          getConnectionByUserId: async () => ({
+            id: 'gconn-1',
+            userId: 'user-1',
+            status: 'ACTIVE',
+          }),
+          disconnect: async (userId) => {
+            disconnectCalls.push(userId)
+          },
+        },
+        sourceService: {
+          disableSourcesForConnection: async (connectionId) => {
+            disableCalls.push(connectionId)
+          },
+        },
+      },
+    })
+
+    const response = await app.request('http://localhost/calendar/google/disconnect', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer tok',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ deleteEvents: true }),
+    })
+    const payload = await response.json()
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(payload, { ok: true })
+
+    const orderedTypes = prismaCalls.map((call) => call.type)
+    assert.deepEqual(orderedTypes, [
+      'source.findMany',
+      'source.deleteMany',
+      'calendar.deleteMany',
+    ])
+    assert.deepEqual(prismaCalls[1].input, { where: { id: { in: ['gsrc-1', 'gsrc-2'] } } })
+    assert.deepEqual(prismaCalls[2].input, { where: { id: { in: ['cal-1', 'cal-2'] } } })
+    assert.deepEqual(disableCalls, ['gconn-1'])
+    assert.deepEqual(disconnectCalls, ['user-1'])
+  })
+
+  it('keeps google-imported calendars and events when deleteEvents is not true', async () => {
+    const prismaCalls = []
+    const app = createCalendarRouter({
+      prisma: {
+        googleCalendarSource: {
+          findMany: async () => {
+            prismaCalls.push('source.findMany')
+            return [{ id: 'gsrc-1', atlasCalendarId: 'cal-1' }]
+          },
+          deleteMany: async () => {
+            prismaCalls.push('source.deleteMany')
+            return { count: 1 }
+          },
+        },
+        calendarCalendar: {
+          deleteMany: async () => {
+            prismaCalls.push('calendar.deleteMany')
+            return { count: 1 }
+          },
+        },
+      },
+      requirePermission: makeRequirePermission([]),
+      google: {
+        resolveConfig: () => ({
+          configured: true,
+          missing: [],
+          clientId: 'client-id',
+          clientSecret: 'client-secret',
+          redirectUri: 'https://atlas.example.com/app/google/calendar/callback',
+          encryptionKey: Buffer.alloc(32, 7).toString('base64'),
+          scopes: ['openid', 'email'],
+        }),
+        connectionService: {
+          getConnectionByUserId: async () => ({
+            id: 'gconn-1',
+            userId: 'user-1',
+            status: 'ACTIVE',
+          }),
+          disconnect: async () => {},
+        },
+        sourceService: {
+          disableSourcesForConnection: async () => {},
+        },
+      },
+    })
+
+    const response = await app.request('http://localhost/calendar/google/disconnect', {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer tok',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ deleteEvents: false }),
+    })
+    const payload = await response.json()
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(payload, { ok: true })
+    assert.deepEqual(prismaCalls, [])
+  })
 })

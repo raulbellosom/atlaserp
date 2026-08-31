@@ -64,4 +64,26 @@ describe('google-calendar-initial-import-service', () => {
     assert.equal(lastUpdate.syncStatus, 'ERROR')
     assert.equal(typeof lastUpdate.lastErrorMessage, 'string')
   })
+
+  it('marks a source as ERROR directly via markSourceError', async () => {
+    let lastUpdate = null
+    const svc = createGoogleCalendarInitialImportService({
+      prisma: {
+        googleCalendarSource: {
+          update: async ({ data }) => {
+            lastUpdate = data
+            return { id: 'gsrc-1', ...data }
+          },
+        },
+      },
+      eventsService: { listAllEvents: async () => [] },
+      linkService: { upsertImportedEvent: async () => ({ mode: 'created' }) },
+    })
+
+    await svc.markSourceError('gsrc-1', new Error('reconnect required'))
+
+    assert.equal(lastUpdate.syncStatus, 'ERROR')
+    assert.equal(lastUpdate.lastErrorMessage, 'reconnect required')
+    assert.equal(lastUpdate.lastErrorAt instanceof Date, true)
+  })
 })

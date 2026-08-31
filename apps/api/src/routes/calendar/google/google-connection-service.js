@@ -54,9 +54,20 @@ export function createGoogleCalendarConnectionService({ prisma, tokenCrypto }) {
     })
   }
 
+  async function updateAccessToken(userId, { accessToken, tokenExpiresAt }) {
+    return prisma.googleCalendarConnection.update({
+      where: { userId },
+      data: {
+        accessTokenEncrypted: tokenCrypto.encrypt(accessToken),
+        tokenExpiresAt,
+      },
+    })
+  }
+
   return {
     getConnectionByUserId,
     saveConnection,
     disconnect,
+    updateAccessToken,
   }
 }

@@ -40,12 +40,12 @@ async function readJsonResponse(response, message) {
   return payload
 }
 
-function resolveExpiresInSeconds(tokenPayload, response) {
+function resolveExpiresInSeconds(tokenPayload, response, label = 'exchange') {
   const expiresIn = Number(tokenPayload.expires_in)
 
   if (!Number.isFinite(expiresIn) || expiresIn <= 0) {
     throw createGoogleError(
-      'Google OAuth token exchange failed. Invalid expires_in.',
+      `Google OAuth token ${label} failed. Invalid expires_in.`,
       response,
       tokenPayload
     )
@@ -234,10 +234,50 @@ export function createGoogleOAuthService({ config, fetchImpl = fetch }) {
     }
   }
 
+  async function refreshAccessToken({ refreshToken }) {
+    const tokenResponse = await fetchImpl(GOOGLE_TOKEN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        refresh_token: refreshToken,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        grant_type: 'refresh_token',
+      }),
+    })
+
+    const tokenPayload = await readJsonResponse(
+      tokenResponse,
+      'Google OAuth token refresh failed.'
+    )
+
+    if (!tokenPayload.access_token) {
+      throw createGoogleError(
+        'Google OAuth token refresh failed. Missing access token.',
+        tokenResponse,
+        tokenPayload
+      )
+    }
+
+    const expiresInSeconds = resolveExpiresInSeconds(tokenPayload, tokenResponse, 'refresh')
+
+    return {
+      accessToken: tokenPayload.access_token,
+      tokenExpiresAt: new Date(Date.now() + expiresInSeconds * 1000),
+      scopes: String(tokenPayload.scope ?? '')
+        .split(' ')
+        .map((scope) => scope.trim())
+        .filter(Boolean),
+    }
+  }
+
   return {
     createAuthorizationState,
     verifyAuthorizationState,
     buildAuthorizationUrl,
     exchangeCodeForTokens,
+    refreshAccessToken,
   }
 }

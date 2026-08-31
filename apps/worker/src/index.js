@@ -8,6 +8,17 @@ import pg from 'pg'
 import { createNotificationDeliveryWorker } from '../../api/src/services/notification-delivery-worker.js'
 import { createCalendarNotificationService } from '../../api/src/routes/calendar/calendar-notification-service.js'
 import { createSyncLogCleanupWorker } from '../../api/src/services/sync-cleanup-worker.js'
+import { resolveGoogleCalendarConfig } from '../../api/src/routes/calendar/google/google-config.js'
+import { createGoogleTokenCrypto } from '../../api/src/routes/calendar/google/google-token-crypto.js'
+import { createGoogleCalendarConnectionService } from '../../api/src/routes/calendar/google/google-connection-service.js'
+import { createGoogleOAuthService } from '../../api/src/routes/calendar/google/google-oauth-service.js'
+import { createGoogleCalendarEventsService } from '../../api/src/routes/calendar/google/google-calendar-events-service.js'
+import { createGoogleCalendarEventLinkService } from '../../api/src/routes/calendar/google/google-calendar-event-link-service.js'
+import { createGoogleCalendarInitialImportService } from '../../api/src/routes/calendar/google/google-calendar-initial-import-service.js'
+import {
+  createGoogleCalendarImportRecoveryService,
+  GOOGLE_IMPORT_RECOVERY_INTERVAL_MS,
+} from '../../api/src/routes/calendar/google/google-calendar-import-recovery-service.js'
 import { createNotificationService } from '../../api/src/services/notification-service.js'
 import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
 import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
@@ -63,6 +74,29 @@ const GROWTH_AGGREGATION_INTERVAL_MS = Number(
     process.env.ATLAS_GROWTH_RETENTION_INTERVAL_MS ??
     60 * 60 * 1000,
 )
+
+const googleCalendarConfig = resolveGoogleCalendarConfig(process.env)
+let googleImportRecoveryService = null
+if (googleCalendarConfig?.configured) {
+  const googleTokenCrypto = createGoogleTokenCrypto({ key: googleCalendarConfig.encryptionKey })
+  const googleConnectionService = createGoogleCalendarConnectionService({
+    prisma,
+    tokenCrypto: googleTokenCrypto,
+  })
+  const googleOAuthService = createGoogleOAuthService({ config: googleCalendarConfig })
+  const googleInitialImportService = createGoogleCalendarInitialImportService({
+    prisma,
+    eventsService: createGoogleCalendarEventsService(),
+    linkService: createGoogleCalendarEventLinkService({ prisma }),
+  })
+  googleImportRecoveryService = createGoogleCalendarImportRecoveryService({
+    prisma,
+    connectionService: googleConnectionService,
+    oauthService: googleOAuthService,
+    tokenCrypto: googleTokenCrypto,
+    initialImportService: googleInitialImportService,
+  })
+}
 
 function isConnectionError(err) {
   const msg = err?.message ?? ''
@@ -166,6 +200,22 @@ async function runGrowthRetentionTick() {
   }
 }
 
+async function runGoogleImportRecoveryTick() {
+  if (!googleImportRecoveryService) return
+
+  try {
+    const result = await googleImportRecoveryService.recoverStaleImports()
+    if ((result?.recovered ?? 0) > 0 || (result?.failed ?? 0) > 0) {
+      console.log(
+        `[worker] google calendar import recovery ${formatLogTimestamp()} recovered=${result.recovered} failed=${result.failed}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] google calendar import recovery tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
 console.log('Atlas Worker started')
 runCalendarReminderTick()
 runDeliveryTick()
@@ -190,6 +240,10 @@ runGrowthRetentionTick()
 setInterval(() => {
   runGrowthRetentionTick()
 }, GROWTH_AGGREGATION_INTERVAL_MS)
+runGoogleImportRecoveryTick()
+setInterval(() => {
+  runGoogleImportRecoveryTick()
+}, GOOGLE_IMPORT_RECOVERY_INTERVAL_MS)
 
 async function runRecurringTasksTick() {
   try {

@@ -14,6 +14,7 @@ import { createGoogleCalendarSourceService } from "./google/google-source-servic
 import { createGoogleCalendarEventsService } from "./google/google-calendar-events-service.js";
 import { createGoogleCalendarEventLinkService } from "./google/google-calendar-event-link-service.js";
 import { createGoogleCalendarInitialImportService } from "./google/google-calendar-initial-import-service.js";
+import { createGoogleAccessTokenResolver } from "./google/google-access-token-resolver.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -47,18 +48,6 @@ function toAttendeeUserIds(event, excludeUserId = null) {
   const unique = [...new Set(ids)];
   if (!excludeUserId) return unique;
   return unique.filter((id) => id !== excludeUserId);
-}
-
-function hasUsableAccessToken(connection, now = new Date()) {
-  if (!connection?.accessTokenEncrypted) return false;
-
-  const tokenExpiresAt = connection.tokenExpiresAt
-    ? new Date(connection.tokenExpiresAt)
-    : null;
-
-  if (!tokenExpiresAt || Number.isNaN(tokenExpiresAt.getTime())) return false;
-
-  return tokenExpiresAt.getTime() > now.getTime();
 }
 
 function createGoogleRouteDependencies({ prisma, google = {} }) {
@@ -141,6 +130,17 @@ function createGoogleRouteDependencies({ prisma, google = {} }) {
     );
   }
 
+  function getAccessTokenResolver() {
+    return (
+      google.accessTokenResolver ??
+      createGoogleAccessTokenResolver({
+        tokenCrypto: getTokenCrypto(),
+        oauthService: getOAuthService(),
+        connectionService: getConnectionService(),
+      })
+    );
+  }
+
   return {
     getConfig,
     requireConfig,
@@ -152,6 +152,7 @@ function createGoogleRouteDependencies({ prisma, google = {} }) {
     getEventsService,
     getEventLinkService,
     getInitialImportService,
+    getAccessTokenResolver,
   };
 }
 
@@ -171,10 +172,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
     }).catch(() => {})
   }
 
-  async function requireActiveGoogleConnection(
-    userId,
-    { requireUsableAccessToken = false } = {},
-  ) {
+  async function requireActiveGoogleConnection(userId) {
     const connection = await googleDeps
       .getConnectionService()
       .getConnectionByUserId(userId);
@@ -182,22 +180,6 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
     if (!connection || connection.status !== "ACTIVE") {
       throw new CalendarServiceError(
         "No hay una cuenta Google conectada.",
-        409,
-      );
-    }
-
-    if (!requireUsableAccessToken) return connection;
-
-    if (!connection.accessTokenEncrypted) {
-      throw new CalendarServiceError(
-        "No hay una cuenta Google conectada.",
-        409,
-      );
-    }
-
-    if (!hasUsableAccessToken(connection)) {
-      throw new CalendarServiceError(
-        "La conexion de Google Calendar expiro. Reconecta la cuenta para continuar.",
         409,
       );
     }
@@ -456,13 +438,10 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
       try {
         googleDeps.requireConfig();
         const userId = getUserId(c);
-        const connection = await requireActiveGoogleConnection(userId, {
-          requireUsableAccessToken: true,
-        });
-
-        const accessToken = googleDeps
-          .getTokenCrypto()
-          .decrypt(connection.accessTokenEncrypted);
+        const connection = await requireActiveGoogleConnection(userId);
+        const { accessToken } = await googleDeps
+          .getAccessTokenResolver()
+          .resolveAccessToken(userId, connection);
         const items = await googleDeps
           .getDiscoveryService()
           .listCalendars({ accessToken });
@@ -522,25 +501,40 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
           Array.isArray(result.importTargets) &&
           result.importTargets.length > 0
         ) {
-          const accessToken = googleDeps
-            .getTokenCrypto()
-            .decrypt(connection.accessTokenEncrypted);
+          const importTargets = result.importTargets;
 
-          queueMicrotask(() => {
-            Promise.allSettled(
-              result.importTargets.map((source) =>
-                googleDeps
-                  .getInitialImportService()
-                  .importSource({ source, accessToken }),
-              ),
-            ).catch((error) => {
+          queueMicrotask(async () => {
+            try {
+              const { accessToken } = await googleDeps
+                .getAccessTokenResolver()
+                .resolveAccessToken(userId, connection);
+
+              await Promise.allSettled(
+                importTargets.map((source) =>
+                  googleDeps
+                    .getInitialImportService()
+                    .importSource({ source, accessToken }),
+                ),
+              );
+            } catch (error) {
+              // Token could not be resolved/refreshed (e.g. the refresh
+              // token was revoked) — mark the pending sources as errored
+              // instead of leaving them stuck at SYNCING forever.
+              await Promise.allSettled(
+                importTargets.map((source) =>
+                  googleDeps
+                    .getInitialImportService()
+                    .markSourceError(source.id, error),
+                ),
+              ).catch(() => {});
+
               if (process.env.NODE_ENV !== "production") {
                 console.error(
                   "[atlas.calendar] google initial import dispatch failed",
                   error,
                 );
               }
-            });
+            }
           });
         }
 
