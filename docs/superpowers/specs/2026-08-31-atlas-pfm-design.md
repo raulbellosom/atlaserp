@@ -57,13 +57,12 @@ apps/api/src/routes/pfm/
   summary-service.js                      dashboard rollups
   pfm-calendar-bridge.js                  seeds CalendarEvent rows
   ledger-link-service.js                  reads atlas.ledger movements (read-only)
-  service-helpers.js                      requireAnyPermission, access predicates
-  validators.js
+  service-helpers.js                      getCompanyId/getActorId, access predicates
+  validators.js                           route-local Zod schemas (sibling pattern: ledger keeps its own)
 apps/api/src/services/vision-service.js   vision adapter (GroqVisionAdapter) — first AI service in repo
 apps/worker/src/index.js                  + runPfmRecurringTick(), runPfmReceiptTick()
-apps/desktop/src/modules/atlas.pfm/       React screens (@atlas/ui)
+apps/desktop/src/modules/atlas.pfm/       React screens (@atlas/ui), forms define their own Zod
 packages/sdk/                             + client.pfm group
-packages/validators/                      + pfm.* Zod schemas
 prisma/seed.js                            + atlas.pfm module row + system PfmCategory seed
 apps/api/src/permission-catalog.js        + pfm.* permission keys
 ```
