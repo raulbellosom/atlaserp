@@ -15,6 +15,7 @@ import { Plus, Users, Pencil, EyeOff, Wallet } from "lucide-react";
 import { useWallets, useSetWalletEnabled } from "../hooks/use-pfm-queries";
 import { WalletFormSheet } from "../components/WalletFormSheet";
 import { WalletMembersDialog } from "../components/WalletMembersDialog";
+import { CreditUsageBlock } from "../components/CreditUsageBlock";
 import { formatMoney, WALLET_KIND_LABEL } from "../lib/format";
 
 export default function WalletsScreen() {
@@ -122,9 +123,15 @@ export default function WalletsScreen() {
               {w.reference && <span className="tabular-nums">· {w.reference}</span>}
               {w.ledgerAccountId && <Badge variant="outline">Libro de cuentas</Badge>}
             </p>
-            <p className="relative mt-3 text-2xl font-bold tracking-tight tabular-nums text-[hsl(var(--foreground))]">
-              {formatMoney(w.currentBalance, w.currency)}
-            </p>
+            {w.kind === "CREDIT" ? (
+              <div className="relative">
+                <CreditUsageBlock wallet={w} />
+              </div>
+            ) : (
+              <p className="relative mt-3 text-2xl font-bold tracking-tight tabular-nums text-[hsl(var(--foreground))]">
+                {formatMoney(w.currentBalance, w.currency)}
+              </p>
+            )}
           </Card>
           );
         })}
