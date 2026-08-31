@@ -101,5 +101,49 @@ export function createSummaryService({ prisma }) {
     }
   }
 
-  return { getOverview };
+  async function getUpcoming({ companyId, actorId, days = 14 }) {
+    if (!actorId) throw new PfmServiceError("Se requiere un usuario autenticado.", 401);
+    const horizon = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+    try {
+      const rows = await prisma.$queryRaw`
+        SELECT m.id, m.wallet_id, w.name AS wallet_name, w.currency,
+               m.direction, m.amount, m.occurred_on, m.merchant, m.status,
+               m.recurring_rule_id, c.name AS category_name, c.color AS category_color
+        FROM pfm_movement m
+        JOIN pfm_wallet w ON w.id = m.wallet_id
+        LEFT JOIN pfm_category c ON c.id = m.category_id
+        WHERE m.company_id = ${companyId}::uuid
+          AND m.enabled = true
+          AND m.status = 'PENDING'
+          AND m.occurred_on <= ${horizon}::date
+          AND (w.owner_id = ${actorId}::uuid
+               OR EXISTS (SELECT 1 FROM pfm_wallet_member wm WHERE wm.wallet_id = w.id AND wm.user_id = ${actorId}::uuid))
+        ORDER BY m.occurred_on ASC
+        LIMIT 100
+      `;
+      return {
+        data: rows.map((r) => ({
+          id: r.id,
+          walletId: r.wallet_id,
+          walletName: r.wallet_name,
+          currency: r.currency,
+          direction: r.direction,
+          amount: toPlainNumber(r.amount),
+          occurredOn: (r.occurred_on instanceof Date
+            ? r.occurred_on.toISOString()
+            : String(r.occurred_on)
+          ).slice(0, 10),
+          merchant: r.merchant ?? null,
+          categoryName: r.category_name ?? null,
+          categoryColor: r.category_color ?? null,
+          fromRule: Boolean(r.recurring_rule_id),
+        })),
+      };
+    } catch (err) {
+      if (isTableNotFoundError(err)) throw new PfmServiceError(NOT_INSTALLED, 503);
+      throw err;
+    }
+  }
+
+  return { getOverview, getUpcoming };
 }
