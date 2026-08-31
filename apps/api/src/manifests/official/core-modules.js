@@ -1374,7 +1374,7 @@ export const notesMap = createModuleManifest({
 export const atlasPfmManifest = createModuleManifest({
   key: "atlas.pfm",
   name: "Finanzas personales",
-  version: "0.2.0",
+  version: "0.3.0",
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
