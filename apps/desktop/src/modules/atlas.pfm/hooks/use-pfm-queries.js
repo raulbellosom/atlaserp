@@ -97,6 +97,43 @@ export function useUpcoming(days = 14) {
   });
 }
 
+export function useReceipts() {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "receipts"],
+    queryFn: () => atlas.pfm.listReceipts(token),
+    enabled: Boolean(token),
+    select: (res) => res.data ?? [],
+    refetchInterval: (query) =>
+      (query.state.data?.data ?? []).some((r) => r.status === "PROCESSING") ? 4000 : false,
+  });
+}
+
+export function useReceipt(receiptId, { poll = true } = {}) {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "receipt", receiptId],
+    queryFn: () => atlas.pfm.getReceipt(receiptId, token),
+    enabled: Boolean(token && receiptId),
+    select: (res) => res.data ?? null,
+    refetchInterval: (query) =>
+      poll && query.state.data?.data?.status === "PROCESSING" ? 3000 : false,
+  });
+}
+
+export function useReceiptImageUrl(fileId) {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "receipt-image", fileId],
+    queryFn: async () => {
+      const res = await atlas.files.getSignedUrl(fileId, token);
+      return res?.data?.signedUrl ?? res?.signedUrl ?? null;
+    },
+    enabled: Boolean(token && fileId),
+    staleTime: 45 * 60 * 1000,
+  });
+}
+
 export function useWalletMembers(walletId, enabled = true) {
   const token = useToken();
   return useQuery({
@@ -224,6 +261,37 @@ export function useSetRecurringRuleEnabled() {
   return useMutation({
     mutationFn: ({ id, enabled }) => atlas.pfm.setRecurringRuleEnabled(id, enabled, token),
     onSuccess: () => invalidate(),
+  });
+}
+
+export function useUploadReceipt() {
+  const token = useToken();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      return atlas.pfm.uploadReceipt(fd, token);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "receipts"] }),
+  });
+}
+
+export function useConfirmReceipt() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => atlas.pfm.confirmReceipt(id, data, token),
+    onSuccess: (_r, v) => invalidate(v.walletId),
+  });
+}
+
+export function useRetryReceipt() {
+  const token = useToken();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => atlas.pfm.retryReceipt(id, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "receipts"] }),
   });
 }
 
