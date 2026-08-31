@@ -1,7 +1,10 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useEffect, useRef, useState } from 'react'
-import { GripVertical, Pencil, Crop as CropIcon, Check } from 'lucide-react'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
+import {
+  GripVertical, Pencil, Crop as CropIcon, Check,
+  PenLine, ArrowUpRight, Square, Type, ChevronDown,
+} from 'lucide-react'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Popover, PopoverTrigger, PopoverContent } from '@atlas/ui'
 import { findDropPosition, moveNode } from '../lib/dragReorder.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 import { cropToViewBox, elementFracToImageSpace } from '../lib/imageCrop.js'
@@ -10,10 +13,10 @@ import { ImageCropModal } from './ImageCropModal.jsx'
 
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#1a1a1a', '#ffffff']
 const TOOLS = [
-  { id: 'pen', label: 'Lapiz' },
-  { id: 'arrow', label: 'Flecha' },
-  { id: 'rect', label: 'Recuadro' },
-  { id: 'text', label: 'Texto' },
+  { id: 'pen', label: 'Lapiz', icon: PenLine },
+  { id: 'arrow', label: 'Flecha', icon: ArrowUpRight },
+  { id: 'rect', label: 'Recuadro', icon: Square },
+  { id: 'text', label: 'Texto', icon: Type },
 ]
 const W = 1000
 const H = 1000
@@ -366,6 +369,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
   }
 
   const src = withImageVariant(node.attrs.src, 'content')
+  const ActiveToolIcon = TOOLS.find((t) => t.id === tool)?.icon ?? PenLine
   const displayWidthPct = liveWidthPct ?? widthPct
   // Outer box: controls the resizable width, carries the selection ring and
   // the pill/handle controls — never clipped, so they're never cut off.
@@ -392,79 +396,6 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
 
   return (
     <NodeViewWrapper className="group/img relative my-2 block w-full">
-      {isEditing && (
-        <div className="flex items-center gap-1.5 py-1.5 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch]">
-          <button
-            title="Arrastrar para mover la imagen"
-            className="flex items-center justify-center w-9 h-9 rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] hover:text-[hsl(var(--foreground))] cursor-grab active:cursor-grabbing shrink-0"
-            style={{ touchAction: 'none' }}
-            onPointerDown={onHandlePointerDown}
-            onPointerMove={onHandlePointerMove}
-            onPointerUp={onHandlePointerUp}
-            onPointerCancel={onHandlePointerUp}
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
-          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
-          {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTool(t.id)}
-              className={`px-2.5 h-9 rounded font-medium shrink-0 ${
-                tool === t.id
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                  : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-7 h-7 rounded-full border-2 shrink-0 ${color === c ? 'border-amber-500 scale-110' : 'border-transparent'}`}
-              style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }}
-            />
-          ))}
-          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
-          <Select value={String(lineWidth)} onValueChange={(v) => setLineWidth(Number(v))}>
-            <SelectTrigger className="h-9 w-auto min-w-16 px-2 py-0 text-xs shrink-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[1, 2, 3, 4, 6, 8].map((w) => (
-                <SelectItem key={w} value={String(w)}>
-                  {w}px
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
-          <button
-            onClick={() => setCropOpen(true)}
-            className="flex items-center gap-1 px-2.5 h-9 rounded font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] shrink-0"
-          >
-            <CropIcon className="w-3.5 h-3.5" /> Recortar
-          </button>
-          {annotations.length > 0 && (
-            <button
-              onClick={() => updateAttributes({ annotations: '[]' })}
-              className="text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 px-2.5 h-9 rounded shrink-0"
-            >
-              Limpiar
-            </button>
-          )}
-          <button
-            onClick={exitEditMode}
-            className="ml-auto flex items-center gap-1 px-3 h-9 rounded font-semibold bg-amber-500 hover:bg-amber-600 text-white shrink-0"
-          >
-            <Check className="w-3.5 h-3.5" /> Listo
-          </button>
-        </div>
-      )}
-
       <div
         ref={boxRef}
         onClick={onImageClick}
@@ -474,6 +405,114 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
         ].join(' ')}
         style={wrapperStyle}
       >
+        {isEditing && (
+          // Same width as the image below it (both are children of the
+          // resizable box) so the whole editing card — toolbar + drawing
+          // area — reads as one unit delimited exactly to the image, not a
+          // full-width bar floating over a narrower thumbnail. Tools and
+          // colors collapse into pickers so this still fits at any scale.
+          <div className="flex items-center gap-1 py-1.5 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch]">
+            <button
+              title="Arrastrar para mover la imagen"
+              className="flex items-center justify-center w-9 h-9 rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] hover:text-[hsl(var(--foreground))] cursor-grab active:cursor-grabbing shrink-0"
+              style={{ touchAction: 'none' }}
+              onPointerDown={onHandlePointerDown}
+              onPointerMove={onHandlePointerMove}
+              onPointerUp={onHandlePointerUp}
+              onPointerCancel={onHandlePointerUp}
+            >
+              <GripVertical className="w-4 h-4" />
+            </button>
+            <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  title="Herramienta"
+                  className="flex items-center gap-0.5 px-2 h-9 rounded font-medium shrink-0 text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]"
+                >
+                  <ActiveToolIcon className="w-4 h-4" />
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="p-1 w-36" side="bottom" align="start">
+                {TOOLS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTool(t.id)}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium ${
+                      tool === t.id
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                        : 'text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
+                    }`}
+                  >
+                    <t.icon className="w-3.5 h-3.5" /> {t.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <button title="Color" className="flex items-center gap-0.5 px-1.5 h-9 rounded shrink-0 hover:bg-[hsl(var(--muted-foreground)/0.1)]">
+                  <span
+                    className="w-5 h-5 rounded-full border-2 border-[hsl(var(--border))]"
+                    style={{ backgroundColor: color === '#ffffff' ? '#f3f4f6' : color }}
+                  />
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="p-2 w-auto" side="bottom" align="start">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColor(c)}
+                      className={`w-7 h-7 rounded-full border-2 ${color === c ? 'border-amber-500 scale-110' : 'border-transparent'}`}
+                      style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }}
+                    />
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+            <Select value={String(lineWidth)} onValueChange={(v) => setLineWidth(Number(v))}>
+              <SelectTrigger className="h-9 w-auto min-w-16 px-2 py-0 text-xs shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 6, 8].map((w) => (
+                  <SelectItem key={w} value={String(w)}>
+                    {w}px
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="h-5 w-px bg-[hsl(var(--border))] shrink-0" />
+            <button
+              onClick={() => setCropOpen(true)}
+              className="flex items-center gap-1 px-2.5 h-9 rounded font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] shrink-0"
+            >
+              <CropIcon className="w-3.5 h-3.5" /> Recortar
+            </button>
+            {annotations.length > 0 && (
+              <button
+                onClick={() => updateAttributes({ annotations: '[]' })}
+                className="text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 px-2.5 h-9 rounded shrink-0"
+              >
+                Limpiar
+              </button>
+            )}
+            <button
+              onClick={exitEditMode}
+              className="ml-auto flex items-center gap-1 px-3 h-9 rounded font-semibold bg-amber-500 hover:bg-amber-600 text-white shrink-0"
+            >
+              <Check className="w-3.5 h-3.5" /> Listo
+            </button>
+          </div>
+        )}
+
         <div className={`relative rounded-b ${crop ? 'overflow-hidden' : ''}`} style={frameStyle}>
           <img
             src={src}
