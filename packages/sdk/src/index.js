@@ -1020,12 +1020,6 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ amount }),
         }),
-      updateWalletCredit: (id, data, token) =>
-        request(`/pfm/wallets/${encodeURIComponent(id)}/credit`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
     },
     catalog: {
       // Products

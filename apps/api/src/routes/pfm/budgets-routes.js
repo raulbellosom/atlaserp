@@ -6,7 +6,6 @@ import {
   createGoalSchema,
   updateGoalSchema,
   contributeGoalSchema,
-  creditCardSchema,
   enabledSchema,
 } from "./validators.js";
 import {
@@ -188,25 +187,6 @@ export function createBudgetsRouter({
       });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar el progreso de la meta.");
-    }
-  });
-
-  // ── Credit-card settings (reuses wallets.updateWallet) ──────────────────────
-
-  app.patch("/pfm/wallets/:id/credit", requirePermission("pfm.wallets.update"), async (c) => {
-    try {
-      const parsed = creditCardSchema.safeParse(await c.req.json());
-      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400);
-      return c.json({
-        data: await wallets.updateWallet({
-          companyId: getCompanyId(c),
-          walletId: c.req.param("id"),
-          actorId: getActorId(c),
-          data: parsed.data,
-        }),
-      });
-    } catch (err) {
-      return handleError(c, err, "No se pudo actualizar la tarjeta de credito.");
     }
   });
 
