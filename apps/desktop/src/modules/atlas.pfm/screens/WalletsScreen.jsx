@@ -16,7 +16,7 @@ import { useWallets, useSetWalletEnabled } from "../hooks/use-pfm-queries";
 import { WalletFormSheet } from "../components/WalletFormSheet";
 import { WalletMembersDialog } from "../components/WalletMembersDialog";
 import { CreditUsageBlock } from "../components/CreditUsageBlock";
-import { formatMoney, WALLET_KIND_LABEL } from "../lib/format";
+import { formatMoney, WALLET_KIND_LABEL, formatRatePct } from "../lib/format";
 
 export default function WalletsScreen() {
   const navigate = useNavigate();
@@ -128,9 +128,16 @@ export default function WalletsScreen() {
                 <CreditUsageBlock wallet={w} />
               </div>
             ) : (
-              <p className="relative mt-3 text-2xl font-bold tracking-tight tabular-nums text-[hsl(var(--foreground))]">
-                {formatMoney(w.currentBalance, w.currency)}
-              </p>
+              <div className="relative">
+                <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums text-[hsl(var(--foreground))]">
+                  {formatMoney(w.currentBalance, w.currency)}
+                </p>
+                {w.kind === "INVESTMENT" && w.expectedRate != null && (
+                  <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
+                    Rendimiento esperado: {formatRatePct(w.expectedRate)} anual
+                  </p>
+                )}
+              </div>
             )}
           </Card>
           );
