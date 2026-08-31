@@ -12,7 +12,7 @@ import {
   SearchInput,
   ConfirmDialog,
 } from "@atlas/ui";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, ArrowLeft, SlidersHorizontal } from "lucide-react";
 import {
   useWallet,
   useWalletMovements,
@@ -23,7 +23,8 @@ import {
 import { MovementRow } from "../components/MovementRow";
 import { QuickAddMovementSheet } from "../components/QuickAddMovementSheet";
 import { CreditCyclePanel } from "../components/CreditCyclePanel";
-import { CreditCardSheet } from "../components/CreditCardSheet";
+import { WalletFormSheet } from "../components/WalletFormSheet";
+import { AdjustBalanceSheet } from "../components/AdjustBalanceSheet";
 import {
   formatMoney,
   currentMonthKey,
@@ -53,7 +54,8 @@ export default function WalletDetailScreen() {
   const skipMut = useSkipMovement();
 
   const [addOpen, setAddOpen] = useState(false);
-  const [creditSheetOpen, setCreditSheetOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
 
@@ -89,14 +91,21 @@ export default function WalletDetailScreen() {
         title={wallet.name}
         description={`${formatMoney(wallet.currentBalance, wallet.currency)}${wallet.reference ? ` · ${wallet.reference}` : ""}`}
         actions={
-          <Button variant="ghost" onClick={() => navigate("/app/m/atlas.pfm/wallets")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" /> Carteras
-          </Button>
+          <div className="flex gap-2">
+            {wallet.canWrite !== false && (
+              <Button variant="outline" onClick={() => setAdjustOpen(true)}>
+                <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Ajustar saldo
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => navigate("/app/m/atlas.pfm/wallets")}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Carteras
+            </Button>
+          </div>
         }
       />
 
       {wallet.kind === "CREDIT" && (
-        <CreditCyclePanel wallet={wallet} onEdit={() => setCreditSheetOpen(true)} />
+        <CreditCyclePanel wallet={wallet} onEdit={() => setEditOpen(true)} />
       )}
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
@@ -163,11 +172,8 @@ export default function WalletDetailScreen() {
         editingMovement={editingMovement}
       />
 
-      <CreditCardSheet
-        open={creditSheetOpen}
-        onOpenChange={setCreditSheetOpen}
-        wallet={wallet}
-      />
+      <WalletFormSheet open={editOpen} onOpenChange={setEditOpen} wallet={wallet} />
+      <AdjustBalanceSheet open={adjustOpen} onOpenChange={setAdjustOpen} wallet={wallet} />
 
       <ConfirmDialog
         open={Boolean(confirmTarget)}
