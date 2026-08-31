@@ -55,7 +55,13 @@ import {
   MessageSquare,
   Inbox,
 } from "lucide-react";
-import { cn, FleetVehicleIcon } from "@atlas/ui";
+import { useRef } from "react";
+import { cn, FleetVehicleIcon, useLongPress } from "@atlas/ui";
+import {
+  favoriteToggleLabel,
+  shouldOpenInNewTab,
+  isCoarsePointer,
+} from "../lib/moduleLauncher";
 
 // ---- Constants ----
 const DEFAULT_MODULE_COLOR = "#6366f1";
@@ -211,29 +217,89 @@ export function ModuleIcon({ module, size = "md" }) {
   );
 }
 
-// ---- ModuleCardGrid: grid card for navigation (HomeScreen) ----
+// ---- FavoriteStarButton: always-visible star toggle used on cards/rows ----
+function FavoriteStarButton({ moduleKey, isFavorite, onToggleFavorite, className }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={isFavorite}
+      aria-label={favoriteToggleLabel(isFavorite)}
+      title={favoriteToggleLabel(isFavorite)}
+      onPointerDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleFavorite(moduleKey);
+      }}
+      className={cn(
+        "flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-amber-400 cursor-pointer",
+        className,
+      )}
+    >
+      <Star
+        size={14}
+        className={isFavorite ? "text-amber-400 fill-amber-400" : ""}
+      />
+    </button>
+  );
+}
+
+// Wires long-press -> onLongPress({x,y}, key) on coarse pointers only, and
+// returns a `guardClick` that swallows the post-long-press click so it does
+// not also navigate.
+function useCardLongPress(moduleKey, onLongPress) {
+  const suppressClick = useRef(false);
+  const handlers = useLongPress({
+    disabled: !onLongPress || !isCoarsePointer(),
+    ignoreInteractiveTarget: true,
+    onLongPress: (e) => {
+      suppressClick.current = true;
+      onLongPress?.({ x: e.clientX, y: e.clientY }, moduleKey);
+    },
+  });
+  const longPressHandlers = {
+    ...handlers,
+    onPointerDown: (e) => {
+      suppressClick.current = false;
+      handlers.onPointerDown?.(e);
+    },
+  };
+  const guardClick = (e, run) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      e.preventDefault();
+      return;
+    }
+    run();
+  };
+  return { longPressHandlers, guardClick };
+}
+
+// ---- ModuleCardGrid: grid card for navigation (HomeScreen, AppLauncher) ----
 export function ModuleCardGrid({
   module,
   onClick,
   onContextMenu,
+  onToggleFavorite,
+  onLongPress,
+  href,
   isFavorite,
   isOfflineBlocked,
 }) {
   const visuals = resolveModuleVisuals(module);
   const { color, accentColor } = visuals;
+  const { longPressHandlers, guardClick } = useCardLongPress(module.key, onLongPress);
 
-  return (
-    <button
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      disabled={isOfflineBlocked}
-      className={cn(
-        "group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden text-left transition-all duration-200",
-        isOfflineBlocked
-          ? "opacity-40 cursor-not-allowed pointer-events-none"
-          : "cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
-      )}
-    >
+  const rootClass = cn(
+    "group relative flex flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden text-left transition-all duration-200",
+    isOfflineBlocked
+      ? "opacity-40 cursor-not-allowed pointer-events-none"
+      : "cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
+  );
+
+  const inner = (
+    <>
       {/* Gradient header */}
       <div
         className="relative h-16 overflow-hidden shrink-0"
@@ -249,16 +315,17 @@ export function ModuleCardGrid({
           className="absolute right-8 top-2 h-8 w-8 rounded-full opacity-[0.08]"
           style={{ background: color }}
         />
-        {isFavorite && !isOfflineBlocked && (
-          <Star
-            size={11}
-            className="absolute top-3 right-3 text-amber-400 fill-amber-400"
-          />
-        )}
-        {isOfflineBlocked && (
+        {isOfflineBlocked ? (
           <WifiOff
             size={11}
             className="absolute top-3 right-3 text-[hsl(var(--muted-foreground))]"
+          />
+        ) : (
+          <FavoriteStarButton
+            moduleKey={module.key}
+            isFavorite={isFavorite}
+            onToggleFavorite={onToggleFavorite}
+            className="absolute top-1.5 right-1.5 z-20"
           />
         )}
       </div>
@@ -277,30 +344,63 @@ export function ModuleCardGrid({
           {module.summary || module.description}
         </p>
       </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        onContextMenu={onContextMenu}
+        {...longPressHandlers}
+        onClick={(e) => {
+          if (shouldOpenInNewTab(e)) return;
+          e.preventDefault();
+          guardClick(e, () => onClick?.());
+        }}
+        aria-disabled={isOfflineBlocked || undefined}
+        className={rootClass}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      onContextMenu={onContextMenu}
+      {...longPressHandlers}
+      onClick={(e) => guardClick(e, () => onClick?.())}
+      disabled={isOfflineBlocked}
+      className={rootClass}
+    >
+      {inner}
     </button>
   );
 }
 
-// ---- ModuleListRow: list row for navigation (HomeScreen) ----
+// ---- ModuleListRow: list row for navigation (HomeScreen, AppLauncher) ----
 export function ModuleListRow({
   module,
   onClick,
   onContextMenu,
+  onToggleFavorite,
+  onLongPress,
+  href,
   isFavorite,
   isOfflineBlocked,
 }) {
-  return (
-    <button
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      disabled={isOfflineBlocked}
-      className={cn(
-        "flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-200 px-4 py-3 text-left",
-        isOfflineBlocked
-          ? "opacity-40 cursor-not-allowed pointer-events-none"
-          : "cursor-pointer hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]",
-      )}
-    >
+  const { longPressHandlers, guardClick } = useCardLongPress(module.key, onLongPress);
+
+  const rootClass = cn(
+    "flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-200 px-4 py-3 text-left",
+    isOfflineBlocked
+      ? "opacity-40 cursor-not-allowed pointer-events-none"
+      : "cursor-pointer hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]",
+  );
+
+  const inner = (
+    <>
       <ModuleIcon module={module} size="sm" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-[hsl(var(--foreground))] leading-tight">
@@ -310,15 +410,50 @@ export function ModuleListRow({
           {module.summary || module.description}
         </p>
       </div>
-      {isFavorite && !isOfflineBlocked && (
-        <Star size={13} className="text-amber-400 fill-amber-400 shrink-0" />
-      )}
-      {isOfflineBlocked && (
+      {isOfflineBlocked ? (
         <WifiOff
           size={13}
           className="text-[hsl(var(--muted-foreground))] shrink-0"
         />
+      ) : (
+        <FavoriteStarButton
+          moduleKey={module.key}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          className="shrink-0 -mr-1"
+        />
       )}
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        onContextMenu={onContextMenu}
+        {...longPressHandlers}
+        onClick={(e) => {
+          if (shouldOpenInNewTab(e)) return;
+          e.preventDefault();
+          guardClick(e, () => onClick?.());
+        }}
+        aria-disabled={isOfflineBlocked || undefined}
+        className={rootClass}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      onContextMenu={onContextMenu}
+      {...longPressHandlers}
+      onClick={(e) => guardClick(e, () => onClick?.())}
+      disabled={isOfflineBlocked}
+      className={rootClass}
+    >
+      {inner}
     </button>
   );
 }
