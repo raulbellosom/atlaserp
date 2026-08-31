@@ -86,3 +86,42 @@ export const enrichLedgerMovementSchema = z.object({
   receiptId: z.string().uuid().nullable().optional(),
   note: z.string().max(500).nullable().optional(),
 });
+
+// ── Recurring rules (Phase 2) ────────────────────────────────────────────────
+
+export const rruleSchema = z.object({
+  freq: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]),
+  interval: z.number().int().min(1).max(60).default(1),
+  byMonthDay: z.number().int().min(1).max(31).optional(),
+});
+
+export const createRecurringRuleSchema = z
+  .object({
+    walletId: z.string().uuid(),
+    label: z.string().min(1).max(120),
+    categoryId: z.string().uuid().optional().nullable(),
+    direction: z.enum(["EXPENSE", "INCOME"]),
+    amountMode: z.enum(["FIXED", "VARIABLE"]),
+    amount: z.number().positive().max(9_999_999_999).optional().nullable(),
+    rrule: rruleSchema,
+    autoPost: z.boolean().default(false),
+    startOn: isoDateSchema,
+    endOn: isoDateSchema.optional().nullable(),
+  })
+  .refine((v) => v.amountMode !== "FIXED" || (v.amount != null && v.amount > 0), {
+    message: "Un cargo de monto fijo requiere un monto.",
+    path: ["amount"],
+  })
+  .refine((v) => v.amountMode === "FIXED" || v.autoPost !== true, {
+    message: "Solo los cargos de monto fijo pueden registrarse automaticamente.",
+    path: ["autoPost"],
+  });
+
+export const updateRecurringRuleSchema = z.object({
+  label: z.string().min(1).max(120).optional(),
+  categoryId: z.string().uuid().nullable().optional(),
+  amount: z.number().positive().max(9_999_999_999).nullable().optional(),
+  rrule: rruleSchema.optional(),
+  autoPost: z.boolean().optional(),
+  endOn: isoDateSchema.nullable().optional(),
+});
