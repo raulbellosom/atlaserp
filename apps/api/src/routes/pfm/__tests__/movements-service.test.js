@@ -108,4 +108,28 @@ describe("movements-service", () => {
     assert.ok(seen.includes("status = 'posted'"), "running balance must filter to POSTED");
     assert.ok(seen.includes("enabled = true"));
   });
+
+  it("listMovements exposes isAdjustment on each row", async () => {
+    const prisma = {
+      $queryRaw: async () => [
+        {
+          id: MOV,
+          wallet_id: WALLET,
+          direction: "INCOME",
+          amount: "300.00",
+          occurred_on: "2026-08-20",
+          status: "POSTED",
+          is_adjustment: true,
+        },
+      ],
+    };
+    const service = createMovementsService({ prisma, wallets: walletsStub() });
+    const { data } = await service.listMovements({
+      companyId: COMPANY,
+      actorId: ACTOR,
+      walletId: WALLET,
+      query: {},
+    });
+    assert.equal(data[0].isAdjustment, true);
+  });
 });
