@@ -948,6 +948,27 @@ export function createAtlasClient({ baseUrl }) {
         }),
       listUpcoming: (token, query = {}) =>
         request(`/pfm/upcoming${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      listReceipts: (token) =>
+        request("/pfm/receipts", { headers: withAuthHeaders(token) }),
+      getReceipt: (id, token) =>
+        request(`/pfm/receipts/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      uploadReceipt: (formData, token) =>
+        request("/pfm/receipts", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: formData,
+        }),
+      confirmReceipt: (id, data, token) =>
+        request(`/pfm/receipts/${encodeURIComponent(id)}/confirm`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      retryReceipt: (id, token) =>
+        request(`/pfm/receipts/${encodeURIComponent(id)}/retry`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+        }),
     },
     catalog: {
       // Products
