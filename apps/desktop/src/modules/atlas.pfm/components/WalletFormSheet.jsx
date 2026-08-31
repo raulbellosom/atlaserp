@@ -4,14 +4,15 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
   Button,
   TextField,
   SelectField,
+  SwatchField,
 } from "@atlas/ui";
 import { useCreateWallet, useUpdateWallet } from "../hooks/use-pfm-queries";
 import { WALLET_KIND_LABEL } from "../lib/format";
@@ -76,11 +77,11 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? "Editar cartera" : "Nueva cartera"}</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar cartera" : "Nueva cartera"}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             label="Nombre"
@@ -119,17 +120,23 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             error={errors.openingBalance?.message}
             {...register("openingBalance")}
           />
-          <TextField label="Color" type="color" {...register("color")} />
-          <SheetFooter>
+          <Controller
+            control={control}
+            name="color"
+            render={({ field }) => (
+              <SwatchField label="Color" value={field.value} onChange={field.onChange} />
+            )}
+          />
+          <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isEdit ? "Guardar" : "Crear"}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -4,11 +4,11 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
   Button,
   TextField,
   SelectField,
@@ -114,11 +114,11 @@ export function QuickAddMovementSheet({ open, onOpenChange, defaultWalletId, edi
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? "Editar movimiento" : "Nuevo movimiento"}</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar movimiento" : "Nuevo movimiento"}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             label="Monto"
@@ -193,16 +193,16 @@ export function QuickAddMovementSheet({ open, onOpenChange, defaultWalletId, edi
           />
           <TextField label="Comercio" disabled={isLedgerRow} {...register("merchant")} />
           <TextField label="Nota" {...register("note")} />
-          <SheetFooter>
+          <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isEdit ? "Guardar" : "Registrar"}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

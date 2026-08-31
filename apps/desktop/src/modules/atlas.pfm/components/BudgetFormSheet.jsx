@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
   Button,
   TextField,
   SelectField,
@@ -71,11 +71,11 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? "Editar presupuesto" : "Nuevo presupuesto"}</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar presupuesto" : "Nuevo presupuesto"}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <ComboboxField
             label="Categoria"
@@ -104,16 +104,16 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
             value={alertThreshold}
             onChange={(v) => setValue("alertThreshold", v)}
           />
-          <SheetFooter>
+          <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isEdit ? "Guardar" : "Crear"}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

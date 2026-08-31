@@ -2,14 +2,15 @@
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
   Button,
   TextField,
   DateField,
+  SwatchField,
 } from "@atlas/ui";
 import { useCreateGoal, useUpdateGoal } from "../hooks/use-pfm-queries";
 
@@ -52,11 +53,11 @@ export function GoalFormSheet({ open, onOpenChange, goal }) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom">
-        <SheetHeader>
-          <SheetTitle>{isEdit ? "Editar meta" : "Nueva meta de ahorro"}</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "Editar meta" : "Nueva meta de ahorro"}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             label="Nombre"
@@ -83,17 +84,23 @@ export function GoalFormSheet({ open, onOpenChange, goal }) {
               />
             )}
           />
-          <TextField label="Color" type="color" {...register("color")} />
-          <SheetFooter>
+          <Controller
+            control={control}
+            name="color"
+            render={({ field }) => (
+              <SwatchField label="Color" value={field.value} onChange={field.onChange} />
+            )}
+          />
+          <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isEdit ? "Guardar" : "Crear"}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

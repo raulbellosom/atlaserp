@@ -185,6 +185,7 @@ export { PageHeader } from "./components/PageHeader.jsx";
 export { EmptyState } from "./components/EmptyState.jsx";
 export { ErrorState } from "./components/ErrorState.jsx";
 export { StatCard } from "./components/StatCard.jsx";
+export { SwatchField, DEFAULT_SWATCHES } from "./components/SwatchField.jsx";
 export { SearchInput } from "./components/SearchInput.jsx";
 export { FilterBar } from "./components/FilterBar.jsx";
 export { IconPickerField } from "./components/IconPickerField.jsx";

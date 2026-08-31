@@ -13,8 +13,8 @@ export function CategoryDonut({ data, currency }) {
     );
   }
   return (
-    <div className="h-64 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-64 w-full min-w-0" style={{ minHeight: 256 }}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200} debounce={1}>
         <PieChart>
           <Pie
             data={data}

@@ -13,8 +13,8 @@ import { formatMoney, formatMonthLabel } from "../lib/format";
 export function SpendTrendBar({ data, currency }) {
   const rows = (data ?? []).map((d) => ({ ...d, label: formatMonthLabel(d.month) }));
   return (
-    <div className="h-56 w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-56 w-full min-w-0" style={{ minHeight: 224 }}>
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180} debounce={1}>
         <BarChart data={rows}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis

@@ -2,11 +2,11 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
   Button,
   TextField,
 } from "@atlas/ui";
@@ -41,11 +41,11 @@ export function CreditCardSheet({ open, onOpenChange, wallet }) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom">
-        <SheetHeader>
-          <SheetTitle>Tarjeta de credito</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>Tarjeta de credito</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TextField
             label="Limite de credito"
@@ -76,16 +76,16 @@ export function CreditCardSheet({ open, onOpenChange, wallet }) {
               max: { value: 31, message: "Entre 1 y 31" },
             })}
           />
-          <SheetFooter>
+          <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               Guardar
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
