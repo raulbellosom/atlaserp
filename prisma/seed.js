@@ -270,6 +270,42 @@ async function main() {
     // Table doesn't exist yet or migration not run — skip silently
   }
 
+  // Seed atlas.pfm system categories (owner_id = NULL) for every company.
+  const PFM_SYSTEM_CATEGORIES = [
+    { name: 'Comida',         kind: 'EXPENSE', color: '#f97316', icon: 'Utensils' },
+    { name: 'Transporte',     kind: 'EXPENSE', color: '#3b82f6', icon: 'Car' },
+    { name: 'Servicios',      kind: 'EXPENSE', color: '#8b5cf6', icon: 'Plug' },
+    { name: 'Renta',          kind: 'EXPENSE', color: '#ef4444', icon: 'Home' },
+    { name: 'Salud',          kind: 'EXPENSE', color: '#ec4899', icon: 'HeartPulse' },
+    { name: 'Ocio',           kind: 'EXPENSE', color: '#14b8a6', icon: 'Gamepad2' },
+    { name: 'Educacion',      kind: 'EXPENSE', color: '#6366f1', icon: 'GraduationCap' },
+    { name: 'Ropa',           kind: 'EXPENSE', color: '#a855f7', icon: 'Shirt' },
+    { name: 'Suscripciones',  kind: 'EXPENSE', color: '#0ea5e9', icon: 'Repeat' },
+    { name: 'Ahorro',         kind: 'EXPENSE', color: '#22c55e', icon: 'PiggyBank' },
+    { name: 'Otros gastos',   kind: 'EXPENSE', color: '#94a3b8', icon: 'Ellipsis' },
+    { name: 'Sueldo',         kind: 'INCOME',  color: '#22c55e', icon: 'Banknote' },
+    { name: 'Otros ingresos', kind: 'INCOME',  color: '#84cc16', icon: 'Plus' },
+  ]
+  try {
+    const allCompanies = await prisma.company.findMany({ select: { id: true } })
+    for (const company of allCompanies) {
+      for (const cat of PFM_SYSTEM_CATEGORIES) {
+        await prisma.$executeRaw`
+          INSERT INTO pfm_category (id, company_id, owner_id, name, kind, color, icon, enabled, updated_at)
+          SELECT uuidv7(), ${company.id}::uuid, NULL, ${cat.name}, ${cat.kind}::pfm_category_kind, ${cat.color}, ${cat.icon}, true, NOW()
+          WHERE NOT EXISTS (
+            SELECT 1 FROM pfm_category
+            WHERE company_id = ${company.id}::uuid AND name = ${cat.name}
+              AND kind = ${cat.kind}::pfm_category_kind AND owner_id IS NULL
+          )
+        `
+      }
+    }
+    console.log(`atlas.pfm system categories seeded for ${allCompanies.length} company(s)`)
+  } catch {
+    // Table doesn't exist yet or migration not run — skip silently
+  }
+
   console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
 
   // ------------------------------------------------------------------
