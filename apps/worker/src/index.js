@@ -23,8 +23,12 @@ import { createNotificationService } from '../../api/src/services/notification-s
 import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
 import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
 import { createWalletsService as createPfmWalletsService } from '../../api/src/routes/pfm/wallets-service.js'
+import { createMovementsService as createPfmMovementsService } from '../../api/src/routes/pfm/movements-service.js'
 import { createPfmCalendarBridge } from '../../api/src/routes/pfm/pfm-calendar-bridge.js'
 import { createRecurringService as createPfmRecurringService } from '../../api/src/routes/pfm/recurring-service.js'
+import { createReceiptsService as createPfmReceiptsService } from '../../api/src/routes/pfm/receipts-service.js'
+import { createVisionService as createPfmVisionService } from '../../api/src/services/vision-service.js'
+import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 
@@ -71,12 +75,22 @@ const projectsNotifService = createProjectsNotificationService({
 const DUE_SOON_INTERVAL_MS = 60 * 60 * 1000
 const recurringTasksService = createRecurringTasksService({ prisma })
 const RECURRING_INTERVAL_MS = 60 * 60 * 1000
+const pfmWalletsService = createPfmWalletsService({ prisma })
 const pfmRecurringService = createPfmRecurringService({
   prisma,
-  wallets: createPfmWalletsService({ prisma }),
+  wallets: pfmWalletsService,
   calendarBridge: createPfmCalendarBridge({ prisma }),
 })
 const PFM_RECURRING_INTERVAL_MS = 60 * 60 * 1000
+const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
+const pfmReceiptsService = createPfmReceiptsService({
+  prisma,
+  vision: createPfmVisionService({ env: process.env }),
+  supabaseAdmin: workerSupabaseAdmin,
+  movements: createPfmMovementsService({ prisma, wallets: pfmWalletsService }),
+  wallets: pfmWalletsService,
+})
+const PFM_RECEIPT_INTERVAL_MS = 30 * 1000
 const growthAggregationWorker = createGrowthAggregationWorker({ prisma })
 const GROWTH_AGGREGATION_INTERVAL_MS = Number(
   process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS ??
@@ -291,6 +305,24 @@ runPfmRecurringTick()
 setInterval(() => {
   runPfmRecurringTick()
 }, PFM_RECURRING_INTERVAL_MS)
+
+async function runPfmReceiptTick() {
+  if (!process.env.GROQ_API_KEY || !workerSupabaseAdmin) return
+  try {
+    const result = await pfmReceiptsService.processPendingBatch({ limit: 5 })
+    if ((result?.processed ?? 0) > 0) {
+      console.log(`[worker] pfm receipts ${formatLogTimestamp()} processed=${result.processed}`)
+    }
+  } catch (err) {
+    console.error('[worker] pfm receipt tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runPfmReceiptTick()
+setInterval(() => {
+  runPfmReceiptTick()
+}, PFM_RECEIPT_INTERVAL_MS)
 
 const CHAT_EXPIRY_INTERVAL_MS = 15 * 60 * 1000
 async function runChatSessionExpiryTick() {

@@ -36,7 +36,7 @@ async function readJsonResponse(response, message) {
   return payload
 }
 
-export function createGoogleCalendarEventsService({ fetchImpl = fetch }) {
+export function createGoogleCalendarEventsService({ fetchImpl = fetch } = {}) {
   async function listAllEvents({ accessToken, calendarId, onPage }) {
     const items = []
     let pageToken = null
