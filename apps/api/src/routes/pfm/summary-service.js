@@ -12,8 +12,13 @@ export function createSummaryService({ prisma }) {
     const monthStart = `${month}-01`;
     try {
       const balanceRows = await prisma.$queryRaw`
-        SELECT COALESCE(SUM(bal), 0) AS total_balance FROM (
-          SELECT w.opening_balance + COALESCE(SUM(m.amount * CASE WHEN m.direction = 'INCOME' THEN 1 ELSE -1 END)
+        SELECT
+          COALESCE(SUM(bal), 0) AS total_balance,
+          COALESCE(SUM(bal) FILTER (WHERE kind IN ('CASH','DEBIT')), 0) AS spendable,
+          COALESCE(SUM(GREATEST(0, -bal)) FILTER (WHERE kind = 'CREDIT'), 0) AS credit_debt
+        FROM (
+          SELECT w.kind,
+            w.opening_balance + COALESCE(SUM(m.amount * CASE WHEN m.direction = 'INCOME' THEN 1 ELSE -1 END)
             FILTER (WHERE m.enabled = true AND m.status = 'POSTED'), 0) AS bal
           FROM pfm_wallet w
           LEFT JOIN pfm_movement m ON m.wallet_id = w.id
@@ -27,12 +32,15 @@ export function createSummaryService({ prisma }) {
       const totalsRows = await prisma.$queryRaw`
         SELECT
           COALESCE(SUM(m.amount) FILTER (WHERE m.direction = 'EXPENSE'
+            AND m.is_adjustment = false
             AND m.occurred_on >= ${monthStart}::date
             AND m.occurred_on < (${monthStart}::date + INTERVAL '1 month')), 0) AS month_expense,
           COALESCE(SUM(m.amount) FILTER (WHERE m.direction = 'INCOME'
+            AND m.is_adjustment = false
             AND m.occurred_on >= ${monthStart}::date
             AND m.occurred_on < (${monthStart}::date + INTERVAL '1 month')), 0) AS month_income,
           COALESCE(SUM(m.amount) FILTER (WHERE m.direction = 'EXPENSE'
+            AND m.is_adjustment = false
             AND m.occurred_on >= (${monthStart}::date - INTERVAL '1 month')
             AND m.occurred_on < ${monthStart}::date), 0) AS prev_expense
         FROM pfm_movement m
@@ -49,6 +57,7 @@ export function createSummaryService({ prisma }) {
         LEFT JOIN pfm_category c ON c.id = m.category_id
         WHERE m.company_id = ${companyId}::uuid AND m.enabled = true AND m.status = 'POSTED'
           AND m.direction = 'EXPENSE'
+          AND m.is_adjustment = false
           AND m.occurred_on >= ${monthStart}::date
           AND m.occurred_on < (${monthStart}::date + INTERVAL '1 month')
           AND (w.owner_id = ${actorId}::uuid
@@ -69,6 +78,7 @@ export function createSummaryService({ prisma }) {
         LEFT JOIN pfm_movement m
           ON to_char(m.occurred_on, 'YYYY-MM') = s.month
           AND m.company_id = ${companyId}::uuid AND m.enabled = true AND m.status = 'POSTED'
+          AND m.is_adjustment = false
         LEFT JOIN pfm_wallet w ON w.id = m.wallet_id
           AND (w.owner_id = ${actorId}::uuid
                OR EXISTS (SELECT 1 FROM pfm_wallet_member wm WHERE wm.wallet_id = w.id AND wm.user_id = ${actorId}::uuid))
@@ -77,9 +87,13 @@ export function createSummaryService({ prisma }) {
       `;
 
       const totals = totalsRows[0] ?? {};
+      const bal = balanceRows[0] ?? {};
       return {
         month,
-        totalBalance: toPlainNumber(balanceRows[0]?.total_balance),
+        totalBalance: toPlainNumber(bal.total_balance),
+        spendable: toPlainNumber(bal.spendable),
+        creditDebt: toPlainNumber(bal.credit_debt),
+        investments: 0,
         monthExpense: toPlainNumber(totals.month_expense),
         monthIncome: toPlainNumber(totals.month_income),
         prevMonthExpense: toPlainNumber(totals.prev_expense),
