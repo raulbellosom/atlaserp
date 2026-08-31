@@ -6,6 +6,7 @@ import { createMovementsRouter } from "./movements-routes.js";
 import { createSummaryRouter } from "./summary-routes.js";
 import { createRecurringRouter } from "./recurring-routes.js";
 import { createReceiptsRouter } from "./receipts-routes.js";
+import { createBudgetsRouter } from "./budgets-routes.js";
 import { createWalletsService } from "./wallets-service.js";
 import { createMovementsService } from "./movements-service.js";
 import { createLedgerLinkService } from "./ledger-link-service.js";
@@ -13,6 +14,8 @@ import { createSummaryService } from "./summary-service.js";
 import { createPfmCalendarBridge } from "./pfm-calendar-bridge.js";
 import { createRecurringService } from "./recurring-service.js";
 import { createReceiptsService } from "./receipts-service.js";
+import { createBudgetsService } from "./budgets-service.js";
+import { createGoalsService } from "./goals-service.js";
 import { createVisionService } from "../../services/vision-service.js";
 import { createLedgerService } from "../ledger/ledger-service.js";
 
@@ -22,6 +25,7 @@ export function createPfmRouter({
   requireAnyPermission,
   supabaseAdmin,
   filesService,
+  notificationService,
 }) {
   const app = new Hono();
 
@@ -30,12 +34,12 @@ export function createPfmRouter({
       ? requireAnyPermission
       : (keys = []) => requirePermission(keys[0]);
 
-  const wallets = createWalletsService({ prisma });
+  const calendarBridge = createPfmCalendarBridge({ prisma });
+  const wallets = createWalletsService({ prisma, calendarBridge });
   const ledgerService = createLedgerService({ prisma });
   const ledgerLink = createLedgerLinkService({ prisma, ledgerService });
   const movements = createMovementsService({ prisma, wallets });
   const summary = createSummaryService({ prisma });
-  const calendarBridge = createPfmCalendarBridge({ prisma });
   const recurring = createRecurringService({ prisma, wallets, calendarBridge });
   const vision = createVisionService({ env: process.env });
   const receipts = createReceiptsService({
@@ -46,6 +50,8 @@ export function createPfmRouter({
     wallets,
     filesService,
   });
+  const budgets = createBudgetsService({ prisma, notificationService: notificationService ?? null });
+  const goals = createGoalsService({ prisma });
 
   app.route(
     "/",
@@ -88,7 +94,17 @@ export function createPfmRouter({
       }),
     );
   }
+  app.route(
+    "/",
+    createBudgetsRouter({
+      requirePermission,
+      requireAnyPermission: anyPermission,
+      budgets,
+      goals,
+      wallets,
+    }),
+  );
 
-  app.pfmServices = { recurring, summary, receipts };
+  app.pfmServices = { recurring, summary, receipts, budgets, goals };
   return app;
 }
