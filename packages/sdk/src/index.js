@@ -892,6 +892,12 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
         }),
+      adjustWalletBalance: (walletId, data, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(walletId)}/adjust`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       updateMovement: (movementId, data, token) =>
         request(`/pfm/movements/${encodeURIComponent(movementId)}`, {
           method: "PATCH",

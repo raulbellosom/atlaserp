@@ -35,6 +35,42 @@ export function createMovementsService({ prisma, wallets }) {
     }
   }
 
+  async function adjustWalletBalance({ companyId, actorId, walletId, data }) {
+    await assertWritable({ companyId, walletId, actorId });
+    const wallet = await wallets.getWallet({ companyId, walletId, actorId });
+    const current = Number(wallet.currentBalance ?? 0);
+    const internalTarget =
+      wallet.kind === "CREDIT" ? -Number(data.targetBalance) : Number(data.targetBalance);
+    const delta = Math.round((internalTarget - current) * 100) / 100;
+    if (delta === 0) {
+      throw new PfmServiceError("El saldo ya coincide con el registrado.", 400);
+    }
+    const occurredOn = data.occurredOn
+      ? new Date(`${data.occurredOn}T00:00:00.000Z`)
+      : new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+    try {
+      const created = await prisma.pfmMovement.create({
+        data: {
+          companyId,
+          ownerId: actorId,
+          walletId,
+          categoryId: null,
+          direction: delta > 0 ? "INCOME" : "EXPENSE",
+          amount: Math.abs(delta),
+          occurredOn,
+          note: data.note ?? null,
+          merchant: null,
+          status: "POSTED",
+          isAdjustment: true,
+        },
+      });
+      return normalizeMovement(created);
+    } catch (err) {
+      if (isTableNotFoundError(err)) throw new PfmServiceError(NOT_INSTALLED, 503);
+      throw err;
+    }
+  }
+
   async function getOwnedMovement({ companyId, movementId }) {
     const row = await prisma.pfmMovement.findFirst({
       where: { id: movementId, companyId, enabled: true },
@@ -135,6 +171,7 @@ export function createMovementsService({ prisma, wallets }) {
 
   return {
     createMovement,
+    adjustWalletBalance,
     updateMovement,
     setMovementEnabled,
     confirmMovement,

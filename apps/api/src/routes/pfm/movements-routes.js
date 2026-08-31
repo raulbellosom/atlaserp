@@ -7,6 +7,7 @@ import {
   listMovementsQuerySchema,
   enrichLedgerMovementSchema,
   enabledSchema,
+  adjustBalanceSchema,
 } from "./validators.js";
 import {
   PfmServiceError,
@@ -87,6 +88,22 @@ export function createMovementsRouter({
       return c.json({ data: movement }, 201);
     } catch (err) {
       return handleError(c, err, "No se pudo crear el movimiento.");
+    }
+  });
+
+  app.post("/pfm/wallets/:id/adjust", requirePermission("pfm.movements.create"), async (c) => {
+    try {
+      const parsed = adjustBalanceSchema.safeParse(await c.req.json());
+      if (!parsed.success) return c.json({ error: getValidationErrorMessage(parsed.error) }, 400);
+      const movement = await movements.adjustWalletBalance({
+        companyId: getCompanyId(c),
+        actorId: getActorId(c),
+        walletId: c.req.param("id"),
+        data: parsed.data,
+      });
+      return c.json({ data: movement }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo ajustar el saldo.");
     }
   });
 

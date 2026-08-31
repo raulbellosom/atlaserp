@@ -109,6 +109,90 @@ describe("movements-service", () => {
     assert.ok(seen.includes("enabled = true"));
   });
 
+  it("adjustWalletBalance on a cash wallet books a positive delta as an INCOME adjustment", async () => {
+    let created = null;
+    const prisma = {
+      pfmMovement: { create: async ({ data }) => ((created = data), { id: MOV, ...data }) },
+    };
+    const wallets = {
+      ...walletsStub(),
+      getWallet: async () => ({ id: WALLET, kind: "CASH", currency: "MXN", currentBalance: 800 }),
+    };
+    const service = createMovementsService({ prisma, wallets });
+    await service.adjustWalletBalance({
+      companyId: COMPANY,
+      actorId: ACTOR,
+      walletId: WALLET,
+      data: { targetBalance: 950, note: "interes" },
+    });
+    assert.equal(created.isAdjustment, true);
+    assert.equal(created.direction, "INCOME");
+    assert.equal(Number(created.amount), 150);
+    assert.equal(created.status, "POSTED");
+    assert.equal(created.categoryId, null);
+    assert.equal(created.note, "interes");
+  });
+
+  it("adjustWalletBalance on a credit wallet treats targetBalance as saldo ocupado", async () => {
+    let created = null;
+    const prisma = {
+      pfmMovement: { create: async ({ data }) => ((created = data), { id: MOV, ...data }) },
+    };
+    const wallets = {
+      ...walletsStub(),
+      getWallet: async () => ({ id: WALLET, kind: "CREDIT", currency: "MXN", currentBalance: -100 }),
+    };
+    const service = createMovementsService({ prisma, wallets });
+    await service.adjustWalletBalance({
+      companyId: COMPANY,
+      actorId: ACTOR,
+      walletId: WALLET,
+      data: { targetBalance: 150 },
+    });
+    assert.equal(created.direction, "EXPENSE");
+    assert.equal(Number(created.amount), 50);
+  });
+
+  it("adjustWalletBalance rejects a no-op with 400", async () => {
+    const prisma = { pfmMovement: { create: async () => { throw new Error("should not reach"); } } };
+    const wallets = {
+      ...walletsStub(),
+      getWallet: async () => ({ id: WALLET, kind: "CASH", currency: "MXN", currentBalance: 500 }),
+    };
+    const service = createMovementsService({ prisma, wallets });
+    await assert.rejects(
+      () =>
+        service.adjustWalletBalance({
+          companyId: COMPANY,
+          actorId: ACTOR,
+          walletId: WALLET,
+          data: { targetBalance: 500 },
+        }),
+      (err) => err instanceof PfmServiceError && err.status === 400,
+    );
+  });
+
+  it("adjustWalletBalance is refused (403) without write access", async () => {
+    const prisma = { pfmMovement: { create: async () => { throw new Error("nope"); } } };
+    const service = createMovementsService({
+      prisma,
+      wallets: {
+        ...walletsStub({ canWrite: false }),
+        getWallet: async () => ({ id: WALLET, kind: "CASH", currentBalance: 0 }),
+      },
+    });
+    await assert.rejects(
+      () =>
+        service.adjustWalletBalance({
+          companyId: COMPANY,
+          actorId: ACTOR,
+          walletId: WALLET,
+          data: { targetBalance: 10 },
+        }),
+      (err) => err instanceof PfmServiceError && err.status === 403,
+    );
+  });
+
   it("listMovements exposes isAdjustment on each row", async () => {
     const prisma = {
       $queryRaw: async () => [
