@@ -53,3 +53,25 @@ export function todayIso() {
 }
 
 export const WALLET_KIND_LABEL = { CASH: "Efectivo", DEBIT: "Debito", CREDIT: "Credito" };
+
+// Fixed utilization thresholds for credit cards: green < 50%, amber 50-80%, red > 80%.
+export function creditUtilizationTone(ratio) {
+  const r = Number(ratio);
+  if (!Number.isFinite(r)) return "success";
+  if (r > 0.8) return "danger";
+  if (r >= 0.5) return "warning";
+  return "success";
+}
+
+// Derives the credit-card debt view from a wallet DTO.
+// `currentBalance` is negative while the card owes money.
+export function creditUsage(wallet) {
+  const ocupado = Math.max(0, -Number(wallet?.currentBalance ?? 0));
+  const limite =
+    wallet?.creditLimit == null || !Number.isFinite(Number(wallet.creditLimit))
+      ? null
+      : Number(wallet.creditLimit);
+  const disponible = limite == null ? null : Math.round((limite - ocupado) * 100) / 100;
+  const util = limite && limite > 0 ? Math.round((ocupado / limite) * 100) / 100 : null;
+  return { ocupado, limite, disponible, util };
+}
