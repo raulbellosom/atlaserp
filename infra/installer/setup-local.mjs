@@ -422,6 +422,13 @@ async function writeLocalEnv(envMap) {
   // Auto-generate a stable 32-byte key on first run; preserve on subsequent runs.
   const googleEncryptionKey = parseEnvValue(existingEnvContent, "GOOGLE_OAUTH_ENCRYPTION_KEY")
     || crypto.randomBytes(32).toString("base64");
+  // atlas.pfm receipt OCR — optional; preserve any user-provided value across re-runs.
+  const pfmVisionProvider = parseEnvValue(existingEnvContent, "PFM_VISION_PROVIDER") || "groq";
+  const groqApiKey        = parseEnvValue(existingEnvContent, "GROQ_API_KEY") || "";
+  const groqBaseUrl       = parseEnvValue(existingEnvContent, "GROQ_BASE_URL") || "https://api.groq.com";
+  const pfmVisionModel    = parseEnvValue(existingEnvContent, "PFM_VISION_MODEL")
+    || "meta-llama/llama-4-scout-17b-16e-instruct";
+  const pfmVisionTimeout  = parseEnvValue(existingEnvContent, "PFM_VISION_TIMEOUT_MS") || "20000";
   const fromLocalEnv = (key) => parseEnvValue(existingEnvContent, key) || process.env[key] || "";
   const liveKit = resolveLiveKitConfig({
     deployment: "local",
@@ -476,6 +483,15 @@ GOOGLE_OAUTH_CLIENT_SECRET=${googleClientSecret}
 GOOGLE_OAUTH_REDIRECT_URI=${googleRedirectUri}
 # Stable 32-byte base64 key — auto-generated on first run. Changing it invalidates stored tokens.
 GOOGLE_OAUTH_ENCRYPTION_KEY=${googleEncryptionKey}
+
+# ── atlas.pfm — lectura de tickets con IA (opcional) ─────────────────────────
+# Sin GROQ_API_KEY el modulo funciona igual y la subida de tickets responde 503
+# (la UI cae a captura manual). Clave gratis en https://console.groq.com
+PFM_VISION_PROVIDER=${pfmVisionProvider}
+GROQ_API_KEY=${groqApiKey}
+GROQ_BASE_URL=${groqBaseUrl}
+PFM_VISION_MODEL=${pfmVisionModel}
+PFM_VISION_TIMEOUT_MS=${pfmVisionTimeout}
 
 # ── Atlas Calls / LiveKit ──────────────────────────────────────────────────
 LIVEKIT_MODE=${liveKit.mode}

@@ -184,6 +184,20 @@ const OPTIONAL_VAR_GROUPS = [
   },
   {
     header: [
+      "# ── atlas.pfm — lectura de tickets con IA (opcional) ─────────────────────────",
+      "# Sin GROQ_API_KEY el modulo funciona igual y la subida de tickets responde 503",
+      "# (la UI cae a captura manual). Consigue una clave gratis en https://console.groq.com",
+    ],
+    vars: [
+      { key: "PFM_VISION_PROVIDER",  placeholder: "groq", comment: null },
+      { key: "GROQ_API_KEY",         placeholder: "",     comment: null },
+      { key: "GROQ_BASE_URL",        placeholder: "https://api.groq.com", comment: null },
+      { key: "PFM_VISION_MODEL",     placeholder: "meta-llama/llama-4-scout-17b-16e-instruct", comment: null },
+      { key: "PFM_VISION_TIMEOUT_MS", placeholder: "20000", comment: null },
+    ],
+  },
+  {
+    header: [
       "# ── Atlas Calls / LiveKit ──────────────────────────────────────────────────",
       "# embedded starts LiveKit + Redis; external uses an existing RTC server; disabled hides calls.",
     ],
