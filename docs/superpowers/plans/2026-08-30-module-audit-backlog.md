@@ -436,3 +436,16 @@ personales). Spec: `docs/superpowers/specs/2026-08-31-atlas-pfm-design.md`.
   `amount` override).
 - [ ] **PFM-5 — Browser QA at 390px + 1440px** with the 14-aspect checklist —
   could not run during the build (Playwright MCP bridge extension not connected).
+
+### atlas.pfm — Phases 2-4 UI browser QA (added 2026-08-31)
+
+- [ ] **PFM-6 — Full browser QA of every atlas.pfm screen at 390px + 1440px**
+  (Resumen, Carteras, detalle de cartera, alta rapida, Recurrencias,
+  cargo-recurrente sheet, Tickets + review sheet, Presupuestos y metas,
+  panel de tarjeta de credito). 14-aspect checklist. All phases 1-4 code is
+  merged + unit-tested + live-DB verified, but zero interactive browser QA ran
+  this session (Playwright MCP bridge extension not connected).
+- [ ] **PFM-7 — Live Groq OCR end-to-end** once `GROQ_API_KEY` is in `.env`:
+  upload a real receipt photo, confirm PARSED → confirm → POSTED movement with
+  the image attached. The adapter + state machine are unit-tested with mocked
+  network; the real call has never run.
