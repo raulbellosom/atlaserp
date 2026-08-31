@@ -58,6 +58,7 @@ import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js"
 import { createStorefrontRouter } from "./routes/storefront/storefront-router.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
+import { createPfmRouter } from "./routes/pfm/index.js";
 import { createUsersRouter } from './routes/users-routes.js'
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCatalogRouter } from "./routes/catalog/index.js";
@@ -4684,7 +4685,7 @@ app.route("/modules", modulesRouter);
 // intercepts every unmatched path before the wildcard route at the bottom can fire.
 // Moving this up as a use() middleware means it runs first for browser GETs to
 // non-API paths and calls next() for everything else (API AJAX calls, etc.).
-const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
 // Static dist files that aren't HTML pages but live in the dist root (robots.txt, sitemap, webmanifest).
 const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
 app.use('*', async (c, next) => {
@@ -4710,6 +4711,7 @@ function mountWithAuth(baseApp, router) {
 mountWithAuth(app, createSettingsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPermission }));
+mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));

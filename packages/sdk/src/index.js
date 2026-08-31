@@ -818,6 +818,115 @@ export function createAtlasClient({ baseUrl }) {
           },
         ),
     },
+    pfm: {
+      listWallets: (token) =>
+        request("/pfm/wallets", { headers: withAuthHeaders(token) }),
+      getWallet: (id, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      createWallet: (data, token) =>
+        request("/pfm/wallets", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateWallet: (id, data, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setWalletEnabled: (id, enabled, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listWalletMembers: (id, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(id)}/members`, {
+          headers: withAuthHeaders(token),
+        }),
+      upsertWalletMember: (id, data, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(id)}/members`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      removeWalletMember: (id, userId, token) =>
+        request(
+          `/pfm/wallets/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`,
+          {
+            method: "DELETE",
+            headers: withAuthHeaders(token),
+          },
+        ),
+      listCategories: (token, query = {}) =>
+        request(`/pfm/categories${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      createCategory: (data, token) =>
+        request("/pfm/categories", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateCategory: (id, data, token) =>
+        request(`/pfm/categories/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setCategoryEnabled: (id, enabled, token) =>
+        request(`/pfm/categories/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listWalletMovements: (walletId, token, query = {}) =>
+        request(
+          `/pfm/wallets/${encodeURIComponent(walletId)}/movements${toQueryString(query)}`,
+          {
+            headers: withAuthHeaders(token),
+          },
+        ),
+      createWalletMovement: (walletId, data, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(walletId)}/movements`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateMovement: (movementId, data, token) =>
+        request(`/pfm/movements/${encodeURIComponent(movementId)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setMovementEnabled: (movementId, enabled, token) =>
+        request(`/pfm/movements/${encodeURIComponent(movementId)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      confirmMovement: (movementId, amount, token) =>
+        request(`/pfm/movements/${encodeURIComponent(movementId)}/confirm`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(amount === undefined ? {} : { amount }),
+        }),
+      skipMovement: (movementId, token) =>
+        request(`/pfm/movements/${encodeURIComponent(movementId)}/skip`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+        }),
+      enrichLedgerMovement: (walletId, ltxId, data, token) =>
+        request(
+          `/pfm/wallets/${encodeURIComponent(walletId)}/ledger-movements/${encodeURIComponent(ltxId)}/enrichment`,
+          {
+            method: "PUT",
+            headers: withAuthHeaders(token),
+            body: JSON.stringify(data),
+          },
+        ),
+      getSummary: (token, query = {}) =>
+        request(`/pfm/summary${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+    },
     catalog: {
       // Products
       listProducts: (token, options = {}) =>
