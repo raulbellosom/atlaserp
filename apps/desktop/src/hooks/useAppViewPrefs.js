@@ -2,15 +2,11 @@ import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
 import { atlas } from "../lib/atlas";
+import { DEFAULTS } from "./appViewPrefsDefaults";
+
+export { DEFAULTS };
 
 const PREF_KEY = "app.view";
-
-const DEFAULTS = {
-  sortMode: "az",
-  viewMode: "cards",
-  favoritesFirst: false,
-  favorites: [],
-};
 
 export function useAppViewPrefs() {
   const { session } = useAuth();
