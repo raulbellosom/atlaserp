@@ -46,6 +46,19 @@ export const AnnotatableImage = Node.create({
         renderHTML: (attrs) =>
           attrs.crop ? { 'data-crop': JSON.stringify(attrs.crop) } : {},
       },
+      // One of 0/90/180/270, clockwise. crop + annotations are always
+      // stored in the ALREADY-ROTATED image's own fraction space (see
+      // lib/imageCrop.js), so changing this alone is enough to redisplay
+      // the image correctly everywhere it renders.
+      rotation: {
+        default: 0,
+        parseHTML: (el) => {
+          const raw = Number(el.getAttribute('data-rotation'))
+          return raw === 90 || raw === 180 || raw === 270 ? raw : 0
+        },
+        renderHTML: (attrs) =>
+          attrs.rotation ? { 'data-rotation': String(attrs.rotation) } : {},
+      },
     }
   },
 

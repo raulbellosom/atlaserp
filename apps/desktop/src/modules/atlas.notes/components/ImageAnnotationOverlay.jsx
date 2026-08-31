@@ -7,8 +7,12 @@ import {
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Popover, PopoverTrigger, PopoverContent } from '@atlas/ui'
 import { findDropPosition, moveNode } from '../lib/dragReorder.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
-import { cropToViewBox, elementFracToImageSpace } from '../lib/imageCrop.js'
+import {
+  cropToViewBox, elementFracToImageSpace, effectiveNaturalSize,
+  normalizeRotation, rotateAnnotations,
+} from '../lib/imageCrop.js'
 import { clampImageWidthPct } from '../lib/imageSize.js'
+import { useRotatedFillSize } from '../hooks/useRotatedFillSize.js'
 import { ImageCropModal } from './ImageCropModal.jsx'
 
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#1a1a1a', '#ffffff']
@@ -34,6 +38,7 @@ function parseCrop(raw) {
 export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos }) {
   const svgRef = useRef(null)
   const boxRef = useRef(null) // the sized img+svg container — resize math + click-outside
+  const rotWrapRef = useRef(null) // sized/positioned per crop; useRotatedFillSize measures this
   const dragRef = useRef(null) // { pointerId, dropPos } — image reorder
   const drawRef = useRef(null) // { pointerId } — annotation drawing
   const resizeRef = useRef(null) // { pointerId, startX, startWidthPct, columnWidthPx }
@@ -52,10 +57,17 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
 
   const annotations = JSON.parse(node.attrs.annotations || '[]')
   const crop = parseCrop(node.attrs.crop)
+  const rotation = normalizeRotation(node.attrs.rotation)
   const editable = editor?.isEditable !== false
   const isEditing = editable && mode === 'edit'
   // null = full width, for images inserted before this attribute existed.
   const widthPct = node.attrs.width == null ? 100 : clampImageWidthPct(node.attrs.width)
+  // Identity crop when unset — cropToViewBox/elementFracToImageSpace treat
+  // {0,0,1,1} exactly like null, so every downstream calculation (drawing,
+  // rendering) can use one shape unconditionally.
+  const effectiveCrop = crop ?? { x: 0, y: 0, w: 1, h: 1 }
+  const effNat = effectiveNaturalSize(natural, rotation)
+  const fillSize = useRotatedFillSize(rotWrapRef, rotation)
 
   // Deselect when clicking outside the image (Word/PPT-style click-away).
   useEffect(() => {
@@ -374,25 +386,39 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
   // Outer box: controls the resizable width, carries the selection ring and
   // the pill/handle controls — never clipped, so they're never cut off.
   const wrapperStyle = { userSelect: 'none', width: `${displayWidthPct}%` }
-  // Inner frame: only this one clips to the crop window (overflow-hidden),
-  // so a cropped image can't hide controls that sit just outside its edges.
-  const frameStyle = {}
-  const imgStyle = { display: 'block' }
-  if (crop) {
-    const ar = natural ? (crop.w * natural.w) / (crop.h * natural.h) : crop.w / crop.h
-    frameStyle.aspectRatio = String(ar)
-    Object.assign(imgStyle, {
-      position: 'absolute',
-      width: `${100 / crop.w}%`,
-      left: `${(-crop.x / crop.w) * 100}%`,
-      top: `${(-crop.y / crop.h) * 100}%`,
-      maxWidth: 'none',
-      height: 'auto',
-    })
-  } else {
-    imgStyle.width = '100%'
-    imgStyle.height = 'auto'
+  // Frame: clips to the crop window (overflow-hidden always — harmless when
+  // effectiveCrop is the identity {0,0,1,1}, no crop set), so a cropped
+  // image can't hide controls that sit just outside its edges. Sized via
+  // the ROTATED effective natural aspect; falls back to the crop rect's own
+  // aspect before the image has loaded (self-corrects once it has).
+  const frameStyle = {
+    aspectRatio: effNat
+      ? String((effectiveCrop.w * effNat.w) / (effectiveCrop.h * effNat.h))
+      : String(effectiveCrop.w / effectiveCrop.h),
   }
+  // Rotation wrapper: positioned/sized per the crop window exactly like the
+  // old crop-only <img> was, but now holding a raw, unrotated <img> that
+  // useRotatedFillSize sizes (in px, measured) to exactly fill this wrapper
+  // once rotated — CSS percentages alone can't express "width = my parent's
+  // height", which a 90/270 rotation needs.
+  const rotWrapStyle = {
+    position: 'absolute',
+    width: `${100 / effectiveCrop.w}%`,
+    left: `${(-effectiveCrop.x / effectiveCrop.w) * 100}%`,
+    top: `${(-effectiveCrop.y / effectiveCrop.h) * 100}%`,
+    aspectRatio: effNat ? String(effNat.w / effNat.h) : undefined,
+  }
+  const imgStyle = fillSize
+    ? {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        width: `${fillSize.width}px`,
+        height: `${fillSize.height}px`,
+        maxWidth: 'none',
+        transform: rotation ? `translate(-50%, -50%) rotate(${rotation}deg)` : 'translate(-50%, -50%)',
+      }
+    : { position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0 }
 
   return (
     <NodeViewWrapper className="group/img relative my-2 block w-full">
@@ -513,14 +539,16 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
           </div>
         )}
 
-        <div className={`relative rounded-b ${crop ? 'overflow-hidden' : ''}`} style={frameStyle}>
-          <img
-            src={src}
-            alt={node.attrs.alt ?? ''}
-            style={imgStyle}
-            draggable={false}
-            onLoad={(e) => setNatural({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
-          />
+        <div className="relative rounded-b overflow-hidden" style={frameStyle}>
+          <div ref={rotWrapRef} style={rotWrapStyle}>
+            <img
+              src={src}
+              alt={node.attrs.alt ?? ''}
+              style={imgStyle}
+              draggable={false}
+              onLoad={(e) => setNatural({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
+            />
+          </div>
           <svg
             ref={svgRef}
             viewBox={cropToViewBox(crop)}
@@ -615,8 +643,20 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
           onOpenChange={setCropOpen}
           src={src}
           crop={crop}
-          onApply={(next) => {
-            updateAttributes({ crop: next })
+          rotation={rotation}
+          onApply={({ crop: nextCrop, rotation: nextRotation }) => {
+            // Rotation is a NODE-level concept (affects the image everywhere
+            // it renders, not just this modal session), so stored
+            // annotations — defined in the image's own rotated fraction
+            // space — must be re-expressed in the NEW rotation to stay
+            // visually aligned with the image content.
+            const delta = normalizeRotation(nextRotation - rotation)
+            const rotatedAnnotations = delta === 0 ? annotations : rotateAnnotations(annotations, delta)
+            updateAttributes({
+              crop: nextCrop,
+              rotation: nextRotation,
+              annotations: JSON.stringify(rotatedAnnotations),
+            })
             setCropOpen(false)
           }}
         />
