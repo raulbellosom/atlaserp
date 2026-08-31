@@ -76,6 +76,27 @@ export function usePfmSummary(month) {
   });
 }
 
+export function useRecurringRules() {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "recurring"],
+    queryFn: () => atlas.pfm.listRecurringRules(token),
+    enabled: Boolean(token),
+    select: (res) => res.data ?? [],
+  });
+}
+
+export function useUpcoming(days = 14) {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "upcoming", days],
+    queryFn: () => atlas.pfm.listUpcoming(token, { days }),
+    enabled: Boolean(token),
+    staleTime: 30 * 1000,
+    select: (res) => res.data ?? [],
+  });
+}
+
 export function useWalletMembers(walletId, enabled = true) {
   const token = useToken();
   return useQuery({
@@ -176,6 +197,33 @@ export function useEnrichLedgerMovement() {
     mutationFn: ({ walletId, ltxId, ...data }) =>
       atlas.pfm.enrichLedgerMovement(walletId, ltxId, data, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
+  });
+}
+
+export function useCreateRecurringRule() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: (data) => atlas.pfm.createRecurringRule(data, token),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateRecurringRule() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => atlas.pfm.updateRecurringRule(id, data, token),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useSetRecurringRuleEnabled() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, enabled }) => atlas.pfm.setRecurringRuleEnabled(id, enabled, token),
+    onSuccess: () => invalidate(),
   });
 }
 
