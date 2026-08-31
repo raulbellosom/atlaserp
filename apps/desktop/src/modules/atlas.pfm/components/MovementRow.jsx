@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/atlas.pfm/components/MovementRow.jsx
 import { Badge, Button } from "@atlas/ui";
-import { Check, SkipForward, Pencil } from "lucide-react";
+import { Check, SkipForward, Pencil, SlidersHorizontal } from "lucide-react";
 import { formatMoney } from "../lib/format";
 
 export function MovementRow({ movement, currency, onEdit, onConfirm, onSkip }) {
@@ -10,9 +10,16 @@ export function MovementRow({ movement, currency, onEdit, onConfirm, onSkip }) {
     <div className="flex items-center gap-3 py-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-[hsl(var(--foreground))]">
-          {movement.merchant || movement.note || "Movimiento"}
+          {movement.merchant ||
+            movement.note ||
+            (movement.isAdjustment ? "Ajuste de saldo" : "Movimiento")}
         </p>
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+          {movement.isAdjustment && (
+            <Badge variant="outline">
+              <SlidersHorizontal className="mr-1 h-3 w-3" /> Ajuste
+            </Badge>
+          )}
           <span>{movement.occurredOn}</span>
           {movement.source === "ledger" && <Badge variant="outline">Libro de cuentas</Badge>}
           {movement.status === "PENDING" && <Badge variant="warning">Pendiente</Badge>}
