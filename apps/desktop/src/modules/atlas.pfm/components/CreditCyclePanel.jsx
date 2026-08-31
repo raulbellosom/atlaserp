@@ -1,7 +1,13 @@
 // apps/desktop/src/modules/atlas.pfm/components/CreditCyclePanel.jsx
-import { Card, Button, ProgressMeter } from "@atlas/ui";
+import { Card, Button, cn } from "@atlas/ui";
 import { CreditCard, Settings2 } from "lucide-react";
 import { formatMoney, creditUtilizationTone } from "../lib/format";
+
+const TONE_BG = {
+  success: "bg-emerald-500",
+  warning: "bg-amber-500",
+  danger: "bg-red-500",
+};
 
 export function CreditCyclePanel({ wallet, onEdit }) {
   if (!wallet || wallet.kind !== "CREDIT") return null;
@@ -20,6 +26,14 @@ export function CreditCyclePanel({ wallet, onEdit }) {
       </Card>
     );
   }
+
+  // Split the occupied balance into what was carried over vs. spent this period.
+  const period = Math.max(0, Math.min(c.periodSpend ?? 0, c.totalOwed));
+  const carried = Math.max(0, c.totalOwed - period);
+  const tone = creditUtilizationTone(c.utilization);
+  const toneBg = TONE_BG[tone] ?? TONE_BG.success;
+  const pctOf = (v) =>
+    c.creditLimit > 0 ? Math.min(100, Math.max(0, (v / c.creditLimit) * 100)) : 0;
 
   return (
     <Card variant="solid" className="mb-4 p-4">
@@ -57,16 +71,38 @@ export function CreditCyclePanel({ wallet, onEdit }) {
           </div>
         )}
       </dl>
+
       {c.creditLimit != null && (
-        <ProgressMeter
-          className="mt-3"
-          value={c.totalOwed}
-          max={c.creditLimit}
-          tone={creditUtilizationTone(c.utilization)}
-          valueLabel={c.utilization != null ? `${Math.round(c.utilization * 100)}%` : undefined}
-          label="Ocupacion"
-        />
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="font-medium text-[hsl(var(--foreground))]">Ocupacion</span>
+            <span className="tabular-nums text-[hsl(var(--muted-foreground))]">
+              {c.utilization != null ? `${Math.round(c.utilization * 100)}%` : ""}
+            </span>
+          </div>
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-[hsl(var(--muted))]">
+            <div
+              className={cn("h-full transition-[width] duration-300", toneBg)}
+              style={{ width: `${pctOf(carried)}%` }}
+            />
+            <div
+              className={cn("h-full opacity-45 transition-[width] duration-300", toneBg)}
+              style={{ width: `${pctOf(period)}%` }}
+            />
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[hsl(var(--muted-foreground))]">
+            <span className="flex items-center gap-1.5">
+              <span className={cn("h-2 w-2 rounded-sm", toneBg)} />
+              Arrastrado {formatMoney(carried, wallet.currency)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className={cn("h-2 w-2 rounded-sm opacity-45", toneBg)} />
+              Periodo {formatMoney(period, wallet.currency)}
+            </span>
+          </div>
+        </div>
       )}
+
       <p className="mt-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
         Corte dia {c.statementDay}
         {c.paymentDueDay ? ` · pago dia ${c.paymentDueDay}` : ""}
