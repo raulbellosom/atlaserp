@@ -365,11 +365,11 @@ export function useContributeGoal() {
     onSuccess: () => invalidate(),
   });
 }
-export function useUpdateWalletCredit() {
+export function useAdjustWalletBalance() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...d }) => atlas.pfm.updateWalletCredit(id, d, token),
+    mutationFn: ({ id, ...data }) => atlas.pfm.adjustWalletBalance(id, data, token),
     onSuccess: (_r, v) => invalidate(v.id),
   });
 }
