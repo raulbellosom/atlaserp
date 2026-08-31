@@ -3070,6 +3070,7 @@ model PfmMovement {
   note            String?
   merchant        String?
   status          PfmMovementStatus    @default(POSTED)
+  isAdjustment    Boolean              @default(false) @map("is_adjustment")
   recurringRuleId String?              @map("recurring_rule_id") @db.Uuid
   receiptId       String?              @map("receipt_id") @db.Uuid
   enabled         Boolean              @default(true)
