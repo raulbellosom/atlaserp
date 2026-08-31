@@ -29,7 +29,7 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
   const updateMut = useUpdateBudget();
 
   const [categoryId, setCategoryId] = useState("");
-  const [walletId, setWalletId] = useState("");
+  const [walletId, setWalletId] = useState("all");
   const {
     register,
     handleSubmit,
@@ -44,12 +44,12 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
     if (!open) return;
     reset({ amount: budget?.amount ?? "", alertThreshold: String(budget?.alertThreshold ?? 0.8) });
     setCategoryId(budget?.categoryId ?? "");
-    setWalletId(budget?.walletId ?? "");
+    setWalletId(budget?.walletId ?? "all");
   }, [open, budget, reset]);
 
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
   const walletOptions = [
-    { value: "", label: "Todas las carteras" },
+    { value: "all", label: "Todas las carteras" },
     ...wallets.map((w) => ({ value: w.id, label: w.name })),
   ];
 
@@ -62,7 +62,7 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
       if (!categoryId) return;
       await createMut.mutateAsync({
         categoryId,
-        walletId: walletId || null,
+        walletId: walletId && walletId !== "all" ? walletId : null,
         amount,
         alertThreshold: Number(v.alertThreshold),
       });

@@ -996,6 +996,17 @@ export const SelectField = forwardRef(function SelectField(
                 {options.map((opt) => {
                   const val = typeof opt === "string" ? opt : opt.value;
                   const lbl = typeof opt === "string" ? opt : opt.label;
+                  // Radix Select throws on an empty-string item value. Skip such
+                  // options rather than crash the whole screen.
+                  if (val === "" || val == null) {
+                    if (import.meta.env?.DEV) {
+                      console.warn(
+                        "[SelectField] skipped an option with an empty value:",
+                        lbl,
+                      );
+                    }
+                    return null;
+                  }
                   return (
                     <SelectPrimitive.Item
                       key={val}

@@ -36,6 +36,10 @@ import {
   groupMovements,
 } from "../lib/format";
 
+// Radix <Select.Item> forbids an empty-string value, so the "all" option needs a
+// real sentinel; category ids are UUIDs, so "all" never collides.
+const ALL_CATEGORIES = "all";
+
 export default function WalletDetailScreen() {
   // ModuleOutlet mounts screens under `m/:moduleKey/*`, so the wallet id lives
   // in the splat param (e.g. "wallets/<id>"), not in a `:id` route param.
@@ -50,13 +54,13 @@ export default function WalletDetailScreen() {
   const navigate = useNavigate();
   const [month, setMonth] = useState(currentMonthKey());
   const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState(ALL_CATEGORIES);
   const { data: wallet, isLoading, isError, refetch } = useWallet(id);
   const query = useMemo(
     () => ({
       month,
       ...(search ? { search } : {}),
-      ...(categoryId ? { categoryId } : {}),
+      ...(categoryId && categoryId !== ALL_CATEGORIES ? { categoryId } : {}),
       limit: 100,
     }),
     [month, search, categoryId],
@@ -92,7 +96,7 @@ export default function WalletDetailScreen() {
     return { value: key, label: formatMonthLabel(key) };
   });
   const categoryOptions = [
-    { value: "", label: "Todas las categorias" },
+    { value: ALL_CATEGORIES, label: "Todas las categorias" },
     ...categories.map((c) => ({ value: c.id, label: c.name })),
   ];
 
