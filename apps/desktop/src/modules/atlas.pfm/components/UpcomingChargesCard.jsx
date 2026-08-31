@@ -1,0 +1,83 @@
+// apps/desktop/src/modules/atlas.pfm/components/UpcomingChargesCard.jsx
+import { useState } from "react";
+import { Card, Button, Badge, EmptyState, ConfirmDialog } from "@atlas/ui";
+import { Check, SkipForward } from "lucide-react";
+import { useUpcoming, useConfirmMovement, useSkipMovement } from "../hooks/use-pfm-queries";
+import { formatMoney } from "../lib/format";
+
+export function UpcomingChargesCard() {
+  const { data: items = [], isLoading } = useUpcoming(14);
+  const confirmMut = useConfirmMovement();
+  const skipMut = useSkipMovement();
+  const [confirmTarget, setConfirmTarget] = useState(null);
+
+  return (
+    <Card variant="solid" className="p-5">
+      <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">
+        Proximos cargos (14 dias)
+      </h3>
+      {!isLoading && items.length === 0 && (
+        <EmptyState variant="compact" title="Nada pendiente por ahora" />
+      )}
+      <ul className="divide-y divide-[hsl(var(--border))]">
+        {items.map((it) => (
+          <li key={it.id} className="flex items-center gap-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-[hsl(var(--foreground))]">
+                {it.merchant || it.categoryName || "Cargo"}
+              </p>
+              <p className="flex flex-wrap items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+                <span>{it.occurredOn}</span>
+                <span>{it.walletName}</span>
+                {it.fromRule && <Badge variant="outline">Recurrente</Badge>}
+              </p>
+            </div>
+            <span
+              className={
+                it.direction === "EXPENSE"
+                  ? "shrink-0 text-sm font-semibold text-red-500"
+                  : "shrink-0 text-sm font-semibold text-emerald-600 dark:text-emerald-400"
+              }
+            >
+              {it.direction === "EXPENSE" ? "-" : "+"}
+              {formatMoney(it.amount, it.currency)}
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Confirmar"
+                onClick={() => setConfirmTarget(it)}
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Omitir"
+                onClick={() => skipMut.mutate({ movementId: it.id, walletId: it.walletId })}
+              >
+                <SkipForward className="h-4 w-4" />
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={Boolean(confirmTarget)}
+        onOpenChange={(v) => !v && setConfirmTarget(null)}
+        title="Confirmar cargo"
+        description={`Se aplicara ${formatMoney(confirmTarget?.amount, confirmTarget?.currency)} a ${confirmTarget?.walletName ?? ""}.`}
+        confirmLabel="Confirmar"
+        onConfirm={async () => {
+          await confirmMut.mutateAsync({
+            movementId: confirmTarget.id,
+            walletId: confirmTarget.walletId,
+          });
+          setConfirmTarget(null);
+        }}
+      />
+    </Card>
+  );
+}

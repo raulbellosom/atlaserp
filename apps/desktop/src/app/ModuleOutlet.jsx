@@ -131,6 +131,9 @@ const SCREEN_MAP = {
   "atlas.pfm:/wallets/:id": lazy(
     () => import("../modules/atlas.pfm/screens/WalletDetailScreen.jsx"),
   ),
+  "atlas.pfm:/recurring": lazy(
+    () => import("../modules/atlas.pfm/screens/RecurringScreen.jsx"),
+  ),
   // atlas.fleet custom screens
   "atlas.fleet:/vehicles": lazy(
     () => import("../modules/atlas.fleet/screens/VehiclesScreen.jsx"),
@@ -504,6 +507,7 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath === "/" || subPath === "/overview") return SCREEN_MAP["atlas.pfm:/overview"] ?? null;
     if (subPath === "/wallets" || subPath === "/wallets/new") return SCREEN_MAP["atlas.pfm:/wallets"] ?? null;
     if (subPath.startsWith("/wallets/")) return SCREEN_MAP["atlas.pfm:/wallets/:id"] ?? null;
+    if (subPath === "/recurring") return SCREEN_MAP["atlas.pfm:/recurring"] ?? null;
     return null;
   }
   if (moduleKey === "atlas.website") {

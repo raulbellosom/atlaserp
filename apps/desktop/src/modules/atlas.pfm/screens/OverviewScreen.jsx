@@ -5,6 +5,7 @@ import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
 import { usePfmSummary } from "../hooks/use-pfm-queries";
 import { CategoryDonut } from "../components/CategoryDonut";
 import { SpendTrendBar } from "../components/SpendTrendBar";
+import { UpcomingChargesCard } from "../components/UpcomingChargesCard";
 import {
   formatMoney,
   currentMonthKey,
@@ -55,6 +56,10 @@ export default function OverviewScreen() {
               value={formatMoney(summary.prevMonthExpense)}
               icon={TrendingDown}
             />
+          </div>
+
+          <div className="mt-6">
+            <UpcomingChargesCard />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
