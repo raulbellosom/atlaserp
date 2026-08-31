@@ -121,6 +121,16 @@ const SCREEN_MAP = {
   "atlas.ledger:/types/:id": lazy(
     () => import("../modules/atlas.ledger/screens/TypesScreen.jsx"),
   ),
+  // atlas.pfm screens
+  "atlas.pfm:/overview": lazy(
+    () => import("../modules/atlas.pfm/screens/OverviewScreen.jsx"),
+  ),
+  "atlas.pfm:/wallets": lazy(
+    () => import("../modules/atlas.pfm/screens/WalletsScreen.jsx"),
+  ),
+  "atlas.pfm:/wallets/:id": lazy(
+    () => import("../modules/atlas.pfm/screens/WalletDetailScreen.jsx"),
+  ),
   // atlas.fleet custom screens
   "atlas.fleet:/vehicles": lazy(
     () => import("../modules/atlas.fleet/screens/VehiclesScreen.jsx"),
@@ -488,6 +498,12 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath.startsWith("/categories/")) return SCREEN_MAP["atlas.ledger:/categories/:id"] ?? null;
     if (subPath === "/types" || subPath === "/types/new") return SCREEN_MAP["atlas.ledger:/types"] ?? null;
     if (subPath.startsWith("/types/")) return SCREEN_MAP["atlas.ledger:/types/:id"] ?? null;
+    return null;
+  }
+  if (moduleKey === "atlas.pfm") {
+    if (subPath === "/" || subPath === "/overview") return SCREEN_MAP["atlas.pfm:/overview"] ?? null;
+    if (subPath === "/wallets" || subPath === "/wallets/new") return SCREEN_MAP["atlas.pfm:/wallets"] ?? null;
+    if (subPath.startsWith("/wallets/")) return SCREEN_MAP["atlas.pfm:/wallets/:id"] ?? null;
     return null;
   }
   if (moduleKey === "atlas.website") {
