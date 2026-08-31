@@ -2947,3 +2947,140 @@ model InvItemFile {
   @@index([fileAssetId])
   @@map("inv_item_file")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// atlas.pfm — Finanzas personales (Phase 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum PfmWalletKind {
+  CASH
+  DEBIT
+  CREDIT
+
+  @@map("pfm_wallet_kind")
+}
+
+enum PfmWalletMemberRole {
+  VIEWER
+  EDITOR
+
+  @@map("pfm_wallet_member_role")
+}
+
+enum PfmCategoryKind {
+  EXPENSE
+  INCOME
+
+  @@map("pfm_category_kind")
+}
+
+enum PfmMovementDirection {
+  EXPENSE
+  INCOME
+
+  @@map("pfm_movement_direction")
+}
+
+enum PfmMovementStatus {
+  PENDING
+  POSTED
+  SKIPPED
+
+  @@map("pfm_movement_status")
+}
+
+model PfmWallet {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  companyId       String        @map("company_id") @db.Uuid
+  ownerId         String        @map("owner_id") @db.Uuid
+  name            String
+  kind            PfmWalletKind
+  currency        String        @default("MXN")
+  openingBalance  Decimal       @default(0) @map("opening_balance") @db.Decimal(15, 2)
+  color           String?
+  icon            String?
+  ledgerAccountId String?       @map("ledger_account_id") @db.Uuid
+  enabled         Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  members   PfmWalletMember[]
+  movements PfmMovement[]
+
+  @@index([companyId, ownerId, enabled])
+  @@index([ledgerAccountId])
+  @@map("pfm_wallet")
+}
+
+model PfmWalletMember {
+  id        String              @id @default(uuid(7)) @db.Uuid
+  walletId  String              @map("wallet_id") @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  role      PfmWalletMemberRole
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  wallet PfmWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([walletId, userId])
+  @@index([userId])
+  @@map("pfm_wallet_member")
+}
+
+model PfmCategory {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  companyId String          @map("company_id") @db.Uuid
+  ownerId   String?         @map("owner_id") @db.Uuid
+  name      String
+  kind      PfmCategoryKind
+  color     String?
+  icon      String?
+  parentId  String?         @map("parent_id") @db.Uuid
+  enabled   Boolean         @default(true)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  @@index([companyId, kind, enabled])
+  @@index([ownerId])
+  @@map("pfm_category")
+}
+
+model PfmMovement {
+  id              String               @id @default(uuid(7)) @db.Uuid
+  companyId       String               @map("company_id") @db.Uuid
+  ownerId         String               @map("owner_id") @db.Uuid
+  walletId        String               @map("wallet_id") @db.Uuid
+  categoryId      String?              @map("category_id") @db.Uuid
+  direction       PfmMovementDirection
+  amount          Decimal              @db.Decimal(15, 2)
+  occurredOn      DateTime             @map("occurred_on") @db.Date
+  note            String?
+  merchant        String?
+  status          PfmMovementStatus    @default(POSTED)
+  recurringRuleId String?              @map("recurring_rule_id") @db.Uuid
+  receiptId       String?              @map("receipt_id") @db.Uuid
+  enabled         Boolean              @default(true)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  wallet PfmWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, status, occurredOn])
+  @@index([walletId, occurredOn])
+  @@map("pfm_movement")
+}
+
+model PfmLedgerEnrichment {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  companyId           String   @map("company_id") @db.Uuid
+  ownerId             String   @map("owner_id") @db.Uuid
+  walletId            String   @map("wallet_id") @db.Uuid
+  ledgerTransactionId String   @unique @map("ledger_transaction_id") @db.Uuid
+  categoryId          String?  @map("category_id") @db.Uuid
+  receiptId           String?  @map("receipt_id") @db.Uuid
+  note                String?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@index([walletId])
+  @@map("pfm_ledger_enrichment")
+}
