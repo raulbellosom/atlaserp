@@ -134,6 +134,26 @@ export function useReceiptImageUrl(fileId) {
   });
 }
 
+export function useBudgets(month) {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "budgets", month ?? "current"],
+    queryFn: () => atlas.pfm.listBudgets(token, month ? { month } : {}),
+    enabled: Boolean(token),
+    select: (res) => res.data ?? [],
+  });
+}
+
+export function useGoals() {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "goals"],
+    queryFn: () => atlas.pfm.listGoals(token),
+    enabled: Boolean(token),
+    select: (res) => res.data ?? [],
+  });
+}
+
 export function useWalletMembers(walletId, enabled = true) {
   const token = useToken();
   return useQuery({
@@ -292,6 +312,65 @@ export function useRetryReceipt() {
   return useMutation({
     mutationFn: (id) => atlas.pfm.retryReceipt(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "receipts"] }),
+  });
+}
+
+export function useCreateBudget() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({ mutationFn: (d) => atlas.pfm.createBudget(d, token), onSuccess: () => invalidate() });
+}
+export function useUpdateBudget() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, ...d }) => atlas.pfm.updateBudget(id, d, token),
+    onSuccess: () => invalidate(),
+  });
+}
+export function useSetBudgetEnabled() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, enabled }) => atlas.pfm.setBudgetEnabled(id, enabled, token),
+    onSuccess: () => invalidate(),
+  });
+}
+export function useCreateGoal() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({ mutationFn: (d) => atlas.pfm.createGoal(d, token), onSuccess: () => invalidate() });
+}
+export function useUpdateGoal() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, ...d }) => atlas.pfm.updateGoal(id, d, token),
+    onSuccess: () => invalidate(),
+  });
+}
+export function useSetGoalEnabled() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, enabled }) => atlas.pfm.setGoalEnabled(id, enabled, token),
+    onSuccess: () => invalidate(),
+  });
+}
+export function useContributeGoal() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, amount }) => atlas.pfm.contributeGoal(id, amount, token),
+    onSuccess: () => invalidate(),
+  });
+}
+export function useUpdateWalletCredit() {
+  const token = useToken();
+  const invalidate = useInvalidatePfm();
+  return useMutation({
+    mutationFn: ({ id, ...d }) => atlas.pfm.updateWalletCredit(id, d, token),
+    onSuccess: (_r, v) => invalidate(v.id),
   });
 }
 

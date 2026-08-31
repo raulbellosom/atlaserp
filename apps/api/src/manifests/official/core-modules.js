@@ -1435,6 +1435,13 @@ export const atlasPfmManifest = createModuleManifest({
       permissionKey: "pfm.recurring.read",
     },
     {
+      label: "Presupuestos",
+      path: "/app/m/atlas.pfm/budgets",
+      icon: "Target",
+      layout: "main",
+      permissionKey: "pfm.budgets.manage",
+    },
+    {
       label: "Tickets",
       path: "/app/m/atlas.pfm/receipts",
       icon: "ReceiptText",
