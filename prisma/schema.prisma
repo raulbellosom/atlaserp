@@ -1669,6 +1669,7 @@ enum GoogleCalendarConnectionStatus {
 
 enum GoogleCalendarSourceStatus {
   PENDING_INITIAL_SYNC
+  SYNCING
   ACTIVE
   DISABLED
   ERROR
