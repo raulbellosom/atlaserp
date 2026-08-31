@@ -137,3 +137,37 @@ export const confirmReceiptSchema = z.object({
   merchant: z.string().max(160).optional().nullable(),
   note: z.string().max(500).optional().nullable(),
 });
+
+// ── Budgets & goals (Phase 4) ────────────────────────────────────────────────
+
+export const createBudgetSchema = z.object({
+  categoryId: z.string().uuid(),
+  walletId: z.string().uuid().optional().nullable(),
+  amount: z.number().positive().max(9_999_999_999),
+  alertThreshold: z.number().min(0.1).max(1).default(0.8),
+});
+
+export const updateBudgetSchema = z.object({
+  amount: z.number().positive().max(9_999_999_999).optional(),
+  alertThreshold: z.number().min(0.1).max(1).optional(),
+});
+
+export const createGoalSchema = z.object({
+  name: z.string().min(1).max(120),
+  targetAmount: z.number().positive().max(9_999_999_999),
+  targetDate: isoDateSchema.optional().nullable(),
+  walletId: z.string().uuid().optional().nullable(),
+  color: z.string().max(32).optional().nullable(),
+});
+
+export const updateGoalSchema = createGoalSchema.partial();
+
+export const contributeGoalSchema = z.object({
+  amount: z.number().refine((n) => n !== 0, "El monto no puede ser cero"),
+});
+
+export const creditCardSchema = z.object({
+  creditLimit: z.number().positive().max(9_999_999_999).nullable().optional(),
+  statementDay: z.number().int().min(1).max(31).nullable().optional(),
+  paymentDueDay: z.number().int().min(1).max(31).nullable().optional(),
+});
