@@ -3118,3 +3118,34 @@ model PfmRecurringRule {
   @@index([walletId, enabled])
   @@map("pfm_recurring_rule")
 }
+
+enum PfmReceiptStatus {
+  PROCESSING
+  PARSED
+  FAILED
+  CONFIRMED
+
+  @@map("pfm_receipt_status")
+}
+
+model PfmReceipt {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  companyId   String           @map("company_id") @db.Uuid
+  ownerId     String           @map("owner_id") @db.Uuid
+  fileId      String           @map("file_id") @db.Uuid
+  status      PfmReceiptStatus @default(PROCESSING)
+  provider    String           @default("groq")
+  model       String?
+  rawResponse Json?            @map("raw_response")
+  parsed      Json?
+  movementId  String?          @map("movement_id") @db.Uuid
+  errorReason String?          @map("error_reason")
+  attempts    Int              @default(0)
+  enabled     Boolean          @default(true)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  @@index([status, enabled])
+  @@index([ownerId, createdAt])
+  @@map("pfm_receipt")
+}
