@@ -22,6 +22,8 @@ import {
 } from "../hooks/use-pfm-queries";
 import { MovementRow } from "../components/MovementRow";
 import { QuickAddMovementSheet } from "../components/QuickAddMovementSheet";
+import { CreditCyclePanel } from "../components/CreditCyclePanel";
+import { CreditCardSheet } from "../components/CreditCardSheet";
 import {
   formatMoney,
   currentMonthKey,
@@ -51,6 +53,7 @@ export default function WalletDetailScreen() {
   const skipMut = useSkipMovement();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [creditSheetOpen, setCreditSheetOpen] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
 
@@ -91,6 +94,10 @@ export default function WalletDetailScreen() {
           </Button>
         }
       />
+
+      {wallet.kind === "CREDIT" && (
+        <CreditCyclePanel wallet={wallet} onEdit={() => setCreditSheetOpen(true)} />
+      )}
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <SelectField label="Mes" options={monthOptions} value={month} onChange={setMonth} />
@@ -154,6 +161,12 @@ export default function WalletDetailScreen() {
         }}
         defaultWalletId={wallet.id}
         editingMovement={editingMovement}
+      />
+
+      <CreditCardSheet
+        open={creditSheetOpen}
+        onOpenChange={setCreditSheetOpen}
+        wallet={wallet}
       />
 
       <ConfirmDialog
