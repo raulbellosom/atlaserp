@@ -17,6 +17,7 @@ import { formatMoney, todayIso, creditUsage } from "../lib/format";
 export function AdjustBalanceSheet({ open, onOpenChange, wallet }) {
   const mut = useAdjustWalletBalance();
   const isCredit = wallet?.kind === "CREDIT";
+  const isInvestment = wallet?.kind === "INVESTMENT";
   const [target, setTarget] = useState("");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(todayIso());
@@ -75,7 +76,13 @@ export function AdjustBalanceSheet({ open, onOpenChange, wallet }) {
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <TextField
-            label={isCredit ? "Saldo ocupado real" : "Saldo real"}
+            label={
+              isCredit
+                ? "Saldo ocupado real"
+                : isInvestment
+                  ? "Saldo real de la cuenta"
+                  : "Saldo real"
+            }
             type="number"
             step="0.01"
             inputMode="decimal"
@@ -90,7 +97,11 @@ export function AdjustBalanceSheet({ open, onOpenChange, wallet }) {
           />
           <TextField
             label="Nota (opcional)"
-            placeholder="Rendimiento, corrección de banco..."
+            placeholder={
+              isInvestment
+                ? "Ajuste de rendimiento / corrección"
+                : "Rendimiento, corrección de banco..."
+            }
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
