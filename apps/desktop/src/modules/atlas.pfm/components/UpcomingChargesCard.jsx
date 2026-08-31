@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/atlas.pfm/components/UpcomingChargesCard.jsx
 import { useState } from "react";
-import { Card, Button, Badge, EmptyState, ConfirmDialog } from "@atlas/ui";
+import { SectionCard, Button, Badge, EmptyState, ConfirmDialog } from "@atlas/ui";
 import { Check, SkipForward } from "lucide-react";
 import { useUpcoming, useConfirmMovement, useSkipMovement } from "../hooks/use-pfm-queries";
 import { formatMoney } from "../lib/format";
@@ -12,10 +12,7 @@ export function UpcomingChargesCard() {
   const [confirmTarget, setConfirmTarget] = useState(null);
 
   return (
-    <Card variant="solid" className="p-5">
-      <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">
-        Proximos cargos (14 dias)
-      </h3>
+    <SectionCard title="Proximos cargos (14 dias)">
       {!isLoading && items.length === 0 && (
         <EmptyState variant="compact" title="Nada pendiente por ahora" />
       )}
@@ -78,6 +75,6 @@ export function UpcomingChargesCard() {
           setConfirmTarget(null);
         }}
       />
-    </Card>
+    </SectionCard>
   );
 }

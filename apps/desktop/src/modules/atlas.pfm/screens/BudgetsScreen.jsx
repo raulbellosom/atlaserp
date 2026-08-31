@@ -3,7 +3,7 @@ import { useState } from "react";
 import {
   PageHeader,
   Button,
-  Card,
+  SectionCard,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -59,10 +59,7 @@ export default function BudgetsScreen() {
         }
       />
 
-      <Card variant="solid" className="mb-6 p-5">
-        <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">
-          Presupuestos del mes
-        </h3>
+      <SectionCard title="Presupuestos del mes" className="mb-6">
         {budgetsQ.isLoading && <LoadingState />}
         {budgetsQ.isError && (
           <ErrorState title="No se pudieron cargar los presupuestos" onRetry={budgetsQ.refetch} />
@@ -74,10 +71,9 @@ export default function BudgetsScreen() {
             onDisable={(b) => setDisableBudget(b)}
           />
         )}
-      </Card>
+      </SectionCard>
 
-      <Card variant="solid" className="p-5">
-        <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">Metas de ahorro</h3>
+      <SectionCard title="Metas de ahorro">
         {goalsQ.isLoading && <LoadingState />}
         {goalsQ.isError && (
           <ErrorState title="No se pudieron cargar las metas" onRetry={goalsQ.refetch} />
@@ -89,7 +85,7 @@ export default function BudgetsScreen() {
             onContribute={(g, sign) => { setContribAmount(""); setContribute({ goal: g, sign }); }}
           />
         )}
-      </Card>
+      </SectionCard>
 
       <BudgetFormSheet open={budgetSheet} onOpenChange={setBudgetSheet} budget={editBudget} />
       <GoalFormSheet open={goalSheet} onOpenChange={setGoalSheet} goal={editGoal} />

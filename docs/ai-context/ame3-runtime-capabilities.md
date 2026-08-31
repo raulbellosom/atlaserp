@@ -349,6 +349,9 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Separator` | Horizontal or vertical divider |
 | `Skeleton` | Loading placeholder |
 | `ProgressBar` | Determinate (`value` 0-100) or indeterminate (`value={null}`) progress bar for long-running background operations |
+| `ProgressMeter` | Threshold-aware bar with an optional label/value row. `value`/`max`; `tone="auto"` colours green→amber (`warnAt`, default 0.8)→red (≥1). Use for budgets, quota, reorder points. |
+| `RingProgress` | Circular SVG progress ring. `value`/`max`, `size`, `stroke`, `color`; renders `children` centred. Use for goals/completion. |
+| `SectionCard` | Glass `Card` with a `title` (+ optional `description`, `action` slot) header and a body. Standardises the "titled card" pattern; `variant` passes through to `Card`. |
 | `Avatar`, `AvatarImage`, `AvatarFallback` | User avatar with fallback initials |
 
 ### Forms
@@ -438,6 +441,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DocumentsPanel` | Documents list panel |
 | `ImageViewer` | Image lightbox |
 | `ImageUploader` | Image crop and upload widget |
+| `SwatchField` | Pick an accent colour from a small preset palette (`swatches` prop, defaults to `DEFAULT_SWATCHES`). Use instead of a raw `<input type="color">` when only a themeable accent is needed. |
 | `DatePickerField` | Standalone date picker |
 | `PageFooter` | Page footer bar |
 | `BrandFooter` | Branded footer with logo |

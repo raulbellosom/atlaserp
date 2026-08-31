@@ -56,17 +56,29 @@ export default function WalletsScreen() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {wallets.map((w) => (
+        {wallets.map((w) => {
+          const accent = w.color || "#0ea5e9";
+          return (
           <Card
             key={w.id}
             variant="interactive"
-            className="p-5"
+            className="relative overflow-hidden p-5"
             onClick={() => navigate(`/app/m/atlas.pfm/wallets/${w.id}`)}
           >
-            <div className="flex items-start justify-between">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-24 opacity-[0.12]"
+              style={{ background: `radial-gradient(120% 80% at 0% 0%, ${accent}, transparent 70%)` }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-0 top-0 h-full w-1"
+              style={{ backgroundColor: accent }}
+            />
+            <div className="relative flex items-start justify-between">
               <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-white"
-                style={{ backgroundColor: w.color || "#0ea5e9" }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm"
+                style={{ backgroundColor: accent }}
               >
                 <Wallet className="h-4 w-4" />
               </span>
@@ -102,19 +114,20 @@ export default function WalletsScreen() {
                 </div>
               )}
             </div>
-            <p className="mt-3 truncate text-sm font-semibold text-[hsl(var(--foreground))]">
+            <p className="relative mt-3 truncate text-sm font-semibold text-[hsl(var(--foreground))]">
               {w.name}
             </p>
-            <p className="mt-0.5 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+            <p className="relative mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[hsl(var(--muted-foreground))]">
               {WALLET_KIND_LABEL[w.kind]}
               {w.reference && <span className="tabular-nums">· {w.reference}</span>}
               {w.ledgerAccountId && <Badge variant="outline">Libro de cuentas</Badge>}
             </p>
-            <p className="mt-3 text-2xl font-bold tracking-tight text-[hsl(var(--foreground))]">
+            <p className="relative mt-3 text-2xl font-bold tracking-tight tabular-nums text-[hsl(var(--foreground))]">
               {formatMoney(w.currentBalance, w.currency)}
             </p>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       <WalletFormSheet open={formOpen} onOpenChange={setFormOpen} wallet={editWallet} />

@@ -1,8 +1,15 @@
 // apps/desktop/src/modules/atlas.pfm/screens/OverviewScreen.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader, StatCard, Card, SelectField, LoadingState, ErrorState } from "@atlas/ui";
-import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  PageHeader,
+  StatCard,
+  SectionCard,
+  SelectField,
+  LoadingState,
+  ErrorState,
+} from "@atlas/ui";
+import { Wallet, TrendingDown, TrendingUp, Scale } from "lucide-react";
 import { usePfmSummary, useBudgets, useGoals } from "../hooks/use-pfm-queries";
 import { CategoryDonut } from "../components/CategoryDonut";
 import { SpendTrendBar } from "../components/SpendTrendBar";
@@ -30,6 +37,7 @@ export default function OverviewScreen() {
   });
 
   const delta = summary ? percentDelta(summary.monthExpense, summary.prevMonthExpense) : null;
+  const net = summary ? summary.monthIncome - summary.monthExpense : 0;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -58,9 +66,9 @@ export default function OverviewScreen() {
               trend={delta == null ? undefined : -delta}
             />
             <StatCard
-              label="Mes anterior"
-              value={formatMoney(summary.prevMonthExpense)}
-              icon={TrendingDown}
+              label="Neto del mes"
+              value={`${net < 0 ? "-" : "+"}${formatMoney(Math.abs(net))}`}
+              icon={Scale}
             />
           </div>
 
@@ -69,52 +77,70 @@ export default function OverviewScreen() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <Card variant="solid" className="p-5">
-              <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">
-                Gasto por categoria
-              </h3>
-              <CategoryDonut data={summary.byCategory} currency="MXN" />
-              <ul className="mt-3 space-y-1">
+            <SectionCard title="Gasto por categoria">
+              <CategoryDonut
+                data={summary.byCategory}
+                currency="MXN"
+                centerLabel="Gasto del mes"
+                centerValue={summary.monthExpense}
+              />
+              <ul className="mt-3 space-y-1.5">
                 {summary.byCategory.map((c) => (
                   <li
                     key={c.categoryId ?? c.name}
                     className="flex items-center justify-between text-xs"
                   >
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-2 truncate">
                       <span
-                        className="h-2.5 w-2.5 rounded-full"
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: c.color }}
                       />
-                      {c.name}
+                      <span className="truncate text-[hsl(var(--muted-foreground))]">{c.name}</span>
                     </span>
-                    <span className="font-medium">{formatMoney(c.total)}</span>
+                    <span className="shrink-0 font-medium tabular-nums">{formatMoney(c.total)}</span>
                   </li>
                 ))}
               </ul>
-            </Card>
-            <Card variant="solid" className="p-5">
-              <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">
-                Tendencia (6 meses)
-              </h3>
+            </SectionCard>
+
+            <SectionCard title="Tendencia (6 meses)">
               <SpendTrendBar data={summary.trend} currency="MXN" />
-            </Card>
+            </SectionCard>
           </div>
 
           {(budgets.length > 0 || goals.length > 0) && (
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              <Card variant="solid" className="p-5">
-                <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">
-                  Presupuestos del mes
-                </h3>
+              <SectionCard
+                title="Presupuestos del mes"
+                action={
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
+                    onClick={() => navigate("/app/m/atlas.pfm/budgets")}
+                  >
+                    Ver todos
+                  </button>
+                }
+              >
                 <BudgetBars budgets={budgets} />
-              </Card>
-              <Card variant="solid" className="p-5">
-                <h3 className="mb-3 text-sm font-semibold text-[hsl(var(--foreground))]">Metas</h3>
+              </SectionCard>
+              <SectionCard
+                title="Metas"
+                action={
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
+                    onClick={() => navigate("/app/m/atlas.pfm/budgets")}
+                  >
+                    Ver todas
+                  </button>
+                }
+              >
                 <GoalRings
                   goals={goals}
                   onContribute={() => navigate("/app/m/atlas.pfm/budgets")}
                 />
-              </Card>
+              </SectionCard>
             </div>
           )}
         </>
