@@ -23,6 +23,7 @@ import {
 import { MovementRow } from "../components/MovementRow";
 import { QuickAddMovementSheet } from "../components/QuickAddMovementSheet";
 import { CreditCyclePanel } from "../components/CreditCyclePanel";
+import { InvestmentPanel } from "../components/InvestmentPanel";
 import { WalletFormSheet } from "../components/WalletFormSheet";
 import { AdjustBalanceSheet } from "../components/AdjustBalanceSheet";
 import {
@@ -106,6 +107,10 @@ export default function WalletDetailScreen() {
 
       {wallet.kind === "CREDIT" && (
         <CreditCyclePanel wallet={wallet} onEdit={() => setEditOpen(true)} />
+      )}
+
+      {wallet.kind === "INVESTMENT" && (
+        <InvestmentPanel wallet={wallet} onEdit={() => setEditOpen(true)} />
       )}
 
       <div className="mb-4 flex flex-wrap items-end gap-2">
