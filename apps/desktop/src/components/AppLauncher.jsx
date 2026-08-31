@@ -1,32 +1,35 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, Home, Star, WifiOff } from 'lucide-react';
+import { Search, X, Home } from 'lucide-react';
 import { useLauncherStore } from '../stores/launcher';
-import { getModuleLaunchPath, getSortedDisplay } from '../lib/runtimeModules';
+import { getModuleLaunchPath } from '../lib/runtimeModules';
 import { useRuntimeModules } from '../app/useRuntimeModules';
-import { useAppViewPrefs } from '../hooks/useAppViewPrefs';
+import { useModuleLauncher } from '../hooks/useModuleLauncher';
 import { AppViewControls } from './AppViewControls';
 import { AppContextMenu } from './AppContextMenu';
-import { ModIcon } from './ModIcon';
-import { useOfflineStore, OFFLINE_MODULES } from '@atlas/offline';
+import { ModuleCardGrid, ModuleListRow } from './ModuleCard';
 
 export function AppLauncher() {
   const { isOpen, closeLauncher, toggleLauncher } = useLauncherStore();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [contextMenu, setContextMenu] = useState(null);
   const { availableModules } = useRuntimeModules();
-  const { sortMode, viewMode, favorites, favoritesFirst, isFavorite } = useAppViewPrefs();
-  const isOnline = useOfflineStore((s) => s.isOnline);
-  const isOfflineBlocked = useCallback(
-    (module) => !isOnline && !OFFLINE_MODULES.includes(module.key),
-    [isOnline],
-  );
+  const {
+    sections,
+    viewMode,
+    isOfflineBlocked,
+    contextMenu,
+    openMenu,
+    closeMenu,
+    isFavorite,
+    toggleFavorite,
+    launch,
+  } = useModuleLauncher(availableModules);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return availableModules;
+    if (!q) return null;
     return availableModules.filter(
       (m) =>
         m.name.toLowerCase().includes(q) ||
@@ -35,15 +38,14 @@ export function AppLauncher() {
     );
   }, [query, availableModules]);
 
-  const sections = useMemo(() => {
-    if (query.trim()) return [{ label: null, modules: filtered }];
-    return getSortedDisplay(filtered, { sortMode, favorites, favoritesFirst });
-  }, [filtered, query, sortMode, favorites, favoritesFirst]);
+  const displaySections = filtered
+    ? [{ label: null, modules: filtered }]
+    : sections;
 
   useEffect(() => {
     function handleKey(e) {
       if (e.key === 'Escape') {
-        if (contextMenu) { setContextMenu(null); return; }
+        if (contextMenu) { closeMenu(); return; }
         closeLauncher();
         setQuery('');
       }
@@ -54,26 +56,21 @@ export function AppLauncher() {
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [closeLauncher, toggleLauncher, contextMenu]);
+  }, [closeLauncher, toggleLauncher, contextMenu, closeMenu]);
 
-  function handleModuleClick(module) {
-    if (isOfflineBlocked(module)) return;
-    navigate(getModuleLaunchPath(module));
-    closeLauncher();
-    setQuery('');
+  function handleLaunch(module) {
+    launch(module, {
+      onDone: () => {
+        closeLauncher();
+        setQuery('');
+      },
+    });
   }
 
   function handleGoHome() {
     navigate('/app/home');
     closeLauncher();
     setQuery('');
-  }
-
-  function handleContextMenu(e, moduleKey) {
-    const module = availableModules.find((m) => m.key === moduleKey);
-    if (module && isOfflineBlocked(module)) return;
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, moduleKey });
   }
 
   return (
@@ -130,12 +127,12 @@ export function AppLauncher() {
 
             {/* Module list */}
             <div className="overflow-y-auto overscroll-contain touch-pan-y flex-1 px-4 py-4 space-y-5">
-              {sections.length === 0 ? (
+              {displaySections.every((s) => s.modules.length === 0) ? (
                 <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
-                  Sin resultados para "{query}"
+                  {query.trim() ? `Sin resultados para "${query}"` : 'No hay aplicaciones disponibles.'}
                 </p>
               ) : (
-                sections.map((section, si) => (
+                displaySections.map((section, si) => (
                   <div key={section.label ?? `section-${si}`}>
                     {section.label && (
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] mb-3">
@@ -143,79 +140,35 @@ export function AppLauncher() {
                       </p>
                     )}
                     {viewMode === 'list' ? (
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-1.5">
                         {section.modules.map((module) => (
-                          <a
+                          <ModuleListRow
                             key={module.key}
+                            module={module}
                             href={getModuleLaunchPath(module)}
-                            onClick={(e) => {
-                              if (e.ctrlKey || e.metaKey || e.button === 1) return;
-                              e.preventDefault();
-                              handleModuleClick(module);
-                            }}
-                            onContextMenu={(e) => handleContextMenu(e, module.key)}
-                            className={`flex items-center gap-3 w-full rounded-lg px-3 py-2 transition-colors duration-150 text-left ${
-                              isOfflineBlocked(module)
-                                ? 'pointer-events-none opacity-40 cursor-not-allowed'
-                                : 'hover:bg-[hsl(var(--muted))] cursor-pointer'
-                            }`}
-                          >
-                            <div
-                              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: `${module.color}26` }}
-                            >
-                              <ModIcon name={module.icon} size={16} color={module.color} logoUrl={module.logoUrl} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight truncate">
-                                {module.name}
-                              </p>
-                              <p className="text-[10px] text-[hsl(var(--muted-foreground))] truncate">
-                                {module.summary || module.description}
-                              </p>
-                            </div>
-                            {isOfflineBlocked(module)
-                              ? <WifiOff size={11} className="text-[hsl(var(--muted-foreground))] shrink-0" />
-                              : isFavorite(module.key) && <Star size={11} className="text-amber-400 fill-amber-400 shrink-0" />
-                            }
-                          </a>
+                            onClick={() => handleLaunch(module)}
+                            onContextMenu={(e) => openMenu(e, module.key)}
+                            onLongPress={openMenu}
+                            onToggleFavorite={toggleFavorite}
+                            isFavorite={isFavorite(module.key)}
+                            isOfflineBlocked={isOfflineBlocked(module)}
+                          />
                         ))}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                         {section.modules.map((module) => (
-                          <a
+                          <ModuleCardGrid
                             key={module.key}
+                            module={module}
                             href={getModuleLaunchPath(module)}
-                            onClick={(e) => {
-                              if (e.ctrlKey || e.metaKey || e.button === 1) return;
-                              e.preventDefault();
-                              handleModuleClick(module);
-                            }}
-                            onContextMenu={(e) => handleContextMenu(e, module.key)}
-                            className={`flex flex-col items-center gap-2 rounded-xl p-4 transition-colors duration-150 text-center relative ${
-                              isOfflineBlocked(module)
-                                ? 'pointer-events-none opacity-40 cursor-not-allowed'
-                                : 'hover:bg-[hsl(var(--muted))] cursor-pointer'
-                            }`}
-                          >
-                            {isOfflineBlocked(module)
-                              ? <WifiOff size={9} className="absolute top-2 right-2 text-[hsl(var(--muted-foreground))]" />
-                              : isFavorite(module.key) && <Star size={9} className="absolute top-2 right-2 text-amber-400 fill-amber-400" />
-                            }
-                            <div
-                              className="h-12 w-12 rounded-xl flex items-center justify-center"
-                              style={{ backgroundColor: `${module.color}26` }}
-                            >
-                              <ModIcon name={module.icon} size={22} color={module.color} logoUrl={module.logoUrl} />
-                            </div>
-                            <p className="text-xs font-semibold text-[hsl(var(--foreground))] leading-tight">
-                              {module.name}
-                            </p>
-                            <p className="text-[10px] text-[hsl(var(--muted-foreground))] line-clamp-2 leading-snug w-full">
-                              {module.summary || module.description}
-                            </p>
-                          </a>
+                            onClick={() => handleLaunch(module)}
+                            onContextMenu={(e) => openMenu(e, module.key)}
+                            onLongPress={openMenu}
+                            onToggleFavorite={toggleFavorite}
+                            isFavorite={isFavorite(module.key)}
+                            isOfflineBlocked={isOfflineBlocked(module)}
+                          />
                         ))}
                       </div>
                     )}
@@ -230,7 +183,7 @@ export function AppLauncher() {
               x={contextMenu.x}
               y={contextMenu.y}
               moduleKey={contextMenu.moduleKey}
-              onClose={() => setContextMenu(null)}
+              onClose={closeMenu}
             />
           )}
         </motion.div>
