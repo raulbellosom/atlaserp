@@ -28,6 +28,7 @@ import { createPfmCalendarBridge } from '../../api/src/routes/pfm/pfm-calendar-b
 import { createRecurringService as createPfmRecurringService } from '../../api/src/routes/pfm/recurring-service.js'
 import { createReceiptsService as createPfmReceiptsService } from '../../api/src/routes/pfm/receipts-service.js'
 import { createBudgetsService as createPfmBudgetsService } from '../../api/src/routes/pfm/budgets-service.js'
+import { createInvestmentsService as createPfmInvestmentsService } from '../../api/src/routes/pfm/investments-service.js'
 import { createVisionService as createPfmVisionService } from '../../api/src/services/vision-service.js'
 import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
@@ -97,6 +98,8 @@ const pfmBudgetsService = createPfmBudgetsService({
   notificationService: createNotificationService({ prisma }),
 })
 const PFM_BUDGET_INTERVAL_MS = 60 * 60 * 1000
+const pfmInvestmentsService = createPfmInvestmentsService({ prisma })
+const PFM_YIELD_INTERVAL_MS = 60 * 60 * 1000
 const growthAggregationWorker = createGrowthAggregationWorker({ prisma })
 const GROWTH_AGGREGATION_INTERVAL_MS = Number(
   process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS ??
@@ -348,6 +351,25 @@ runPfmBudgetTick()
 setInterval(() => {
   runPfmBudgetTick()
 }, PFM_BUDGET_INTERVAL_MS)
+
+async function runPfmYieldTick() {
+  try {
+    const result = await pfmInvestmentsService.accrueYieldDue({ now: new Date() })
+    if ((result?.created ?? 0) > 0) {
+      console.log(
+        `[worker] pfm yield ${formatLogTimestamp()} processed=${result.processed} created=${result.created}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] pfm yield tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runPfmYieldTick()
+setInterval(() => {
+  runPfmYieldTick()
+}, PFM_YIELD_INTERVAL_MS)
 
 const CHAT_EXPIRY_INTERVAL_MS = 15 * 60 * 1000
 async function runChatSessionExpiryTick() {

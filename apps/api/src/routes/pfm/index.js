@@ -11,6 +11,7 @@ import { createWalletsService } from "./wallets-service.js";
 import { createMovementsService } from "./movements-service.js";
 import { createLedgerLinkService } from "./ledger-link-service.js";
 import { createSummaryService } from "./summary-service.js";
+import { createInvestmentsService } from "./investments-service.js";
 import { createPfmCalendarBridge } from "./pfm-calendar-bridge.js";
 import { createRecurringService } from "./recurring-service.js";
 import { createReceiptsService } from "./receipts-service.js";
@@ -40,6 +41,7 @@ export function createPfmRouter({
   const ledgerLink = createLedgerLinkService({ prisma, ledgerService });
   const movements = createMovementsService({ prisma, wallets });
   const summary = createSummaryService({ prisma });
+  const investments = createInvestmentsService({ prisma });
   const recurring = createRecurringService({ prisma, wallets, calendarBridge });
   const vision = createVisionService({ env: process.env });
   const receipts = createReceiptsService({
@@ -105,6 +107,6 @@ export function createPfmRouter({
     }),
   );
 
-  app.pfmServices = { recurring, summary, receipts, budgets, goals };
+  app.pfmServices = { recurring, summary, receipts, budgets, goals, investments };
   return app;
 }
