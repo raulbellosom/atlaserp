@@ -64,4 +64,22 @@ describe("createLongPressController", () => {
     ctrl.flush();
     assert.equal(fired, 1);
   });
+
+  it("fires on an interactive target when ignoreInteractiveTarget is set", () => {
+    let fired = 0;
+    let fn = null;
+    const ctrl = createLongPressController({
+      delay: 450,
+      moveTolerance: 10,
+      ignoreInteractiveTarget: true,
+      onLongPress: () => { fired++; },
+      schedule: (f) => { fn = f; return 1; },
+      cancelScheduled: () => { fn = null; },
+      vibrate: () => {},
+    });
+    ctrl.onPointerDown(evt(0, 0, "BUTTON"));
+    assert.equal(ctrl.pending, true);
+    fn();
+    assert.equal(fired, 1);
+  });
 });

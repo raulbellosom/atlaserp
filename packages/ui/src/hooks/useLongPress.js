@@ -14,6 +14,7 @@ function isInteractiveTarget(target) {
 export function createLongPressController({
   delay = 450,
   moveTolerance = 10,
+  ignoreInteractiveTarget = false,
   onLongPress,
   schedule = (fn, ms) => setTimeout(fn, ms),
   cancelScheduled = (id) => clearTimeout(id),
@@ -36,7 +37,7 @@ export function createLongPressController({
     flush() { const fn = fireFn; if (fn) fn(); },
 
     onPointerDown(e) {
-      if (isInteractiveTarget(e?.target)) return;
+      if (!ignoreInteractiveTarget && isInteractiveTarget(e?.target)) return;
       start = { x: e.clientX, y: e.clientY };
       fireFn = () => {
         vibrate(10);
@@ -56,7 +57,7 @@ export function createLongPressController({
   };
 }
 
-export function useLongPress({ onLongPress, delay = 450, moveTolerance = 10, disabled = false } = {}) {
+export function useLongPress({ onLongPress, delay = 450, moveTolerance = 10, disabled = false, ignoreInteractiveTarget = false } = {}) {
   const cb = useRef(onLongPress);
   cb.current = onLongPress;
 
@@ -65,6 +66,7 @@ export function useLongPress({ onLongPress, delay = 450, moveTolerance = 10, dis
     const ctrl = createLongPressController({
       delay,
       moveTolerance,
+      ignoreInteractiveTarget,
       onLongPress: (e) => cb.current?.(e),
     });
     return {
@@ -73,5 +75,5 @@ export function useLongPress({ onLongPress, delay = 450, moveTolerance = 10, dis
       onPointerUp: () => ctrl.onPointerUp(),
       onPointerCancel: () => ctrl.onPointerCancel(),
     };
-  }, [delay, moveTolerance, disabled]);
+  }, [delay, moveTolerance, disabled, ignoreInteractiveTarget]);
 }
