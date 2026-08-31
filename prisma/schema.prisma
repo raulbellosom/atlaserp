@@ -2957,6 +2957,7 @@ enum PfmWalletKind {
   CASH
   DEBIT
   CREDIT
+  INVESTMENT
 
   @@map("pfm_wallet_kind")
 }
@@ -3012,6 +3013,8 @@ model PfmWallet {
   creditLimit           Decimal? @map("credit_limit") @db.Decimal(15, 2)
   statementDay          Int?     @map("statement_day")
   paymentDueDay         Int?     @map("payment_due_day")
+  expectedRate          Decimal?  @map("expected_rate") @db.Decimal(6, 4)
+  lastAccruedOn         DateTime? @map("last_accrued_on") @db.Date
   creditReminderEventId String?  @map("credit_reminder_event_id") @db.Uuid
   enabled         Boolean       @default(true)
   createdAt       DateTime      @default(now()) @map("created_at")
@@ -3071,6 +3074,7 @@ model PfmMovement {
   merchant        String?
   status          PfmMovementStatus    @default(POSTED)
   isAdjustment    Boolean              @default(false) @map("is_adjustment")
+  isYield         Boolean              @default(false) @map("is_yield")
   recurringRuleId String?              @map("recurring_rule_id") @db.Uuid
   receiptId       String?              @map("receipt_id") @db.Uuid
   enabled         Boolean              @default(true)
