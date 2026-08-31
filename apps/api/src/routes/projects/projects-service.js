@@ -93,31 +93,34 @@ export function createProjectsService({ prisma }) {
 
   async function createProject(companyId, ownerId, { name, description, color, icon, template = 'general' }) {
     if (!name?.trim()) throw new ProjectServiceError('El nombre es requerido.', 400)
-    const project = await prisma.project.create({
-      data: {
-        companyId,
-        ownerId,
-        name: name.trim(),
-        description: description?.trim() || null,
-        color: color || '#6366f1',
-        icon: icon || null,
-      },
-    })
     const templateStatuses = STATUS_TEMPLATES[template] ?? STATUS_TEMPLATES.general
-    await prisma.taskStatus.createMany({
-      data: templateStatuses.map((s, i) => ({
-        projectId: project.id,
-        name: s.name,
-        color: s.color,
-        position: i,
-        isDefault: s.isDefault,
-        isDone: s.isDone,
-      })),
+    // Project + its default statuses + the owner membership are created together.
+    return prisma.$transaction(async (tx) => {
+      const project = await tx.project.create({
+        data: {
+          companyId,
+          ownerId,
+          name: name.trim(),
+          description: description?.trim() || null,
+          color: color || '#6366f1',
+          icon: icon || null,
+        },
+      })
+      await tx.taskStatus.createMany({
+        data: templateStatuses.map((s, i) => ({
+          projectId: project.id,
+          name: s.name,
+          color: s.color,
+          position: i,
+          isDefault: s.isDefault,
+          isDone: s.isDone,
+        })),
+      })
+      await tx.projectMember.create({
+        data: { projectId: project.id, userId: ownerId, role: 'OWNER' },
+      })
+      return project
     })
-    await prisma.projectMember.create({
-      data: { projectId: project.id, userId: ownerId, role: 'OWNER' },
-    })
-    return project
   }
 
   async function updateProject(projectId, userId, data) {
@@ -156,6 +159,15 @@ export function createProjectsService({ prisma }) {
     if (!project) throw new ProjectServiceError('Proyecto no encontrado.', 404)
     const validRoles = ['OWNER', 'MEMBER', 'VIEWER']
     if (!validRoles.includes(role)) throw new ProjectServiceError('Rol invalido.', 400)
+    if (!userId) throw new ProjectServiceError('Usuario invalido.', 400)
+    // The invitee must belong to the project's company.
+    const peer = await prisma.membership.findFirst({
+      where: { userId, companyId: project.companyId, enabled: true },
+      select: { id: true },
+    })
+    if (!peer) {
+      throw new ProjectServiceError('Solo puedes agregar usuarios de tu empresa.', 403)
+    }
     try {
       return await prisma.projectMember.create({ data: { projectId, userId, role } })
     } catch (err) {

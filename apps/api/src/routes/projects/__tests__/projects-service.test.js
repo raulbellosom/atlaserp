@@ -37,6 +37,13 @@ function makePrisma(overrides = {}) {
     task: {
       updateMany: async () => {},
     },
+    // addMember verifies the invitee shares the project's company.
+    membership: {
+      findFirst: async () => ({ id: 'membership-1' }),
+      ...(overrides.membership ?? {}),
+    },
+    // createProject writes project + statuses + owner membership atomically.
+    $transaction: async (fn) => fn(makePrisma(overrides)),
     ...overrides,
   }
 }

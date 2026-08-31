@@ -3003,6 +3003,30 @@ app.patch(
       const body = await c.req.json();
       const patch = {};
 
+      // Disabling an Atlas Admin / System Admin here would achieve the same
+      // lockout the protected-role guard on DELETE already exists to prevent
+      // — this PATCH route had no equivalent check.
+      if (body.enabled === false) {
+        const targetForDisable = await prisma.userProfile.findUnique({
+          where: { id },
+          include: {
+            memberships: {
+              where: { enabled: true },
+              include: { role: { select: { key: true } } },
+            },
+          },
+        });
+        if (targetForDisable && hasProtectedIdentityAdminRole(targetForDisable)) {
+          return c.json(
+            {
+              error:
+                "No se puede deshabilitar un usuario con rol Atlas Admin o System Admin.",
+            },
+            400,
+          );
+        }
+      }
+
       if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
       if (typeof body.firstName === "string")
         patch.firstName = body.firstName.trim();
@@ -3095,8 +3119,48 @@ app.patch(
         }
       }
 
-      // Membership / role update
+      // Membership / role update.
+      // Two guards a caller holding only identity.users.update (not
+      // identity.roles.*) must not be able to bypass:
+      //  1. membershipId must actually belong to the user in the URL — this
+      //     previously trusted the client-supplied id pair as-is, so any
+      //     membershipId (e.g. the caller's own) could be reassigned here.
+      //  2. the target role must not be a protected admin role — without
+      //     this, identity.users.update alone was a full privilege-escalation
+      //     path to Atlas Admin / System Admin, bypassing identity.roles.*
+      //     entirely.
       if (body.membershipId && body.roleId) {
+        const membership = await prisma.membership.findUnique({
+          where: { id: body.membershipId },
+          select: { userId: true },
+        });
+        if (!membership || membership.userId !== id) {
+          return c.json(
+            { error: "La membresia no corresponde a este usuario." },
+            400,
+          );
+        }
+        const targetRole = await prisma.role.findUnique({
+          where: { id: body.roleId },
+          select: { key: true },
+        });
+        const targetIsProtectedRole =
+          targetRole &&
+          PROTECTED_IDENTITY_ROLE_KEYS.has(String(targetRole.key ?? "").trim().toLowerCase());
+        if (targetIsProtectedRole) {
+          const context = c.get("userContext");
+          const canManageRoles =
+            context?.isAdmin || context?.permissionSet?.has("identity.roles.update");
+          if (!canManageRoles) {
+            return c.json(
+              {
+                error:
+                  "Asignar el rol Atlas Admin o System Admin requiere permisos de gestion de roles.",
+              },
+              403,
+            );
+          }
+        }
         await prisma.membership.update({
           where: { id: body.membershipId },
           data: { roleId: body.roleId },
@@ -3685,7 +3749,12 @@ app.post(
       const contacts = await contactsService.getContactsForExport({ authUserId, ids });
       const { resolveCompanyBranding, resolvePdfDocumentCtor, toSafeText, compact, normalizeHexColor, lightenHex, drawPdfHeader, drawPdfFooter } =
         await import("./services/pdf-branding-service.js");
-      const companyId = (await prisma.membership.findFirst({ where: { userId: authUserId } }))?.companyId;
+      // requirePermission() already resolved and set companyId on the context —
+      // querying Membership again with authUserId (the Supabase auth id, not a
+      // Membership.userId, which is a userProfile.id) would always miss and
+      // silently fall back to generic "Atlas ERP" branding instead of the
+      // real company's logo/name (same bug class as the ledger export fix).
+      const companyId = c.get("companyId");
       const branding = await resolveCompanyBranding({ prisma, companyId: companyId ?? "" });
       const PDFDocument = await resolvePdfDocumentCtor();
       if (typeof PDFDocument !== "function") {
@@ -3976,8 +4045,13 @@ app.get(
         toSafeText, compact, normalizeHexColor, lightenHex,
         drawPdfHeader, drawPdfFooter,
       } = await import("./services/pdf-branding-service.js");
-      const membership = await prisma.membership.findFirst({ where: { userId: authUserId } });
-      const branding = await resolveCompanyBranding({ prisma, companyId: membership?.companyId ?? "" });
+      // requirePermission() already resolved and set companyId on the context —
+      // querying Membership again with authUserId (the Supabase auth id, not a
+      // Membership.userId, which is a userProfile.id) would always miss and
+      // silently fall back to generic "Atlas ERP" branding instead of the
+      // real company's logo/name (same bug class as the ledger export fix).
+      const companyId = c.get("companyId");
+      const branding = await resolveCompanyBranding({ prisma, companyId: companyId ?? "" });
       const PDFDocument = await resolvePdfDocumentCtor();
       if (typeof PDFDocument !== "function") {
         return c.json({ error: "PDF no disponible." }, 503);

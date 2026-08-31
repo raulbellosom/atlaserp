@@ -36,6 +36,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       const data = await productSvc.listCategoriesTree({ companyId })
       return c.json({ data })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/categories]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -48,6 +49,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       if (!row) return c.json({ error: 'Not found' }, 404)
       return c.json({ data: row })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/categories/:id]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -70,6 +72,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       })
       return c.json({ data: row }, 201)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       if (err?.code === '23505') return c.json({ error: 'El slug ya existe' }, 409)
       console.error('[POST /catalog/categories]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
@@ -94,6 +97,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       })
       return c.json({ data: row })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       if (err?.code === '23505') return c.json({ error: 'El slug ya existe' }, 409)
       console.error('[PATCH /catalog/categories/:id]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
@@ -116,6 +120,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       })
       return c.json({ ok: true })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[DELETE /catalog/categories/:id]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -129,6 +134,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
       await productSvc.reorderCategories({ companyId, items: parsed.data.items })
       return c.json({ ok: true })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[PATCH /catalog/categories/reorder]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }

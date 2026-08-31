@@ -148,6 +148,22 @@ function makePrisma() {
         orders.set(where.id, row);
         return row;
       },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        for (const [id, row] of orders) {
+          if (where.id && id !== where.id) continue;
+          if (where.companyId && row.companyId !== where.companyId) continue;
+          if (
+            where.paidAmount !== undefined &&
+            Number(row.paidAmount ?? 0) !== Number(where.paidAmount ?? 0)
+          )
+            continue;
+          if (where.status?.notIn && where.status.notIn.includes(row.status)) continue;
+          orders.set(id, { ...row, ...data });
+          count += 1;
+        }
+        return { count };
+      },
     },
     posGuestSeat: {
       createMany: async ({ data }) => {
@@ -263,6 +279,22 @@ function makePrisma() {
         waiterShifts.set(where.id, row);
         return row;
       },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        for (const [id, row] of waiterShifts) {
+          if (where.id && id !== where.id) continue;
+          if (where.companyId && row.companyId !== where.companyId) continue;
+          if (where.status && row.status !== where.status) continue;
+          const next = { ...row };
+          if (data.expectedCashAmount?.increment !== undefined) {
+            next.expectedCashAmount =
+              Number(row.expectedCashAmount ?? 0) + Number(data.expectedCashAmount.increment);
+          }
+          waiterShifts.set(id, next);
+          count += 1;
+        }
+        return { count };
+      },
     },
     auditLog: {
       create: async ({ data }) => {
@@ -335,6 +367,7 @@ function makePrisma() {
     },
   };
 
+  prisma.$transaction = async (fn) => fn(prisma);
   return prisma;
 }
 
@@ -499,6 +532,41 @@ describe("createPosOrderService", () => {
     assert.equal(payment.status, "CAPTURED");
     assert.equal(paid.paidAmount, 58);
     assert.equal(paid.status, "PAID");
+  });
+
+  it("rejects a payment with 409 when the order's paidAmount changed under it", async () => {
+    const prisma = makePrisma();
+    const svc = createPosOrderService({ prisma });
+    const order = await svc.createOrder({
+      companyId: "company-1",
+      actorId: "user-1",
+      data: { outletId: "outlet-1" },
+    });
+    await svc.addOrderLine({
+      companyId: "company-1",
+      orderId: order.id,
+      actorId: "user-1",
+      data: { productId: "product-1", quantity: 1 },
+    });
+
+    // Simulate a concurrent payment that already committed: bump paidAmount so
+    // the compare-and-swap in addPayment (keyed on the stale paidAmount) misses.
+    const orig = prisma.posOrder.updateMany;
+    prisma.posOrder.updateMany = async (args) => {
+      prisma.posOrder.updateMany = orig;
+      return { count: 0 };
+    };
+
+    await assert.rejects(
+      () =>
+        svc.addPayment({
+          companyId: "company-1",
+          orderId: order.id,
+          actorId: "user-1",
+          data: { paymentMethodId: "cash-1", amount: 20 },
+        }),
+      (err) => err instanceof PosServiceError && err.status === 409,
+    );
   });
 
   it("auto-assigns waiterId to the creating actor on order create", async () => {

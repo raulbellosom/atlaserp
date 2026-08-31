@@ -553,40 +553,60 @@ export function createPosOrderService({ prisma, waiterShifts, modifiers }) {
     const remaining = toMoney(Number(before.totalAmount ?? 0) - Number(before.paidAmount ?? 0));
     if (amount > remaining) throw new PosServiceError("El pago excede el total pendiente.", 400);
 
-    const payment = await prisma.posPayment.create({
-      data: {
-        companyId: scopedCompanyId,
-        orderId,
-        paymentMethodId: method.id,
-        amount,
-        status: "CAPTURED",
-        reference: normalizeText(data.reference),
-        createdById: actorId,
-        sessionId,
-        waiterShiftId,
-      },
-    });
-    if (waiterShiftId) {
-      await shiftSvc.registerCharge({
-        companyId: scopedCompanyId,
-        shiftId: waiterShiftId,
-        amount,
-        isCash: method.kind === "CASH",
-      });
-    }
     const paidAmount = toMoney(Number(before.paidAmount ?? 0) + amount);
     const status = paidAmount >= Number(before.totalAmount ?? 0) ? "PAID" : before.status;
-    await prisma.posOrder.update({
-      where: { id: orderId },
-      data: {
-        paidAmount,
-        status,
-        ...(status === "PAID" ? { paidAt: new Date() } : {}),
-      },
+    const isCash = method.kind === "CASH";
+
+    // The payment row, the order's paidAmount/status, the waiter-shift cash
+    // total and the table status are written atomically. The order update is a
+    // conditional updateMany keyed on the paidAmount we read — a concurrent
+    // payment that already committed makes count === 0, so we 409 instead of
+    // over-charging.
+    const payment = await prisma.$transaction(async (tx) => {
+      const upd = await tx.posOrder.updateMany({
+        where: {
+          id: orderId,
+          companyId: scopedCompanyId,
+          paidAmount: before.paidAmount ?? 0,
+          status: { notIn: ["CANCELLED", "REFUNDED", "PAID"] },
+        },
+        data: {
+          paidAmount,
+          status,
+          ...(status === "PAID" ? { paidAt: new Date() } : {}),
+        },
+      });
+      if (upd.count !== 1) {
+        throw new PosServiceError(
+          "El pago fallo por una modificacion concurrente de la orden. Reintenta.",
+          409,
+        );
+      }
+      const created = await tx.posPayment.create({
+        data: {
+          companyId: scopedCompanyId,
+          orderId,
+          paymentMethodId: method.id,
+          amount,
+          status: "CAPTURED",
+          reference: normalizeText(data.reference),
+          createdById: actorId,
+          sessionId,
+          waiterShiftId,
+        },
+      });
+      if (waiterShiftId && isCash) {
+        await tx.posWaiterShift.updateMany({
+          where: { id: waiterShiftId, companyId: scopedCompanyId, status: "OPEN" },
+          data: { expectedCashAmount: { increment: amount } },
+        });
+      }
+      if (status === "PAID" && before.tableId) {
+        await tx.posTable.update({ where: { id: before.tableId }, data: { status: "DIRTY" } });
+      }
+      return created;
     });
-    if (status === "PAID" && before.tableId) {
-      await prisma.posTable.update({ where: { id: before.tableId }, data: { status: "DIRTY" } });
-    }
+
     const after = await hydrateOrder(prisma, { companyId: scopedCompanyId, id: orderId });
     await writeAudit(prisma, {
       actorId,

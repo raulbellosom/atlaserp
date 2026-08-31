@@ -41,8 +41,14 @@ export function createCatalogPublicService({ prisma }) {
   }
 
   async function getPublicProductBySlug({ companyId, slug }) {
+    // Public storefront endpoint (no auth): expose only shopper-facing columns,
+    // never company_id / internal SEO / stock-tracking flags.
     const rows = await prisma.$queryRaw`
-      SELECT p.*, c.name AS category_name, c.slug AS category_slug
+      SELECT p.id, p.name, p.slug, p.description, p.product_type,
+             p.price, p.compare_price, p.currency, p.weight,
+             p.stock, p.track_stock, p.attributes, p.cover_asset_id, p.images,
+             p.category_id, p.created_at,
+             c.name AS category_name, c.slug AS category_slug
       FROM catalog_product p
       LEFT JOIN catalog_category c ON c.id = p.category_id
       WHERE p.company_id = ${companyId}::uuid
@@ -58,7 +64,9 @@ export function createCatalogPublicService({ prisma }) {
       product.variants = await prisma.$queryRaw`
         SELECT id, option_values, price, compare_price, stock, cover_asset_id, sku
         FROM catalog_product_variant
-        WHERE product_id = ${product.id}::uuid AND enabled = true
+        WHERE product_id = ${product.id}::uuid
+          AND company_id = ${companyId}::uuid
+          AND enabled = true
         ORDER BY created_at ASC
       `
     }

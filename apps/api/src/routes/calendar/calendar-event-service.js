@@ -1,17 +1,70 @@
 import { CalendarServiceError } from './calendar-service.js'
 
+const RECURRENCE_FREQS = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']
+const MAX_RECURRENCE_COUNT = 366
+const MAX_RECURRENCE_INTERVAL = 999
+
+// Validates and clamps a client-supplied recurrence rule before it is stored.
+// Returns null for "no recurrence"; throws CalendarServiceError(400) on garbage.
+// Guards expandRecurrence() (run on every listEvents call) against unbounded
+// instance generation.
+export function normalizeRecurrenceRule(rule) {
+  if (rule === null || rule === undefined) return null
+  if (typeof rule !== 'object') {
+    throw new CalendarServiceError('Regla de recurrencia invalida.', 400)
+  }
+  const freq = String(rule.freq ?? '').toUpperCase()
+  if (!RECURRENCE_FREQS.includes(freq)) {
+    throw new CalendarServiceError('Frecuencia de recurrencia invalida.', 400)
+  }
+  const normalized = { freq }
+
+  if (rule.interval !== undefined) {
+    const interval = Number(rule.interval)
+    if (!Number.isInteger(interval) || interval < 1 || interval > MAX_RECURRENCE_INTERVAL) {
+      throw new CalendarServiceError('El intervalo de recurrencia debe estar entre 1 y 999.', 400)
+    }
+    normalized.interval = interval
+  }
+
+  if (rule.count !== undefined && rule.count !== null) {
+    const count = Number(rule.count)
+    if (!Number.isInteger(count) || count < 1 || count > MAX_RECURRENCE_COUNT) {
+      throw new CalendarServiceError(`El numero de repeticiones debe estar entre 1 y ${MAX_RECURRENCE_COUNT}.`, 400)
+    }
+    normalized.count = count
+  }
+
+  if (rule.until !== undefined && rule.until !== null && rule.until !== '') {
+    const untilMs = new Date(rule.until).getTime()
+    if (Number.isNaN(untilMs)) {
+      throw new CalendarServiceError('La fecha limite de recurrencia es invalida.', 400)
+    }
+    normalized.until = new Date(untilMs).toISOString()
+  }
+
+  return normalized
+}
+
 function expandRecurrence(event, rangeStart, rangeEnd) {
   const rule = event.recurrenceRule
   if (!rule) return []
 
-  const instances = []
   const { freq, interval = 1, until, count } = rule
+  if (!RECURRENCE_FREQS.includes(freq)) return []
+  const safeInterval = Number.isInteger(interval) && interval >= 1 ? interval : 1
+
+  const instances = []
   const start = new Date(event.startAt)
   const duration = event.endAt ? new Date(event.endAt) - start : 60 * 60 * 1000
   const rangeStartMs = new Date(rangeStart).getTime()
   const rangeEndMs = new Date(rangeEnd).getTime()
   const untilMs = until ? new Date(until).getTime() : Infinity
-  const maxInstances = count ?? 365
+  // Hard cap regardless of what got persisted before validation existed.
+  const maxInstances = Math.min(
+    Number.isInteger(count) && count > 0 ? count : MAX_RECURRENCE_COUNT,
+    MAX_RECURRENCE_COUNT,
+  )
 
   let current = new Date(start)
   let generated = 0
@@ -31,16 +84,16 @@ function expandRecurrence(event, rangeStart, rangeEnd) {
     }
 
     if (freq === 'DAILY') {
-      current = new Date(current.getTime() + interval * 24 * 60 * 60 * 1000)
+      current = new Date(current.getTime() + safeInterval * 24 * 60 * 60 * 1000)
     } else if (freq === 'WEEKLY') {
-      current = new Date(current.getTime() + interval * 7 * 24 * 60 * 60 * 1000)
+      current = new Date(current.getTime() + safeInterval * 7 * 24 * 60 * 60 * 1000)
     } else if (freq === 'MONTHLY') {
       const next = new Date(current)
-      next.setMonth(next.getMonth() + interval)
+      next.setMonth(next.getMonth() + safeInterval)
       current = next
     } else if (freq === 'YEARLY') {
       const next = new Date(current)
-      next.setFullYear(next.getFullYear() + interval)
+      next.setFullYear(next.getFullYear() + safeInterval)
       current = next
     } else {
       break
@@ -64,6 +117,32 @@ export function createCalendarEventService({ prisma }) {
       ...owned.map((c) => c.id),
       ...shared.map((s) => s.calendarId),
     ]
+  }
+
+  // Returns the subset of candidateIds that share a company with actingUserId
+  // (plus the acting user themselves). Blocks adding out-of-company attendees.
+  async function filterCompanyPeers(actingUserId, candidateIds) {
+    const ids = [...new Set((candidateIds ?? []).filter(Boolean))]
+    if (ids.length === 0) return []
+    const ownerMemberships = await prisma.membership.findMany({
+      where: { userId: actingUserId, enabled: true },
+      select: { companyId: true },
+    })
+    const companyIds = ownerMemberships.map((m) => m.companyId)
+    if (companyIds.length === 0) {
+      return ids.includes(actingUserId) ? [actingUserId] : []
+    }
+    const peers = await prisma.membership.findMany({
+      where: {
+        userId: { in: ids },
+        enabled: true,
+        companyId: { in: companyIds },
+      },
+      select: { userId: true },
+    })
+    const allowed = new Set(peers.map((m) => m.userId))
+    allowed.add(actingUserId)
+    return ids.filter((id) => allowed.has(id))
   }
 
   async function listEvents({ userId, start, end, calendarIds, sourceModule, sourceEntityId }) {
@@ -152,36 +231,44 @@ export function createCalendarEventService({ prisma }) {
     const accessible = await getAccessibleCalendarIds(userId)
     if (!accessible.includes(calendarId)) throw new CalendarServiceError('No tienes acceso a ese calendario.', 403)
 
-    const event = await prisma.calendarEvent.create({
-      data: {
-        calendarId,
-        title: title.trim(),
-        description: description?.trim() ?? null,
-        startAt: new Date(startAt),
-        endAt: endAt ? new Date(endAt) : null,
-        allDay: allDay ?? false,
-        location: location?.trim() ?? null,
-        videoUrl: videoUrl?.trim() ?? null,
-        color: color ?? null,
-        recurrenceRule: recurrenceRule ?? null,
-        sourceModule: sourceModule ?? null,
-        sourceEntityId: sourceEntityId ?? null,
-      },
+    const normalizedRecurrence = normalizeRecurrenceRule(recurrenceRule)
+    const validAttendeeIds = await filterCompanyPeers(userId, attendeeIds)
+
+    // Event row + its attendees + reminders are written atomically.
+    const event = await prisma.$transaction(async (tx) => {
+      const created = await tx.calendarEvent.create({
+        data: {
+          calendarId,
+          title: title.trim(),
+          description: description?.trim() ?? null,
+          startAt: new Date(startAt),
+          endAt: endAt ? new Date(endAt) : null,
+          allDay: allDay ?? false,
+          location: location?.trim() ?? null,
+          videoUrl: videoUrl?.trim() ?? null,
+          color: color ?? null,
+          recurrenceRule: normalizedRecurrence,
+          sourceModule: sourceModule ?? null,
+          sourceEntityId: sourceEntityId ?? null,
+        },
+      })
+      if (validAttendeeIds.length) {
+        await tx.calendarEventAttendee.createMany({
+          data: validAttendeeIds.map((uid) => ({ eventId: created.id, userId: uid })),
+          skipDuplicates: true,
+        })
+      }
+      if (reminderMinutes?.length) {
+        await tx.calendarReminder.createMany({
+          data: reminderMinutes
+            .map((min) => Number(min))
+            .filter((min) => Number.isFinite(min) && min >= 0)
+            .map((min) => ({ eventId: created.id, userId, minutesBefore: min })),
+          skipDuplicates: true,
+        })
+      }
+      return created
     })
-
-    if (attendeeIds?.length) {
-      await prisma.calendarEventAttendee.createMany({
-        data: attendeeIds.map((uid) => ({ eventId: event.id, userId: uid })),
-        skipDuplicates: true,
-      })
-    }
-
-    if (reminderMinutes?.length) {
-      await prisma.calendarReminder.createMany({
-        data: reminderMinutes.map((min) => ({ eventId: event.id, userId, minutesBefore: min })),
-        skipDuplicates: true,
-      })
-    }
 
     return getEvent(userId, event.id)
   }
@@ -212,7 +299,7 @@ export function createCalendarEventService({ prisma }) {
     if (data.location !== undefined) updateData.location = data.location?.trim() ?? null
     if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl?.trim() ?? null
     if (data.color !== undefined) updateData.color = data.color ?? null
-    if (data.recurrenceRule !== undefined) updateData.recurrenceRule = data.recurrenceRule ?? null
+    if (data.recurrenceRule !== undefined) updateData.recurrenceRule = normalizeRecurrenceRule(data.recurrenceRule)
 
     const importedLink = await prisma.googleCalendarEventLink.findFirst({
       where: { atlasEventId: eventId },
@@ -273,6 +360,11 @@ export function createCalendarEventService({ prisma }) {
     const share = await prisma.calendarShare.findFirst({ where: { calendarId: event.calendarId, userId } })
     if (!isOwner && share?.role !== 'MANAGER') {
       throw new CalendarServiceError('No tienes permiso para agregar invitados.', 403)
+    }
+
+    const [peer] = await filterCompanyPeers(userId, [attendeeUserId])
+    if (peer !== attendeeUserId) {
+      throw new CalendarServiceError('Solo puedes invitar a usuarios de tu empresa.', 403)
     }
 
     try {

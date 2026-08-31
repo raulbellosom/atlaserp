@@ -39,6 +39,17 @@ function makePrisma() {
         sessions.set(where.id, row);
         return row;
       },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        for (const [id, row] of sessions) {
+          if (where.id && id !== where.id) continue;
+          if (where.companyId && row.companyId !== where.companyId) continue;
+          if (where.status && row.status !== where.status) continue;
+          sessions.set(id, { ...row, ...data });
+          count += 1;
+        }
+        return { count };
+      },
     },
     posCashMovement: {
       create: async ({ data }) => {

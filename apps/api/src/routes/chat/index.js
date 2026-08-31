@@ -17,13 +17,12 @@ import {
   chatAssignMemberRoleSchema,
   chatPinMessageSchema,
   chatToggleReactionSchema,
-  chatMuteConversationSchema,
-  chatCreateReportSchema,
-  chatResolveReportSchema,
 } from "@atlas/validators";
 import { createChatService, ChatServiceError } from "./chat-service.js";
 import { createChatExternalInboxService } from "./chat-external-inbox-service.js";
 import { createChatModerationService, ChatModerationServiceError } from "./chat-moderation-service.js";
+import { createModerationRoutes } from "./moderation-routes.js";
+import { createTemplateRoutes } from "./template-routes.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
@@ -341,123 +340,8 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
-  // PATCH /chat/conversations/:id/mute
-  internal.patch("/conversations/:id/mute", requirePermission("chat.conversations.read"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const conversationId = c.req.param("id");
-      const body = await c.req.json();
-      const { muted } = chatMuteConversationSchema.parse(body);
-      const result = await moderationService.muteConversation({ conversationId, authUserId, muted });
-      return c.json({ data: result });
-    } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
-      return handleError(c, err, "Error actualizando notificaciones.");
-    }
-  });
-
-  // GET /chat/users/:userId/block-status
-  internal.get("/users/:userId/block-status", requirePermission("chat.access"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const targetUserId = c.req.param("userId");
-      if (!uuidParamSchema.safeParse(targetUserId).success) {
-        return c.json({ error: "Identificador de usuario invalido." }, 422);
-      }
-      const result = await moderationService.getBlockStatus({ authUserId, targetUserId });
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "Error obteniendo estado de bloqueo.");
-    }
-  });
-
-  // POST /chat/users/:userId/block
-  internal.post("/users/:userId/block", requirePermission("chat.access"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const targetUserId = c.req.param("userId");
-      if (!uuidParamSchema.safeParse(targetUserId).success) {
-        return c.json({ error: "Identificador de usuario invalido." }, 422);
-      }
-      const result = await moderationService.blockUser({ authUserId, targetUserId });
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "Error bloqueando usuario.");
-    }
-  });
-
-  // DELETE /chat/users/:userId/block
-  internal.delete("/users/:userId/block", requirePermission("chat.access"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const targetUserId = c.req.param("userId");
-      if (!uuidParamSchema.safeParse(targetUserId).success) {
-        return c.json({ error: "Identificador de usuario invalido." }, 422);
-      }
-      const result = await moderationService.unblockUser({ authUserId, targetUserId });
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "Error desbloqueando usuario.");
-    }
-  });
-
-  // GET /chat/users/:userId/groups-in-common
-  internal.get("/users/:userId/groups-in-common", requirePermission("chat.conversations.read"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const targetUserId = c.req.param("userId");
-      if (!uuidParamSchema.safeParse(targetUserId).success) {
-        return c.json({ error: "Identificador de usuario invalido." }, 422);
-      }
-      const result = await moderationService.getGroupsInCommon({ authUserId, targetUserId });
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "Error obteniendo grupos en comun.");
-    }
-  });
-
-  // POST /chat/reports
-  internal.post("/reports", requirePermission("chat.access"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const body = await c.req.json();
-      const data = chatCreateReportSchema.parse(body);
-      const result = await moderationService.createReport({ authUserId, ...data });
-      return c.json({ data: result }, 201);
-    } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
-      return handleError(c, err, "Error creando reporte.");
-    }
-  });
-
-  // GET /chat/reports
-  internal.get("/reports", requirePermission("identity.chat_reports.read"), async (c) => {
-    try {
-      const { status } = c.req.query();
-      const result = await moderationService.listReports({ status: status || null });
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "Error listando reportes.");
-    }
-  });
-
-  // PATCH /chat/reports/:id/resolve
-  internal.patch("/reports/:id/resolve", requirePermission("identity.chat_reports.manage"), async (c) => {
-    try {
-      const authUserId = c.get("authUserId");
-      const reportId = c.req.param("id");
-      if (!uuidParamSchema.safeParse(reportId).success) {
-        return c.json({ error: "Identificador de reporte invalido." }, 422);
-      }
-      const body = await c.req.json();
-      const { action } = chatResolveReportSchema.parse(body);
-      const result = await moderationService.resolveReport({ reportId, authUserId, action });
-      return c.json({ data: result });
-    } catch (err) {
-      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
-      return handleError(c, err, "Error resolviendo reporte.");
-    }
-  });
+  // Mute, block/unblock, groups-in-common, reports — see moderation-routes.js.
+  internal.route("", createModerationRoutes({ requirePermission, moderationService }));
 
   // ================================================================
   // CHANNELS & ROLES (Phase A foundation)
@@ -1006,66 +890,8 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
-  // ================================================================
-  // MESSAGE TEMPLATES
-  // ================================================================
-
-  internal.get("/templates", requirePermission("chat.conversations.create"), async (c) => {
-    try {
-      const companyId = c.get("companyId");
-      const { search } = c.req.query();
-      const data = await templateService.listTemplates({ companyId, search: search || undefined });
-      return c.json({ data });
-    } catch (err) {
-      return handleError(c, err, "Error listando templates.");
-    }
-  });
-
-  internal.post("/templates", requirePermission("chat.conversations.create"), async (c) => {
-    try {
-      const companyId = c.get("companyId");
-      const actorId = c.get("userId");
-      const body = await c.req.json();
-      const data = await templateService.createTemplate({ companyId, actorId, ...body });
-      return c.json({ data }, 201);
-    } catch (err) {
-      return handleError(c, err, "Error creando template.");
-    }
-  });
-
-  internal.patch("/templates/:templateId", requirePermission("chat.conversations.create"), async (c) => {
-    try {
-      const companyId = c.get("companyId");
-      const { templateId } = c.req.param();
-      const body = await c.req.json();
-      const data = await templateService.updateTemplate({ companyId, templateId, ...body });
-      return c.json({ data });
-    } catch (err) {
-      return handleError(c, err, "Error actualizando template.");
-    }
-  });
-
-  internal.delete("/templates/:templateId", requirePermission("chat.conversations.create"), async (c) => {
-    try {
-      const companyId = c.get("companyId");
-      const { templateId } = c.req.param();
-      await templateService.deleteTemplate({ companyId, templateId });
-      return c.json({ data: { ok: true } });
-    } catch (err) {
-      return handleError(c, err, "Error eliminando template.");
-    }
-  });
-
-  internal.post("/templates/:templateId/use", requirePermission("chat.conversations.create"), async (c) => {
-    try {
-      const companyId = c.get("companyId");
-      const { templateId } = c.req.param();
-      await templateService.recordUsage({ companyId, templateId });
-      return c.json({ data: { ok: true } });
-    } catch (err) {
-      return handleError(c, err, "Error registrando uso de template.");
-    }
-  });
+  // Message templates (quick-reply snippets) — see template-routes.js.
+  internal.route("", createTemplateRoutes({ requirePermission, templateService }));
 
   // ================================================================
   // MANUAL ASSIGNMENT

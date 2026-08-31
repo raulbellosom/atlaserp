@@ -43,6 +43,12 @@ function buildPrismaMock({ failMembership = false } = {}) {
     },
   };
 
+  // publish() filters delivery channels by the recipient's saved preferences;
+  // no row => library defaults apply.
+  const txNotificationPreference = {
+    findFirst: async () => null,
+  };
+
   const prisma = {
     _notifications: notifications,
     membership: {
@@ -60,6 +66,7 @@ function buildPrismaMock({ failMembership = false } = {}) {
     $transaction: async (fn) =>
       fn({
         notification: txNotification,
+        notificationPreference: txNotificationPreference,
         notificationDelivery: prisma.notificationDelivery,
       }),
   };

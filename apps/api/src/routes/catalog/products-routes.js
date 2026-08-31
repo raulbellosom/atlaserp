@@ -24,6 +24,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       })
       return c.json(result)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/products]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -36,6 +37,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       if (!row) return c.json({ error: 'Not found' }, 404)
       return c.json({ data: row })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/products/:id]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -58,6 +60,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       })
       return c.json({ data: row }, 201)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       if (err?.code === '23505') return c.json({ error: 'El slug ya existe' }, 409)
       console.error('[POST /catalog/products]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
@@ -82,6 +85,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       })
       return c.json({ data: row })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       if (err?.code === '23505') return c.json({ error: 'El slug ya existe' }, 409)
       console.error('[PATCH /catalog/products/:id]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
@@ -104,6 +108,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       })
       return c.json({ data: row })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[POST /catalog/products/:id/publish]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -125,6 +130,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       })
       return c.json({ data: row })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[POST /catalog/products/:id/unpublish]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -145,6 +151,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
       })
       return c.json({ ok: true })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[DELETE /catalog/products/:id]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }

@@ -29,6 +29,11 @@ function makePrisma(overrides = {}) {
       findFirst: async ({ where }) =>
         where?.id === 'status-1' ? { id: 'status-1', projectId: 'proj-1' } : null,
     },
+    // createTask bumps the project's taskCounter inside a transaction.
+    project: {
+      update: async () => ({ taskCounter: 1 }),
+    },
+    $transaction: async (fn) => fn(makePrisma(overrides)),
     ...overrides,
   }
 }

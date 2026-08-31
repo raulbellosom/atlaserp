@@ -73,7 +73,9 @@ function buildWebManifest(moduleRow, identityHash) {
     description: manifest.description ?? '',
     id: `/pwa/apps/${moduleKey}`,
     start_url: startUrl,
-    scope: `/`,
+    // Scope the installed PWA to the module's own route subtree so multiple
+    // module PWAs don't collide on a shared '/' scope.
+    scope: `/app/m/${moduleKey}/`,
     display: 'standalone',
     orientation: 'portrait-primary',
     background_color: '#0A1D44',

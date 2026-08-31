@@ -44,6 +44,7 @@ export function createStockRouter({ stockSvc, prisma, requirePermission, require
       })
       return c.json({ data }, 201)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[POST /catalog/products/:id/stock-movements]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -62,6 +63,7 @@ export function createStockRouter({ stockSvc, prisma, requirePermission, require
       })
       return c.json(result)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/products/:id/stock-movements]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }

@@ -11,6 +11,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       const data = await variantSvc.listOptions({ companyId, productId: c.req.param('id') })
       return c.json({ data })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/products/:id/options]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -24,6 +25,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       const data = await variantSvc.createOption({ companyId, productId: c.req.param('id'), data: parsed.data })
       return c.json({ data }, 201)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[POST /catalog/products/:id/options]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -38,6 +40,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       if (!data) return c.json({ error: 'Not found' }, 404)
       return c.json({ data })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[PATCH /catalog/products/:id/options/:optionId]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -49,6 +52,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       await variantSvc.deleteOption({ companyId, optionId: c.req.param('optionId') })
       return c.json({ ok: true })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[DELETE /catalog/products/:id/options/:optionId]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -60,6 +64,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       const data = await variantSvc.listVariants({ companyId, productId: c.req.param('id') })
       return c.json({ data })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[GET /catalog/products/:id/variants]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -73,6 +78,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       const data = await variantSvc.createVariant({ companyId, productId: c.req.param('id'), data: parsed.data })
       return c.json({ data }, 201)
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[POST /catalog/products/:id/variants]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -87,6 +93,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       if (!data) return c.json({ error: 'Not found' }, 404)
       return c.json({ data })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[PATCH /catalog/products/:id/variants/:variantId]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
@@ -98,6 +105,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
       await variantSvc.deleteVariant({ companyId, variantId: c.req.param('variantId') })
       return c.json({ ok: true })
     } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[DELETE /catalog/products/:id/variants/:variantId]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }

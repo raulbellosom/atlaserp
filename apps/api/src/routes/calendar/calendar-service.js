@@ -7,6 +7,43 @@ export class CalendarServiceError extends Error {
 }
 
 export function createCalendarService({ prisma }) {
+  // A calendar may only be shared with a user who belongs to (at least) one
+  // company the owner also belongs to. Blocks cross-tenant sharing and
+  // self-sharing. Mirrors notes shares-service._assertShareableTarget.
+  async function assertShareableTarget(ownerId, targetUserId) {
+    if (!targetUserId || typeof targetUserId !== "string") {
+      throw new CalendarServiceError("Usuario destino invalido.", 400);
+    }
+    if (targetUserId === ownerId) {
+      throw new CalendarServiceError("No puedes invitarte a ti mismo.", 400);
+    }
+    const ownerMemberships = await prisma.membership.findMany({
+      where: { userId: ownerId, enabled: true },
+      select: { companyId: true },
+    });
+    const companyIds = ownerMemberships.map((m) => m.companyId);
+    if (companyIds.length === 0) {
+      throw new CalendarServiceError(
+        "Solo puedes compartir con usuarios de tu empresa.",
+        403,
+      );
+    }
+    const targetMembership = await prisma.membership.findFirst({
+      where: {
+        userId: targetUserId,
+        enabled: true,
+        companyId: { in: companyIds },
+      },
+      select: { id: true },
+    });
+    if (!targetMembership) {
+      throw new CalendarServiceError(
+        "Solo puedes compartir con usuarios de tu empresa.",
+        403,
+      );
+    }
+  }
+
   async function ensureDefaultCalendar(userId) {
     const existing = await prisma.calendarCalendar.findFirst({
       where: { ownerId: userId, isDefault: true, enabled: true },
@@ -107,11 +144,10 @@ export function createCalendarService({ prisma }) {
     });
     if (!calendar)
       throw new CalendarServiceError("Calendario no encontrado.", 404);
-    if (userId === ownerId)
-      throw new CalendarServiceError("No puedes invitarte a ti mismo.", 400);
     const validRoles = ["VIEWER", "EDITOR", "MANAGER"];
     if (!validRoles.includes(role))
       throw new CalendarServiceError("Rol invalido.", 400);
+    await assertShareableTarget(ownerId, userId);
     try {
       return await prisma.calendarShare.create({
         data: { calendarId, userId, role },

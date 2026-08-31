@@ -17,10 +17,20 @@ function makePrisma(overrides = {}) {
       update: async (args) => ({ id: args.where.id, ...args.data }),
       delete: async () => {},
     },
+    calendarEvent: {
+      updateMany: async () => ({ count: 0 }),
+    },
+    // Default: owner and target share a company (share is allowed).
+    membership: {
+      findMany: async () => [{ companyId: 'company-1' }],
+      findFirst: async () => ({ id: 'mem-target' }),
+    },
   }
   return {
     calendarCalendar: { ...defaults.calendarCalendar, ...(overrides.calendarCalendar ?? {}) },
     calendarShare: { ...defaults.calendarShare, ...(overrides.calendarShare ?? {}) },
+    calendarEvent: { ...defaults.calendarEvent, ...(overrides.calendarEvent ?? {}) },
+    membership: { ...defaults.membership, ...(overrides.membership ?? {}) },
   }
 }
 
@@ -134,6 +144,33 @@ describe('createCalendarService', () => {
       await svc.shareCalendar('user-1', 'cal-1', { userId: 'user-2', role: 'EDITOR' })
       assert.equal(created.role, 'EDITOR')
       assert.equal(created.userId, 'user-2')
+    })
+
+    it('throws 403 when the target shares no company with the owner', async () => {
+      const prisma = makePrisma({
+        calendarCalendar: { findFirst: async () => ({ id: 'cal-1', ownerId: 'user-1', enabled: true }) },
+        membership: {
+          findMany: async () => [{ companyId: 'company-1' }],
+          findFirst: async () => null, // target has no membership in company-1
+        },
+      })
+      const svc = createCalendarService({ prisma })
+      await assert.rejects(
+        () => svc.shareCalendar('user-1', 'cal-1', { userId: 'outsider', role: 'VIEWER' }),
+        (err) => { assert.ok(err instanceof CalendarServiceError); assert.equal(err.status, 403); return true }
+      )
+    })
+
+    it('throws 403 when the owner has no company membership', async () => {
+      const prisma = makePrisma({
+        calendarCalendar: { findFirst: async () => ({ id: 'cal-1', ownerId: 'user-1', enabled: true }) },
+        membership: { findMany: async () => [], findFirst: async () => null },
+      })
+      const svc = createCalendarService({ prisma })
+      await assert.rejects(
+        () => svc.shareCalendar('user-1', 'cal-1', { userId: 'user-2', role: 'VIEWER' }),
+        (err) => { assert.equal(err.status, 403); return true }
+      )
     })
   })
 

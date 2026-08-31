@@ -80,6 +80,7 @@ function makePrisma(overrides = {}) {
     fileAsset: {
       findMany: async () => [],
       findFirst: async () => null,
+      groupBy: async () => [],
     },
     ...overrides,
   }
@@ -171,79 +172,11 @@ describe('V2.1 service functions', () => {
     })
   })
 
-  describe('createComment', () => {
-    it('creates comment', async () => {
-      const prisma = makePrisma()
-      const svc = createTasksService({ prisma })
-      const c = await svc.createComment('t-1', 'u-1', 'Hello world')
-      assert.equal(c.body, 'Hello world')
-      assert.equal(c.authorId, 'u-1')
-    })
-
-    it('throws 400 when body is empty', async () => {
-      const prisma = makePrisma()
-      const svc = createTasksService({ prisma })
-      await assert.rejects(
-        () => svc.createComment('t-1', 'u-1', '   '),
-        (err) => { assert.equal(err.status, 400); return true },
-      )
-    })
-
-    it('throws 400 when body exceeds 5000 chars', async () => {
-      const prisma = makePrisma()
-      const svc = createTasksService({ prisma })
-      await assert.rejects(
-        () => svc.createComment('t-1', 'u-1', 'x'.repeat(5001)),
-        (err) => { assert.equal(err.status, 400); return true },
-      )
-    })
-  })
-
-  describe('updateComment', () => {
-    it('updates comment body and sets editedAt', async () => {
-      const prisma = makePrisma()
-      const svc = createTasksService({ prisma })
-      // pre-seed a comment
-      prisma.taskComment.create({ data: { id: 'c-1', taskId: 't-1', authorId: 'u-1', body: 'original' } })
-      // make findFirst return it
-      const orig = { id: 'c-1', taskId: 't-1', authorId: 'u-1', body: 'original', editedAt: null, createdAt: new Date() }
-      const prisma2 = makePrisma({
-        taskComment: {
-          ...makePrisma().taskComment,
-          findFirst: async ({ where }) => where?.id === 'c-1' ? orig : null,
-          update: async ({ where, data }) => ({ ...orig, ...data, author: { id: 'u-1', firstName: 'A', lastName: 'B', avatarFileId: null } }),
-        },
-      })
-      const svc2 = createTasksService({ prisma: prisma2 })
-      const updated = await svc2.updateComment('c-1', 'u-1', 'new body')
-      assert.equal(updated.body, 'new body')
-      assert.ok(updated.editedAt instanceof Date)
-    })
-
-    it('throws 403 when requester is not the author', async () => {
-      const prisma = makePrisma({
-        taskComment: {
-          ...makePrisma().taskComment,
-          findFirst: async ({ where }) =>
-            where?.id === 'c-1' ? { id: 'c-1', taskId: 't-1', authorId: 'u-1', body: 'body' } : null,
-        },
-      })
-      const svc = createTasksService({ prisma })
-      await assert.rejects(
-        () => svc.updateComment('c-1', 'u-DIFFERENT', 'new body'),
-        (err) => { assert.equal(err.status, 403); return true },
-      )
-    })
-
-    it('throws 404 when comment not found', async () => {
-      const prisma = makePrisma()
-      const svc = createTasksService({ prisma })
-      await assert.rejects(
-        () => svc.updateComment('nonexistent', 'u-1', 'body'),
-        (err) => { assert.equal(err.status, 404); return true },
-      )
-    })
-  })
+  // NOTE: task comments are handled by the shared services/comments-service.js
+  // (entity 'Task'), not tasks-service. The former createComment/updateComment
+  // blocks tested a tasks-service API that never shipped and were removed
+  // 2026-08-30. Comment behaviour is covered by comments-service tests + the
+  // projects-routes wiring.
 
   describe('bulkUpdateTasks', () => {
     it('throws 400 when taskIds is empty', async () => {

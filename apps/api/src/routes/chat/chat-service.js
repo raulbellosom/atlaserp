@@ -1,9 +1,9 @@
-import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { signedUrlWithVariant } from "../../lib/image-variants.js";
 import { parseMentionIds } from "../../lib/mention-utils.js";
 import { ChatServiceError } from "./chat-service-error.js";
 import { createChatConversationReadsService } from "./chat-conversation-reads-service.js";
+import { createChatAttachmentsService } from "./chat-attachments-service.js";
 import { buildReplyPreview } from "./chat-reply-preview.js";
 
 export { ChatServiceError };
@@ -123,6 +123,33 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
   }
 
+  // Restricts a set of candidate user_profile ids to those sharing at least one
+  // enabled company Membership with actingProfileId — same cross-tenant guard
+  // pattern as calendar-event-service.js's filterCompanyPeers. Without this,
+  // createConversation/addMembers would trust a client-supplied user id as-is
+  // and could add a user from a different company into a private conversation.
+  async function filterCompanyPeers(actingProfileId, candidateIds) {
+    const ids = [...new Set((candidateIds ?? []).filter(Boolean))];
+    if (ids.length === 0) return [];
+    const ownerMemberships = await prisma.membership.findMany({
+      where: { userId: actingProfileId.toString(), enabled: true },
+      select: { companyId: true },
+    });
+    const companyIds = ownerMemberships.map((m) => m.companyId);
+    if (companyIds.length === 0) {
+      // Acting user has no active company membership (e.g. platform admin) —
+      // only allow self-reference, never an arbitrary foreign user id.
+      return ids.includes(actingProfileId.toString()) ? [actingProfileId.toString()] : [];
+    }
+    const peers = await prisma.membership.findMany({
+      where: { userId: { in: ids }, enabled: true, companyId: { in: companyIds } },
+      select: { userId: true },
+    });
+    const allowed = new Set(peers.map((m) => m.userId));
+    allowed.add(actingProfileId.toString());
+    return ids.filter((id) => allowed.has(id));
+  }
+
   async function updateConversationLastMessage(conversationId, messageId, createdAt) {
     await prisma.$executeRaw`
       UPDATE chat_conversations
@@ -221,6 +248,18 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null }) {
     if (channelLinksService) channelLinksService.assertBothOrNeither(linkedModule, linkedEntityId);
     const creatorProfileId = await getUserProfileId(authUserId);
+
+    // Cross-tenant guard: a member id must share a company with the creator.
+    // Without this, any caller could pass an arbitrary user_profile id (from
+    // another company entirely) as memberUserIds and be silently added to a
+    // conversation with them — the frontend picker is already company-scoped,
+    // but the API must not trust that.
+    const requestedMemberIds = [...new Set((memberUserIds ?? []).filter(Boolean))];
+    const validMemberIds = await filterCompanyPeers(creatorProfileId, requestedMemberIds);
+    if (validMemberIds.length !== requestedMemberIds.length) {
+      throw new ChatServiceError("Uno o mas usuarios no pertenecen a tu empresa.", 403);
+    }
+    memberUserIds = validMemberIds;
 
     // Prevent self-chat
     if (type === "direct" && memberUserIds.length === 1 && memberUserIds[0] === creatorProfileId.toString()) {
@@ -451,8 +490,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }
     }
 
+    // Same cross-tenant guard as createConversation — reject any userId that
+    // doesn't share a company with the caller rather than silently adding a
+    // foreign-company user to this conversation.
+    const requestedUserIds = [...new Set((userIds ?? []).filter(Boolean))];
+    const validUserIds = await filterCompanyPeers(profileId, requestedUserIds);
+    if (validUserIds.length !== requestedUserIds.length) {
+      throw new ChatServiceError("Uno o mas usuarios no pertenecen a tu empresa.", 403);
+    }
+
     const results = [];
-    for (const uid of userIds) {
+    for (const uid of validUserIds) {
       await prisma.$executeRaw`
         INSERT INTO chat_conversation_members (conversation_id, user_id, role)
         VALUES (${conversationId}, ${uid}, ${role})
@@ -1128,45 +1176,6 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // (no body text, no entity refs), the whole message is soft-deleted
   // instead, matching what deleteMessage already does for a single-
   // attachment message (spec Section 12/Goal 5).
-  async function deleteAttachment({ attachmentId, authUserId }) {
-    const profileId = await getUserProfileId(authUserId);
-
-    const rows = await prisma.$queryRaw`
-      SELECT a.id, a.message_id, m.body, m.attachment_count, m.metadata
-      FROM chat_attachments a
-      INNER JOIN chat_messages m ON m.id = a.message_id
-      WHERE a.id = ${attachmentId}
-        AND m.sender_user_id = ${profileId}
-        AND m.deleted_at IS NULL
-      LIMIT 1
-    `;
-    if (!rows.length) throw new ChatServiceError("Archivo no encontrado o sin permiso.", 404);
-    const { message_id: messageId, body, attachment_count: attachmentCount, metadata } = rows[0];
-
-    const isLastAttachment = attachmentCount <= 1;
-    const hasBody = Boolean(body && body.trim());
-    const hasEntityRefs = Boolean(metadata?.entityRefs?.length);
-
-    if (isLastAttachment && !hasBody && !hasEntityRefs) {
-      // This UPDATE (not just the DELETE below) is what makes the change
-      // reach other open clients — the frontend's realtime sync
-      // (subscribeToMessages in supabaseRealtime.js) is a postgres_changes
-      // listener on chat_messages only; chat_attachments has no subscription
-      // of its own. Same mechanism deleteMessage already relies on.
-      await prisma.$executeRaw`
-        UPDATE chat_messages SET deleted_at = NOW(), body = '' WHERE id = ${messageId}
-      `;
-      await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
-      return { ok: true, messageDeleted: true };
-    }
-
-    await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
-    await prisma.$executeRaw`
-      UPDATE chat_messages SET attachment_count = GREATEST(attachment_count - 1, 0) WHERE id = ${messageId}
-    `;
-    return { ok: true, messageDeleted: false };
-  }
-
   async function pinMessage({ messageId, authUserId, pinned }) {
     const profileId = await getUserProfileId(authUserId);
 
@@ -1257,93 +1266,18 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   }
 
   // ------------------------------------------------------------------
-  // Attachments
+  // Attachments — presign/sign/delete live in chat-attachments-service.js
   // ------------------------------------------------------------------
 
-  async function presignAttachmentUpload({ authUserId, conversationId, fileName, mimeType, sizeBytes }) {
-    const profileId = await getUserProfileId(authUserId);
-    await assertMember(conversationId, profileId);
-
-    const ALLOWED_MIME = [
-      /^image\//,
-      /^audio\//,
-      /^video\//,
-      /^application\/pdf$/,
-      /^text\/plain$/,
-      /^application\/msword$/,
-      /^application\/vnd\.openxmlformats/,
-      /^application\/zip$/,
-      /^application\/x-zip/,
-    ];
-    const allowed = ALLOWED_MIME.some(re => re.test(mimeType));
-    if (!allowed) throw new ChatServiceError("Tipo de archivo no permitido.", 422);
-    if (sizeBytes > 50 * 1024 * 1024) throw new ChatServiceError("Archivo demasiado grande (max 50 MB).", 422);
-
-    const ext = fileName.split(".").pop()?.toLowerCase() ?? "bin";
-    const objectKey = `conversations/${conversationId}/${crypto.randomUUID()}.${ext}`;
-
-    const { data, error } = await supabaseAdmin.storage
-      .from("atlas-chat")
-      .createSignedUploadUrl(objectKey, { expiresIn: 300 });
-
-    if (error) {
-      console.error("[atlas.chat] createSignedUploadUrl failed", { bucket: "atlas-chat", key: objectKey, error });
-      throw new ChatServiceError("Error generando URL de subida.", 500);
-    }
-
-    // message_id is NULL until sendMessage links it
-    const attRows = await prisma.$queryRaw`
-      INSERT INTO chat_attachments
-        (conversation_id, bucket, object_key, file_name, mime_type, size_bytes, uploaded_by_user_id)
-      VALUES (
-        ${conversationId},
-        'atlas-chat',
-        ${objectKey},
-        ${fileName},
-        ${mimeType},
-        ${sizeBytes},
-        ${profileId}
-      )
-      RETURNING id
-    `;
-
-    return {
-      attachmentId: attRows[0].id,
-      uploadUrl: data.signedUrl,
-      token: data.token,
-      objectKey,
-    };
-  }
-
-  async function getAttachmentSignedUrl({ attachmentId, authUserId, variant = "full" }) {
-    const profileId = await getUserProfileId(authUserId);
-
-    const rows = await prisma.$queryRaw`
-      SELECT a.* FROM chat_attachments a
-      INNER JOIN chat_conversation_members ccm
-        ON ccm.conversation_id = a.conversation_id AND ccm.user_id = ${profileId} AND ccm.left_at IS NULL
-      WHERE a.id = ${attachmentId}
-      LIMIT 1
-    `;
-    if (!rows.length) {
-      console.error("[atlas.chat] getAttachmentSignedUrl: attachment not found or user not member", { attachmentId, profileId });
-      throw new ChatServiceError("Adjunto no encontrado.", 404);
-    }
-
-    const att = rows[0];
-
-    const cached = getCachedSignedUrl(att.bucket, att.object_key, variant);
-    if (cached) return { url: cached };
-
-    const signedUrl = await signedUrlWithVariant(supabaseAdmin, att.bucket, att.object_key, variant);
-
-    if (!signedUrl) {
-      console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key });
-      throw new ChatServiceError("Error generando URL firmada.", 500);
-    }
-    setCachedSignedUrl(att.bucket, att.object_key, variant, signedUrl);
-    return { url: signedUrl };
-  }
+  const attachmentsService = createChatAttachmentsService({
+    prisma,
+    supabaseAdmin,
+    getUserProfileId,
+    assertMember,
+    getCachedSignedUrl,
+    setCachedSignedUrl,
+  });
+  const { presignAttachmentUpload, getAttachmentSignedUrl, deleteAttachment } = attachmentsService;
 
   return {
     listConversations,

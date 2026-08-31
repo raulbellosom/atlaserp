@@ -155,8 +155,9 @@ export function createPosSessionService({ prisma }) {
     const countedCashAmount = toMoney(data.countedCashAmount);
     const differenceAmount = toMoney(countedCashAmount - expectedCashAmount);
 
-    const updated = await prisma.posSession.update({
-      where: { id: sessionId },
+    // Conditional close — a concurrent close makes count === 0.
+    const closeResult = await prisma.posSession.updateMany({
+      where: { id: sessionId, companyId: scopedCompanyId, status: "OPEN" },
       data: {
         status: "CLOSED",
         closedById: actorId,
@@ -167,6 +168,10 @@ export function createPosSessionService({ prisma }) {
         notes: typeof data.notes === "string" ? data.notes.trim() || null : data.notes ?? before.notes,
       },
     });
+    if (closeResult.count !== 1) {
+      throw new PosServiceError("La sesion de caja ya fue cerrada.", 409);
+    }
+    const updated = await getSessionById({ companyId: scopedCompanyId, id: sessionId });
     await writeAudit(prisma, {
       actorId,
       entityType: "PosSession",

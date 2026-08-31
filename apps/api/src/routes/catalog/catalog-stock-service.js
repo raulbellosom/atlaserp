@@ -1,8 +1,38 @@
 // apps/api/src/routes/catalog/catalog-stock-service.js
 
+export class CatalogStockError extends Error {
+  constructor(message, status = 404) {
+    super(message)
+    this.name = 'CatalogStockError'
+    this.status = status
+  }
+}
+
 export function createCatalogStockService({ prisma }) {
 
   async function recordStockMovement({ companyId, productId, variantId, quantityDelta, reason, note, userId }) {
+    // The movement must target a product (and variant) that belongs to this
+    // company — otherwise we'd log a movement row against a foreign product id.
+    const product = await prisma.$queryRaw`
+      SELECT id FROM catalog_product
+      WHERE id = ${productId}::uuid AND company_id = ${companyId}::uuid AND enabled = true
+      LIMIT 1
+    `
+    if (!product.length) {
+      throw new CatalogStockError('Producto no encontrado.')
+    }
+    if (variantId) {
+      const variant = await prisma.$queryRaw`
+        SELECT id FROM catalog_product_variant
+        WHERE id = ${variantId}::uuid AND product_id = ${productId}::uuid
+          AND company_id = ${companyId}::uuid AND enabled = true
+        LIMIT 1
+      `
+      if (!variant.length) {
+        throw new CatalogStockError('Variante no encontrada.')
+      }
+    }
+
     return prisma.$transaction(async (tx) => {
       const [movement] = await tx.$queryRaw`
         INSERT INTO catalog_stock_movement

@@ -6,7 +6,27 @@ const PUBLIC_BUCKET  = 'atlas-website'
 const SIGNED_URL_TTL = 3600
 const IMAGE_VARIANT  = 'product'
 
+export class CatalogRefError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'CatalogRefError'
+    this.status = 400
+  }
+}
+
 export function createCatalogProductService({ prisma, supabaseAdmin }) {
+
+  // Rejects a category/product FK reference that belongs to another company.
+  async function assertRowInCompany(table, id, companyId, label) {
+    if (id === undefined || id === null || id === '') return
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT 1 FROM ${table} WHERE id = $1::uuid AND company_id = $2::uuid LIMIT 1`,
+      id, companyId,
+    )
+    if (!rows.length) {
+      throw new CatalogRefError(`${label} no pertenece a la empresa actual.`)
+    }
+  }
 
   async function resolveImageUrls(rows) {
     if (!supabaseAdmin) return rows
@@ -118,6 +138,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
   }
 
   async function createCategory({ companyId, data }) {
+    await assertRowInCompany('catalog_category', data.parent_id, companyId, 'La categoria padre')
     const rows = await prisma.$queryRaw`
       INSERT INTO catalog_category
         (company_id, name, slug, description, parent_id, cover_asset_id, position, created_at, updated_at)
@@ -138,6 +159,10 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
   }
 
   async function updateCategory({ companyId, id, data }) {
+    if (data.parent_id !== undefined && data.parent_id !== null && String(data.parent_id) === String(id)) {
+      throw new CatalogRefError('Una categoria no puede ser su propia padre.')
+    }
+    await assertRowInCompany('catalog_category', data.parent_id, companyId, 'La categoria padre')
     const map = {
       name:           data.name,
       slug:           data.slug,
@@ -268,6 +293,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
   }
 
   async function createProduct({ companyId, data }) {
+    await assertRowInCompany('catalog_category', data.category_id, companyId, 'La categoria')
     const rows = await prisma.$queryRaw`
       INSERT INTO catalog_product
         (company_id, category_id, product_type, name, slug, description,
@@ -302,6 +328,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
   }
 
   async function updateProduct({ companyId, id, data }) {
+    await assertRowInCompany('catalog_category', data.category_id, companyId, 'La categoria')
     const map = {
       category_id:      data.category_id,
       product_type:     data.product_type,

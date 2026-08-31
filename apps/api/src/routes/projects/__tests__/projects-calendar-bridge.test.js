@@ -14,6 +14,8 @@ function makeCalendarPrisma(overrides = {}) {
         calendars[c.id] = c
         return c
       },
+      // grantMemberCalendarAccess looks up the owner to skip redundant self-shares.
+      findFirst: async ({ where }) => calendars[where.id] ?? { id: where.id, ownerId: 'owner-user' },
       update: async ({ where, data }) => ({ id: where.id, ...data }),
     },
     calendarShare: {

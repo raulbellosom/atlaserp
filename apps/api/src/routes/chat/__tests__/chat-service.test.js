@@ -10,6 +10,7 @@ const AUTH_USER_ID = "auth-user-1";
 const PROFILE_ID = "01900000-0000-7000-8000-0000000000p1";
 const OTHER_PROFILE_ID = "01900000-0000-7000-8000-0000000000p2";
 const CONV_ID = "01900000-0000-7000-8000-0000000000c1";
+const MOCK_COMPANY_ID = "01900000-0000-7000-8000-0000000000c0";
 
 beforeEach(() => {
   _resetProfileIdCacheForTests();
@@ -44,6 +45,17 @@ function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
     },
     membership: {
       findFirst: async () => null,
+      // Default fixture: PROFILE_ID and OTHER_PROFILE_ID are colleagues in the
+      // same company, so filterCompanyPeers' cross-tenant guard (used by
+      // createConversation/addMembers) doesn't reject the ids most tests
+      // exercise. A test that needs a genuine cross-company rejection can
+      // override this per-call.
+      findMany: async ({ where } = {}) => {
+        const raw = where?.userId;
+        const ids = typeof raw === "string" ? [raw] : (raw?.in ?? []);
+        const known = new Set([PROFILE_ID, OTHER_PROFILE_ID]);
+        return ids.filter((id) => known.has(id)).map((userId) => ({ userId, companyId: MOCK_COMPANY_ID }));
+      },
     },
     // Default: no FileAsset rows found, so batchSignAvatarUrls (called whenever
     // a member/conversation avatar_file_id is truthy) resolves to an empty map

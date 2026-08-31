@@ -47,6 +47,42 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const notifSvc = createProjectsNotificationService({ prisma, notificationService })
   const commentsSvc = createCommentsService({ prisma })
 
+  // Per-project authorization. Runs AFTER requirePermission(...) (which populates
+  // userContext + companyId). Verifies the caller belongs to THIS project and
+  // that the project is in the caller's company — the company-wide RBAC grant is
+  // not enough. minRole gates by VIEWER < MEMBER < OWNER.
+  const PROJECT_ROLE_RANK = { VIEWER: 1, MEMBER: 2, OWNER: 3 }
+  function requireProjectAccess(minRole = 'VIEWER') {
+    return async (c, next) => {
+      const projectId = c.req.param('id')
+      if (!projectId) return next()
+      const userId = getUserId(c) ?? c.get('userId')
+      const companyId = getCompanyId(c)
+      const project = await prisma.project.findFirst({
+        where: { id: projectId },
+        select: { id: true, companyId: true, ownerId: true },
+      })
+      if (!project || (companyId && project.companyId !== companyId)) {
+        return c.json({ error: 'Proyecto no encontrado.' }, 404)
+      }
+      let role = project.ownerId === userId ? 'OWNER' : null
+      if (!role) {
+        const member = await prisma.projectMember.findFirst({
+          where: { projectId, userId },
+          select: { role: true },
+        })
+        role = member?.role ?? null
+      }
+      if (!role) return c.json({ error: 'Proyecto no encontrado.' }, 404)
+      if ((PROJECT_ROLE_RANK[role] ?? 0) < (PROJECT_ROLE_RANK[minRole] ?? 1)) {
+        return c.json({ error: 'No tienes acceso suficiente en este proyecto.' }, 403)
+      }
+      c.set('projectRole', role)
+      c.set('projectCompanyId', project.companyId)
+      return next()
+    }
+  }
+
   async function broadcastTaskEvent(projectId, taskId, action) {
     if (!broadcaster || !projectId) return
     try {
@@ -80,14 +116,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al crear proyecto.') }
   })
 
-  app.get('/projects/:id', requirePermission('projects.project.read'), async (c) => {
+  app.get('/projects/:id', requirePermission('projects.project.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const project = await projectsSvc.getProject(c.req.param('id'), getUserId(c))
       return c.json(project)
     } catch (err) { return handleError(c, err, 'Error al obtener proyecto.') }
   })
 
-  app.patch('/projects/:id', requirePermission('projects.project.update'), async (c) => {
+  app.patch('/projects/:id', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const body = await c.req.json()
       const project = await projectsSvc.updateProject(c.req.param('id'), getUserId(c), body)
@@ -96,14 +132,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al actualizar proyecto.') }
   })
 
-  app.delete('/projects/:id', requirePermission('projects.project.delete'), async (c) => {
+  app.delete('/projects/:id', requirePermission('projects.project.delete'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const project = await projectsSvc.archiveProject(c.req.param('id'), getUserId(c))
       return c.json(project)
     } catch (err) { return handleError(c, err, 'Error al archivar proyecto.') }
   })
 
-  app.post('/projects/:id/calendar/sync', requirePermission('projects.project.update'), async (c) => {
+  app.post('/projects/:id/calendar/sync', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const project = await projectsSvc.getProject(c.req.param('id'), getUserId(c))
       const calendarId = await bridge.syncProjectCalendar(project)
@@ -117,14 +153,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Members ---
-  app.get('/projects/:id/members', requirePermission('projects.project.read'), async (c) => {
+  app.get('/projects/:id/members', requirePermission('projects.project.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const project = await projectsSvc.getProject(c.req.param('id'), getUserId(c))
       return c.json(project.members)
     } catch (err) { return handleError(c, err, 'Error al listar miembros.') }
   })
 
-  app.post('/projects/:id/members', requirePermission('projects.member.manage'), async (c) => {
+  app.post('/projects/:id/members', requirePermission('projects.member.manage'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const body = await c.req.json()
@@ -136,7 +172,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al agregar miembro.') }
   })
 
-  app.patch('/projects/:id/members/:uid', requirePermission('projects.member.manage'), async (c) => {
+  app.patch('/projects/:id/members/:uid', requirePermission('projects.member.manage'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const userId = c.req.param('uid')
@@ -149,7 +185,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al actualizar miembro.') }
   })
 
-  app.delete('/projects/:id/members/:uid', requirePermission('projects.member.manage'), async (c) => {
+  app.delete('/projects/:id/members/:uid', requirePermission('projects.member.manage'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const userId = c.req.param('uid')
@@ -161,28 +197,28 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Statuses ---
-  app.get('/projects/:id/statuses', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/statuses', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const statuses = await projectsSvc.listStatuses(c.req.param('id'))
       return c.json(statuses)
     } catch (err) { return handleError(c, err, 'Error al listar estados.') }
   })
 
-  app.post('/projects/:id/statuses', requirePermission('projects.project.update'), async (c) => {
+  app.post('/projects/:id/statuses', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const status = await projectsSvc.createStatus(c.req.param('id'), await c.req.json())
       return c.json(status, 201)
     } catch (err) { return handleError(c, err, 'Error al crear estado.') }
   })
 
-  app.patch('/projects/:id/statuses/:sid', requirePermission('projects.project.update'), async (c) => {
+  app.patch('/projects/:id/statuses/:sid', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const status = await projectsSvc.updateStatus(c.req.param('sid'), await c.req.json())
       return c.json(status)
     } catch (err) { return handleError(c, err, 'Error al actualizar estado.') }
   })
 
-  app.delete('/projects/:id/statuses/:sid', requirePermission('projects.project.update'), async (c) => {
+  app.delete('/projects/:id/statuses/:sid', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       await projectsSvc.deleteStatus(c.req.param('sid'))
       return c.json({ ok: true })
@@ -190,7 +226,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Tasks ---
-  app.get('/projects/:id/tasks', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const { status_id, assignee_id, priority, due_date_from, due_date_to, parent_task_id, include_subtasks } = c.req.query()
       const tasks = await tasksSvc.listTasks(c.req.param('id'), {
@@ -206,7 +242,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al listar tareas.') }
   })
 
-  app.post('/projects/:id/tasks', requirePermission('projects.task.create'), async (c) => {
+  app.post('/projects/:id/tasks', requirePermission('projects.task.create'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const body = await c.req.json()
       const task = await tasksSvc.createTask(c.req.param('id'), getUserId(c), body)
@@ -220,7 +256,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Bulk ---
-  app.patch('/projects/:id/tasks/bulk', requirePermission('projects.task.update'), async (c) => {
+  app.patch('/projects/:id/tasks/bulk', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { taskIds, patch } = await c.req.json()
       const result = await tasksSvc.bulkUpdateTasks(c.req.param('id'), taskIds, patch ?? {})
@@ -229,7 +265,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al actualizar tareas en masa.') }
   })
 
-  app.delete('/projects/:id/tasks/bulk', requirePermission('projects.task.delete'), async (c) => {
+  app.delete('/projects/:id/tasks/bulk', requirePermission('projects.task.delete'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { taskIds } = await c.req.json()
       const result = await tasksSvc.bulkDeleteTasks(c.req.param('id'), taskIds)
@@ -238,14 +274,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al eliminar tareas en masa.') }
   })
 
-  app.get('/projects/:id/tasks/:tid', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks/:tid', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const task = await tasksSvc.getTask(c.req.param('tid'))
       return c.json(task)
     } catch (err) { return handleError(c, err, 'Error al obtener tarea.') }
   })
 
-  app.patch('/projects/:id/tasks/:tid', requirePermission('projects.task.update'), async (c) => {
+  app.patch('/projects/:id/tasks/:tid', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const taskId = c.req.param('tid')
       const body = await c.req.json()
@@ -286,7 +322,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al actualizar tarea.') }
   })
 
-  app.delete('/projects/:id/tasks/:tid', requirePermission('projects.task.delete'), async (c) => {
+  app.delete('/projects/:id/tasks/:tid', requirePermission('projects.task.delete'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const task = await tasksSvc.deleteTask(c.req.param('tid'))
       if (task.calendarEventId) await bridge.deleteTaskEvent(task.calendarEventId)
@@ -295,7 +331,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al eliminar tarea.') }
   })
 
-  app.patch('/projects/:id/tasks/:tid/move', requirePermission('projects.task.update'), async (c) => {
+  app.patch('/projects/:id/tasks/:tid/move', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const task = await tasksSvc.moveTask(c.req.param('tid'), await c.req.json())
       broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'moved')
@@ -304,14 +340,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Task Assignees ---
-  app.get('/projects/:id/tasks/:tid/assignees', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks/:tid/assignees', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const assignees = await tasksSvc.listAssignees(c.req.param('tid'))
       return c.json(assignees)
     } catch (err) { return handleError(c, err, 'Error al listar asignados.') }
   })
 
-  app.post('/projects/:id/tasks/:tid/assignees', requirePermission('projects.task.update'), async (c) => {
+  app.post('/projects/:id/tasks/:tid/assignees', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { userId } = await c.req.json()
       const row = await tasksSvc.addAssignee(c.req.param('tid'), userId)
@@ -327,7 +363,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al asignar usuario.') }
   })
 
-  app.delete('/projects/:id/tasks/:tid/assignees/:uid', requirePermission('projects.task.update'), async (c) => {
+  app.delete('/projects/:id/tasks/:tid/assignees/:uid', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const removedUserId = c.req.param('uid')
       const removedUser = await prisma.userProfile.findFirst({
@@ -348,14 +384,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Task Comments ---
-  app.get('/projects/:id/tasks/:tid/comments', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks/:tid/comments', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const comments = await commentsSvc.listComments('Task', c.req.param('tid'))
       return c.json({ data: comments })
     } catch (err) { return handleError(c, err, 'Error al listar comentarios.') }
   })
 
-  app.post('/projects/:id/tasks/:tid/comments', requirePermission('projects.task.update'), async (c) => {
+  app.post('/projects/:id/tasks/:tid/comments', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { body } = await c.req.json()
       const companyId = getCompanyId(c)
@@ -380,7 +416,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al crear comentario.') }
   })
 
-  app.patch('/projects/:id/tasks/:tid/comments/:cid', requirePermission('projects.task.update'), async (c) => {
+  app.patch('/projects/:id/tasks/:tid/comments/:cid', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { body } = await c.req.json()
       const comment = await commentsSvc.updateComment(c.req.param('cid'), c.get('authUserId'), body)
@@ -388,14 +424,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al editar comentario.') }
   })
 
-  app.delete('/projects/:id/tasks/:tid/comments/:cid', requirePermission('projects.task.update'), async (c) => {
+  app.delete('/projects/:id/tasks/:tid/comments/:cid', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       await commentsSvc.deleteComment(c.req.param('cid'), c.get('authUserId'), getCompanyId(c))
       return c.json({ ok: true })
     } catch (err) { return handleError(c, err, 'Error al eliminar comentario.') }
   })
 
-  app.post('/projects/:id/tasks/:tid/comments/:cid/reactions', requirePermission('projects.task.update'), async (c) => {
+  app.post('/projects/:id/tasks/:tid/comments/:cid/reactions', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { emoji } = await c.req.json()
       const commentId = c.req.param('cid')
@@ -412,7 +448,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Task Attachments ---
-  app.get('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const taskId = c.req.param('tid')
@@ -429,7 +465,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al listar archivos.') }
   })
 
-  app.post('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.update'), async (c) => {
+  app.post('/projects/:id/tasks/:tid/attachments', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const taskId = c.req.param('tid')
@@ -446,7 +482,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al adjuntar archivo.') }
   })
 
-  app.delete('/projects/:id/tasks/:tid/attachments/:fid', requirePermission('projects.task.update'), async (c) => {
+  app.delete('/projects/:id/tasks/:tid/attachments/:fid', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const taskId = c.req.param('tid')
@@ -460,13 +496,13 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Task Dependencies ---
-  app.get('/projects/:id/tasks/:tid/dependencies', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks/:tid/dependencies', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       return c.json(await depsSvc.listDependencies(c.req.param('tid')))
     } catch (err) { return handleError(c, err, 'Error al listar dependencias.') }
   })
 
-  app.post('/projects/:id/tasks/:tid/dependencies', requirePermission('projects.task.update'), async (c) => {
+  app.post('/projects/:id/tasks/:tid/dependencies', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { blockerId } = await c.req.json()
       const dep = await depsSvc.addDependency(c.req.param('tid'), blockerId)
@@ -474,7 +510,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al agregar dependencia.') }
   })
 
-  app.delete('/projects/:id/tasks/:tid/dependencies/:depId', requirePermission('projects.task.update'), async (c) => {
+  app.delete('/projects/:id/tasks/:tid/dependencies/:depId', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       await depsSvc.removeDependency(c.req.param('depId'), c.req.param('tid'))
       return c.json({ ok: true })
@@ -482,13 +518,13 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Project Custom Fields ---
-  app.get('/projects/:id/fields', requirePermission('projects.project.read'), async (c) => {
+  app.get('/projects/:id/fields', requirePermission('projects.project.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       return c.json(await fieldsSvc.listFields(c.req.param('id')))
     } catch (err) { return handleError(c, err, 'Error al listar campos.') }
   })
 
-  app.post('/projects/:id/fields', requirePermission('projects.project.update'), async (c) => {
+  app.post('/projects/:id/fields', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const body = await c.req.json()
       const field = await fieldsSvc.createField(c.req.param('id'), body)
@@ -496,14 +532,14 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     } catch (err) { return handleError(c, err, 'Error al crear campo.') }
   })
 
-  app.patch('/projects/:id/fields/:fid', requirePermission('projects.project.update'), async (c) => {
+  app.patch('/projects/:id/fields/:fid', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       const body = await c.req.json()
       return c.json(await fieldsSvc.updateField(c.req.param('fid'), c.req.param('id'), body))
     } catch (err) { return handleError(c, err, 'Error al actualizar campo.') }
   })
 
-  app.delete('/projects/:id/fields/:fid', requirePermission('projects.project.update'), async (c) => {
+  app.delete('/projects/:id/fields/:fid', requirePermission('projects.project.update'), requireProjectAccess('OWNER'), async (c) => {
     try {
       await fieldsSvc.deleteField(c.req.param('fid'), c.req.param('id'))
       return c.json({ ok: true })
@@ -511,13 +547,13 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- Task Field Values ---
-  app.get('/projects/:id/tasks/:tid/field-values', requirePermission('projects.task.read'), async (c) => {
+  app.get('/projects/:id/tasks/:tid/field-values', requirePermission('projects.task.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       return c.json(await fieldsSvc.getFieldValues(c.req.param('tid'), c.req.param('id')))
     } catch (err) { return handleError(c, err, 'Error al obtener valores de campos.') }
   })
 
-  app.put('/projects/:id/tasks/:tid/field-values', requirePermission('projects.task.update'), async (c) => {
+  app.put('/projects/:id/tasks/:tid/field-values', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const entries = await c.req.json()
       return c.json(await fieldsSvc.upsertFieldValues(c.req.param('tid'), c.req.param('id'), entries))
@@ -525,7 +561,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   })
 
   // --- CSV Export ---
-  app.get('/projects/:id/export', requirePermission('projects.project.read'), async (c) => {
+  app.get('/projects/:id/export', requirePermission('projects.project.read'), requireProjectAccess('VIEWER'), async (c) => {
     try {
       const projectId = c.req.param('id')
       const [tasks, fields] = await Promise.all([
