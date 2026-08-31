@@ -23,6 +23,7 @@ const schema = z.object({
   currency: z.enum(["MXN", "USD"]),
   openingBalance: z.coerce.number().default(0),
   color: z.string().max(32).optional().nullable(),
+  reference: z.string().max(40).optional().nullable(),
 });
 
 const KIND_OPTIONS = Object.entries(WALLET_KIND_LABEL).map(([value, label]) => ({ value, label }));
@@ -37,6 +38,7 @@ const EMPTY = {
   currency: "MXN",
   openingBalance: 0,
   color: "#0ea5e9",
+  reference: "",
 };
 
 export function WalletFormSheet({ open, onOpenChange, wallet }) {
@@ -62,16 +64,18 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             currency: wallet.currency,
             openingBalance: wallet.openingBalance ?? 0,
             color: wallet.color ?? "#0ea5e9",
+            reference: wallet.reference ?? "",
           }
         : EMPTY,
     );
   }, [open, wallet, reset]);
 
   async function onSubmit(values) {
+    const payload = { ...values, reference: values.reference?.trim() || null };
     if (isEdit) {
-      await updateMut.mutateAsync({ id: wallet.id, ...values });
+      await updateMut.mutateAsync({ id: wallet.id, ...payload });
     } else {
-      await createMut.mutateAsync(values);
+      await createMut.mutateAsync(payload);
     }
     onOpenChange(false);
   }
@@ -119,6 +123,13 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             step="0.01"
             error={errors.openingBalance?.message}
             {...register("openingBalance")}
+          />
+          <TextField
+            label="Referencia (opcional)"
+            placeholder="4821 o un apodo"
+            hint="Ultimos digitos de la tarjeta o una nota para reconocerla"
+            error={errors.reference?.message}
+            {...register("reference")}
           />
           <Controller
             control={control}

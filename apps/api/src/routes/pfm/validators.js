@@ -23,6 +23,7 @@ export const createWalletSchema = z.object({
   color: z.string().max(32).optional().nullable(),
   icon: z.string().max(48).optional().nullable(),
   ledgerAccountId: z.string().uuid().optional().nullable(),
+  reference: z.string().max(40).optional().nullable(),
 });
 
 export const updateWalletSchema = createWalletSchema

@@ -147,6 +147,7 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
           color: data.color ?? null,
           icon: data.icon ?? null,
           ledgerAccountId: data.ledgerAccountId ?? null,
+          reference: data.reference ?? null,
         },
       });
       return normalizeWalletRow({
@@ -174,6 +175,7 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
       "color",
       "icon",
       "ledgerAccountId",
+      "reference",
       "creditLimit",
       "statementDay",
       "paymentDueDay",
@@ -262,6 +264,7 @@ function normalizeWalletRow(row) {
     color: row.color ?? null,
     icon: row.icon ?? null,
     ledgerAccountId: row.ledger_account_id ?? row.ledgerAccountId ?? null,
+    reference: row.reference ?? null,
     creditLimit:
       (row.credit_limit ?? row.creditLimit) == null
         ? null

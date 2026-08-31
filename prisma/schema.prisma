@@ -3008,6 +3008,7 @@ model PfmWallet {
   color           String?
   icon            String?
   ledgerAccountId String?       @map("ledger_account_id") @db.Uuid
+  reference             String?  @db.VarChar(40)
   creditLimit           Decimal? @map("credit_limit") @db.Decimal(15, 2)
   statementDay          Int?     @map("statement_day")
   paymentDueDay         Int?     @map("payment_due_day")

@@ -107,6 +107,7 @@ export default function WalletsScreen() {
             </p>
             <p className="mt-0.5 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
               {WALLET_KIND_LABEL[w.kind]}
+              {w.reference && <span className="tabular-nums">· {w.reference}</span>}
               {w.ledgerAccountId && <Badge variant="outline">Libro de cuentas</Badge>}
             </p>
             <p className="mt-3 text-2xl font-bold tracking-tight text-[hsl(var(--foreground))]">

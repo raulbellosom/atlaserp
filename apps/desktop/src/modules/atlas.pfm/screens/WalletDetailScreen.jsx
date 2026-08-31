@@ -87,7 +87,7 @@ export default function WalletDetailScreen() {
     <div className="mx-auto max-w-3xl px-4 py-6">
       <PageHeader
         title={wallet.name}
-        description={formatMoney(wallet.currentBalance, wallet.currency)}
+        description={`${formatMoney(wallet.currentBalance, wallet.currency)}${wallet.reference ? ` · ${wallet.reference}` : ""}`}
         actions={
           <Button variant="ghost" onClick={() => navigate("/app/m/atlas.pfm/wallets")}>
             <ArrowLeft className="mr-1.5 h-4 w-4" /> Carteras
