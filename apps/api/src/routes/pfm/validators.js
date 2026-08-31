@@ -125,3 +125,15 @@ export const updateRecurringRuleSchema = z.object({
   autoPost: z.boolean().optional(),
   endOn: isoDateSchema.nullable().optional(),
 });
+
+// ── Receipts (Phase 3) ───────────────────────────────────────────────────────
+
+export const confirmReceiptSchema = z.object({
+  walletId: z.string().uuid(),
+  direction: z.enum(["EXPENSE", "INCOME"]),
+  amount: z.number().positive().max(9_999_999_999),
+  occurredOn: isoDateSchema,
+  categoryId: z.string().uuid().optional().nullable(),
+  merchant: z.string().max(160).optional().nullable(),
+  note: z.string().max(500).optional().nullable(),
+});
