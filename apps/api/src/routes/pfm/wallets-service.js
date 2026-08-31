@@ -295,12 +295,14 @@ export function computeCreditCycle(wallet, movements, now = new Date()) {
   const lastCut = new Date(Date.UTC(y, cutMonth, Math.min(wallet.statementDay, 28)));
   const signed = (m) => Number(m.amount) * (m.direction === "INCOME" ? -1 : 1);
   const posted = (movements ?? []).filter((m) => m.status === undefined || m.status === "POSTED");
+  const dayOf = (m) => {
+    const v = m.occurredOn ?? m.occurred_on;
+    const iso = v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+    return new Date(`${iso}T00:00:00.000Z`);
+  };
   const totalOwed = posted.reduce((s, m) => s + signed(m), 0);
   const periodSpend = posted
-    .filter(
-      (m) =>
-        new Date(`${String(m.occurredOn ?? m.occurred_on).slice(0, 10)}T00:00:00.000Z`) >= lastCut,
-    )
+    .filter((m) => dayOf(m) >= lastCut)
     .reduce((s, m) => s + signed(m), 0);
   const creditLimit = wallet.creditLimit != null ? Number(wallet.creditLimit) : null;
   return {
