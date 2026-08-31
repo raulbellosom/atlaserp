@@ -969,6 +969,57 @@ export function createAtlasClient({ baseUrl }) {
           method: "PATCH",
           headers: withAuthHeaders(token),
         }),
+      listBudgets: (token, query = {}) =>
+        request(`/pfm/budgets${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      createBudget: (data, token) =>
+        request("/pfm/budgets", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateBudget: (id, data, token) =>
+        request(`/pfm/budgets/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setBudgetEnabled: (id, enabled, token) =>
+        request(`/pfm/budgets/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listGoals: (token) => request("/pfm/goals", { headers: withAuthHeaders(token) }),
+      createGoal: (data, token) =>
+        request("/pfm/goals", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateGoal: (id, data, token) =>
+        request(`/pfm/goals/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setGoalEnabled: (id, enabled, token) =>
+        request(`/pfm/goals/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      contributeGoal: (id, amount, token) =>
+        request(`/pfm/goals/${encodeURIComponent(id)}/contribute`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ amount }),
+        }),
+      updateWalletCredit: (id, data, token) =>
+        request(`/pfm/wallets/${encodeURIComponent(id)}/credit`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
     },
     catalog: {
       // Products

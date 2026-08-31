@@ -27,6 +27,7 @@ import { createMovementsService as createPfmMovementsService } from '../../api/s
 import { createPfmCalendarBridge } from '../../api/src/routes/pfm/pfm-calendar-bridge.js'
 import { createRecurringService as createPfmRecurringService } from '../../api/src/routes/pfm/recurring-service.js'
 import { createReceiptsService as createPfmReceiptsService } from '../../api/src/routes/pfm/receipts-service.js'
+import { createBudgetsService as createPfmBudgetsService } from '../../api/src/routes/pfm/budgets-service.js'
 import { createVisionService as createPfmVisionService } from '../../api/src/services/vision-service.js'
 import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
@@ -91,6 +92,11 @@ const pfmReceiptsService = createPfmReceiptsService({
   wallets: pfmWalletsService,
 })
 const PFM_RECEIPT_INTERVAL_MS = 30 * 1000
+const pfmBudgetsService = createPfmBudgetsService({
+  prisma,
+  notificationService: createNotificationService({ prisma }),
+})
+const PFM_BUDGET_INTERVAL_MS = 60 * 60 * 1000
 const growthAggregationWorker = createGrowthAggregationWorker({ prisma })
 const GROWTH_AGGREGATION_INTERVAL_MS = Number(
   process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS ??
@@ -323,6 +329,25 @@ runPfmReceiptTick()
 setInterval(() => {
   runPfmReceiptTick()
 }, PFM_RECEIPT_INTERVAL_MS)
+
+async function runPfmBudgetTick() {
+  try {
+    const r = await pfmBudgetsService.evaluateBudgets({ now: new Date() })
+    if ((r?.alerted ?? 0) > 0) {
+      console.log(
+        `[worker] pfm budgets ${formatLogTimestamp()} evaluated=${r.evaluated} alerted=${r.alerted}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] pfm budget tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runPfmBudgetTick()
+setInterval(() => {
+  runPfmBudgetTick()
+}, PFM_BUDGET_INTERVAL_MS)
 
 const CHAT_EXPIRY_INTERVAL_MS = 15 * 60 * 1000
 async function runChatSessionExpiryTick() {
