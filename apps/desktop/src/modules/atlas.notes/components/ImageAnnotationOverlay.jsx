@@ -367,11 +367,16 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
 
   const src = withImageVariant(node.attrs.src, 'content')
   const displayWidthPct = liveWidthPct ?? widthPct
+  // Outer box: controls the resizable width, carries the selection ring and
+  // the pill/handle controls — never clipped, so they're never cut off.
   const wrapperStyle = { userSelect: 'none', width: `${displayWidthPct}%` }
+  // Inner frame: only this one clips to the crop window (overflow-hidden),
+  // so a cropped image can't hide controls that sit just outside its edges.
+  const frameStyle = {}
   const imgStyle = { display: 'block' }
   if (crop) {
     const ar = natural ? (crop.w * natural.w) / (crop.h * natural.h) : crop.w / crop.h
-    wrapperStyle.aspectRatio = String(ar)
+    frameStyle.aspectRatio = String(ar)
     Object.assign(imgStyle, {
       position: 'absolute',
       width: `${100 / crop.w}%`,
@@ -464,52 +469,53 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
         ref={boxRef}
         onClick={onImageClick}
         className={[
-          'relative rounded-b',
-          crop ? 'overflow-hidden' : '',
-          selected && mode === 'view' ? 'ring-2 ring-amber-500 ring-offset-1' : '',
+          'relative',
+          selected && mode === 'view' ? 'ring-2 ring-amber-500 ring-offset-1 rounded-b' : '',
         ].join(' ')}
         style={wrapperStyle}
       >
-        <img
-          src={src}
-          alt={node.attrs.alt ?? ''}
-          style={imgStyle}
-          draggable={false}
-          onLoad={(e) => setNatural({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
-        />
-        <svg
-          ref={svgRef}
-          viewBox={cropToViewBox(crop)}
-          preserveAspectRatio="none"
-          className="absolute inset-0 w-full h-full"
-          style={{
-            touchAction: 'none',
-            pointerEvents: isEditing ? 'auto' : 'none',
-            cursor: isEditing ? (tool === 'text' ? 'text' : 'crosshair') : 'default',
-          }}
-          onPointerDown={isEditing ? onDrawPointerDown : undefined}
-          onPointerMove={isEditing ? onDrawPointerMove : undefined}
-          onPointerUp={isEditing ? onDrawPointerUp : undefined}
-          onPointerCancel={isEditing ? onDrawPointerUp : undefined}
-        >
-          {annotations.map(renderAnnotation)}
-          {renderDraft()}
-        </svg>
-
-        {textInput && (
-          <input
-            autoFocus
-            type="text"
-            placeholder="Escribe una anotacion..."
-            className="absolute bg-[hsl(var(--background))] text-[hsl(var(--foreground))] border border-amber-400 dark:border-amber-600 rounded px-2 py-1 text-sm shadow-lg outline-none z-10"
-            style={{ left: textInput.screenX, top: textInput.screenY, minWidth: 180 }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitTextInput(e.target.value)
-              if (e.key === 'Escape') setTextInput(null)
-            }}
-            onBlur={(e) => commitTextInput(e.target.value)}
+        <div className={`relative rounded-b ${crop ? 'overflow-hidden' : ''}`} style={frameStyle}>
+          <img
+            src={src}
+            alt={node.attrs.alt ?? ''}
+            style={imgStyle}
+            draggable={false}
+            onLoad={(e) => setNatural({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
           />
-        )}
+          <svg
+            ref={svgRef}
+            viewBox={cropToViewBox(crop)}
+            preserveAspectRatio="none"
+            className="absolute inset-0 w-full h-full"
+            style={{
+              touchAction: 'none',
+              pointerEvents: isEditing ? 'auto' : 'none',
+              cursor: isEditing ? (tool === 'text' ? 'text' : 'crosshair') : 'default',
+            }}
+            onPointerDown={isEditing ? onDrawPointerDown : undefined}
+            onPointerMove={isEditing ? onDrawPointerMove : undefined}
+            onPointerUp={isEditing ? onDrawPointerUp : undefined}
+            onPointerCancel={isEditing ? onDrawPointerUp : undefined}
+          >
+            {annotations.map(renderAnnotation)}
+            {renderDraft()}
+          </svg>
+
+          {textInput && (
+            <input
+              autoFocus
+              type="text"
+              placeholder="Escribe una anotacion..."
+              className="absolute bg-[hsl(var(--background))] text-[hsl(var(--foreground))] border border-amber-400 dark:border-amber-600 rounded px-2 py-1 text-sm shadow-lg outline-none z-10"
+              style={{ left: textInput.screenX, top: textInput.screenY, minWidth: 180 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitTextInput(e.target.value)
+                if (e.key === 'Escape') setTextInput(null)
+              }}
+              onBlur={(e) => commitTextInput(e.target.value)}
+            />
+          )}
+        </div>
 
         {editable && mode === 'view' && (
           <div
@@ -547,10 +553,12 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
             onPointerMove={onResizePointerMove}
             onPointerUp={onResizePointerUp}
             onPointerCancel={onResizePointerUp}
-            className="absolute -right-1.5 -bottom-1.5 w-8 h-8 flex items-center justify-center cursor-nwse-resize"
+            // 44px hit area (Apple/Android minimum touch target), same trick
+            // as ImageCropModal's corner handles — visually just the dot.
+            className="absolute right-0 bottom-0 w-11 h-11 -m-5 flex items-center justify-center cursor-nwse-resize"
             style={{ touchAction: 'none' }}
           >
-            <span className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-[hsl(var(--background))] shadow" />
+            <span className="w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-white dark:border-[hsl(var(--background))] shadow" />
           </button>
         )}
       </div>
