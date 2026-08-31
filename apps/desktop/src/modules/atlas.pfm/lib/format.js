@@ -52,7 +52,12 @@ export function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export const WALLET_KIND_LABEL = { CASH: "Efectivo", DEBIT: "Debito", CREDIT: "Credito" };
+export const WALLET_KIND_LABEL = {
+  CASH: "Efectivo",
+  DEBIT: "Debito",
+  CREDIT: "Credito",
+  INVESTMENT: "Inversión",
+};
 
 // Fixed utilization thresholds for credit cards: green < 50%, amber 50-80%, red > 80%.
 export function creditUtilizationTone(ratio) {
@@ -74,4 +79,49 @@ export function creditUsage(wallet) {
   const disponible = limite == null ? null : Math.round((limite - ocupado) * 100) / 100;
   const util = limite && limite > 0 ? Math.round((ocupado / limite) * 100) / 100 : null;
   return { ocupado, limite, disponible, util };
+}
+
+// A stored rate is a fraction (0.15). Render as a percent, dropping a trailing ".0".
+export function formatRatePct(rate) {
+  if (rate == null) return "";
+  const r = Number(rate);
+  if (!Number.isFinite(r)) return "";
+  const pct = Math.round(r * 10000) / 100;
+  return `${pct}%`;
+}
+
+// Collapses maximal runs of consecutive isYield movements that share a YYYY-MM
+// into one { type: "yield-group", key, month, total, count, items } entry.
+// Every other movement becomes { type: "movement", item }.
+export function groupMovements(movements) {
+  const out = [];
+  let run = null;
+  const flush = () => {
+    if (run) {
+      out.push({
+        type: "yield-group",
+        key: `yield-${run.month}-${run.items[0].id}`,
+        month: run.month,
+        total: run.items.reduce((s, m) => s + Number(m.amount ?? 0), 0),
+        count: run.items.length,
+        items: run.items,
+      });
+      run = null;
+    }
+  };
+  for (const m of movements ?? []) {
+    const month = String(m.occurredOn ?? "").slice(0, 7);
+    if (m.isYield && month) {
+      if (run && run.month === month) run.items.push(m);
+      else {
+        flush();
+        run = { month, items: [m] };
+      }
+    } else {
+      flush();
+      out.push({ type: "movement", item: m });
+    }
+  }
+  flush();
+  return out;
 }
