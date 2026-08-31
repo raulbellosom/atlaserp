@@ -15,7 +15,8 @@ export function createSummaryService({ prisma }) {
         SELECT
           COALESCE(SUM(bal), 0) AS total_balance,
           COALESCE(SUM(bal) FILTER (WHERE kind IN ('CASH','DEBIT')), 0) AS spendable,
-          COALESCE(SUM(GREATEST(0, -bal)) FILTER (WHERE kind = 'CREDIT'), 0) AS credit_debt
+          COALESCE(SUM(GREATEST(0, -bal)) FILTER (WHERE kind = 'CREDIT'), 0) AS credit_debt,
+          COALESCE(SUM(bal) FILTER (WHERE kind = 'INVESTMENT'), 0) AS investments
         FROM (
           SELECT w.kind,
             w.opening_balance + COALESCE(SUM(m.amount * CASE WHEN m.direction = 'INCOME' THEN 1 ELSE -1 END)
@@ -93,7 +94,7 @@ export function createSummaryService({ prisma }) {
         totalBalance: toPlainNumber(bal.total_balance),
         spendable: toPlainNumber(bal.spendable),
         creditDebt: toPlainNumber(bal.credit_debt),
-        investments: 0,
+        investments: toPlainNumber(bal.investments),
         monthExpense: toPlainNumber(totals.month_expense),
         monthIncome: toPlainNumber(totals.month_income),
         prevMonthExpense: toPlainNumber(totals.prev_expense),

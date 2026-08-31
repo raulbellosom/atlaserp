@@ -10,7 +10,7 @@ describe("summary-service", () => {
   it("getOverview returns totals, category breakdown, trend and prev-month delta", async () => {
     // getOverview issues 4 queries in this order: balance, totals, byCategory, trend.
     const responses = [
-      [{ total_balance: "22000.00", spendable: "18000.00", credit_debt: "4000.00" }],
+      [{ total_balance: "22000.00", spendable: "18000.00", credit_debt: "4000.00", investments: "9000.00" }],
       [{ month_expense: "3000.00", month_income: "15000.00", prev_expense: "2500.00" }],
       [{ category_id: "c1", name: "Comida", color: "#f97316", total: "1200.00" }],
       [{ month: "2026-08", expense: "3000.00", income: "15000.00" }],
@@ -24,7 +24,7 @@ describe("summary-service", () => {
     assert.equal(res.totalBalance, 22000);
     assert.equal(res.spendable, 18000);
     assert.equal(res.creditDebt, 4000);
-    assert.equal(res.investments, 0);
+    assert.equal(res.investments, 9000);
     assert.equal(res.monthExpense, 3000);
     assert.equal(res.monthIncome, 15000);
     assert.equal(res.prevMonthExpense, 2500);
