@@ -32,7 +32,14 @@ function colorForUser(seed) {
   return PRESENCE_COLORS[hash % PRESENCE_COLORS.length]
 }
 
-export function NoteEditor({ note, readOnly = false }) {
+// scrollable=false opts out of NoteEditor's own overflow-y-auto wrapper —
+// use this when an ancestor page already owns page-level scroll (e.g. the
+// public share view). Nesting two independent scroll containers means the
+// browser hit-tests the inner one first; here it has nothing real to
+// scroll into (it's free to grow), so it just swallows the wheel/touch
+// gesture instead of letting it reach the outer, actually-scrollable page.
+// One page should have exactly one scroll owner.
+export function NoteEditor({ note, readOnly = false, scrollable = true }) {
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -193,69 +200,77 @@ export function NoteEditor({ note, readOnly = false }) {
     AnnotatableImage,
   ]
 
+  const editorProvider = (
+    <EditorProvider
+      extensions={extensions}
+      content={note.content || ''}
+      editable={!readOnly}
+      onUpdate={handleUpdate}
+      editorProps={{
+        attributes: {
+          class: 'focus:outline-none px-8 pt-1 pb-6 min-h-full',
+        },
+      }}
+      slotBefore={
+        <>
+          <NoteCoverBanner
+            coverUrl={note.cover_url}
+            editable={!readOnly}
+            noteId={note.id}
+            token={token}
+            onChange={coverUrl => updateNoteMeta({ coverUrl })}
+            onRemove={() => updateNoteMeta({ coverUrl: null })}
+          />
+          {!readOnly && (
+            // Wrapper does the pinning inside the new scroll container;
+            // NoteToolbar's own `sticky top-0` had no scrolling ancestor.
+            <div className="sticky top-0 z-20">
+              <NoteToolbar noteId={note.id} token={token} />
+            </div>
+          )}
+          {!readOnly && (
+            // Sits directly above the title (the editor's first line — see
+            // handleUpdate) so icon + title read as one unit, matching
+            // Notion's page-icon convention.
+            <div className="px-8 pt-4 flex items-center justify-between gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
+                    title="Seleccionar icono"
+                  >
+                    {note.icon
+                      ? <NoteIcon name={note.icon} size={22} className="text-amber-500" />
+                      : <NotebookPen className="w-5 h-5 text-muted-foreground/50" />
+                    }
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-84 p-3" side="bottom" align="start">
+                  <NoteIconPickerContent
+                    value={note.icon}
+                    onChange={icon => updateNoteMeta({ icon })}
+                  />
+                </PopoverContent>
+              </Popover>
+              <PresenceStack users={presenceUsers} />
+            </div>
+          )}
+        </>
+      }
+    >
+      {/* EditorProvider renders children inside editor context */}
+    </EditorProvider>
+  )
+
   return (
     <div ref={containerRef} className="flex flex-col h-full overflow-hidden">
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-        <EditorProvider
-          extensions={extensions}
-          content={note.content || ''}
-          editable={!readOnly}
-          onUpdate={handleUpdate}
-          editorProps={{
-            attributes: {
-              class: 'focus:outline-none px-8 pt-1 pb-6 min-h-full',
-            },
-          }}
-          slotBefore={
-            <>
-              <NoteCoverBanner
-                coverUrl={note.cover_url}
-                editable={!readOnly}
-                noteId={note.id}
-                token={token}
-                onChange={coverUrl => updateNoteMeta({ coverUrl })}
-                onRemove={() => updateNoteMeta({ coverUrl: null })}
-              />
-              {!readOnly && (
-                // Wrapper does the pinning inside the new scroll container;
-                // NoteToolbar's own `sticky top-0` had no scrolling ancestor.
-                <div className="sticky top-0 z-20">
-                  <NoteToolbar noteId={note.id} token={token} />
-                </div>
-              )}
-              {!readOnly && (
-                // Sits directly above the title (the editor's first line — see
-                // handleUpdate) so icon + title read as one unit, matching
-                // Notion's page-icon convention.
-                <div className="px-8 pt-4 flex items-center justify-between gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
-                        title="Seleccionar icono"
-                      >
-                        {note.icon
-                          ? <NoteIcon name={note.icon} size={22} className="text-amber-500" />
-                          : <NotebookPen className="w-5 h-5 text-muted-foreground/50" />
-                        }
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-84 p-3" side="bottom" align="start">
-                      <NoteIconPickerContent
-                        value={note.icon}
-                        onChange={icon => updateNoteMeta({ icon })}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <PresenceStack users={presenceUsers} />
-                </div>
-              )}
-            </>
-          }
-        >
-          {/* EditorProvider renders children inside editor context */}
-        </EditorProvider>
-      </div>
+      {scrollable ? (
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          {editorProvider}
+        </div>
+      ) : (
+        editorProvider
+      )}
     </div>
   )
 }

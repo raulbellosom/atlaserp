@@ -63,7 +63,9 @@ export default function PublicNoteScreen() {
           className="rounded-xl shadow-sm overflow-hidden"
           style={{ backgroundColor: note.background_color ?? '#ffffff' }}
         >
-          <NoteEditor note={note} readOnly />
+          {/* scrollable=false: this page already owns scroll (the h-dvh
+              overflow-y-auto root above) — see NoteEditor's scrollable prop. */}
+          <NoteEditor note={note} readOnly scrollable={false} />
         </div>
       </div>
     </div>
