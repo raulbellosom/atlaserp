@@ -22,6 +22,9 @@ import {
 import { createNotificationService } from '../../api/src/services/notification-service.js'
 import { createProjectsNotificationService } from '../../api/src/routes/projects/projects-notification-service.js'
 import { createRecurringTasksService } from '../../api/src/routes/projects/projects-recurring-service.js'
+import { createWalletsService as createPfmWalletsService } from '../../api/src/routes/pfm/wallets-service.js'
+import { createPfmCalendarBridge } from '../../api/src/routes/pfm/pfm-calendar-bridge.js'
+import { createRecurringService as createPfmRecurringService } from '../../api/src/routes/pfm/recurring-service.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 
@@ -68,6 +71,12 @@ const projectsNotifService = createProjectsNotificationService({
 const DUE_SOON_INTERVAL_MS = 60 * 60 * 1000
 const recurringTasksService = createRecurringTasksService({ prisma })
 const RECURRING_INTERVAL_MS = 60 * 60 * 1000
+const pfmRecurringService = createPfmRecurringService({
+  prisma,
+  wallets: createPfmWalletsService({ prisma }),
+  calendarBridge: createPfmCalendarBridge({ prisma }),
+})
+const PFM_RECURRING_INTERVAL_MS = 60 * 60 * 1000
 const growthAggregationWorker = createGrowthAggregationWorker({ prisma })
 const GROWTH_AGGREGATION_INTERVAL_MS = Number(
   process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS ??
@@ -263,6 +272,25 @@ runRecurringTasksTick()
 setInterval(() => {
   runRecurringTasksTick()
 }, RECURRING_INTERVAL_MS)
+
+async function runPfmRecurringTick() {
+  try {
+    const result = await pfmRecurringService.materializeDueRules({ now: new Date(), horizonDays: 45 })
+    if ((result?.created ?? 0) > 0) {
+      console.log(
+        `[worker] pfm recurring ${formatLogTimestamp()} processed=${result.processed} created=${result.created}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] pfm recurring tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runPfmRecurringTick()
+setInterval(() => {
+  runPfmRecurringTick()
+}, PFM_RECURRING_INTERVAL_MS)
 
 const CHAT_EXPIRY_INTERVAL_MS = 15 * 60 * 1000
 async function runChatSessionExpiryTick() {
