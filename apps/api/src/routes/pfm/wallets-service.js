@@ -278,6 +278,15 @@ function normalizeWalletRow(row) {
         : toPlainNumber(row.credit_limit ?? row.creditLimit),
     statementDay: row.statement_day ?? row.statementDay ?? null,
     paymentDueDay: row.payment_due_day ?? row.paymentDueDay ?? null,
+    expectedRate:
+      (row.expected_rate ?? row.expectedRate) == null
+        ? null
+        : toPlainNumber(row.expected_rate ?? row.expectedRate),
+    lastAccruedOn: (() => {
+      const v = row.last_accrued_on ?? row.lastAccruedOn ?? null;
+      if (!v) return null;
+      return v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
+    })(),
     creditReminderEventId: row.credit_reminder_event_id ?? row.creditReminderEventId ?? null,
     enabled: row.enabled,
     currentBalance: toPlainNumber(
