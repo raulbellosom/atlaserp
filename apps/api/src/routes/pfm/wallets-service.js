@@ -83,6 +83,20 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
         });
         wallet.creditCycle = computeCreditCycle(wallet, movs);
       }
+      if (wallet.kind === "INVESTMENT") {
+        const monthStart = `${new Date().toISOString().slice(0, 7)}-01`;
+        const agg = await prisma.pfmMovement.aggregate({
+          _sum: { amount: true },
+          where: {
+            walletId,
+            enabled: true,
+            status: "POSTED",
+            isYield: true,
+            occurredOn: { gte: new Date(`${monthStart}T00:00:00.000Z`) },
+          },
+        });
+        wallet.accruedThisMonth = toPlainNumber(agg._sum.amount ?? 0);
+      }
       return wallet;
     } catch (err) {
       if (err instanceof PfmServiceError) throw err;
