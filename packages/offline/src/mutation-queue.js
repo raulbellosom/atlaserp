@@ -49,13 +49,20 @@ export class MutationQueue {
   }
 
   async getPendingCount() {
-    const [pending, syncing, conflict, failed] = await Promise.all([
+    // The DB can be closed mid-poll (HMR, tab teardown, version upgrade).
+    // Bail early, and use allSettled so a rejection never leaves sibling
+    // promises unhandled.
+    if (typeof this.#db.isOpen === 'function' && !this.#db.isOpen()) return 0
+    const results = await Promise.allSettled([
       this.#db.mutation_queue.where('status').equals('PENDING').count(),
       this.#db.mutation_queue.where('status').equals('SYNCING').count(),
       this.#db.mutation_queue.where('status').equals('CONFLICT').count(),
       this.#db.mutation_queue.where('status').equals('FAILED').count(),
     ])
-    return pending + syncing + conflict + failed
+    return results.reduce(
+      (sum, r) => sum + (r.status === 'fulfilled' ? r.value : 0),
+      0,
+    )
   }
 
   async getAll({ statuses } = {}) {
