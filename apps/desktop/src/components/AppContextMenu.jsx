@@ -1,11 +1,26 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Star, StarOff } from 'lucide-react';
 import { useAppViewPrefs } from '../hooks/useAppViewPrefs';
+import { clampMenuToViewport } from '../lib/moduleLauncher';
 
 export function AppContextMenu({ x, y, moduleKey, onClose }) {
   const { isFavorite, toggleFavorite } = useAppViewPrefs();
   const ref = useRef(null);
   const fav = isFavorite(moduleKey);
+  const [pos, setPos] = useState({ left: x, top: y });
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    setPos(
+      clampMenuToViewport(
+        { x, y },
+        { width: rect.width, height: rect.height },
+        { width: window.innerWidth, height: window.innerHeight },
+      ),
+    );
+  }, [x, y]);
 
   useEffect(() => {
     function handleDown(e) {
@@ -26,7 +41,7 @@ export function AppContextMenu({ x, y, moduleKey, onClose }) {
     <div
       ref={ref}
       className="fixed z-[300] bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg shadow-lg py-1 min-w-[190px]"
-      style={{ top: y, left: x }}
+      style={{ top: pos.top, left: pos.left }}
     >
       <button
         onClick={() => {
