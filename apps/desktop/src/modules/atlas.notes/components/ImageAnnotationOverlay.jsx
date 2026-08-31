@@ -1,10 +1,11 @@
 import { NodeViewWrapper } from '@tiptap/react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { GripVertical, Pencil, Crop as CropIcon, Check } from 'lucide-react'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@atlas/ui'
 import { findDropPosition, moveNode } from '../lib/dragReorder.js'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 import { cropToViewBox, elementFracToImageSpace } from '../lib/imageCrop.js'
+import { clampImageWidthPct } from '../lib/imageSize.js'
 import { ImageCropModal } from './ImageCropModal.jsx'
 
 const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#1a1a1a', '#ffffff']
@@ -29,8 +30,10 @@ function parseCrop(raw) {
 
 export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos }) {
   const svgRef = useRef(null)
+  const boxRef = useRef(null) // the sized img+svg container — resize math + click-outside
   const dragRef = useRef(null) // { pointerId, dropPos } — image reorder
   const drawRef = useRef(null) // { pointerId } — annotation drawing
+  const resizeRef = useRef(null) // { pointerId, startX, startWidthPct, columnWidthPx }
 
   const [mode, setMode] = useState('view') // 'view' | 'edit'
   const [tool, setTool] = useState('pen')
@@ -41,11 +44,25 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
   const [dropIndicator, setDropIndicator] = useState(null) // { top, left, width }
   const [cropOpen, setCropOpen] = useState(false)
   const [natural, setNatural] = useState(null) // { w, h }
+  const [selected, setSelected] = useState(false) // click-to-select for resize (Word/PPT style)
+  const [liveWidthPct, setLiveWidthPct] = useState(null) // resize drag preview
 
   const annotations = JSON.parse(node.attrs.annotations || '[]')
   const crop = parseCrop(node.attrs.crop)
   const editable = editor?.isEditable !== false
   const isEditing = editable && mode === 'edit'
+  // null = full width, for images inserted before this attribute existed.
+  const widthPct = node.attrs.width == null ? 100 : clampImageWidthPct(node.attrs.width)
+
+  // Deselect when clicking outside the image (Word/PPT-style click-away).
+  useEffect(() => {
+    if (!selected) return
+    function onDocPointerDown(e) {
+      if (!boxRef.current?.contains(e.target)) setSelected(false)
+    }
+    document.addEventListener('pointerdown', onDocPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onDocPointerDown, true)
+  }, [selected])
 
   // ── image reorder drag handle (mouse + touch via Pointer Events) ─────────
   function getIndicatorRect(view, pos) {
@@ -87,6 +104,41 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
     dragRef.current = null
     setDropIndicator(null)
     if (dropPos !== null) moveNode(editor, getPos(), dropPos)
+  }
+
+  // ── click-to-resize (Word/PowerPoint-style corner handle) ────────────────
+  function onImageClick() {
+    if (!editable || mode !== 'view') return
+    setSelected(true)
+  }
+
+  function onResizePointerDown(e) {
+    if (!editable) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const rect = boxRef.current.getBoundingClientRect()
+    // Back out the full column width from the current (possibly already
+    // scaled) rendered width, so the drag math stays correct at any scale.
+    const columnWidthPx = rect.width / (widthPct / 100)
+    resizeRef.current = { pointerId: e.pointerId, startX: e.clientX, startWidthPct: widthPct, columnWidthPx }
+    setLiveWidthPct(widthPct)
+  }
+
+  function onResizePointerMove(e) {
+    const r = resizeRef.current
+    if (!r || r.pointerId !== e.pointerId) return
+    const deltaPct = ((e.clientX - r.startX) / r.columnWidthPx) * 100
+    setLiveWidthPct(clampImageWidthPct(r.startWidthPct + deltaPct))
+  }
+
+  function onResizePointerUp(e) {
+    const r = resizeRef.current
+    if (!r || r.pointerId !== e.pointerId) return
+    resizeRef.current = null
+    const finalPct = liveWidthPct
+    setLiveWidthPct(null)
+    if (finalPct != null) updateAttributes({ width: Math.round(finalPct) })
   }
 
   // ── annotation drawing (Pointer Events) ─────────────────────────────────
@@ -314,7 +366,8 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
   }
 
   const src = withImageVariant(node.attrs.src, 'content')
-  const wrapperStyle = { userSelect: 'none' }
+  const displayWidthPct = liveWidthPct ?? widthPct
+  const wrapperStyle = { userSelect: 'none', width: `${displayWidthPct}%` }
   const imgStyle = { display: 'block' }
   if (crop) {
     const ar = natural ? (crop.w * natural.w) / (crop.h * natural.h) : crop.w / crop.h
@@ -407,7 +460,16 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
         </div>
       )}
 
-      <div className={`relative rounded-b ${crop ? 'overflow-hidden' : ''}`} style={wrapperStyle}>
+      <div
+        ref={boxRef}
+        onClick={onImageClick}
+        className={[
+          'relative rounded-b',
+          crop ? 'overflow-hidden' : '',
+          selected && mode === 'view' ? 'ring-2 ring-amber-500 ring-offset-1' : '',
+        ].join(' ')}
+        style={wrapperStyle}
+      >
         <img
           src={src}
           alt={node.attrs.alt ?? ''}
@@ -450,7 +512,11 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
         )}
 
         {editable && mode === 'view' && (
-          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/img:opacity-100 transition-opacity">
+          <div
+            className={`absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 transition-opacity ${
+              selected ? 'sm:opacity-100' : 'sm:opacity-0 sm:group-hover/img:opacity-100'
+            }`}
+          >
             <button
               onClick={() => setMode('edit')}
               className="flex items-center gap-1.5 text-xs font-medium bg-[hsl(var(--background)/0.9)] backdrop-blur-sm border border-[hsl(var(--border))] rounded-lg px-2.5 py-1.5 shadow-sm hover:bg-[hsl(var(--muted))] transition-colors"
@@ -469,6 +535,23 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
               <GripVertical className="w-4 h-4" />
             </button>
           </div>
+        )}
+
+        {editable && mode === 'view' && selected && (
+          // Word/PowerPoint-style corner resize handle — drag horizontally to
+          // scale the image; height follows automatically (img is height:auto).
+          <button
+            aria-label="Cambiar tamaño de la imagen"
+            title="Arrastra para cambiar el tamaño"
+            onPointerDown={onResizePointerDown}
+            onPointerMove={onResizePointerMove}
+            onPointerUp={onResizePointerUp}
+            onPointerCancel={onResizePointerUp}
+            className="absolute -right-1.5 -bottom-1.5 w-8 h-8 flex items-center justify-center cursor-nwse-resize"
+            style={{ touchAction: 'none' }}
+          >
+            <span className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white dark:border-[hsl(var(--background))] shadow" />
+          </button>
         )}
       </div>
 

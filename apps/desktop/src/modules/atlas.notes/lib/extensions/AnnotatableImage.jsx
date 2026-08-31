@@ -18,6 +18,20 @@ export const AnnotatableImage = Node.create({
       alt: { default: null },
       title: { default: null },
       annotations: { default: '[]' },
+      // Percentage (0..100) of the content column. null = full width, for
+      // backward compatibility with images inserted before this attribute
+      // existed — new inserts get an explicit default (see noteImageUpload.js).
+      width: {
+        default: null,
+        parseHTML: (el) => {
+          const raw = el.getAttribute('data-width')
+          if (!raw) return null
+          const n = Number(raw)
+          return Number.isFinite(n) ? n : null
+        },
+        renderHTML: (attrs) =>
+          attrs.width != null ? { 'data-width': String(attrs.width) } : {},
+      },
       crop: {
         default: null,
         parseHTML: (el) => {

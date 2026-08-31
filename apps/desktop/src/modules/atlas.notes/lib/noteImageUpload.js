@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { atlas } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
+import { DEFAULT_IMAGE_WIDTH_PCT } from './imageSize.js'
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
@@ -29,7 +30,9 @@ export async function uploadAndInsertNoteImage(file, { editor, noteId, token }) 
     if (error) throw error
     editor.chain().focus().insertContent({
       type: 'image',
-      attrs: { src: presign.publicUrl, alt: file.name },
+      // Inserted at a sane starting scale, not the full column width — the
+      // resize handle (ImageAnnotationOverlay) lets the user grow it from here.
+      attrs: { src: presign.publicUrl, alt: file.name, width: DEFAULT_IMAGE_WIDTH_PCT },
     }).run()
   } catch (err) {
     toast.error(err?.message ?? 'No se pudo subir la imagen.')
