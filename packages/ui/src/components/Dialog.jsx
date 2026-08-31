@@ -75,7 +75,9 @@ const DialogContent = forwardRef(function DialogContent(
                 "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 duration-200",
               ]
             : [
-                "inset-x-0 bottom-0 w-full min-h-[30dvh]",
+                "inset-x-0 bottom-0 w-full",
+                // min-height / padding / handle room all come from
+                // BOTTOM_SHEET_SURFACE_CLASS now (shared with Sheet.jsx).
                 BOTTOM_SHEET_SURFACE_CLASS,
                 "data-[state=open]:slide-in-from-bottom-full",
                 "data-[state=closed]:slide-out-to-bottom-full",

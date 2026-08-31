@@ -60,7 +60,9 @@ export function MessageActionSheet({
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="chat-glass-theme chat-glass p-0 rounded-t-2xl">
+        {/* min-h-0 opts this transient long-press menu out of the shared
+            bottom-sheet's half-screen minimum — it should hug its short list. */}
+        <SheetContent side="bottom" className="chat-glass-theme chat-glass px-0 pb-0 min-h-0 rounded-t-2xl">
           <SheetHeader className="sr-only">
             <SheetTitle>Acciones del mensaje</SheetTitle>
           </SheetHeader>

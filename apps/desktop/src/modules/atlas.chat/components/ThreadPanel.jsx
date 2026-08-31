@@ -103,7 +103,9 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
             // composer as another. Matching all of it to one flat, opaque
             // colour removes the seam instead of trying to blend two
             // different surface treatments.
-            "chat-glass-theme bg-[hsl(var(--background))]! w-full sm:max-w-lg lg:max-w-xl flex flex-col p-0",
+            // px-0 (not p-0): let the shared bottom-sheet `pt-9` through so
+            // the drag handle has its reserved space on the mobile variant.
+            "chat-glass-theme bg-[hsl(var(--background))]! w-full sm:max-w-lg lg:max-w-xl flex flex-col px-0 pb-0",
             wallpaperClass,
             isMobile ? "h-[85dvh]" : "",
           ].join(" ")}
@@ -116,7 +118,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
           // ~24px of empty space under an already-inset composer.
           style={{ ...chatPreferencesStyle(prefs), paddingBottom: 0 }}
         >
-          <SheetHeader className="px-4 pt-4">
+          <SheetHeader className="px-4 pt-1">
             <SheetTitle className="chat-font-display flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
               Hilo
