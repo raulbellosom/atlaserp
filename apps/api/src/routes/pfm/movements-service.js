@@ -198,6 +198,7 @@ function normalizeMovement(row) {
     recurringRuleId: row.recurring_rule_id ?? row.recurringRuleId ?? null,
     receiptId: row.receipt_id ?? row.receiptId ?? null,
     isAdjustment: Boolean(row.is_adjustment ?? row.isAdjustment ?? false),
+    isYield: Boolean(row.is_yield ?? row.isYield ?? false),
     editableInPfm: true,
   };
 }

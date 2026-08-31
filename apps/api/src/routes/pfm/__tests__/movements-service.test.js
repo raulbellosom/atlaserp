@@ -193,6 +193,30 @@ describe("movements-service", () => {
     );
   });
 
+  it("listMovements exposes isYield on each row", async () => {
+    const prisma = {
+      $queryRaw: async () => [
+        {
+          id: MOV,
+          wallet_id: WALLET,
+          direction: "INCOME",
+          amount: "1.23",
+          occurred_on: "2026-08-20",
+          status: "POSTED",
+          is_yield: true,
+        },
+      ],
+    };
+    const service = createMovementsService({ prisma, wallets: walletsStub() });
+    const { data } = await service.listMovements({
+      companyId: COMPANY,
+      actorId: ACTOR,
+      walletId: WALLET,
+      query: {},
+    });
+    assert.equal(data[0].isYield, true);
+  });
+
   it("listMovements exposes isAdjustment on each row", async () => {
     const prisma = {
       $queryRaw: async () => [
