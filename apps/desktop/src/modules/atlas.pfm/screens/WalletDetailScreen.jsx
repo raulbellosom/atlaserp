@@ -11,8 +11,9 @@ import {
   SelectField,
   SearchInput,
   ConfirmDialog,
+  resolveLucideIcon,
 } from "@atlas/ui";
-import { Plus, ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { Plus, ArrowLeft, SlidersHorizontal, Wallet } from "lucide-react";
 import {
   useWallet,
   useWalletMovements,
@@ -87,11 +88,22 @@ export default function WalletDetailScreen() {
   ];
 
   const canAdd = !wallet.ledgerAccountId && wallet.canWrite !== false;
+  const WalletIcon = resolveLucideIcon(wallet.icon) ?? Wallet;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <PageHeader
-        title={wallet.name}
+        title={
+          <span className="flex items-center gap-2">
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-white shadow-sm"
+              style={{ backgroundColor: wallet.color || "#0ea5e9" }}
+            >
+              <WalletIcon className="h-4 w-4" />
+            </span>
+            {wallet.name}
+          </span>
+        }
         description={`${formatMoney(wallet.currentBalance, wallet.currency)}${wallet.reference ? ` · ${wallet.reference}` : ""}`}
         actions={
           <div className="flex gap-2">

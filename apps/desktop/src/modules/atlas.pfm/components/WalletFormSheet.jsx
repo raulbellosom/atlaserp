@@ -13,6 +13,7 @@ import {
   TextField,
   SelectField,
   SwatchField,
+  IconPickerField,
 } from "@atlas/ui";
 import { useCreateWallet, useUpdateWallet } from "../hooks/use-pfm-queries";
 import { WALLET_KIND_LABEL } from "../lib/format";
@@ -23,6 +24,7 @@ const schema = z.object({
   currency: z.enum(["MXN", "USD"]),
   openingBalance: z.coerce.number().default(0),
   color: z.string().max(32).optional().nullable(),
+  icon: z.string().max(48).optional().nullable(),
   reference: z.string().max(40).optional().nullable(),
   creditLimit: z.coerce.number().optional().nullable(),
   statementDay: z.coerce.number().int().min(1).max(31).optional().nullable(),
@@ -43,6 +45,7 @@ const EMPTY = {
   currency: "MXN",
   openingBalance: 0,
   color: "#0ea5e9",
+  icon: "",
   reference: "",
   creditLimit: "",
   statementDay: "",
@@ -84,6 +87,7 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             currency: wallet.currency,
             openingBalance: wallet.openingBalance ?? 0,
             color: wallet.color ?? "#0ea5e9",
+            icon: wallet.icon ?? "",
             reference: wallet.reference ?? "",
             creditLimit: wallet.creditLimit ?? "",
             statementDay: wallet.statementDay ?? "",
@@ -101,6 +105,7 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
       kind: values.kind,
       currency: values.currency,
       color: values.color ?? null,
+      icon: values.icon || null,
       reference: values.reference?.trim() || null,
     };
     if (values.kind === "CREDIT") {
@@ -258,6 +263,18 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             name="color"
             render={({ field }) => (
               <SwatchField label="Color" value={field.value} onChange={field.onChange} />
+            )}
+          />
+          <Controller
+            control={control}
+            name="icon"
+            render={({ field }) => (
+              <IconPickerField
+                label="Icono"
+                value={field.value || ""}
+                onChange={field.onChange}
+                placeholder="Sin icono"
+              />
             )}
           />
           <DialogFooter>

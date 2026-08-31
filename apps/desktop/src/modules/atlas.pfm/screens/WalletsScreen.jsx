@@ -10,6 +10,7 @@ import {
   ErrorState,
   LoadingState,
   ConfirmDialog,
+  resolveLucideIcon,
 } from "@atlas/ui";
 import { Plus, Users, Pencil, EyeOff, Wallet } from "lucide-react";
 import { useWallets, useSetWalletEnabled } from "../hooks/use-pfm-queries";
@@ -59,6 +60,7 @@ export default function WalletsScreen() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {wallets.map((w) => {
           const accent = w.color || "#0ea5e9";
+          const WalletIcon = resolveLucideIcon(w.icon) ?? Wallet;
           return (
           <Card
             key={w.id}
@@ -81,7 +83,7 @@ export default function WalletsScreen() {
                 className="flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm"
                 style={{ backgroundColor: accent }}
               >
-                <Wallet className="h-4 w-4" />
+                <WalletIcon className="h-4 w-4" />
               </span>
               {w.isOwner && (
                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
