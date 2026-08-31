@@ -24,6 +24,13 @@ export default function PublicNoteScreen() {
     queryFn: () => atlas.notes.getPublic(slug),
     enabled: !!slug,
     retry: false,
+    // Public content must always be current — an edit in the authenticated
+    // editor invalidates a different query key (['notes', id]), never this
+    // one, so without this the app-wide 5min staleTime (plus the 24h
+    // persisted/IndexedDB cache from PersistQueryClientProvider) can leave
+    // an already-open or recently-visited public tab silently showing a
+    // stale snapshot of the note.
+    staleTime: 0,
   })
 
   const note = data?.note
