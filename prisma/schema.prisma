@@ -3007,6 +3007,10 @@ model PfmWallet {
   color           String?
   icon            String?
   ledgerAccountId String?       @map("ledger_account_id") @db.Uuid
+  creditLimit           Decimal? @map("credit_limit") @db.Decimal(15, 2)
+  statementDay          Int?     @map("statement_day")
+  paymentDueDay         Int?     @map("payment_due_day")
+  creditReminderEventId String?  @map("credit_reminder_event_id") @db.Uuid
   enabled         Boolean       @default(true)
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
@@ -3148,4 +3152,46 @@ model PfmReceipt {
   @@index([status, enabled])
   @@index([ownerId, createdAt])
   @@map("pfm_receipt")
+}
+
+enum PfmBudgetPeriod {
+  MONTHLY
+
+  @@map("pfm_budget_period")
+}
+
+model PfmBudget {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  companyId      String          @map("company_id") @db.Uuid
+  ownerId        String          @map("owner_id") @db.Uuid
+  categoryId     String          @map("category_id") @db.Uuid
+  walletId       String?         @map("wallet_id") @db.Uuid
+  period         PfmBudgetPeriod @default(MONTHLY)
+  amount         Decimal         @db.Decimal(15, 2)
+  alertThreshold Decimal         @default(0.8) @map("alert_threshold") @db.Decimal(4, 3)
+  enabled        Boolean         @default(true)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  @@unique([ownerId, categoryId, walletId, period])
+  @@index([companyId, ownerId, enabled])
+  @@map("pfm_budget")
+}
+
+model PfmGoal {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  ownerId       String    @map("owner_id") @db.Uuid
+  name          String
+  targetAmount  Decimal   @map("target_amount") @db.Decimal(15, 2)
+  targetDate    DateTime? @map("target_date") @db.Date
+  walletId      String?   @map("wallet_id") @db.Uuid
+  currentAmount Decimal   @default(0) @map("current_amount") @db.Decimal(15, 2)
+  color         String?
+  enabled       Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([companyId, ownerId, enabled])
+  @@map("pfm_goal")
 }
