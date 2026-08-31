@@ -339,7 +339,10 @@ export function computeCreditCycle(wallet, movements, now = new Date()) {
     const iso = v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
     return new Date(`${iso}T00:00:00.000Z`);
   };
-  const totalOwed = posted.reduce((s, m) => s + signed(m), 0);
+  // Credit-card opening balance is stored negative (debt); fold it in so
+  // totalOwed reflects the whole "saldo ocupado", not just this-period movements.
+  const openingDebt = -Number(wallet.openingBalance ?? 0);
+  const totalOwed = openingDebt + posted.reduce((s, m) => s + signed(m), 0);
   const periodSpend = posted
     .filter((m) => dayOf(m) >= lastCut)
     .reduce((s, m) => s + signed(m), 0);

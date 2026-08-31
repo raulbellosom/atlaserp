@@ -40,4 +40,20 @@ describe("computeCreditCycle", () => {
     const c = computeCreditCycle(wallet, [], new Date("2026-08-20T00:00:00.000Z"));
     assert.equal(c.utilization, null);
   });
+
+  it("totalOwed folds in the negative opening balance (saldo ocupado inicial)", () => {
+    const wallet = {
+      kind: "CREDIT",
+      statementDay: 4,
+      creditLimit: 100000,
+      openingBalance: -5000, // already owes 5000 at creation
+    };
+    const movements = [
+      { direction: "EXPENSE", amount: 1000, occurredOn: "2026-08-10", status: "POSTED" },
+    ];
+    const c = computeCreditCycle(wallet, movements, new Date("2026-08-20T00:00:00.000Z"));
+    assert.equal(c.totalOwed, 6000);
+    assert.equal(c.availableCredit, 94000);
+    assert.equal(c.utilization, 0.06);
+  });
 });

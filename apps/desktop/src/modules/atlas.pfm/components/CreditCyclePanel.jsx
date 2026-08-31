@@ -40,7 +40,7 @@ export function CreditCyclePanel({ wallet, onEdit }) {
         </div>
         <div>
           <dt className="text-[11px] uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-            Total adeudado
+            Ocupado
           </dt>
           <dd className="mt-0.5 text-base font-bold text-red-500">
             {formatMoney(c.totalOwed, wallet.currency)}
