@@ -61,7 +61,11 @@ export function IconPickerField({
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-72 p-3" align="start">
+        <PopoverContent
+          className="w-72 p-3 border border-[hsl(var(--border))] backdrop-blur-none"
+          style={{ background: "hsl(var(--card))" }}
+          align="start"
+        >
           <Input
             placeholder="Buscar icono..."
             value={search}
