@@ -79,4 +79,63 @@ describe("pfm-calendar-bridge", () => {
     await bridge.deleteRuleEvent(baseRule({ calendarEventId: "evt9" }));
     assert.equal(deleted, "evt9");
   });
+
+  it("syncCreditReminder no-ops for a non-credit wallet or a wallet with no paymentDueDay", async () => {
+    const bridge = createPfmCalendarBridge({ prisma: {} });
+    assert.equal(await bridge.syncCreditReminder({ kind: "CASH", ownerId: OWNER }), null);
+    assert.equal(
+      await bridge.syncCreditReminder({ kind: "CREDIT", ownerId: OWNER, paymentDueDay: null }),
+      null,
+    );
+  });
+
+  it("syncCreditReminder creates one monthly recurring payment-due event and stores creditReminderEventId", async () => {
+    const state = { calendars: [], events: [], config: {}, walletPatch: null };
+    const prisma = {
+      calendarCalendar: {
+        create: async ({ data }) => {
+          const row = { id: CAL, ...data };
+          state.calendars.push(row);
+          return row;
+        },
+        findFirst: async () => state.calendars[0] ?? null,
+      },
+      instanceConfig: {
+        findUnique: async ({ where }) =>
+          state.config[where.key] ? { value: state.config[where.key] } : null,
+        upsert: async ({ where, create }) => {
+          state.config[where.key] = create.value;
+          return create;
+        },
+      },
+      calendarEvent: {
+        create: async ({ data }) => {
+          const row = { id: "evtC", ...data };
+          state.events.push(row);
+          return row;
+        },
+        update: async ({ where, data }) => {
+          Object.assign(
+            state.events.find((x) => x.id === where.id),
+            data,
+          );
+        },
+      },
+      pfmWallet: { update: async ({ data }) => ((state.walletPatch = data), {}) },
+    };
+    const bridge = createPfmCalendarBridge({ prisma });
+    await bridge.syncCreditReminder({
+      id: "wallet1",
+      ownerId: OWNER,
+      kind: "CREDIT",
+      name: "BBVA Oro",
+      paymentDueDay: 25,
+      creditReminderEventId: null,
+    });
+    assert.equal(state.events.length, 1);
+    assert.equal(state.events[0].sourceModule, "atlas.pfm");
+    assert.equal(state.events[0].recurrenceRule.byMonthDay, 25);
+    assert.match(state.events[0].title, /Fecha limite de pago/);
+    assert.equal(state.walletPatch.creditReminderEventId, "evtC");
+  });
 });

@@ -98,5 +98,69 @@ export function createPfmCalendarBridge({ prisma }) {
     }
   }
 
-  return { ensureCalendar, syncRuleEvent, deleteRuleEvent };
+  // Monthly "payment due" reminder for a credit-card wallet.
+  async function syncCreditReminder(wallet) {
+    if (!isCalendarAvailable(prisma)) return null;
+    if (wallet.kind !== "CREDIT" || !wallet.paymentDueDay) {
+      if (wallet.creditReminderEventId) await deleteCreditReminder(wallet);
+      return null;
+    }
+    try {
+      const calendarId = await ensureCalendar(wallet.ownerId);
+      const now = new Date();
+      const dom = Math.min(Number(wallet.paymentDueDay), 28);
+      let start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), dom));
+      if (start.getTime() < Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) {
+        start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, dom));
+      }
+      const payload = {
+        calendarId,
+        title: `Fecha limite de pago — ${wallet.name}`,
+        startAt: start,
+        allDay: true,
+        recurrenceRule: { freq: "MONTHLY", interval: 1, byMonthDay: Number(wallet.paymentDueDay) },
+        color: "#ef4444",
+        sourceModule: SOURCE,
+        sourceEntityId: wallet.id,
+      };
+      if (wallet.creditReminderEventId) {
+        await prisma.calendarEvent.update({
+          where: { id: wallet.creditReminderEventId },
+          data: {
+            title: payload.title,
+            startAt: payload.startAt,
+            allDay: true,
+            recurrenceRule: payload.recurrenceRule,
+          },
+        });
+        return wallet.creditReminderEventId;
+      }
+      const event = await prisma.calendarEvent.create({ data: payload });
+      await prisma.pfmWallet.update({
+        where: { id: wallet.id },
+        data: { creditReminderEventId: event.id },
+      });
+      return event.id;
+    } catch (err) {
+      console.error("[atlas.pfm] pfm-calendar-bridge syncCreditReminder failed:", err?.message ?? err);
+      return null;
+    }
+  }
+
+  async function deleteCreditReminder(wallet) {
+    if (typeof prisma?.calendarEvent?.delete !== "function" || !wallet.creditReminderEventId) return;
+    try {
+      await prisma.calendarEvent.delete({ where: { id: wallet.creditReminderEventId } });
+    } catch {
+      // already gone
+    }
+  }
+
+  return {
+    ensureCalendar,
+    syncRuleEvent,
+    deleteRuleEvent,
+    syncCreditReminder,
+    deleteCreditReminder,
+  };
 }
