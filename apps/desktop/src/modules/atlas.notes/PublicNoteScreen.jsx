@@ -50,7 +50,10 @@ export default function PublicNoteScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    // html/body are globally overflow:hidden (the authenticated app shell
+    // does its own internal scrolling) — this page needs its own bounded,
+    // scrollable region or content taller than the viewport is unreachable.
+    <div className="h-dvh overflow-y-auto overscroll-contain bg-gray-100">
       <div className="max-w-3xl mx-auto py-12 px-4">
         <div className="flex items-center gap-3 mb-6">
           {note.icon && <NoteIcon name={note.icon} size={28} className="text-amber-500 shrink-0" />}
