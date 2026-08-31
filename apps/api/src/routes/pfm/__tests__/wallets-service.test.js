@@ -84,3 +84,28 @@ describe("wallets-service — createWallet credit fields", () => {
     assert.equal(createArgs.data.paymentDueDay, 22);
   });
 });
+
+describe("wallets-service — createWallet INVESTMENT", () => {
+  it("persists expectedRate and sets lastAccruedOn to today", async () => {
+    let createArgs = null;
+    const prisma = {
+      pfmWallet: {
+        create: async (args) => ((createArgs = args), { id: "01900000-0000-7000-8000-00000000d0de", ...args.data }),
+      },
+    };
+    const service = createWalletsService({ prisma });
+    await service.createWallet({
+      companyId: COMPANY,
+      ownerId: OWNER,
+      data: { name: "Cetes", kind: "INVESTMENT", currency: "MXN", openingBalance: 10000, expectedRate: 0.11 },
+    });
+    assert.equal(Number(createArgs.data.openingBalance), 10000);
+    assert.equal(Number(createArgs.data.expectedRate), 0.11);
+    const today = new Date().toISOString().slice(0, 10);
+    const stored =
+      createArgs.data.lastAccruedOn instanceof Date
+        ? createArgs.data.lastAccruedOn.toISOString().slice(0, 10)
+        : String(createArgs.data.lastAccruedOn).slice(0, 10);
+    assert.equal(stored, today);
+  });
+});

@@ -137,9 +137,11 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
     if (!ownerId) throw new PfmServiceError("Se requiere un usuario autenticado.", 401);
     try {
       const isCredit = data.kind === "CREDIT";
+      const isInvestment = data.kind === "INVESTMENT";
       const openingBalance = isCredit
         ? -(data.openingUsed ?? 0)
         : (data.openingBalance ?? 0);
+      const todayDate = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
       const wallet = await prisma.pfmWallet.create({
         data: {
           companyId,
@@ -155,6 +157,8 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
           creditLimit: isCredit ? (data.creditLimit ?? null) : null,
           statementDay: isCredit ? (data.statementDay ?? null) : null,
           paymentDueDay: isCredit ? (data.paymentDueDay ?? null) : null,
+          expectedRate: isInvestment ? (data.expectedRate ?? null) : null,
+          lastAccruedOn: isInvestment ? todayDate : null,
         },
       });
       return normalizeWalletRow({
@@ -186,6 +190,8 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
       "creditLimit",
       "statementDay",
       "paymentDueDay",
+      "expectedRate",
+      "lastAccruedOn",
     ]) {
       if (Object.prototype.hasOwnProperty.call(data, key)) patch[key] = data[key];
     }
