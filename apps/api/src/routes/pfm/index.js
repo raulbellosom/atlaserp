@@ -5,15 +5,24 @@ import { createCategoriesRouter } from "./categories-routes.js";
 import { createMovementsRouter } from "./movements-routes.js";
 import { createSummaryRouter } from "./summary-routes.js";
 import { createRecurringRouter } from "./recurring-routes.js";
+import { createReceiptsRouter } from "./receipts-routes.js";
 import { createWalletsService } from "./wallets-service.js";
 import { createMovementsService } from "./movements-service.js";
 import { createLedgerLinkService } from "./ledger-link-service.js";
 import { createSummaryService } from "./summary-service.js";
 import { createPfmCalendarBridge } from "./pfm-calendar-bridge.js";
 import { createRecurringService } from "./recurring-service.js";
+import { createReceiptsService } from "./receipts-service.js";
+import { createVisionService } from "../../services/vision-service.js";
 import { createLedgerService } from "../ledger/ledger-service.js";
 
-export function createPfmRouter({ prisma, requirePermission, requireAnyPermission }) {
+export function createPfmRouter({
+  prisma,
+  requirePermission,
+  requireAnyPermission,
+  supabaseAdmin,
+  filesService,
+}) {
   const app = new Hono();
 
   const anyPermission =
@@ -28,6 +37,15 @@ export function createPfmRouter({ prisma, requirePermission, requireAnyPermissio
   const summary = createSummaryService({ prisma });
   const calendarBridge = createPfmCalendarBridge({ prisma });
   const recurring = createRecurringService({ prisma, wallets, calendarBridge });
+  const vision = createVisionService({ env: process.env });
+  const receipts = createReceiptsService({
+    prisma,
+    vision,
+    supabaseAdmin,
+    movements,
+    wallets,
+    filesService,
+  });
 
   app.route(
     "/",
@@ -58,7 +76,19 @@ export function createPfmRouter({ prisma, requirePermission, requireAnyPermissio
       summary,
     }),
   );
+  if (filesService) {
+    app.route(
+      "/",
+      createReceiptsRouter({
+        requirePermission,
+        requireAnyPermission: anyPermission,
+        receipts,
+        filesService,
+        visionConfigured: () => Boolean(process.env.GROQ_API_KEY),
+      }),
+    );
+  }
 
-  app.pfmServices = { recurring, summary };
+  app.pfmServices = { recurring, summary, receipts };
   return app;
 }
