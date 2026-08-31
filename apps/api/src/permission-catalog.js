@@ -941,6 +941,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "pfm",
     order: 60,
   },
+  "pfm.budgets.manage": {
+    displayNameEs: "Administrar presupuestos",
+    descriptionEs: "Permite crear y administrar presupuestos por categoria.",
+    groupKey: "pfm",
+    order: 55,
+  },
+  "pfm.goals.manage": {
+    displayNameEs: "Administrar metas de ahorro",
+    descriptionEs: "Permite crear y administrar metas de ahorro.",
+    groupKey: "pfm",
+    order: 56,
+  },
 
   // atlas.website
   "website.access": {
