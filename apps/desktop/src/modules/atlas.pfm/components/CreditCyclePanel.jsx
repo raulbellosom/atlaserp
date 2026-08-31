@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/atlas.pfm/components/CreditCyclePanel.jsx
-import { Card, Button } from "@atlas/ui";
+import { Card, Button, ProgressMeter } from "@atlas/ui";
 import { CreditCard, Settings2 } from "lucide-react";
-import { formatMoney } from "../lib/format";
+import { formatMoney, creditUtilizationTone } from "../lib/format";
 
 export function CreditCyclePanel({ wallet, onEdit }) {
   if (!wallet || wallet.kind !== "CREDIT") return null;
@@ -57,6 +57,16 @@ export function CreditCyclePanel({ wallet, onEdit }) {
           </div>
         )}
       </dl>
+      {c.creditLimit != null && (
+        <ProgressMeter
+          className="mt-3"
+          value={c.totalOwed}
+          max={c.creditLimit}
+          tone={creditUtilizationTone(c.utilization)}
+          valueLabel={c.utilization != null ? `${Math.round(c.utilization * 100)}%` : undefined}
+          label="Ocupacion"
+        />
+      )}
       <p className="mt-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
         Corte dia {c.statementDay}
         {c.paymentDueDay ? ` · pago dia ${c.paymentDueDay}` : ""}
