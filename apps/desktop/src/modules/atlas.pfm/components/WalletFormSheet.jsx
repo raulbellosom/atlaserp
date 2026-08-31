@@ -19,7 +19,7 @@ import { WALLET_KIND_LABEL } from "../lib/format";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(120),
-  kind: z.enum(["CASH", "DEBIT", "CREDIT"]),
+  kind: z.enum(["CASH", "DEBIT", "CREDIT", "INVESTMENT"]),
   currency: z.enum(["MXN", "USD"]),
   openingBalance: z.coerce.number().default(0),
   color: z.string().max(32).optional().nullable(),
@@ -28,6 +28,7 @@ const schema = z.object({
   statementDay: z.coerce.number().int().min(1).max(31).optional().nullable(),
   paymentDueDay: z.coerce.number().int().min(1).max(31).optional().nullable(),
   openingUsed: z.coerce.number().min(0).optional().nullable(),
+  expectedRate: z.coerce.number().min(0).max(100).optional().nullable(),
 });
 
 const KIND_OPTIONS = Object.entries(WALLET_KIND_LABEL).map(([value, label]) => ({ value, label }));
@@ -47,6 +48,7 @@ const EMPTY = {
   statementDay: "",
   paymentDueDay: "",
   openingUsed: "",
+  expectedRate: "",
 };
 
 function numOrNull(v) {
@@ -70,6 +72,7 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
 
   const kind = useWatch({ control, name: "kind" });
   const isCredit = kind === "CREDIT";
+  const isInvestment = kind === "INVESTMENT";
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +89,7 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             statementDay: wallet.statementDay ?? "",
             paymentDueDay: wallet.paymentDueDay ?? "",
             openingUsed: "",
+            expectedRate: wallet.expectedRate != null ? String(wallet.expectedRate * 100) : "",
           }
         : EMPTY,
     );
@@ -113,6 +117,18 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
           ...creditFields,
           openingUsed: numOrNull(values.openingUsed) ?? 0,
         });
+      }
+    } else if (values.kind === "INVESTMENT") {
+      const rateNum = numOrNull(values.expectedRate);
+      const payload = {
+        ...base,
+        openingBalance: Number(values.openingBalance) || 0,
+        expectedRate: rateNum == null ? null : rateNum / 100,
+      };
+      if (isEdit) {
+        await updateMut.mutateAsync({ id: wallet.id, ...payload });
+      } else {
+        await createMut.mutateAsync(payload);
       }
     } else {
       const payload = { ...base, openingBalance: Number(values.openingBalance) || 0 };
@@ -216,6 +232,18 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
                 />
               )}
             </div>
+          )}
+
+          {isInvestment && (
+            <TextField
+              label="Tasa anual esperada (%)"
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              hint="Rendimiento anual estimado; se acumula dia a dia"
+              error={errors.expectedRate?.message}
+              {...register("expectedRate")}
+            />
           )}
 
           <TextField
