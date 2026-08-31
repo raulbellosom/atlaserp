@@ -1,9 +1,40 @@
 import { toast } from 'sonner'
 import { atlas } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
-import { DEFAULT_IMAGE_WIDTH_PCT } from './imageSize.js'
+import { computeInitialImageWidthPct } from './imageSize.js'
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+// Reads natural pixel dimensions from a local File via a throwaway object
+// URL — no network round-trip, resolves as soon as the browser decodes the
+// image header. Never rejects: unreadable dimensions just fall back to the
+// flat default scale in computeInitialImageWidthPct.
+function getImageNaturalSize(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    const done = (size) => {
+      URL.revokeObjectURL(url)
+      resolve(size)
+    }
+    img.onload = () => done({ naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight })
+    img.onerror = () => done({ naturalWidth: 0, naturalHeight: 0 })
+    img.src = url
+  })
+}
+
+// The note's content column width in px, read live from the ProseMirror DOM
+// (minus its own horizontal padding) so the initial scale is correct on
+// whatever screen size the image is actually being inserted on.
+function getContentColumnWidthPx(editor) {
+  const dom = editor?.view?.dom
+  if (!dom) return null
+  const rect = dom.getBoundingClientRect()
+  const style = window.getComputedStyle(dom)
+  const paddingX = parseFloat(style.paddingLeft || '0') + parseFloat(style.paddingRight || '0')
+  const width = rect.width - paddingX
+  return width > 0 ? width : null
+}
 
 // Shared upload+insert flow for in-body note images — used by both the
 // toolbar's "Insertar imagen" button and the slash command menu's "Imagen"
@@ -20,19 +51,27 @@ export async function uploadAndInsertNoteImage(file, { editor, noteId, token }) 
     return
   }
   try {
-    const presign = await atlas.notes.presignImage(
-      { fileName: file.name, mimeType: file.type, noteId },
-      token,
-    )
+    const [presign, naturalSize] = await Promise.all([
+      atlas.notes.presignImage({ fileName: file.name, mimeType: file.type, noteId }, token),
+      getImageNaturalSize(file),
+    ])
     const { error } = await supabase.storage
       .from('atlas-notes')
       .uploadToSignedUrl(presign.objectKey, presign.uploadToken, file)
     if (error) throw error
+    // Inserted at a scale computed from the image's own dimensions — a tall
+    // image (e.g. a phone screenshot) is scaled down further than a normal
+    // landscape one, so it's fully visible without much scrolling right
+    // away. The resize handle (ImageAnnotationOverlay) lets the user grow
+    // it from here.
+    const width = computeInitialImageWidthPct({
+      naturalWidth: naturalSize.naturalWidth,
+      naturalHeight: naturalSize.naturalHeight,
+      columnWidthPx: getContentColumnWidthPx(editor),
+    })
     editor.chain().focus().insertContent({
       type: 'image',
-      // Inserted at a sane starting scale, not the full column width — the
-      // resize handle (ImageAnnotationOverlay) lets the user grow it from here.
-      attrs: { src: presign.publicUrl, alt: file.name, width: DEFAULT_IMAGE_WIDTH_PCT },
+      attrs: { src: presign.publicUrl, alt: file.name, width },
     }).run()
   } catch (err) {
     toast.error(err?.message ?? 'No se pudo subir la imagen.')
