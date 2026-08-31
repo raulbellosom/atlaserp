@@ -926,6 +926,28 @@ export function createAtlasClient({ baseUrl }) {
         ),
       getSummary: (token, query = {}) =>
         request(`/pfm/summary${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+      listRecurringRules: (token) =>
+        request("/pfm/recurring", { headers: withAuthHeaders(token) }),
+      createRecurringRule: (data, token) =>
+        request("/pfm/recurring", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateRecurringRule: (id, data, token) =>
+        request(`/pfm/recurring/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      setRecurringRuleEnabled: (id, enabled, token) =>
+        request(`/pfm/recurring/${encodeURIComponent(id)}/enabled`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ enabled }),
+        }),
+      listUpcoming: (token, query = {}) =>
+        request(`/pfm/upcoming${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
     },
     catalog: {
       // Products
