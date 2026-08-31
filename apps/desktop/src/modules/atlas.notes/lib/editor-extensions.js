@@ -10,7 +10,9 @@ import CharacterCount from '@tiptap/extension-character-count'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+// TipTap v3 renamed CollaborationCursor -> CollaborationCaret (the -cursor
+// package stopped at v2 and does not work against v3 core).
+import CollaborationCaret from '@tiptap/extension-collaboration-caret'
 import { SlashCommand } from './extensions/SlashCommand.jsx'
 import { TrailingNode } from './extensions/TrailingNode.js'
 import { bodyPlaceholderText } from './placeholderText.js'
@@ -20,9 +22,11 @@ export function buildExtensions({
   readOnly = false, noteId, token,
 }) {
   const base = [
-    // Exclude link/underline/image from StarterKit — we register them explicitly below
-    // (StarterKit v3 bundles them; adding duplicates triggers a TipTap warning)
-    StarterKit.configure({ history: false, link: false, underline: false }),
+    // Exclude link/underline/image/trailingNode from StarterKit — we register
+    // them explicitly below (StarterKit v3 bundles them; adding duplicates
+    // triggers a TipTap "Duplicate extension names" warning). history is off
+    // because Collaboration provides its own Y.js-backed undo/redo.
+    StarterKit.configure({ history: false, link: false, underline: false, trailingNode: false }),
     Underline,
     TextStyle,
     Color,
@@ -57,7 +61,7 @@ export function buildExtensions({
   if (ydoc && provider) {
     base.push(
       Collaboration.configure({ document: ydoc }),
-      CollaborationCursor.configure({
+      CollaborationCaret.configure({
         provider,
         user: {
           id: userId ?? null,

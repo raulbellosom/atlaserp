@@ -1,5 +1,5 @@
 import { EditorProvider } from '@tiptap/react'
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import * as Y from 'yjs'
 import { NotebookPen } from 'lucide-react'
@@ -39,82 +39,184 @@ function colorForUser(seed) {
 // scroll into (it's free to grow), so it just swallows the wheel/touch
 // gesture instead of letting it reach the outer, actually-scrollable page.
 // One page should have exactly one scroll owner.
+//
+// NoteEditor owns the realtime "engine" (Y.Doc + SupabaseYjsProvider) and
+// only mounts the actual editor (NoteEditorSurface) once that engine exists
+// AND has finished loading server state. This is load-bearing: TipTap's
+// EditorProvider builds the ProseMirror editor on its first render and never
+// rebuilds it (useEditor runs with empty deps). If we mounted the editor
+// before the Y.Doc existed, the Collaboration/Caret plugins would be silently
+// dropped and switching notes would leave stale content on screen — the
+// editor instance would outlive the note it was built for. Keying the surface
+// by note.id and gating on the engine fixes both.
 export function NoteEditor({ note, readOnly = false, scrollable = true }) {
   const { session } = useAuth()
   const token = session?.access_token
-  const queryClient = useQueryClient()
-  const ydocRef = useRef(null)
-  const providerRef = useRef(null)
-  const saveTimerRef = useRef(null)
-  const isSavingRef = useRef(false)
-  const containerRef = useRef(null)
-  // providerRef is a ref (not state) so it doesn't re-render on every ydoc
-  // update, but that means React never re-reads it once populated — bump
-  // this after the provider is created/synced so components that need
-  // providerRef.current (e.g. the presence stack) actually see it.
-  const [, setProviderTick] = useState(0)
 
-  // Create Y.js doc and provider once per noteId
+  // Collaboration only runs for an authenticated, editable note. The public
+  // share view (PublicNoteScreen) has no session/token and the trash view is
+  // read-only — both render a plain editor straight from note.content.
+  const collabEnabled = !readOnly && Boolean(token) && Boolean(note?.id)
+
+  // The engine is React state (not a ref) so the surface re-mounts when it
+  // becomes ready / changes note.
+  const [engine, setEngine] = useState(null)
+
   useEffect(() => {
-    if (!note?.id || !token) return
+    if (!collabEnabled) {
+      setEngine(null)
+      return
+    }
 
+    let disposed = false
     const ydoc = new Y.Doc()
-    ydocRef.current = ydoc
-
     const provider = new SupabaseYjsProvider(ydoc, {
       noteId: note.id,
       supabase,
       atlas,
       token,
-      onSynced: () => setProviderTick(t => t + 1),
+      onSynced: () => {
+        if (disposed) return
+        setEngine(e =>
+          e && e.ydoc === ydoc
+            ? { ...e, synced: true, hadServerState: provider.hadServerState }
+            : e,
+        )
+      },
     })
-    providerRef.current = provider
+    setEngine({ noteId: note.id, ydoc, provider, synced: false, hadServerState: false })
 
     return () => {
-      clearTimeout(saveTimerRef.current)
+      disposed = true
       provider.destroy()
-      ydocRef.current = null
-      providerRef.current = null
+      ydoc.destroy()
+      setEngine(null)
     }
-  }, [note?.id, token])
+  }, [collabEnabled, note?.id, token])
+
+  if (!note) return null
+
+  // Plain editor — no realtime. Mount immediately from note.content.
+  if (!collabEnabled) {
+    return (
+      <NoteEditorSurface
+        key={note.id}
+        note={note}
+        readOnly={readOnly}
+        scrollable={scrollable}
+        token={token}
+        session={session}
+        engine={null}
+      />
+    )
+  }
+
+  // Realtime editor — wait until the engine for THIS note has loaded server
+  // state, so the editor is built with Collaboration bound to the right doc.
+  if (!engine || engine.noteId !== note.id || !engine.synced) {
+    return <EditorLoading scrollable={scrollable} />
+  }
+
+  return (
+    <NoteEditorSurface
+      key={note.id}
+      note={note}
+      readOnly={readOnly}
+      scrollable={scrollable}
+      token={token}
+      session={session}
+      engine={engine}
+    />
+  )
+}
+
+function EditorLoading({ scrollable }) {
+  const inner = (
+    <div className="px-8 pt-10 space-y-3 animate-pulse">
+      <div className="h-8 w-1/2 rounded bg-muted" />
+      <div className="h-4 w-3/4 rounded bg-muted" />
+      <div className="h-4 w-2/3 rounded bg-muted" />
+      <div className="h-4 w-1/3 rounded bg-muted" />
+    </div>
+  )
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {scrollable ? <div className="flex-1 min-h-0 overflow-y-auto">{inner}</div> : inner}
+    </div>
+  )
+}
+
+// Everything below is a single editor instance for one note. It is mounted with
+// key={note.id} by NoteEditor, so every hook/ref here is scoped to one note and
+// torn down cleanly on switch.
+function NoteEditorSurface({ note, readOnly, scrollable, token, session, engine }) {
+  const queryClient = useQueryClient()
+  const containerRef = useRef(null)
+  const ydoc = engine?.ydoc ?? null
+  const provider = engine?.provider ?? null
+
+  // ── autosave ───────────────────────────────────────────────────────────
+  // pendingRef holds the latest not-yet-persisted snapshot; the debounce only
+  // gates the network call. Computing the snapshot synchronously on every
+  // update (not inside the timeout) means an unmount flush always has the
+  // freshest content even if the debounce never fired.
+  const pendingRef = useRef(null)
+  const savingRef = useRef(false)
+  const saveTimerRef = useRef(null)
+
+  const flushSave = useCallback(async () => {
+    if (readOnly || !note?.id || !token) return
+    const snap = pendingRef.current
+    if (!snap || savingRef.current) return
+    savingRef.current = true
+    pendingRef.current = null
+    try {
+      await atlas.notes.update(note.id, snap, token)
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
+      queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
+      if (ydoc) {
+        const state = Y.encodeStateAsUpdate(ydoc)
+        const stateB64 = btoa(String.fromCharCode(...state))
+        await atlas.notes.saveYDoc(note.id, stateB64, token)
+      }
+    } catch (err) {
+      console.warn('[NoteEditor] autosave failed:', err?.message)
+      // Keep the snapshot so the next edit (or the unmount flush) retries.
+      if (!pendingRef.current) pendingRef.current = snap
+    } finally {
+      savingRef.current = false
+    }
+  }, [note?.id, token, readOnly, ydoc, queryClient])
 
   const handleUpdate = useCallback(
     ({ editor }) => {
       if (readOnly || !note?.id || !token) return
+      // First paragraph text becomes the note title (Apple Notes pattern).
+      // Always send it — an empty string clears a stale "Nueva nota".
+      const firstChild = editor.state.doc.firstChild
+      pendingRef.current = {
+        content: editor.getHTML(),
+        title: firstChild?.textContent?.trim() ?? '',
+      }
       clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = setTimeout(async () => {
-        if (isSavingRef.current) return
-        isSavingRef.current = true
-        try {
-          const content = editor.getHTML()
-          // First paragraph text becomes the note title (Apple Notes pattern)
-          const firstChild = editor.state.doc.firstChild
-          const firstLineText = firstChild?.textContent?.trim() ?? ''
-          // Always send title (empty string clears it -> list shows "Sin
-          // titulo") instead of leaving the stale "Nueva nota".
-          const patch = { content, title: firstLineText }
-          await atlas.notes.update(note.id, patch, token)
-          // Invalidate so NotesList and the topbar title update immediately
-          queryClient.invalidateQueries({ queryKey: ['notes'] })
-          queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
-          if (ydocRef.current) {
-            const state = Y.encodeStateAsUpdate(ydocRef.current)
-            const stateB64 = btoa(String.fromCharCode(...state))
-            await atlas.notes.saveYDoc(note.id, stateB64, token)
-          }
-        } catch (err) {
-          console.warn('[NoteEditor] autosave failed:', err?.message)
-        } finally {
-          isSavingRef.current = false
-        }
-      }, AUTOSAVE_DELAY)
+      saveTimerRef.current = setTimeout(flushSave, AUTOSAVE_DELAY)
     },
-    [note?.id, token, readOnly],
+    [note?.id, token, readOnly, flushSave],
+  )
+
+  // Flush once on unmount so switching notes fast never drops the last edits.
+  const flushRef = useRef(flushSave)
+  flushRef.current = flushSave
+  useEffect(
+    () => () => {
+      clearTimeout(saveTimerRef.current)
+      flushRef.current()
+    },
+    [],
   )
 
   // Immediate (non-debounced) update for discrete meta fields — icon and cover
-  // banner are single user actions, not continuous typing, so they don't need
-  // the autosave delay/queue that handleUpdate uses for content.
+  // banner are single user actions, not continuous typing.
   const updateNoteMeta = useCallback(
     async (patch) => {
       if (readOnly || !note?.id || !token) return
@@ -179,32 +281,49 @@ export function NoteEditor({ note, readOnly = false, scrollable = true }) {
     }
   }, [readOnly])
 
-  const presenceUsers = usePresence(providerRef.current, session?.user?.id)
+  const presenceUsers = usePresence(provider, session?.user?.id)
 
-  if (!note) return null
+  const extensions = useMemo(
+    () => [
+      ...buildExtensions({
+        ydoc,
+        provider,
+        userName:
+          session?.user?.user_metadata?.full_name ?? session?.user?.email ?? 'Usuario',
+        userColor: colorForUser(session?.user?.id ?? session?.user?.email),
+        userId: session?.user?.id ?? null,
+        userAvatarUrl: session?.user?.user_metadata?.avatar_url ?? null,
+        readOnly,
+        noteId: note.id,
+        token,
+      }),
+      DrawingBlock,
+      AnnotatableImage,
+    ],
+    [ydoc, provider, readOnly, note.id, token, session?.user?.id, session?.user?.email],
+  )
 
-  const extensions = [
-    ...buildExtensions({
-      ydoc: ydocRef.current,
-      provider: providerRef.current,
-      userName:
-        session?.user?.user_metadata?.full_name ?? session?.user?.email ?? 'Usuario',
-      userColor: colorForUser(session?.user?.id ?? session?.user?.email),
-      userId: session?.user?.id ?? null,
-      userAvatarUrl: session?.user?.user_metadata?.avatar_url ?? null,
-      readOnly,
-      noteId: note.id,
-      token,
-    }),
-    DrawingBlock,
-    AnnotatableImage,
-  ]
+  // When Collaboration is active the Y.Doc is the single source of truth, so
+  // we must NOT hand EditorProvider an initial `content` (it would double-seed
+  // across clients). Instead, seed the doc once from the legacy HTML column iff
+  // the server had no Y.js state yet and the doc is still empty.
+  function seedIfNeeded({ editor }) {
+    if (!engine || !ydoc) return
+    if (engine.hadServerState) return
+    const frag = ydoc.getXmlFragment('default')
+    if (frag.length > 0) return
+    if (!note.content) return
+    // emitUpdate defaults true → schedules an autosave that persists the
+    // migrated content (and the Y.js state) to the server.
+    editor.commands.setContent(note.content)
+  }
 
   const editorProvider = (
     <EditorProvider
       extensions={extensions}
-      content={note.content || ''}
+      content={engine ? '' : (note.content || '')}
       editable={!readOnly}
+      onCreate={seedIfNeeded}
       onUpdate={handleUpdate}
       editorProps={{
         attributes: {

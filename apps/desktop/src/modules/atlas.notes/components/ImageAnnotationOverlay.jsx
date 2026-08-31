@@ -435,9 +435,11 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
           // Same width as the image below it (both are children of the
           // resizable box) so the whole editing card — toolbar + drawing
           // area — reads as one unit delimited exactly to the image, not a
-          // full-width bar floating over a narrower thumbnail. Tools and
-          // colors collapse into pickers so this still fits at any scale.
-          <div className="flex items-center gap-1 py-1.5 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs flex-nowrap overflow-x-auto [-webkit-overflow-scrolling:touch]">
+          // full-width bar floating over a narrower thumbnail. It WRAPS onto
+          // 2-3 rows on a narrow / portrait image so every control stays
+          // visible — an earlier `overflow-x-auto` bar hid Recortar/Listo
+          // off-screen with no scroll affordance.
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 py-1.5 px-2 bg-[hsl(var(--muted))] border border-[hsl(var(--border))] rounded-t text-xs">
             <button
               title="Arrastrar para mover la imagen"
               className="flex items-center justify-center w-9 h-9 rounded text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] hover:text-[hsl(var(--foreground))] cursor-grab active:cursor-grabbing shrink-0"
@@ -586,7 +588,10 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos 
 
         {editable && mode === 'view' && (
           <div
-            className={`absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 transition-opacity ${
+            // Top-right: keeps the primary "Editar imagen" affordance in view
+            // above the fold on a tall image, and clear of the bottom-right
+            // resize handle.
+            className={`absolute top-2 right-2 flex items-center gap-1.5 opacity-100 transition-opacity ${
               selected ? 'sm:opacity-100' : 'sm:opacity-0 sm:group-hover/img:opacity-100'
             }`}
           >

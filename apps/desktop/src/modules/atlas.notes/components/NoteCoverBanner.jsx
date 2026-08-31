@@ -12,6 +12,12 @@ const MAX_BANNER_BYTES = 20 * 1024 * 1024
 // note.cover_url instead of inserting a TipTap node.
 export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, onRemove }) {
   const [uploading, setUploading] = useState(false)
+  // If the Supabase image-transform endpoint (/render/image/public/) can't
+  // serve the `banner` variant, fall back to the original object URL so a
+  // transform failure never leaves the cover blank. Keyed by URL so a new
+  // cover retries the transform.
+  const [failedUrl, setFailedUrl] = useState(null)
+  const imgFallback = failedUrl === coverUrl
 
   if (!coverUrl && !editable) return null
 
@@ -73,7 +79,14 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
 
   return (
     <div className="relative group/cover w-full aspect-[3/1] overflow-hidden bg-muted">
-      <img src={withImageVariant(coverUrl, 'banner')} alt="" className="w-full h-full object-cover" draggable={false} />
+      <img
+        key={coverUrl}
+        src={imgFallback ? coverUrl : withImageVariant(coverUrl, 'banner')}
+        alt=""
+        className="w-full h-full object-cover"
+        draggable={false}
+        onError={() => setFailedUrl(coverUrl)}
+      />
       {editable && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover/cover:opacity-100 transition-opacity">
           <label
