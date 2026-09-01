@@ -145,7 +145,7 @@ function PermSwitch({ checked, disabled, onCheckedChange, size = "sm" }) {
   );
 }
 
-// ── Bulk toggle with partial-state counter ─────────────────────────────────────
+// ── Bulk toggle with always-visible state badge ────────────────────────────────
 
 function BulkSwitch({ selectedCount, totalCount, disabled, onToggle }) {
   const allChecked = totalCount > 0 && selectedCount === totalCount;
@@ -153,10 +153,23 @@ function BulkSwitch({ selectedCount, totalCount, disabled, onToggle }) {
 
   return (
     <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-      {partial && (
-        <Badge variant="success" className="text-[10px] tabular-nums">
+      {allChecked ? (
+        <Badge variant="success" className="text-[10px] uppercase tracking-wide">
+          Todos
+        </Badge>
+      ) : partial ? (
+        <Badge variant="secondary" className="text-[10px] tabular-nums">
           {selectedCount}/{totalCount}
         </Badge>
+      ) : (
+        totalCount > 0 && (
+          <Badge
+            variant="outline"
+            className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))]"
+          >
+            Ninguno
+          </Badge>
+        )
       )}
       <PermSwitch
         checked={allChecked}
@@ -226,10 +239,15 @@ function FilterPills({ value, onChange }) {
 export default function PermissionFeatureTree({
   allPermissions,
   pendingKeys,
+  baselineKeys,
   onTogglePermission,
   onBulkToggle,
   disabled,
 }) {
+  // The assigned/unassigned filter runs against the persisted assignment
+  // (baselineKeys), not the live pending edits — otherwise a row jumps out of
+  // the list the instant you toggle it and you can't confirm the change.
+  const filterKeys = baselineKeys ?? pendingKeys;
   const collator = useMemo(
     () => new Intl.Collator("es", { sensitivity: "base", numeric: true }),
     [],
@@ -239,7 +257,17 @@ export default function PermissionFeatureTree({
   const [filter, setFilter] = useState("all");
   // Tracks which modules the user has manually opened (default: derived from assignments)
   const [openedModules, setOpenedModules] = useState(new Set());
+  // While a search/filter is active every matching module is open by default;
+  // this set records the ones the user explicitly collapsed in that mode.
+  const [filterCollapsed, setFilterCollapsed] = useState(new Set());
   const [initialized, setInitialized] = useState(false);
+
+  const filtering = Boolean(search.trim()) || filter !== "all";
+
+  // Leaving filter mode clears the per-filter collapse overrides.
+  useEffect(() => {
+    if (!filtering && filterCollapsed.size > 0) setFilterCollapsed(new Set());
+  }, [filtering, filterCollapsed.size]);
 
   // Build full module tree from all permissions
   const modules = useMemo(() => {
@@ -331,23 +359,33 @@ export default function PermissionFeatureTree({
                 )
                   return false;
               }
-              if (filter === "assigned") return pendingKeys.has(item.key);
-              if (filter === "unassigned") return !pendingKeys.has(item.key);
+              if (filter === "assigned") return filterKeys.has(item.key);
+              if (filter === "unassigned") return !filterKeys.has(item.key);
               return true;
             }),
           }))
           .filter((feat) => feat.items.length > 0),
       }))
       .filter((mod) => mod.features.length > 0);
-  }, [modules, search, filter, pendingKeys]);
+  }, [modules, search, filter, filterKeys]);
 
   function isModuleOpen(moduleKey, hasFilteredContent) {
-    // Auto-expand when searching or filtering — so results are always visible
-    if ((search.trim() || filter !== "all") && hasFilteredContent) return true;
+    // While filtering, matching modules are open by default so results are
+    // visible — but an explicit collapse still wins.
+    if (filtering && hasFilteredContent) return !filterCollapsed.has(moduleKey);
     return openedModules.has(moduleKey);
   }
 
   function toggleModule(key) {
+    if (filtering) {
+      setFilterCollapsed((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+      return;
+    }
     setOpenedModules((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -358,10 +396,15 @@ export default function PermissionFeatureTree({
 
   function expandAll() {
     setOpenedModules(new Set(modules.map((m) => m.key)));
+    setFilterCollapsed(new Set());
   }
 
   function collapseAll() {
     setOpenedModules(new Set());
+    // In filter mode, collapse every currently-matching module.
+    if (filtering) {
+      setFilterCollapsed(new Set(filteredModules.map((m) => m.key)));
+    }
   }
 
   const totalPerms = allModuleKeys.length;
@@ -447,12 +490,27 @@ export default function PermissionFeatureTree({
         const allModKeys =
           originalModule?.features.flatMap((f) => f.items.map((i) => i.key)) ?? [];
         const moduleSelected = allModKeys.filter((k) => pendingKeys.has(k)).length;
+        const moduleFull = allModKeys.length > 0 && moduleSelected === allModKeys.length;
+        const moduleEmpty = moduleSelected === 0;
         const isOpen = isModuleOpen(moduleItem.key, moduleItem.features.length > 0);
 
         return (
-          <Card key={moduleItem.key} className="p-0 overflow-hidden">
+          <Card
+            key={moduleItem.key}
+            className={[
+              "p-0 overflow-hidden",
+              moduleFull ? "ring-1 ring-emerald-500/40" : "",
+            ].join(" ")}
+          >
             {/* Collapsible module header — split into a button + sibling switch to avoid button-in-button */}
-            <div className="w-full px-4 py-3 glass-subtle border-b border-[hsl(var(--border))] flex items-center gap-3 hover:bg-[hsl(var(--muted))]/30 transition-colors">
+            <div
+              className={[
+                "w-full px-4 py-3 border-b border-[hsl(var(--border))] flex items-center gap-3 transition-colors",
+                moduleFull
+                  ? "bg-emerald-500/10 hover:bg-emerald-500/15"
+                  : "glass-subtle hover:bg-[hsl(var(--muted))]/30",
+              ].join(" ")}
+            >
               <button
                 type="button"
                 onClick={() => toggleModule(moduleItem.key)}
@@ -468,8 +526,19 @@ export default function PermissionFeatureTree({
                   <p className="text-xs font-bold uppercase tracking-[0.15em] text-[hsl(var(--foreground))]">
                     {moduleItem.label}
                   </p>
-                  <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 tabular-nums">
-                    {moduleSelected}/{allModKeys.length} asignados
+                  <p
+                    className={[
+                      "text-[11px] mt-0.5",
+                      moduleFull
+                        ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                        : "text-[hsl(var(--muted-foreground))]",
+                    ].join(" ")}
+                  >
+                    {moduleFull
+                      ? "Todos los permisos asignados"
+                      : moduleEmpty
+                        ? "Sin permisos asignados"
+                        : `${moduleSelected} de ${allModKeys.length} permisos asignados`}
                   </p>
                 </div>
               </button>

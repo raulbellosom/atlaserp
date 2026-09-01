@@ -337,6 +337,7 @@ export default function RoleEditorScreen() {
                 key={roleId}
                 allPermissions={allPermissions}
                 pendingKeys={pendingKeys ?? savedKeys}
+                baselineKeys={savedKeys}
                 onTogglePermission={togglePermission}
                 onBulkToggle={togglePermissionGroup}
                 disabled={

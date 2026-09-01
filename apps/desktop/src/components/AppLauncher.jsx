@@ -96,14 +96,14 @@ export function AppLauncher() {
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
           >
             {/* Search header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))] shrink-0">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-(--glass-border) shrink-0">
               <Search size={15} className="text-[hsl(var(--muted-foreground))] shrink-0" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar aplicación..."
-                className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none"
+                className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--foreground))]/45 outline-none"
               />
               <button
                 onClick={handleGoHome}
@@ -122,7 +122,7 @@ export function AppLauncher() {
 
             {/* Controls bar (hidden during search) */}
             {!query.trim() && (
-              <AppViewControls className="px-4 py-2 border-b border-[hsl(var(--border))] shrink-0" />
+              <AppViewControls className="px-4 py-2 border-b border-(--glass-border) shrink-0" />
             )}
 
             {/* Module list */}
@@ -145,6 +145,7 @@ export function AppLauncher() {
                           <ModuleListRow
                             key={module.key}
                             module={module}
+                            surface="glass"
                             href={getModuleLaunchPath(module)}
                             onClick={() => handleLaunch(module)}
                             onContextMenu={(e) => openMenu(e, module.key)}
@@ -161,6 +162,7 @@ export function AppLauncher() {
                           <ModuleCardGrid
                             key={module.key}
                             module={module}
+                            surface="glass"
                             href={getModuleLaunchPath(module)}
                             onClick={() => handleLaunch(module)}
                             onContextMenu={(e) => openMenu(e, module.key)}

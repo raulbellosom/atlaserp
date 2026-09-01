@@ -21,12 +21,25 @@ export function buildExtensions({
   ydoc, provider, userColor, userName, userId, userAvatarUrl,
   readOnly = false, noteId, token,
 }) {
+  const collab = Boolean(ydoc && provider)
+
   const base = [
     // Exclude link/underline/image/trailingNode from StarterKit — we register
     // them explicitly below (StarterKit v3 bundles them; adding duplicates
-    // triggers a TipTap "Duplicate extension names" warning). history is off
-    // because Collaboration provides its own Y.js-backed undo/redo.
-    StarterKit.configure({ history: false, link: false, underline: false, trailingNode: false }),
+    // triggers a TipTap "Duplicate extension names" warning).
+    //
+    // In StarterKit v3 the history extension is `undoRedo` (from
+    // @tiptap/extensions); the old `history` key is silently ignored. When
+    // Collaboration is active it MUST be disabled — Collaboration ships its own
+    // Y.js-backed undo/redo and the two histories corrupt each other (TipTap
+    // warns "not compatible with @tiptap/extension-undo-redo"). Off only in
+    // collab mode so the plain read-only / public editor keeps normal undo.
+    StarterKit.configure({
+      undoRedo: collab ? false : undefined,
+      link: false,
+      underline: false,
+      trailingNode: false,
+    }),
     Underline,
     TextStyle,
     Color,
@@ -58,7 +71,7 @@ export function buildExtensions({
     base.push(SlashCommand.configure({ noteId, token }))
   }
 
-  if (ydoc && provider) {
+  if (collab) {
     base.push(
       Collaboration.configure({ document: ydoc }),
       CollaborationCaret.configure({

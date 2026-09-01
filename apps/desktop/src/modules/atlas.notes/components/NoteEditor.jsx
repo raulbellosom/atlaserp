@@ -7,7 +7,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { atlas } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
-import { SupabaseYjsProvider } from '../lib/SupabaseYjsProvider.js'
+import { SupabaseYjsProvider, bytesToBase64 } from '../lib/SupabaseYjsProvider.js'
 import { buildExtensions } from '../lib/editor-extensions.js'
 import { usePresence } from '../hooks/usePresence.js'
 import { NoteToolbar } from './NoteToolbar.jsx'
@@ -175,8 +175,7 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, engine 
       queryClient.invalidateQueries({ queryKey: ['notes'] })
       queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
       if (ydoc) {
-        const state = Y.encodeStateAsUpdate(ydoc)
-        const stateB64 = btoa(String.fromCharCode(...state))
+        const stateB64 = bytesToBase64(Y.encodeStateAsUpdate(ydoc))
         await atlas.notes.saveYDoc(note.id, stateB64, token)
       }
     } catch (err) {

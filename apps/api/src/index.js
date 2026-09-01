@@ -2268,6 +2268,7 @@ app.post(
       });
       if (["atlas.admin", "system.admin"].includes(role.key)) {
         await syncAdminRolesPermissions(prisma);
+        cacheDelByPrefix("user_ctx:");
       }
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
@@ -2299,6 +2300,7 @@ app.put(
         where: { id },
         data: { name, description },
       });
+      cacheDelByPrefix("user_ctx:");
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "identity.role.update",
@@ -2327,6 +2329,8 @@ app.patch(
         where: { id },
         data: { enabled },
       });
+      // Disabled roles are dropped from the effective permission set — bust caches.
+      cacheDelByPrefix("user_ctx:");
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: role.enabled ? "identity.role.enable" : "identity.role.disable",
@@ -2361,6 +2365,7 @@ app.delete(
         );
       }
       await prisma.role.delete({ where: { id } });
+      cacheDelByPrefix("user_ctx:");
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "identity.role.delete",
@@ -2404,6 +2409,10 @@ app.patch(
             ]
           : []),
       ]);
+      // A role's permission set feeds every member's cached user context
+      // (permissions + navigation). Bust all user contexts so the change is
+      // visible on the members' next request instead of after the 5-min TTL.
+      cacheDelByPrefix("user_ctx:");
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "identity.role.permissions.update",

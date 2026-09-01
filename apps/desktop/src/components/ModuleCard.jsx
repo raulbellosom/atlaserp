@@ -67,6 +67,28 @@ import {
 const DEFAULT_MODULE_COLOR = "#6366f1";
 const DEFAULT_MODULE_ACCENT = "#4f46e5";
 
+// Surface presets. "raised" is the default opaque card used on solid
+// backgrounds (HomeScreen). "glass" is used inside translucent overlays
+// (AppLauncher): translucent fill + soft glass border + softer hover so the
+// card reads as part of the frosted panel instead of a solid block on it.
+const CARD_SURFACE = {
+  raised: {
+    base: "border-[hsl(var(--border))] bg-[hsl(var(--card))]",
+    hoverGrid: "hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
+    hoverRow:
+      "hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]",
+    headerAlpha: ["22", "08"],
+  },
+  glass: {
+    base: "border-(--glass-border) bg-(--glass-bg)",
+    hoverGrid:
+      "hover:bg-[hsl(var(--muted))] hover:border-[hsl(var(--muted-foreground))]/25 active:scale-[0.98]",
+    hoverRow:
+      "hover:bg-[hsl(var(--muted))] hover:border-[hsl(var(--muted-foreground))]/25 active:scale-[0.99]",
+    headerAlpha: ["14", "04"],
+  },
+};
+
 export const MODULE_ICON_REGISTRY = {
   Box,
   Layers,
@@ -337,16 +359,19 @@ export function ModuleCardGrid({
   href,
   isFavorite,
   isOfflineBlocked,
+  surface = "raised",
 }) {
   const visuals = resolveModuleVisuals(module);
   const { color, accentColor } = visuals;
   const { longPressHandlers, guardClick } = useCardLongPress(module.key, onLongPress);
+  const skin = CARD_SURFACE[surface] ?? CARD_SURFACE.raised;
 
   const cardClassName = cn(
-    "group flex w-full flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden text-left transition-all duration-200",
+    "group flex w-full flex-col rounded-2xl border overflow-hidden text-left transition-all duration-200",
+    skin.base,
     isOfflineBlocked
       ? "opacity-40 cursor-not-allowed pointer-events-none"
-      : "cursor-pointer hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]",
+      : cn("cursor-pointer", skin.hoverGrid),
   );
 
   const overlay = isOfflineBlocked ? (
@@ -378,7 +403,7 @@ export function ModuleCardGrid({
       <div
         className="relative h-16 overflow-hidden shrink-0"
         style={{
-          background: `linear-gradient(135deg, ${toAlphaHexColor(color, "22")} 0%, ${toAlphaHexColor(accentColor, "08")} 70%, transparent 100%)`,
+          background: `linear-gradient(135deg, ${toAlphaHexColor(color, skin.headerAlpha[0])} 0%, ${toAlphaHexColor(accentColor, skin.headerAlpha[1])} 70%, transparent 100%)`,
         }}
       >
         <div
@@ -419,14 +444,17 @@ export function ModuleListRow({
   href,
   isFavorite,
   isOfflineBlocked,
+  surface = "raised",
 }) {
   const { longPressHandlers, guardClick } = useCardLongPress(module.key, onLongPress);
+  const skin = CARD_SURFACE[surface] ?? CARD_SURFACE.raised;
 
   const cardClassName = cn(
-    "flex items-center gap-4 w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-all duration-200 py-3 pl-4 pr-12 text-left",
+    "flex items-center gap-4 w-full rounded-xl border transition-all duration-200 py-3 pl-4 pr-12 text-left",
+    skin.base,
     isOfflineBlocked
       ? "opacity-40 cursor-not-allowed pointer-events-none"
-      : "cursor-pointer hover:shadow-sm hover:border-[hsl(var(--muted-foreground))]/30 active:scale-[0.99]",
+      : cn("cursor-pointer", skin.hoverRow),
   );
 
   const overlay = isOfflineBlocked ? (

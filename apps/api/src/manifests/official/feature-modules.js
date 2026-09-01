@@ -762,6 +762,15 @@ export const projectsMap = createModuleManifest({
       permissionKey: 'projects.access',
     },
   ],
+  acl: {
+    module: 'projects.access',
+    actions: {
+      'projects.project.read':   'projects.project.read',
+      'projects.project.create': 'projects.project.create',
+      'projects.task.read':      'projects.task.read',
+    },
+    models: {},
+  },
   permissions: [
     { key: 'projects.access',          name: 'Acceder a Proyectos' },
     { key: 'projects.project.read',    name: 'Ver proyectos' },

@@ -1350,6 +1350,15 @@ export const notesMap = createModuleManifest({
     { label: 'Compartidas',     path: '/notes/shared', icon: 'Users',       layout: 'main', permissionKey: 'notes.shares.read' },
     { label: 'Papelera',        path: '/notes/trash',  icon: 'Trash2',      layout: 'main', permissionKey: 'notes.notes.read' },
   ],
+  acl: {
+    module: 'notes.access',
+    actions: {
+      'notes.notes.read':   'notes.notes.read',
+      'notes.notes.create': 'notes.notes.create',
+      'notes.shares.read':  'notes.shares.read',
+    },
+    models: {},
+  },
   permissions: [
     { key: 'notes.access', name: 'Acceso a notas', description: 'Puede ver el módulo de notas' },
     { key: 'notes.notes.read', name: 'Leer notas', description: 'Puede leer sus propias notas y notas compartidas' },
