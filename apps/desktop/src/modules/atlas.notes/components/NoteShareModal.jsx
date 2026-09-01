@@ -40,7 +40,7 @@ function UserAvatar({ name, avatarUrl, className = 'h-9 w-9' }) {
 function PermissionSelect({ value, onChange, disabled }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="h-9 w-30 shrink-0 text-xs">
+      <SelectTrigger className="h-9 w-40 shrink-0 bg-[hsl(var(--background))]! text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -277,29 +277,31 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
                   return (
                     <li
                       key={share.id}
-                      className="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-[hsl(var(--muted))]"
+                      className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-2 py-2 transition-colors hover:bg-[hsl(var(--muted))]"
                     >
                       <UserAvatar name={name} avatarUrl={share.avatar_url ?? null} className="h-8 w-8" />
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-36 flex-1">
                         <p className="truncate text-sm font-medium leading-tight text-[hsl(var(--foreground))]">{name}</p>
                         {share.user_email && (
                           <p className="truncate text-xs leading-tight text-[hsl(var(--muted-foreground))]">{share.user_email}</p>
                         )}
                       </div>
-                      <PermissionSelect
-                        value={share.permission}
-                        disabled={busy}
-                        onChange={val => updateShare.mutate({ noteId: id, shareId: share.id, permission: val })}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => revokeShare.mutate({ noteId: id, shareId: share.id })}
-                        disabled={busy}
-                        aria-label={`Revocar acceso de ${name}`}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                      <div className="ml-auto flex items-center gap-2">
+                        <PermissionSelect
+                          value={share.permission}
+                          disabled={busy}
+                          onChange={val => updateShare.mutate({ noteId: id, shareId: share.id, permission: val })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => revokeShare.mutate({ noteId: id, shareId: share.id })}
+                          disabled={busy}
+                          aria-label={`Revocar acceso de ${name}`}
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
                     </li>
                   )
                 })}
