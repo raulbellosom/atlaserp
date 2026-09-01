@@ -38,8 +38,19 @@ export function percentDelta(current, base) {
   return Math.round(((Number(current) - b) / b) * 100);
 }
 
+// Local calendar date parts — NOT UTC. `toISOString()` is always UTC, which
+// rolls the day/month over 6h early in Mexico (UTC-6) and shows the wrong month.
+function localParts(d = new Date()) {
+  return {
+    y: d.getFullYear(),
+    m: String(d.getMonth() + 1).padStart(2, "0"),
+    d: String(d.getDate()).padStart(2, "0"),
+  };
+}
+
 export function currentMonthKey() {
-  return new Date().toISOString().slice(0, 7);
+  const { y, m } = localParts();
+  return `${y}-${m}`;
 }
 
 export function shiftMonth(month, delta) {
@@ -49,7 +60,8 @@ export function shiftMonth(month, delta) {
 }
 
 export function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const { y, m, d } = localParts();
+  return `${y}-${m}-${d}`;
 }
 
 export const WALLET_KIND_LABEL = {
