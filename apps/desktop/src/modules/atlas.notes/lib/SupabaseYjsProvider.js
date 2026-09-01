@@ -62,9 +62,15 @@ export class SupabaseYjsProvider {
       if (res?.state) {
         Y.applyUpdate(this.ydoc, base64ToBytes(res.state), 'server-load')
         this.hadServerState = true
+        console.debug(
+          `[notes/yjs] loaded server state (${res.state.length} b64 chars), ` +
+            `fragment length=${this.ydoc.getXmlFragment('default').length}`,
+        )
+      } else {
+        console.debug('[notes/yjs] no server Y.js state for this note')
       }
-    } catch (_) {
-      // New note — no state yet, that's fine
+    } catch (err) {
+      console.debug('[notes/yjs] getYDoc failed:', err?.message ?? err)
     }
 
     if (this._destroyed) return

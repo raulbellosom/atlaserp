@@ -173,17 +173,30 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
     savingRef.current = true
     pendingRef.current = null
     try {
-      await atlas.notes.update(note.id, snap, token)
-      queryClient.invalidateQueries({ queryKey: ['notes'] })
-      queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
-      if (ydoc) {
-        const stateB64 = bytesToBase64(Y.encodeStateAsUpdate(ydoc))
-        await atlas.notes.saveYDoc(note.id, stateB64, token)
+      try {
+        await atlas.notes.update(note.id, snap, token)
+        queryClient.invalidateQueries({ queryKey: ['notes'] })
+        queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
+      } catch (err) {
+        console.warn('[NoteEditor] content autosave failed:', err?.message)
+        // Keep the snapshot so the next edit (or the unmount flush) retries.
+        if (!pendingRef.current) pendingRef.current = snap
+        return
       }
-    } catch (err) {
-      console.warn('[NoteEditor] autosave failed:', err?.message)
-      // Keep the snapshot so the next edit (or the unmount flush) retries.
-      if (!pendingRef.current) pendingRef.current = snap
+      // Persist the Y.js state separately — a failure here (NOT a content
+      // failure) is exactly why a note can reload blank in the collaborative
+      // editor, so surface it loudly instead of hiding it.
+      if (ydoc) {
+        try {
+          const stateB64 = bytesToBase64(Y.encodeStateAsUpdate(ydoc))
+          await atlas.notes.saveYDoc(note.id, stateB64, token)
+        } catch (err) {
+          console.error(
+            '[NoteEditor] Y.js state save FAILED — note will reload blank:',
+            err?.message ?? err,
+          )
+        }
+      }
     } finally {
       savingRef.current = false
     }
@@ -334,12 +347,18 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
     const isOwner =
       Boolean(note?.owner_user_id) && note.owner_user_id === session?.user?.id
     if (!isOwner) return
-    // Seed when the collaborative doc is actually empty — NOT merely "the
-    // server had no state row". Old builds could persist a blank/truncated
-    // note_ydoc_state; those notes must still migrate from note.content.
-    // editor.isEmpty is true for a lone empty paragraph.
-    if (!editor.isEmpty) return
+    // Decide from the shared Y.Doc, which is ALREADY hydrated from the server
+    // state at this point — NOT from editor.isEmpty. y-prosemirror has not
+    // populated the ProseMirror view yet inside onCreate, so editor.isEmpty is
+    // a false positive here; trusting it re-seeds (or wipes) a note that
+    // actually has content. A non-empty fragment means "already has content".
+    const frag = ydoc.getXmlFragment('default')
+    if (frag.length > 0) {
+      console.debug('[notes/yjs] seed skipped — Y.Doc already has content', frag.length)
+      return
+    }
     if (!note.content) return
+    console.debug('[notes/yjs] seeding empty Y.Doc from note.content HTML')
     editor.commands.setContent(note.content)
     // Persist the migrated Y.js state immediately (skip the 1.5s autosave
     // debounce) so a guest opening the note right after sees the state and
