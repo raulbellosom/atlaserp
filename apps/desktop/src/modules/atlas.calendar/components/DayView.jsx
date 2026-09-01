@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useYearEvents } from '../hooks/useCalendarData'
 import {
@@ -26,7 +27,7 @@ export default function DayView({ onEventClick }) {
     focusDate,
     focusTimeSlot,
   } = useCalendarStore()
-  const dateStr = selectedDate || new Date().toISOString().slice(0, 10)
+  const dateStr = selectedDate || toLocalIso()
   const d = new Date(dateStr + 'T12:00:00')
   const year = d.getFullYear()
   const month = d.getMonth()

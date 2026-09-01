@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useYearEvents } from '../hooks/useCalendarData'
 import {
@@ -39,7 +40,7 @@ export default function WeekView({ onEventClick }) {
     focusDate,
     focusTimeSlot,
   } = useCalendarStore()
-  const days = getWeekDays(selectedDate || new Date().toISOString().slice(0, 10))
+  const days = getWeekDays(selectedDate || toLocalIso())
 
   const firstDay = days[0]
   const lastDay = days[6]

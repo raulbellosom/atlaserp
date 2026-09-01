@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCalendarStore } from "../stores/useCalendarStore";
 import { useYearEvents } from "../hooks/useCalendarData";
@@ -311,7 +312,7 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
     navigatePrev,
     navigateNext,
   } = useCalendarStore();
-  const ref = selectedDate || new Date().toISOString().slice(0, 10);
+  const ref = selectedDate || toLocalIso();
   const d = new Date(ref + "T12:00:00");
   const targetYear = d.getFullYear();
   const targetMonth = d.getMonth();

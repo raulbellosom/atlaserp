@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useState, useEffect, useRef } from "react";
 import { Calendar, MapPin, Video, Repeat } from "lucide-react";
 import {
@@ -50,7 +51,7 @@ function toLocalDatetime(isoStr) {
 
 function buildDefaultForm(defaultDate, defaultCalendarId, allCalendars) {
   const now = new Date();
-  const base = defaultDate || now.toISOString().slice(0, 10);
+  const base = defaultDate || toLocalIso(now);
   const calId =
     defaultCalendarId ||
     allCalendars.find((c) => c.isDefault)?.id ||
@@ -302,7 +303,7 @@ export default function EventFormModal({
               setForm((f) => {
                 const dateOnly =
                   f.startAt?.slice(0, 10) ??
-                  new Date().toISOString().slice(0, 10);
+                  toLocalIso();
                 return {
                   ...f,
                   allDay: v,

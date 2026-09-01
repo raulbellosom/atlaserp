@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useState, useRef, useEffect, useCallback } from "react";
 import { CalendarX } from "lucide-react";
 import { LoadingState } from "@atlas/ui";
@@ -41,7 +42,7 @@ function dateKeyUTC(d) {
 function addWeeks(dateStr, n) {
   const d = new Date(dateStr + "T12:00:00");
   d.setDate(d.getDate() + n * 7);
-  return d.toISOString().slice(0, 10);
+  return toLocalIso(d);
 }
 
 function groupByDate(events) {
@@ -62,7 +63,7 @@ export default function AgendaView({ onEventClick }) {
   const [weeksLoaded, setWeeksLoaded] = useState(3);
   const bottomRef = useRef(null);
 
-  const base = selectedDate || new Date().toISOString().slice(0, 10);
+  const base = selectedDate || toLocalIso();
   const baseYear = new Date(base + "T12:00:00").getFullYear();
   const rangeEnd = addWeeks(base, weeksLoaded);
   const endYear = new Date(rangeEnd + "T12:00:00").getFullYear();
