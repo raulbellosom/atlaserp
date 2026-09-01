@@ -23,7 +23,7 @@ import {
   moduleInstallSchema,
   setupInitializeSchema,
 } from "@atlas/validators";
-import { formatLogTimestamp, getConfiguredTimeZone } from "@atlas/core";
+import { formatLogTimestamp, getConfiguredTimeZone, toLocalIso } from "@atlas/core";
 import {
   getPermissionPresentation,
   groupPermissionsForUi,
@@ -2759,7 +2759,7 @@ app.post(
       }
 
       const buffer = await workbook.xlsx.writeBuffer();
-      const filename = `usuarios-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const filename = `usuarios-${toLocalIso()}.xlsx`;
       c.header(
         "Content-Type",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2866,7 +2866,7 @@ app.post(
         doc.on("error", reject);
       });
 
-      const filename = `usuarios-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const filename = `usuarios-${toLocalIso()}.pdf`;
       c.header("Content-Type", "application/pdf");
       c.header("Content-Disposition", `attachment; filename="${filename}"`);
       c.header("X-Atlas-Export-Count", String(users.length));
@@ -3724,7 +3724,7 @@ app.post(
       }
 
       const buffer = await workbook.xlsx.writeBuffer();
-      const filename = `contactos-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const filename = `contactos-${toLocalIso()}.xlsx`;
       c.header(
         "Content-Type",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -3867,7 +3867,7 @@ app.post(
 
       doc.end();
       const buffer = await done;
-      const filename = `contactos-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const filename = `contactos-${toLocalIso()}.pdf`;
       c.header("Content-Type", "application/pdf");
       c.header("Content-Disposition", `attachment; filename="${filename}"`);
       c.header("X-Atlas-Export-Count", String(contacts.length));
@@ -4017,7 +4017,7 @@ app.get(
       );
       c.header(
         "Content-Disposition",
-        `attachment; filename="colaboradores-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+        `attachment; filename="colaboradores-${toLocalIso()}.xlsx"`,
       );
       return new Response(buffer, { status: 200, headers: c.res.headers });
     } catch (err) {
@@ -4160,7 +4160,7 @@ app.get(
 
       doc.end();
       const buffer = await done;
-      const filename = `colaboradores-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const filename = `colaboradores-${toLocalIso()}.pdf`;
       c.header("Content-Type", "application/pdf");
       c.header("Content-Disposition", `attachment; filename="${filename}"`);
       c.header("X-Atlas-Export-Count", String(rows.length));

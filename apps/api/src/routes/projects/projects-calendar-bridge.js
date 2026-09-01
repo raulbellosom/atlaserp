@@ -91,6 +91,7 @@ export function createProjectsCalendarBridge({ prisma }) {
     try {
       // Use date-only (midnight UTC) to avoid timezone shift in all-day event display
       const toDateUTC = (d) => {
+        // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: all-day events are stored as UTC-midnight instants
         const s = new Date(d).toISOString().split("T")[0];
         return new Date(s + "T00:00:00.000Z");
       };

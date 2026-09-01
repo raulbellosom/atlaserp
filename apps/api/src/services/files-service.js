@@ -1,4 +1,5 @@
 ﻿import JSZip from "jszip";
+import { toLocalIso } from "@atlas/core";
 import { signedUrlWithVariant, publicUrlWithVariant } from "../lib/image-variants.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -557,7 +558,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         compressionOptions: { level: 6 },
       });
 
-      const zipFileName = `atlas-archivos-${new Date().toISOString().slice(0, 10)}.zip`;
+      const zipFileName = `atlas-archivos-${toLocalIso()}.zip`;
       const zipObjectKey = `${BULK_ZIP_FOLDER}/${sanitizeSegment(companyId, "company")}/${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 10)}.zip`;

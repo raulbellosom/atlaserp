@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import ExcelJS from "exceljs";
+import { toLocalIso } from "@atlas/core";
 import {
   createActivityService,
   ActivityServiceError,
@@ -180,7 +181,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
         }
 
         const buffer = await workbook.xlsx.writeBuffer();
-        const filename = `actividad-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const filename = `actividad-${toLocalIso()}.xlsx`;
         c.header(
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
