@@ -1,4 +1,5 @@
 // apps/desktop/src/modules/atlas.pfm/lib/format.js
+import { toLocalIso, toLocalMonth } from "../../../lib/localDate";
 
 const MONTHS_ES = [
   "ene",
@@ -38,30 +39,19 @@ export function percentDelta(current, base) {
   return Math.round(((Number(current) - b) / b) * 100);
 }
 
-// Local calendar date parts — NOT UTC. `toISOString()` is always UTC, which
-// rolls the day/month over 6h early in Mexico (UTC-6) and shows the wrong month.
-function localParts(d = new Date()) {
-  return {
-    y: d.getFullYear(),
-    m: String(d.getMonth() + 1).padStart(2, "0"),
-    d: String(d.getDate()).padStart(2, "0"),
-  };
-}
-
 export function currentMonthKey() {
-  const { y, m } = localParts();
-  return `${y}-${m}`;
+  return toLocalMonth();
 }
 
 export function shiftMonth(month, delta) {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: pure YYYY-MM arithmetic, no "now"
   return d.toISOString().slice(0, 7);
 }
 
 export function todayIso() {
-  const { y, m, d } = localParts();
-  return `${y}-${m}-${d}`;
+  return toLocalIso();
 }
 
 export const WALLET_KIND_LABEL = {
