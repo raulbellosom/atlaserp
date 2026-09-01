@@ -116,6 +116,7 @@ export class SupabaseYjsProvider {
         this._onStatus?.(status)
         if (status === 'SUBSCRIBED') {
           this.connected = true
+          console.info(`[notes/yjs] realtime connected: ${this._topic}`)
           // Catch every peer up with our full doc + awareness state. Y.js
           // updates are commutative/idempotent, so a full-state broadcast on
           // (re)connect is how late joiners and post-dropout clients converge.
