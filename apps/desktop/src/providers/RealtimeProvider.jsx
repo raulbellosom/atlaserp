@@ -88,6 +88,16 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'projects.task.updated' }, ({ payload }) => {
         dispatch('projects.task.updated', payload)
       })
+      .on('broadcast', { event: 'notes.note.updated' }, ({ payload }) => {
+        // Note metadata (cover, icon, background, title, folder) — the body
+        // itself syncs over the note's own Y.js channel. Refetch so the open
+        // note and the list reflect a collaborator's change immediately.
+        queryClient.invalidateQueries({ queryKey: ['notes'] })
+        if (payload?.noteId) {
+          queryClient.invalidateQueries({ queryKey: ['notes', payload.noteId] })
+        }
+        dispatch('notes.note.updated', payload)
+      })
       .subscribe()
 
     return () => { client.removeChannel(channel) }

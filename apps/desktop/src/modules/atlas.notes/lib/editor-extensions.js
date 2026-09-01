@@ -17,6 +17,47 @@ import { SlashCommand } from './extensions/SlashCommand.jsx'
 import { TrailingNode } from './extensions/TrailingNode.js'
 import { bodyPlaceholderText } from './placeholderText.js'
 
+// CollaborationCaret's default cursor builder renders an unstyled block <div>
+// with the user's name — with no matching CSS it shows as a full-width solid
+// bar. We render instead a thin caret line with a small circular avatar chip
+// (name on hover), Notion / Google-Docs style.
+function buildCollabCaret(user) {
+  const color = user?.color || '#f59e0b'
+  const name = user?.name || 'Colaborador'
+
+  const caret = document.createElement('span')
+  caret.className = 'atlas-yjs-caret'
+  caret.style.setProperty('--caret-color', color)
+
+  const chip = document.createElement('span')
+  chip.className = 'atlas-yjs-caret__chip'
+  chip.style.backgroundColor = color
+  chip.title = name
+
+  if (user?.avatarUrl) {
+    const img = document.createElement('img')
+    img.className = 'atlas-yjs-caret__img'
+    img.src = user.avatarUrl
+    img.alt = name
+    img.addEventListener('error', () => {
+      img.remove()
+      chip.textContent = name.trim().charAt(0).toUpperCase() || '?'
+    })
+    chip.appendChild(img)
+  } else {
+    chip.textContent = name.trim().charAt(0).toUpperCase() || '?'
+  }
+
+  caret.appendChild(chip)
+  return caret
+}
+
+// Remote text selection — a light wash instead of the default opaque-ish tint.
+function buildCollabSelection(user) {
+  const color = user?.color || '#f59e0b'
+  return { class: 'ProseMirror-yjs-selection', style: `background-color: ${color}22` }
+}
+
 export function buildExtensions({
   ydoc, provider, userColor, userName, userId, userAvatarUrl,
   readOnly = false, noteId, token,
@@ -82,6 +123,8 @@ export function buildExtensions({
           color: userColor ?? '#f59e0b',
           avatarUrl: userAvatarUrl ?? null,
         },
+        render: buildCollabCaret,
+        selectionRender: buildCollabSelection,
       }),
     )
   }

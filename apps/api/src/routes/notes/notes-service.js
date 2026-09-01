@@ -331,7 +331,10 @@ export function createNotesService({ prisma, broadcaster = null }) {
       throw new NotesServiceError("Nota no encontrada.", 404);
     }
 
-    // Broadcast to collaborators
+    // Broadcast to every collaborator so metadata (cover, icon, background,
+    // title, folder...) shows up live for them — the note body syncs through
+    // its own Y.js channel, but these columns only move on a refetch. Include
+    // the OWNER (a guest's edit must reach them too) and drop the actor.
     if (broadcaster) {
       try {
         const shareRows = await prisma.$queryRaw`
@@ -339,9 +342,16 @@ export function createNotesService({ prisma, broadcaster = null }) {
           FROM note_shares
           WHERE note_id = ${noteId}
         `;
-        const collaboratorIds = shareRows.map((r) => r.shared_with_user_id.toString());
-        if (collaboratorIds.length > 0) {
-          await broadcaster.broadcastToUsers(collaboratorIds, "notes.note.updated", { noteId });
+        const recipientIds = [
+          ...shareRows.map((r) => r.shared_with_user_id.toString()),
+          rows[0].owner_user_id?.toString(),
+        ].filter((id) => id && id !== String(userId));
+        if (recipientIds.length > 0) {
+          await broadcaster.broadcastToUsers(
+            [...new Set(recipientIds)],
+            "notes.note.updated",
+            { noteId },
+          );
         }
       } catch (broadcastErr) {
         console.warn('[notes] broadcast failed after updateNote:', broadcastErr?.message ?? broadcastErr)
