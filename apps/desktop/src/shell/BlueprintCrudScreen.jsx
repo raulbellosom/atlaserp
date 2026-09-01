@@ -893,13 +893,14 @@ export function BlueprintCrudScreen() {
         <div className="p-6">
           <Card className="border-amber-400/40 bg-amber-50/60">
             <CardHeader>
-              <CardTitle>Componente de módulo no disponible (requiere rebuild)</CardTitle>
+              <CardTitle>Componente dinámico no disponible</CardTitle>
               <p className="text-sm text-muted-foreground">
                 El componente{' '}
                 <code className="font-mono text-xs bg-[hsl(var(--muted))] px-1.5 py-0.5 rounded">
                   {componentKey ?? 'desconocido'}
                 </code>{' '}
-                no está en el bundle actual. Reinstala o reconstruye la app para incluirlo.
+                no pudo cargarse o registrarse. Reintenta la carga del bundle; si el
+                problema continúa, revisa el error específico en la consola.
               </p>
               <div className="pt-2">
                 <Button onClick={retryModuleComponents} disabled={isRepairingComponents}>
@@ -1055,10 +1056,12 @@ export function BlueprintCrudScreen() {
           <Card className="border-amber-400/40 bg-amber-50/60">
             <CardHeader>
               <CardTitle>
-                Componentes de m&oacute;dulo no disponibles (requiere rebuild)
+                Componentes din&aacute;micos no disponibles
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Se detectaron componentes referenciados por blueprints que no est&aacute;n en el bundle actual. Reinstala o reconstruye la app para incluirlos.
+                Atlas no pudo cargar o registrar algunos componentes referenciados por
+                los blueprints. Reintenta la carga y revisa la consola si el problema
+                contin&uacute;a.
               </p>
               <div className="pt-2">
                 <Button onClick={retryModuleComponents} disabled={isRepairingComponents}>

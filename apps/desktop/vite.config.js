@@ -26,9 +26,11 @@ const MODULE_EXTERNALS_IMPORTMAP = {
   "recharts":               "ext-recharts",
 };
 
-// Dev-mode: inject importmap that resolves bare specifiers via Vite's /@id/ virtual
-// module system.  Only the dynamically-loaded AME3 bundles use this importmap;
-// Vite-processed source files have their imports transformed at serve time.
+// Dev-mode: route bare specifiers through the same explicit shim entry points
+// used by production. Pointing dynamic bundles directly at Vite's /@id/ URLs
+// is unreliable for CommonJS packages such as Sonner: Vite can expose only a
+// default export there, so named imports like `toast` fail before register()
+// gets a chance to populate the module component registry.
 function atlasDevImportmapPlugin() {
   return {
     name: "atlas-module-externals-importmap-dev",
@@ -37,10 +39,12 @@ function atlasDevImportmapPlugin() {
       order: "pre",
       handler() {
         const imports = Object.fromEntries(
-          Object.keys(MODULE_EXTERNALS_IMPORTMAP).map((specifier) => [
-            specifier,
-            `/@id/${specifier}`,
-          ]),
+          Object.entries(MODULE_EXTERNALS_IMPORTMAP).map(
+            ([specifier, shimName]) => [
+              specifier,
+              `/src/shims/${shimName}.js`,
+            ],
+          ),
         );
         return [
           {
