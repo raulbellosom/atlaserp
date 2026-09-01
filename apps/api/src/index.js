@@ -1554,7 +1554,10 @@ app.get("/memberships/me", authMiddleware, async (c) => {
 app.get(
   "/instance/config",
   authMiddleware,
-  requirePermission("core.instance.read"),
+  // Instance name / timezone / currency are needed by the app shell for every
+  // authenticated user (tab title, date + money formatting) and expose nothing
+  // sensitive. Only the PUT below is gated behind core.instance.update.
+  requirePermission("profile.self.read"),
   async (c) => {
     try {
       const records = await prisma.instanceConfig.findMany({
