@@ -96,6 +96,7 @@ export class SupabaseYjsProvider {
       .on('broadcast', { event: 'ydoc.update' }, ({ payload }) => {
         try {
           Y.applyUpdate(this.ydoc, base64ToBytes(payload.update), 'broadcast')
+          console.debug('[notes/yjs] applied remote ydoc.update')
         } catch (err) {
           console.warn('[notes/yjs] bad ydoc.update payload:', err?.message ?? err)
         }
