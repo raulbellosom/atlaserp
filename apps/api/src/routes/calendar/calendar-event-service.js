@@ -74,6 +74,7 @@ function expandRecurrence(event, rangeStart, rangeEnd) {
       const instanceEnd = new Date(current.getTime() + duration)
       instances.push({
         ...event,
+        // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: internal recurrence-instance id, UTC keeps it stable across zone config
         id: `${event.id}_${current.toISOString().slice(0, 10).replace(/-/g, '')}`,
         startAt: new Date(current),
         endAt: instanceEnd,

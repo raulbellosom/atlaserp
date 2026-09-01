@@ -23,7 +23,12 @@ import {
   moduleInstallSchema,
   setupInitializeSchema,
 } from "@atlas/validators";
-import { formatLogTimestamp, getConfiguredTimeZone, toLocalIso } from "@atlas/core";
+import {
+  formatLogTimestamp,
+  getConfiguredTimeZone,
+  toLocalIso,
+  formatLocalDateTime,
+} from "@atlas/core";
 import {
   getPermissionPresentation,
   groupPermissionsForUi,
@@ -2737,7 +2742,8 @@ app.post(
           enabled: user.enabled ? "Activo" : "Inactivo",
           phone: user.phone ?? "",
           birthDate: user.birthDate
-            ? new Date(user.birthDate).toISOString().slice(0, 10)
+            ? // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date calendar value
+              new Date(user.birthDate).toISOString().slice(0, 10)
             : "",
           gender: user.gender ?? "",
           country: user.country ?? "",
@@ -2750,10 +2756,7 @@ app.post(
           postalCode: user.postalCode ?? "",
           bio: user.bio ?? "",
           createdAt: user.createdAt
-            ? new Date(user.createdAt)
-                .toISOString()
-                .slice(0, 19)
-                .replace("T", " ")
+            ? formatLocalDateTime(user.createdAt)
             : "",
         });
       }
@@ -3715,10 +3718,7 @@ app.post(
           taxId: contact.taxId ?? "",
           enabled: contact.enabled ? "Activo" : "Inactivo",
           createdAt: contact.createdAt
-            ? new Date(contact.createdAt)
-                .toISOString()
-                .slice(0, 19)
-                .replace("T", " ")
+            ? formatLocalDateTime(contact.createdAt)
             : "",
         });
       }

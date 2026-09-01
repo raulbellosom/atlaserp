@@ -4,6 +4,7 @@ import { isTableNotFoundError, PfmServiceError, toPlainNumber } from "./service-
 const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
 
 function isoDay(d) {
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: yield accrual runs on UTC-anchored ISO days (cursor-guarded)
   return d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
 }
 function dateUTC(iso) {
@@ -12,6 +13,7 @@ function dateUTC(iso) {
 function addDays(iso, n) {
   const d = dateUTC(iso);
   d.setUTCDate(d.getUTCDate() + n);
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: addDays operates on UTC-anchored ISO days
   return d.toISOString().slice(0, 10);
 }
 function round2(n) {

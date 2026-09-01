@@ -43,6 +43,7 @@ function metricRetentionCutoff(value) {
 }
 
 function dateKey(value) {
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: growth analytics buckets by UTC day (consistent across workers + service)
   return value.toISOString().slice(0, 10)
 }
 

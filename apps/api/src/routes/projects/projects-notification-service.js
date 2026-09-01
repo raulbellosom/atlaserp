@@ -1,3 +1,4 @@
+import { toLocalIso } from '@atlas/core'
 import { createNotificationService } from '../../services/notification-service.js'
 
 export function createProjectsNotificationService({ prisma, notificationService }) {
@@ -237,7 +238,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
   async function processTasksDueSoon() {
     const now = new Date()
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    const dateKey = now.toISOString().slice(0, 10)
+    const dateKey = toLocalIso(now)
 
     const assignments = await prisma.projectTaskAssignee.findMany({
       where: {

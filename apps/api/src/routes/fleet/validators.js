@@ -8,6 +8,7 @@ function isValidIsoDate(value) {
   if (!ISO_DATE_REGEX.test(value)) return false
   const date = new Date(`${value}T00:00:00.000Z`)
   if (Number.isNaN(date.getTime())) return false
+  // eslint-disable-next-line no-restricted-syntax -- round-trips a UTC-constructed date against the input string
   return date.toISOString().slice(0, 10) === value
 }
 

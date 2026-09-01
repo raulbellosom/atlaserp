@@ -348,6 +348,7 @@ export function createHrService({ prisma, activityBridge }) {
             department: r.department ?? "",
             status: r.status,
             employment_type: r.employmentType ?? "",
+            // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date export value
             hire_date: r.hireDate ? r.hireDate.toISOString().slice(0, 10) : "",
             work_email: r.workEmail ?? "",
             personal_email: r.personalEmail ?? "",
@@ -355,7 +356,8 @@ export function createHrService({ prisma, activityBridge }) {
             work_location: r.workLocation ?? "",
             manager_name: r.managerName ?? "",
             termination_date: r.terminationDate
-              ? r.terminationDate.toISOString().slice(0, 10)
+              ? // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date export value
+                r.terminationDate.toISOString().slice(0, 10)
               : "",
             emergency_contact_name: r.emergencyContactName ?? "",
             emergency_contact_phone: r.emergencyContactPhone ?? "",

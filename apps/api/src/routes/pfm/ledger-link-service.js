@@ -98,6 +98,7 @@ function normalizeLedgerRow(r, walletId) {
     direction: isIncome ? "INCOME" : "EXPENSE",
     amount: isIncome ? deposito : retiro,
     occurredOn:
+      // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date row value
       fecha instanceof Date ? fecha.toISOString().slice(0, 10) : String(fecha).slice(0, 10),
     merchant: r.nombre ?? null,
     note: r.enr_note ?? null,

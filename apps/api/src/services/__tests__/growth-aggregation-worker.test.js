@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- test asserts UTC day math of the code under test */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 

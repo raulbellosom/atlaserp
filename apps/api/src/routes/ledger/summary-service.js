@@ -95,6 +95,7 @@ export function createSummaryService({ prisma }) {
           net:             totalDep - totalRet,
         },
         balance_series: seriesRows.map((r) => ({
+          // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date row value
           fecha:   r.fecha instanceof Date ? r.fecha.toISOString().slice(0, 10) : String(r.fecha).slice(0, 10),
           balance: Number(r.balance),
         })),

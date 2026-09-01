@@ -6,6 +6,7 @@ const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 function isValidIsoDate(value) {
   if (!ISO_DATE_REGEX.test(value)) return false;
   const d = new Date(`${value}T00:00:00.000Z`);
+  // eslint-disable-next-line no-restricted-syntax -- round-trips a UTC-constructed date against the input string
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 

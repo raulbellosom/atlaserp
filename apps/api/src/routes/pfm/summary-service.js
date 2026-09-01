@@ -1,4 +1,5 @@
 // apps/api/src/routes/pfm/summary-service.js
+import { toLocalIso } from "@atlas/core";
 import { PfmServiceError, isTableNotFoundError, toPlainNumber } from "./service-helpers.js";
 
 const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
@@ -118,7 +119,7 @@ export function createSummaryService({ prisma }) {
 
   async function getUpcoming({ companyId, actorId, days = 14 }) {
     if (!actorId) throw new PfmServiceError("Se requiere un usuario autenticado.", 401);
-    const horizon = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+    const horizon = toLocalIso(new Date(Date.now() + days * 86400000));
     try {
       const rows = await prisma.$queryRaw`
         SELECT m.id, m.wallet_id, w.name AS wallet_name, w.currency,

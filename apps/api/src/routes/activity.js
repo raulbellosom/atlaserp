@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import ExcelJS from "exceljs";
-import { toLocalIso } from "@atlas/core";
+import { toLocalIso, formatLocalDateTime } from "@atlas/core";
 import {
   createActivityService,
   ActivityServiceError,
@@ -162,12 +162,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
               "Sistema"
             : "Sistema";
           sheet.addRow({
-            createdAt: a.createdAt
-              ? new Date(a.createdAt)
-                  .toISOString()
-                  .slice(0, 19)
-                  .replace("T", " ")
-              : "",
+            createdAt: a.createdAt ? formatLocalDateTime(a.createdAt) : "",
             severity: a.severity ?? "",
             type: a.type ?? "",
             actor: actorName,

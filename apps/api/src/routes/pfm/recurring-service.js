@@ -6,6 +6,7 @@ const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
 const MATERIALIZE_CAP = 24; // safety bound on occurrences created per rule per run
 
 function dayUTC(d) {
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: recurrence day math is UTC-anchored
   const s = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
   return new Date(`${s}T00:00:00.000Z`);
 }

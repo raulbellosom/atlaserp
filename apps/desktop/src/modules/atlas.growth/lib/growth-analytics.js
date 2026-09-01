@@ -1,4 +1,3 @@
-import { toLocalIso } from '../../../lib/localDate.js';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const ANALYTICS_TABS = [
@@ -20,7 +19,8 @@ const TAB_KEYS = new Set(ANALYTICS_TABS.map((tab) => tab.value));
 const RANGE_KEYS = new Set(ANALYTICS_RANGE_OPTIONS.map((range) => range.value));
 
 function dateKey(value) {
-  return toLocalIso(value);
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: growth analytics buckets by UTC day (matches the backend workers/service)
+  return value.toISOString().slice(0, 10);
 }
 
 function presetDates(days, now) {

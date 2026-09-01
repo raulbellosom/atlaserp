@@ -33,11 +33,9 @@ export default [
       },
     },
     rules: {
-      // 'warn' for now: ~80 pre-existing call sites need a per-file audit
-      // (many are deliberately UTC — recurrence math, instant serialization,
-      // DB day-bucketing). Flip to 'error' once the backlog is cleared.
+      // Every deliberate-UTC site carries an inline `eslint-disable ... -- <reason>`.
       "no-restricted-syntax": [
-        "warn",
+        "error",
         {
           selector:
             "CallExpression[callee.property.name='slice'][callee.object.callee.property.name='toISOString']",

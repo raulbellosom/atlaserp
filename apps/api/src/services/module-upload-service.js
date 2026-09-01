@@ -21,6 +21,13 @@ function isSafePath(targetBase, relativeEntryPath) {
   return resolved === targetBase || resolved.startsWith(targetBase + path.sep);
 }
 
+// ZIP paths are specified with forward slashes, but common Windows tooling such
+// as Compress-Archive can emit backslashes. Normalize before structure and
+// traversal checks so those archives remain portable and equally protected.
+function normalizeZipPath(entryName) {
+  return entryName.replaceAll('\\', '/');
+}
+
 // Returns '' if module.manifest.js is at the ZIP root.
 // Returns 'folderName/' if the ZIP has a single root folder containing the manifest.
 // Returns null if the structure is ambiguous (reject).
@@ -60,19 +67,27 @@ export async function validateAndExtractZip(key, fileBuffer, modulesDir) {
     throw Object.assign(new Error('INVALID_ZIP'), { statusCode: 422 });
   }
 
-  const filenames = Object.keys(zip.files).filter(n => !zip.files[n].dir);
+  const fileEntries = Object.entries(zip.files)
+    .filter(([, entry]) => !entry.dir)
+    .map(([name, entry]) => ({ name, normalizedName: normalizeZipPath(name), entry }));
+  const filenames = fileEntries.map(({ normalizedName }) => normalizedName);
+  if (new Set(filenames).size !== filenames.length) {
+    throw Object.assign(new Error('DUPLICATE_ZIP_ENTRY'), { statusCode: 422 });
+  }
   const prefix = detectRootPrefix(filenames);
 
   if (prefix === null) {
     throw Object.assign(new Error('AMBIGUOUS_ZIP_STRUCTURE'), { statusCode: 422 });
   }
 
-  const manifestEntry = zip.files[prefix + 'module.manifest.js'];
-  if (!manifestEntry) {
+  const manifestFile = fileEntries.find(
+    ({ normalizedName }) => normalizedName === prefix + 'module.manifest.js',
+  );
+  if (!manifestFile) {
     throw Object.assign(new Error('MISSING_MANIFEST'), { statusCode: 422 });
   }
 
-  const manifestContent = await manifestEntry.async('text');
+  const manifestContent = await manifestFile.entry.async('text');
   const manifestKey = extractManifestKey(manifestContent);
   if (!manifestKey) {
     throw Object.assign(new Error('MANIFEST_KEY_UNREADABLE'), { statusCode: 422 });
@@ -88,9 +103,8 @@ export async function validateAndExtractZip(key, fileBuffer, modulesDir) {
   let totalUncompressed = 0;
 
   // Validate all paths and accumulate uncompressed size before writing anything
-  for (const [name, entry] of Object.entries(zip.files)) {
-    if (entry.dir) continue;
-    const relative = prefix ? name.slice(prefix.length) : name;
+  for (const { name, normalizedName, entry } of fileEntries) {
+    const relative = prefix ? normalizedName.slice(prefix.length) : normalizedName;
     if (!isSafePath(targetBase, relative)) {
       throw Object.assign(new Error('PATH_TRAVERSAL_DETECTED'), {
         statusCode: 422,
@@ -111,9 +125,8 @@ export async function validateAndExtractZip(key, fileBuffer, modulesDir) {
 
   let fileCount = 0;
   try {
-    for (const [name, entry] of Object.entries(zip.files)) {
-      if (entry.dir) continue;
-      const relative = prefix ? name.slice(prefix.length) : name;
+    for (const { normalizedName, entry } of fileEntries) {
+      const relative = prefix ? normalizedName.slice(prefix.length) : normalizedName;
       // Convert forward slashes to OS separator (Windows compatibility)
       const dest = path.resolve(targetBase, relative.split('/').join(path.sep));
       await fs.mkdir(path.dirname(dest), { recursive: true });

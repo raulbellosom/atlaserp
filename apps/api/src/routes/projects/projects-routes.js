@@ -603,7 +603,9 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
           t.status?.name ?? '',
           PRIORITY_LABELS[t.priority] ?? '',
           assigneeNames,
+          // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date export value
           t.startDate ? new Date(t.startDate).toISOString().slice(0, 10) : '',
+          // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date export value
           t.dueDate ? new Date(t.dueDate).toISOString().slice(0, 10) : '',
           t.description ?? '',
         ]

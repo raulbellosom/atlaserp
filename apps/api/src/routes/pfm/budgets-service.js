@@ -1,10 +1,12 @@
 // apps/api/src/routes/pfm/budgets-service.js
 import { PfmServiceError, isTableNotFoundError, toPlainNumber } from "./service-helpers.js";
 
+import { toLocalMonth } from "@atlas/core";
+
 const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
 
 function monthStartOf(now = new Date()) {
-  return `${new Date(now).toISOString().slice(0, 7)}-01`;
+  return `${toLocalMonth(now)}-01`;
 }
 
 export function createBudgetsService({ prisma, notificationService = null }) {

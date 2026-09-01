@@ -13,6 +13,7 @@
 const FREQS = new Set(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]);
 
 function dayUTC(d) {
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: recurrence day math is UTC-anchored
   const s = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
   return new Date(`${s}T00:00:00.000Z`);
 }

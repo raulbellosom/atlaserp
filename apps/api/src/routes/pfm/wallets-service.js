@@ -306,6 +306,7 @@ function normalizeWalletRow(row) {
     lastAccruedOn: (() => {
       const v = row.last_accrued_on ?? row.lastAccruedOn ?? null;
       if (!v) return null;
+      // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date lastAccruedOn
       return v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
     })(),
     creditReminderEventId: row.credit_reminder_event_id ?? row.creditReminderEventId ?? null,
@@ -337,6 +338,7 @@ export function computeCreditCycle(wallet, movements, now = new Date()) {
   const posted = (movements ?? []).filter((m) => m.status === undefined || m.status === "POSTED");
   const dayOf = (m) => {
     const v = m.occurredOn ?? m.occurred_on;
+    // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date movement date, compared against a UTC statement cut
     const iso = v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
     return new Date(`${iso}T00:00:00.000Z`);
   };
@@ -352,6 +354,7 @@ export function computeCreditCycle(wallet, movements, now = new Date()) {
     statementDay: wallet.statementDay,
     paymentDueDay: wallet.paymentDueDay ?? null,
     creditLimit,
+    // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: statement-cut date is UTC-constructed from statementDay
     lastStatementDate: lastCut.toISOString().slice(0, 10),
     totalOwed,
     periodSpend,

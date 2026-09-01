@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- test asserts UTC day math of the code under test */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createInvestmentsService } from "../investments-service.js";

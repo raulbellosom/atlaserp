@@ -191,6 +191,7 @@ function normalizeMovement(row) {
     amount: toPlainNumber(row.amount),
     occurredOn:
       occurred instanceof Date
+        // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date occurredOn
         ? occurred.toISOString().slice(0, 10)
         : String(occurred).slice(0, 10),
     note: row.note ?? null,
