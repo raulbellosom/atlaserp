@@ -1,6 +1,7 @@
 // apps/api/src/routes/pfm/__tests__/wallets-service.test.js
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { toLocalIso } from "@atlas/core";
 import { createWalletsService } from "../wallets-service.js";
 import { PfmServiceError } from "../service-helpers.js";
 
@@ -101,10 +102,10 @@ describe("wallets-service — createWallet INVESTMENT", () => {
     });
     assert.equal(Number(createArgs.data.openingBalance), 10000);
     assert.equal(Number(createArgs.data.expectedRate), 0.11);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = toLocalIso();
     const stored =
       createArgs.data.lastAccruedOn instanceof Date
-        ? createArgs.data.lastAccruedOn.toISOString().slice(0, 10)
+        ? toLocalIso(createArgs.data.lastAccruedOn)
         : String(createArgs.data.lastAccruedOn).slice(0, 10);
     assert.equal(stored, today);
   });

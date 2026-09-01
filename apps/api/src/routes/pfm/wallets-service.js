@@ -1,4 +1,5 @@
 // apps/api/src/routes/pfm/wallets-service.js
+import { toLocalIso, toLocalMonth } from "@atlas/core";
 import {
   PfmServiceError,
   isTableNotFoundError,
@@ -84,7 +85,7 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
         wallet.creditCycle = computeCreditCycle(wallet, movs);
       }
       if (wallet.kind === "INVESTMENT") {
-        const monthStart = `${new Date().toISOString().slice(0, 7)}-01`;
+        const monthStart = `${toLocalMonth()}-01`;
         const agg = await prisma.pfmMovement.aggregate({
           _sum: { amount: true },
           where: {
@@ -155,7 +156,7 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
       const openingBalance = isCredit
         ? -(data.openingUsed ?? 0)
         : (data.openingBalance ?? 0);
-      const todayDate = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+      const todayDate = new Date(`${toLocalIso()}T00:00:00.000Z`);
       const wallet = await prisma.pfmWallet.create({
         data: {
           companyId,

@@ -35,7 +35,7 @@ pnpm db:reset         # migrate reset --force + seed (destructive - wipes data)
 
 # Build and lint
 pnpm build            # build all packages/apps
-pnpm lint             # lint all packages/apps
+pnpm lint             # ESLint (root eslint.config.js): guardrail rule banning local-date-from-toISOString(); use @atlas/core toLocalIso/toLocalMonth. `pnpm lint:packages` runs the per-package stubs.
 
 # Tests (Node.js built-in test runner — no Vitest/Jest)
 node --test packages/module-engine/src/__tests__/          # module-engine unit tests

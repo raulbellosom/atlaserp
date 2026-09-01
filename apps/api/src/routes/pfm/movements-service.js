@@ -1,4 +1,5 @@
 // apps/api/src/routes/pfm/movements-service.js
+import { toLocalIso } from "@atlas/core";
 import { PfmServiceError, isTableNotFoundError, toPlainNumber } from "./service-helpers.js";
 
 const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
@@ -47,7 +48,7 @@ export function createMovementsService({ prisma, wallets }) {
     }
     const occurredOn = data.occurredOn
       ? new Date(`${data.occurredOn}T00:00:00.000Z`)
-      : new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`);
+      : new Date(`${toLocalIso()}T00:00:00.000Z`);
     try {
       const created = await prisma.pfmMovement.create({
         data: {

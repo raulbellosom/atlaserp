@@ -1,5 +1,6 @@
 // apps/api/src/routes/pfm/summary-routes.js
 import { Hono } from "hono";
+import { toLocalMonth } from "@atlas/core";
 import { createSummaryService } from "./summary-service.js";
 import { PfmServiceError, getCompanyId, getActorId } from "./service-helpers.js";
 
@@ -10,7 +11,7 @@ function handleError(c, err, fallback) {
 }
 
 function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  return toLocalMonth();
 }
 
 export function createSummaryRouter({ prisma, requireAnyPermission }) {
