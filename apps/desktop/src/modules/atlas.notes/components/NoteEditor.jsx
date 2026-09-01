@@ -50,7 +50,7 @@ function colorForUser(seed) {
 // editor instance would outlive the note it was built for. Keying the surface
 // by note.id and gating on the engine fixes both.
 export function NoteEditor({ note, readOnly = false, scrollable = true }) {
-  const { session } = useAuth()
+  const { session, userProfile } = useAuth()
   const token = session?.access_token
 
   // Collaboration only runs for an authenticated, editable note. The public
@@ -106,6 +106,7 @@ export function NoteEditor({ note, readOnly = false, scrollable = true }) {
         scrollable={scrollable}
         token={token}
         session={session}
+        userProfile={userProfile}
         engine={null}
       />
     )
@@ -125,6 +126,7 @@ export function NoteEditor({ note, readOnly = false, scrollable = true }) {
       scrollable={scrollable}
       token={token}
       session={session}
+      userProfile={userProfile}
       engine={engine}
     />
   )
@@ -149,7 +151,7 @@ function EditorLoading({ scrollable }) {
 // Everything below is a single editor instance for one note. It is mounted with
 // key={note.id} by NoteEditor, so every hook/ref here is scoped to one note and
 // torn down cleanly on switch.
-function NoteEditorSurface({ note, readOnly, scrollable, token, session, engine }) {
+function NoteEditorSurface({ note, readOnly, scrollable, token, session, userProfile, engine }) {
   const queryClient = useQueryClient()
   const containerRef = useRef(null)
   const ydoc = engine?.ydoc ?? null
@@ -288,10 +290,16 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, engine 
         ydoc,
         provider,
         userName:
-          session?.user?.user_metadata?.full_name ?? session?.user?.email ?? 'Usuario',
+          userProfile?.displayName ??
+          session?.user?.user_metadata?.full_name ??
+          session?.user?.email ??
+          'Usuario',
         userColor: colorForUser(session?.user?.id ?? session?.user?.email),
         userId: session?.user?.id ?? null,
-        userAvatarUrl: session?.user?.user_metadata?.avatar_url ?? null,
+        // On the self-hosted setup the avatar lives in FileAsset, surfaced as a
+        // signed URL on /user/me (userProfile.avatarUrl) — user_metadata is empty.
+        userAvatarUrl:
+          userProfile?.avatarUrl ?? session?.user?.user_metadata?.avatar_url ?? null,
         readOnly,
         noteId: note.id,
         token,
@@ -299,7 +307,17 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, engine 
       DrawingBlock,
       AnnotatableImage,
     ],
-    [ydoc, provider, readOnly, note.id, token, session?.user?.id, session?.user?.email],
+    [
+      ydoc,
+      provider,
+      readOnly,
+      note.id,
+      token,
+      session?.user?.id,
+      session?.user?.email,
+      userProfile?.avatarUrl,
+      userProfile?.displayName,
+    ],
   )
 
   // When Collaboration is active the Y.Doc is the single source of truth, so
@@ -309,12 +327,23 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, engine 
   function seedIfNeeded({ editor }) {
     if (!engine || !ydoc) return
     if (engine.hadServerState) return
+    // Only the OWNER migrates the legacy HTML into the shared Y.Doc. If every
+    // client seeded, each would insert its own copy of the same paragraphs —
+    // the doc ends up holding the content N times (this is the "self-
+    // duplication" and the owner/guest divergence). Guests wait for the
+    // owner's persisted Y.js state instead.
+    const isOwner =
+      Boolean(note?.owner_user_id) && note.owner_user_id === session?.user?.id
+    if (!isOwner) return
     const frag = ydoc.getXmlFragment('default')
     if (frag.length > 0) return
     if (!note.content) return
-    // emitUpdate defaults true → schedules an autosave that persists the
-    // migrated content (and the Y.js state) to the server.
     editor.commands.setContent(note.content)
+    // Persist the migrated Y.js state immediately (skip the 1.5s autosave
+    // debounce) so a guest opening the note right after sees hadServerState
+    // and never runs its own seed.
+    clearTimeout(saveTimerRef.current)
+    flushSave()
   }
 
   const editorProvider = (
