@@ -1,5 +1,5 @@
 // apps/desktop/src/modules/atlas.pfm/lib/format.js
-import { toLocalIso, toLocalMonth } from "../../../lib/localDate";
+import { toLocalIso, toLocalMonth } from "../../../lib/localDate.js";
 
 const MONTHS_ES = [
   "ene",
