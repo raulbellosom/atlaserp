@@ -118,10 +118,12 @@ function fromEmployee(row) {
     employmentType: row?.employmentType ?? "",
     workLocation: row?.workLocation ?? "",
     hireDate: row?.hireDate
-      ? new Date(row.hireDate).toISOString().slice(0, 10)
+      ? // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date calendar value
+        new Date(row.hireDate).toISOString().slice(0, 10)
       : "",
     terminationDate: row?.terminationDate
-      ? new Date(row.terminationDate).toISOString().slice(0, 10)
+      ? // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date calendar value
+        new Date(row.terminationDate).toISOString().slice(0, 10)
       : "",
     status: row?.status ?? "active",
     notesMarkdown: row?.notesMarkdown ?? "",

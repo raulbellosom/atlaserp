@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
@@ -180,7 +181,7 @@ export default function UsersScreen() {
           const ids = selectedRows.map((row) => row.id).filter(Boolean);
           if (!ids.length) return;
           const blob = await atlas.identity.exportUsersExcel(ids, token);
-          downloadBlob(blob, `usuarios-${new Date().toISOString().slice(0, 10)}.xlsx`);
+          downloadBlob(blob, `usuarios-${toLocalIso()}.xlsx`);
           toast.success("Excel generado");
         } catch {
           toast.error("No se pudo exportar el archivo Excel");
@@ -196,7 +197,7 @@ export default function UsersScreen() {
           const ids = selectedRows.map((row) => row.id).filter(Boolean);
           if (!ids.length) return;
           const blob = await atlas.identity.exportUsersPdf(ids, token);
-          downloadBlob(blob, `usuarios-${new Date().toISOString().slice(0, 10)}.pdf`);
+          downloadBlob(blob, `usuarios-${toLocalIso()}.pdf`);
           toast.success("PDF generado");
         } catch {
           toast.error("No se pudo generar el PDF");

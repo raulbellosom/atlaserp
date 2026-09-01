@@ -193,6 +193,7 @@ function normalizeTimestamp(value) {
 
 function normalizeDate(value) {
   if (!value) return null
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: local SQLite cache mirrors the server's date representation
   if (value instanceof Date) return value.toISOString().slice(0, 10)
   return String(value).slice(0, 10)
 }

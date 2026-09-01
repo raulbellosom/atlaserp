@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 // apps/desktop/src/modules/atlas.ledger/screens/SpreadsheetRegister.jsx
 import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -37,7 +38,7 @@ function emptyRow(accountId) {
     _dirty: false,
     id: null,
     account_id: accountId,
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: toLocalIso(),
     tipo_id: null,
     numero: '',
     nombre: '',

@@ -37,6 +37,7 @@ function toDateInputValue(value) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
+  // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: birthDate is a calendar date (@db.Date, stored at UTC midnight)
   return date.toISOString().slice(0, 10);
 }
 

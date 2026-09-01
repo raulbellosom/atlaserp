@@ -164,7 +164,8 @@ export default function UserEditorScreen() {
     birthDate:
       draft?.birthDate ??
       (user?.birthDate
-        ? new Date(user.birthDate).toISOString().slice(0, 10)
+        ? // eslint-disable-next-line no-restricted-syntax -- deliberate UTC: @db.Date calendar value
+          new Date(user.birthDate).toISOString().slice(0, 10)
         : ""),
     gender: draft?.gender ?? user?.gender ?? "",
     bio: draft?.bio ?? user?.bio ?? "",

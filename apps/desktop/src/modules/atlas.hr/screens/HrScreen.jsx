@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../../lib/localDate.js';
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AtlasTable, Button, ErrorState, LoadingState, PageHeader } from "@atlas/ui";
@@ -113,7 +114,7 @@ export default function HrScreen() {
         try {
           const ids = selectedRows.map((r) => r.id).filter(Boolean);
           const blob = await atlas.hr.exportEmployeesExcel(ids, token);
-          downloadBlob(blob, `colaboradores-${new Date().toISOString().slice(0, 10)}.xlsx`);
+          downloadBlob(blob, `colaboradores-${toLocalIso()}.xlsx`);
           toast.success("Excel generado");
         } catch {
           toast.error("No se pudo exportar el archivo Excel.");
@@ -127,7 +128,7 @@ export default function HrScreen() {
         try {
           const ids = selectedRows.map((r) => r.id).filter(Boolean);
           const blob = await atlas.hr.exportEmployeesPdf(ids, token);
-          downloadBlob(blob, `colaboradores-${new Date().toISOString().slice(0, 10)}.pdf`);
+          downloadBlob(blob, `colaboradores-${toLocalIso()}.pdf`);
           toast.success("PDF generado");
         } catch {
           toast.error("No se pudo generar el PDF.");

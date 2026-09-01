@@ -1,4 +1,5 @@
 import { Download, X } from "lucide-react";
+import { toLocalIso } from "@atlas/core";
 import { Button } from "../components/Button.jsx";
 
 function getByPath(input, path) {
@@ -45,7 +46,7 @@ function exportCsv(rows, columns) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `export-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `export-${toLocalIso()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }

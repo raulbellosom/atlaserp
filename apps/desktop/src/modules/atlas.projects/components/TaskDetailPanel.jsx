@@ -752,13 +752,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                               key={fid}
                               label={field.name}
                               value={val || null}
-                              onChange={(d) =>
-                                saveFieldValue(
-                                  d
-                                    ? new Date(d).toISOString().slice(0, 10)
-                                    : null,
-                                )
-                              }
+                              onChange={(d) => saveFieldValue(d || null)}
                             />
                           );
                         }

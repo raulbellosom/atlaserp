@@ -1,3 +1,4 @@
+import { toLocalIso } from '../../lib/localDate.js';
 import { useMemo, useState } from "react";
 import { AtlasTable, PageHeader } from "@atlas/ui";
 import { FileSpreadsheet } from "lucide-react";
@@ -99,7 +100,7 @@ export default function ActivityFeedScreen() {
             const blob = await atlas.activity.exportExcel({ ids }, token);
             downloadBlob(
               blob,
-              `actividad-${new Date().toISOString().slice(0, 10)}.xlsx`,
+              `actividad-${toLocalIso()}.xlsx`,
             );
             toast.success("Excel generado");
           } catch {
