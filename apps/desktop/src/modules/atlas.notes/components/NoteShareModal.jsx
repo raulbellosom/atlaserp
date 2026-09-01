@@ -82,36 +82,35 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
   const shares = data?.shares ?? []
   const sharedIds = new Set(shares.map(s => s.shared_with_user_id))
 
+  // Picker is limited to users with notes-module access (see
+  // GET /notes/shareable-users), not every company user.
+  async function loadShareable(search) {
+    if (!token) return
+    try {
+      const res = await atlas.notes.listShareableUsers(search || null, token)
+      setUserList((res?.users ?? []).filter(u => !sharedIds.has(u.id)))
+    } catch (_) {
+      setUserList([])
+    }
+  }
+
   useEffect(() => {
     if (!open || !token) return
     const t = setTimeout(() => searchRef.current?.focus(), 80)
-    atlas.identity.listUsers(token, { pageSize: 12 })
-      .then(res => setUserList((res?.data ?? []).filter(u => !sharedIds.has(u.id))))
-      .catch(() => {})
+    loadShareable(null)
     return () => clearTimeout(t)
   }, [open, token, shares.length])
 
   useEffect(() => {
     clearTimeout(debounceRef.current)
     if (!query.trim() || query.length < 2) {
-      if (!query.trim() && token) {
-        atlas.identity.listUsers(token, { pageSize: 12 })
-          .then(res => setUserList((res?.data ?? []).filter(u => !sharedIds.has(u.id))))
-          .catch(() => {})
-      }
+      if (!query.trim()) loadShareable(null)
       return
     }
     debounceRef.current = setTimeout(async () => {
-      if (!token) return
       setSearching(true)
-      try {
-        const res = await atlas.identity.listUsers(token, { search: query.trim(), pageSize: 12 })
-        setUserList((res?.data ?? []).filter(u => !sharedIds.has(u.id)))
-      } catch (_) {
-        setUserList([])
-      } finally {
-        setSearching(false)
-      }
+      await loadShareable(query.trim())
+      setSearching(false)
     }, 280)
     return () => clearTimeout(debounceRef.current)
   }, [query, token])
@@ -197,7 +196,7 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
               ) : (
                 <ul className="divide-y divide-[hsl(var(--border))]">
                   {userList.map(user => {
-                    const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email
+                    const fullName = user.displayName || user.email
                     const isSelected = selectedUser?.id === user.id
                     return (
                       <li key={user.id}>
@@ -231,12 +230,12 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
           {selectedUser && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
               <UserAvatar
-                name={[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ') || selectedUser.email}
+                name={selectedUser.displayName || selectedUser.email}
                 avatarUrl={selectedUser.avatarUrl}
                 className="h-8 w-8"
               />
               <p className="min-w-0 flex-1 truncate text-sm font-medium text-[hsl(var(--foreground))]">
-                {[selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ') || selectedUser.email}
+                {selectedUser.displayName || selectedUser.email}
               </p>
               <PermissionSelect value={permission} onChange={setPermission} disabled={shareNote.isPending} />
               <button

@@ -110,12 +110,46 @@ describe("shares-service — shareNote target validation", () => {
   it("allows a same-company target", async () => {
     const prisma = fakePrisma([
       ...base,
-      ["from membership m_owner", [{ "?column?": 1 }]],
+      ["p.key = 'notes.notes.read'", [{ "?column?": 1 }]], // _assertTargetHasNotesAccess ok
+      ["from membership m_owner", [{ "?column?": 1 }]],     // _assertShareableTarget ok
       ["insert into note_shares", [{ id: "share-1", note_id: NOTE, shared_with_user_id: OTHER, permission: "read" }]],
     ]);
     const svc = createSharesService({ prisma, broadcaster: null });
     const share = await svc.shareNote(NOTE, OWNER, { targetUserId: OTHER, permission: "read" });
     assert.equal(share.shared_with_user_id, OTHER);
+  });
+
+  it("rejects a target without notes-module access", async () => {
+    const prisma = fakePrisma([
+      ...base,
+      ["p.key = 'notes.notes.read'", []],               // no notes-granting / admin role
+      ["from membership m_owner", [{ "?column?": 1 }]],  // same company, though
+    ]);
+    const svc = createSharesService({ prisma, broadcaster: null });
+    await assert.rejects(
+      () => svc.shareNote(NOTE, OWNER, { targetUserId: OTHER, permission: "read" }),
+      (e) => e instanceof SharesServiceError && e.status === 403,
+    );
+  });
+});
+
+describe("shares-service — listShareableUsers", () => {
+  it("restricts to notes-module users, excludes self, maps the shape", async () => {
+    let captured = "";
+    const prisma = {
+      $queryRaw: (strings) => {
+        captured = sql(strings).toLowerCase();
+        return Promise.resolve([{ id: OTHER, display_name: "Dana", email: "d@x.com" }]);
+      },
+      $executeRaw: () => Promise.resolve([]),
+    };
+    const svc = createSharesService({ prisma, broadcaster: null });
+    const users = await svc.listShareableUsers(OWNER, null);
+
+    assert.deepEqual(users, [{ id: OTHER, displayName: "Dana", email: "d@x.com", avatarUrl: null }]);
+    assert.match(captured, /p\.key = 'notes\.notes\.read'/);
+    assert.match(captured, /r\.key in \('atlas\.admin', 'system\.admin'\)/);
+    assert.match(captured, /m_target\.user_id <> /);
   });
 });
 

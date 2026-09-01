@@ -211,6 +211,18 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     }
   })
 
+  // GET /notes/shareable-users — picker source for the share modal. Registered
+  // BEFORE /:id so "shareable-users" is not captured as a note id.
+  internal.get('/shareable-users', requirePermission('notes.shares.create'), async (c) => {
+    try {
+      const { userId } = getAuth(c)
+      const users = await shares.listShareableUsers(userId, c.req.query('search') ?? null)
+      return c.json({ users })
+    } catch (e) {
+      return c.json({ error: e.message }, e.status ?? 500)
+    }
+  })
+
   // GET /notes/:id
   internal.get('/:id', requirePermission('notes.notes.read'), async (c) => {
     try {

@@ -86,12 +86,84 @@ export function createSharesService({ prisma, broadcaster }) {
     return rows.map((r) => ({ ...r, user_email: emailById.get(r.id) ?? null }))
   }
 
+  // The target must actually be able to use the notes module: an enabled
+  // membership (in a company shared with the actor) whose role is an admin role
+  // — those get every permission — or grants `notes.notes.read`. Without this a
+  // note could be shared with a user who then can't open it at all.
+  async function _assertTargetHasNotesAccess(actorUserId, targetUserId) {
+    const rows = await prisma.$queryRaw`
+      SELECT 1
+      FROM membership m_owner
+      JOIN membership m_target
+        ON m_target.company_id = m_owner.company_id
+      JOIN role r ON r.id = m_target.role_id AND r.enabled = true
+      WHERE m_owner.user_id  = ${actorUserId}::uuid  AND m_owner.enabled  = true
+        AND m_target.user_id = ${targetUserId}::uuid AND m_target.enabled = true
+        AND (
+          r.key IN ('atlas.admin', 'system.admin')
+          OR EXISTS (
+            SELECT 1 FROM role_permission rp
+            JOIN permission p ON p.id = rp.permission_id
+            WHERE rp.role_id = r.id
+              AND p.key = 'notes.notes.read'
+              AND p.active = true
+          )
+        )
+      LIMIT 1
+    `
+    if (!rows.length) {
+      throw new SharesServiceError('Ese usuario no tiene acceso al modulo de notas', 403)
+    }
+  }
+
+  // Picker source for the share modal — same eligibility rule as
+  // _assertTargetHasNotesAccess, plus a name/email search. Gated at the route
+  // by `notes.shares.create`.
+  async function listShareableUsers(actorUserId, search) {
+    const like = search && search.trim() ? `%${search.trim()}%` : null
+    const rows = await prisma.$queryRaw`
+      SELECT DISTINCT up.id, up.display_name, up.email
+      FROM membership m_owner
+      JOIN membership m_target
+        ON m_target.company_id = m_owner.company_id
+      JOIN user_profile up ON up.id = m_target.user_id AND up.enabled = true
+      JOIN role r ON r.id = m_target.role_id AND r.enabled = true
+      WHERE m_owner.user_id = ${actorUserId}::uuid AND m_owner.enabled = true
+        AND m_target.enabled = true
+        AND m_target.user_id <> ${actorUserId}::uuid
+        AND (
+          r.key IN ('atlas.admin', 'system.admin')
+          OR EXISTS (
+            SELECT 1 FROM role_permission rp
+            JOIN permission p ON p.id = rp.permission_id
+            WHERE rp.role_id = r.id
+              AND p.key = 'notes.notes.read'
+              AND p.active = true
+          )
+        )
+        AND (
+          ${like}::text IS NULL
+          OR up.display_name ILIKE ${like}
+          OR up.email ILIKE ${like}
+        )
+      ORDER BY up.display_name ASC
+      LIMIT 20
+    `
+    return rows.map((r) => ({
+      id: r.id,
+      displayName: r.display_name,
+      email: r.email,
+      avatarUrl: null,
+    }))
+  }
+
   async function shareNote(noteId, userId, { targetUserId, permission }) {
     await _verifyOwner(noteId, userId)
     if (!['read', 'edit'].includes(permission)) {
       throw new SharesServiceError("El permiso debe ser 'read' o 'edit'")
     }
     await _assertShareableTarget(userId, targetUserId)
+    await _assertTargetHasNotesAccess(userId, targetUserId)
     const rows = await prisma.$queryRaw`
       INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission)
       VALUES (${noteId}, ${targetUserId}, ${userId}, ${permission}::text)
@@ -213,5 +285,5 @@ export function createSharesService({ prisma, broadcaster }) {
     return rows[0]
   }
 
-  return { listShares, shareNote, updateShare, revokeShare, publishNote, unpublishNote, getPublicNote }
+  return { listShares, listShareableUsers, shareNote, updateShare, revokeShare, publishNote, unpublishNote, getPublicNote }
 }

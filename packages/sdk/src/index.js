@@ -2319,6 +2319,10 @@ export function createAtlasClient({ baseUrl }) {
         request(`/notes/${encodeURIComponent(id)}/shares`, {
           headers: withAuthHeaders(token),
         }),
+      listShareableUsers: (search, token) =>
+        request(`/notes/shareable-users${toQueryString(search ? { search } : null)}`, {
+          headers: withAuthHeaders(token),
+        }),
       shareNote: (id, data, token) =>
         request(`/notes/${encodeURIComponent(id)}/shares`, {
           method: "POST",
