@@ -27,6 +27,37 @@ export function formatLocalDateTime(value = new Date(), options = {}) {
   }).format(date)
 }
 
+// Node -> the configured zone (ATLAS_TIME_ZONE || TZ || 'UTC'); browser -> the
+// runtime's own zone. `toISOString()` is always UTC and must never be used to
+// derive a local calendar date/month.
+function runtimeTimeZone() {
+  const isNode =
+    typeof process !== 'undefined' && !!process.versions && !!process.versions.node
+  return isNode ? getConfiguredTimeZone() : undefined
+}
+
+export function nowLocalParts(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date)
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: runtimeTimeZone(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d)
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]))
+  return { year: map.year, month: map.month, day: map.day }
+}
+
+export function toLocalIso(date = new Date()) {
+  const { year, month, day } = nowLocalParts(date)
+  return `${year}-${month}-${day}`
+}
+
+export function toLocalMonth(date = new Date()) {
+  const { year, month } = nowLocalParts(date)
+  return `${year}-${month}`
+}
+
 export function formatLogTimestamp(value = new Date(), options = {}) {
   const timeZone = options.timeZone || getConfiguredTimeZone()
   return `${formatLocalDateTime(value, { ...options, timeZone })} ${timeZone}`
