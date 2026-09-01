@@ -326,7 +326,6 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
   // the server had no Y.js state yet and the doc is still empty.
   function seedIfNeeded({ editor }) {
     if (!engine || !ydoc) return
-    if (engine.hadServerState) return
     // Only the OWNER migrates the legacy HTML into the shared Y.Doc. If every
     // client seeded, each would insert its own copy of the same paragraphs —
     // the doc ends up holding the content N times (this is the "self-
@@ -335,13 +334,16 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
     const isOwner =
       Boolean(note?.owner_user_id) && note.owner_user_id === session?.user?.id
     if (!isOwner) return
-    const frag = ydoc.getXmlFragment('default')
-    if (frag.length > 0) return
+    // Seed when the collaborative doc is actually empty — NOT merely "the
+    // server had no state row". Old builds could persist a blank/truncated
+    // note_ydoc_state; those notes must still migrate from note.content.
+    // editor.isEmpty is true for a lone empty paragraph.
+    if (!editor.isEmpty) return
     if (!note.content) return
     editor.commands.setContent(note.content)
     // Persist the migrated Y.js state immediately (skip the 1.5s autosave
-    // debounce) so a guest opening the note right after sees hadServerState
-    // and never runs its own seed.
+    // debounce) so a guest opening the note right after sees the state and
+    // never runs its own seed.
     clearTimeout(saveTimerRef.current)
     flushSave()
   }
