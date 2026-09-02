@@ -6,6 +6,8 @@ import {
 import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { ChatConversationItem } from "./ChatConversationItem";
+import { MessageSearchResults } from "./MessageSearchResults";
+import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
 import { CreateChatModal } from "./CreateChatModal";
 import { CreateChannelModal } from "./CreateChannelModal";
 import { ChannelDirectorySheet } from "./ChannelDirectorySheet";
@@ -18,6 +20,13 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const { userProfile } = useAuth();
   const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
+  const {
+    hits: messageHits,
+    isSearching: messageSearching,
+    isError: messageSearchError,
+    truncated: messageSearchTruncated,
+    hasQuery: hasMessageQuery,
+  } = useChatMessageSearch({ q: search });
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
@@ -211,6 +220,18 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           </div>
         )}
       </div>
+
+      {hasMessageQuery && (
+        <div className="border-t border-[hsl(var(--border))] px-2 pb-2 overflow-y-auto max-h-[45%] shrink-0">
+          <MessageSearchResults
+            hits={messageHits}
+            isSearching={messageSearching}
+            isError={messageSearchError}
+            truncated={messageSearchTruncated}
+            onOpen={(hit) => onSelect({ id: hit.conversationId }, hit.messageId)}
+          />
+        </div>
+      )}
 
       <CreateChatModal
         open={showCreate}
