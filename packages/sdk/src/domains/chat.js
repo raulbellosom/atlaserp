@@ -115,6 +115,13 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         { headers: withAuthHeaders(token) },
       ),
 
+    // Fuzzy message search. `params`: { q, conversationId?, limit?, offset? }.
+    // Omit conversationId for a global search across the caller's conversations.
+    searchMessages: (params, token) =>
+      request(`/chat/search/messages${toQueryString(params)}`, {
+        headers: withAuthHeaders(token),
+      }),
+
     // `data` may include `replyToMessageId` (uuid) — the message this one
     // quotes (WhatsApp-style inline reply). Independent of `threadRootId`.
     sendMessage: (conversationId, data, token) =>
