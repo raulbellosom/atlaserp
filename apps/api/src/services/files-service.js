@@ -23,6 +23,7 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "InvItem",
   "GrowthLead",
   "GeneratedDocument",
+  "PfmReceipt",
 ];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/pdf",

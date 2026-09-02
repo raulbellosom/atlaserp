@@ -1,5 +1,6 @@
 // apps/api/src/routes/pfm/receipts-routes.js
 import { Hono } from "hono";
+import { FilesServiceError } from "../../services/files-service.js";
 import { confirmReceiptSchema } from "./validators.js";
 import {
   PfmServiceError,
@@ -10,7 +11,12 @@ import {
 
 function handleError(c, err, fallback) {
   if (err instanceof PfmServiceError) return c.json({ error: err.message }, err.status);
-  if (process.env.NODE_ENV !== "production") console.error("[atlas.pfm]", err);
+  // filesService.upload throws FilesServiceError (missing profile, bad mime, size limit...).
+  // Preserve its status/message instead of collapsing every case into an opaque 500.
+  if (err instanceof FilesServiceError || (err?.name === "FilesServiceError" && err?.status)) {
+    return c.json({ error: err.message || fallback }, err.status ?? 500);
+  }
+  console.error("[atlas.pfm]", err);
   return c.json({ error: fallback }, 500);
 }
 
@@ -72,7 +78,7 @@ export function createReceiptsRouter({
       if (!file || typeof file === "string") {
         return c.json({ error: "Adjunta la foto del ticket." }, 400);
       }
-      const authUserId = c.get("userContext")?.authUserId ?? c.get("userId");
+      const authUserId = c.get("authUserId");
       const asset = await filesService.upload({
         authUserId,
         file,
