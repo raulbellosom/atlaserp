@@ -8,6 +8,12 @@ import { isModuleAvailable } from "../lib/runtimeModules";
 import { applyBrandTheme } from "../lib/brandTheme.js";
 import { useBrandingStore } from "../stores/branding.js";
 
+const PfmAssistantSidebar = lazy(() =>
+  import("../modules/atlas.pfm/components/PfmAssistantSidebar.jsx").then((m) => ({
+    default: m.PfmAssistantSidebar,
+  })),
+);
+
 const SCREEN_MAP = {
   "atlas.core:/modules": lazy(
     () => import("../modules/atlas.core/screens/ModuleCatalog.jsx"),
@@ -752,10 +758,22 @@ export function ModuleOutlet() {
   }
 
   const Screen = resolveScreen(moduleKey, subPath);
-
-  return (
+  const screenNode = (
     <Suspense fallback={<LoadingFallback />}>
       {Screen ? <Screen /> : <ModulePlaceholder module={module} />}
     </Suspense>
   );
+
+  if (moduleKey === "atlas.pfm") {
+    return (
+      <div className="flex min-h-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-auto">{screenNode}</div>
+        <Suspense fallback={null}>
+          <PfmAssistantSidebar />
+        </Suspense>
+      </div>
+    );
+  }
+
+  return screenNode;
 }
