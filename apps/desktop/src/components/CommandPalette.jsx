@@ -1,97 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import {
-  Search,
-  X,
-  Box,
-  Layers,
-  ContactRound,
-  Landmark,
-  LayoutDashboard,
-  Puzzle,
-  Settings,
-  Contact,
-  Wallet,
-  Users,
-  Shield,
-  Palette,
-  FolderOpen,
-  Building2,
-  CreditCard,
-  BarChart3,
-  Files,
-  FileText,
-  Home,
-  User,
-  Truck,
-  WifiOff,
-  MessageSquare,
-  Inbox,
-  Flag,
-} from "lucide-react";
+import { Search, X, WifiOff } from "lucide-react";
+import { ModuleNavIcon } from "@atlas/ui";
 import { useCommandStore } from "../stores/command";
-import { getModuleLaunchPath } from "../lib/runtimeModules";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { useOfflineStore, OFFLINE_MODULES } from "@atlas/offline";
-
-const ICON_MAP = {
-  LayoutDashboard,
-  Puzzle,
-  Settings,
-  Contact,
-  Wallet,
-  Users,
-  Shield,
-  Palette,
-  FolderOpen,
-  Building2,
-  Layers,
-  ContactRound,
-  Landmark,
-  CreditCard,
-  BarChart3,
-  Files,
-  FileText,
-  Home,
-  Box,
-  User,
-  Truck,
-  MessageSquare,
-  Inbox,
-  Flag,
-};
-
-function CmdIcon({ name, size = 14, color }) {
-  const raw = typeof name === "string" ? name.trim() : "";
-  const pascalName = raw
-    .split(/[^a-zA-Z0-9]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join("");
-  const Icon = ICON_MAP[raw] ?? ICON_MAP[pascalName] ?? Box;
-  return <Icon size={size} style={{ color }} />;
-}
-
-const STATIC_PAGES = [
-  {
-    key: "home",
-    label: "Inicio",
-    path: "/app/home",
-    icon: "Home",
-    description: "Pantalla de inicio",
-  },
-  {
-    key: "profile",
-    label: "Mi perfil",
-    path: "/app/profile",
-    icon: "User",
-    description: "Perfil de usuario",
-  },
-];
+import { ModuleIcon } from "./ModuleCard";
+import { buildCommandItems } from "../lib/commandPalette";
 
 export function CommandPalette({ activeModule }) {
-  const { isOpen, openCommand, closeCommand } = useCommandStore();
+  const { isOpen, closeCommand, openCommand } = useCommandStore();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -99,87 +18,29 @@ export function CommandPalette({ activeModule }) {
   const listRef = useRef(null);
   const { availableModules } = useRuntimeModules();
   const isOnline = useOfflineStore((s) => s.isOnline);
-  const isOfflineBlocked = (module) => !isOnline && !OFFLINE_MODULES.includes(module.key);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  const { sections, flat } = useMemo(
+    () =>
+      buildCommandItems({
+        availableModules,
+        activeModule,
+        query,
+        isOnline,
+        offlineModuleKeys: OFFLINE_MODULES,
+      }),
+    [availableModules, activeModule, query, isOnline],
+  );
 
-    const actionItems = activeModule
-      ? (activeModule.navigation ?? [])
-          .filter((nav) => !q || nav.label.toLowerCase().includes(q))
-          .map((nav) => ({
-            key: `action-${nav.path}`,
-            label: nav.label,
-            description: `${activeModule.name} -> ${nav.label}`,
-            icon: nav.icon,
-            color: activeModule.color,
-            section: "Acciones",
-            action() {
-              const fullPath =
-                nav.path === "/"
-                  ? `/app/m/${activeModule.key}`
-                  : `/app/m/${activeModule.key}${nav.path}`;
-              navigate(fullPath);
-              closeCommand();
-              setQuery("");
-            },
-          }))
-      : [];
-
-    const moduleItems = availableModules
-      .filter(
-        (m) =>
-          !q ||
-          m.name.toLowerCase().includes(q) ||
-          (m.summary ?? "").toLowerCase().includes(q),
-      )
-      .map((m) => ({
-        key: `mod-${m.key}`,
-        label: m.name,
-        description: m.summary ?? m.description,
-        icon: m.icon,
-        color: m.color,
-        section: "Módulos",
-        blocked: isOfflineBlocked(m),
-        action() {
-          if (isOfflineBlocked(m)) return;
-          navigate(getModuleLaunchPath(m));
-          closeCommand();
-          setQuery("");
-        },
-      }));
-
-    const pageItems = STATIC_PAGES.filter(
-      (p) => !q || p.label.toLowerCase().includes(q),
-    ).map((p) => ({
-      key: `page-${p.key}`,
-      label: p.label,
-      description: p.description,
-      icon: p.icon,
-      color: "hsl(var(--muted-foreground))",
-      section: "Páginas",
-      action() {
-        navigate(p.path);
-        closeCommand();
-        setQuery("");
-      },
-    }));
-
-    return [...actionItems, ...moduleItems, ...pageItems];
-  }, [query, availableModules, activeModule, navigate, closeCommand]);
-
-  const grouped = useMemo(() => {
-    const groups = {};
-    results.forEach((item) => {
-      if (!groups[item.section]) groups[item.section] = [];
-      groups[item.section].push(item);
-    });
-    return groups;
-  }, [results]);
+  function runItem(item) {
+    if (!item || item.blocked) return;
+    navigate(item.target);
+    closeCommand();
+    setQuery("");
+  }
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [results.length]);
+  }, [flat.length]);
 
   useEffect(() => {
     function handleKey(e) {
@@ -195,24 +56,26 @@ export function CommandPalette({ activeModule }) {
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
+        setSelectedIndex((i) => Math.min(i + 1, flat.length - 1));
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(i - 1, 0));
       }
-      if (e.key === "Enter" && results[selectedIndex]) {
-        results[selectedIndex].action();
+      if (e.key === "Enter" && flat[selectedIndex]) {
+        runItem(flat[selectedIndex]);
       }
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [isOpen, openCommand, closeCommand, results, selectedIndex]);
+  }, [isOpen, openCommand, closeCommand, flat, selectedIndex]);
 
   useEffect(() => {
     if (!listRef.current) return;
-    const el = listRef.current.querySelector(`[data-cmd-idx="${selectedIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const el = listRef.current.querySelector(
+      `[data-cmd-idx="${selectedIndex}"]`,
+    );
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedIndex]);
 
   useEffect(() => {
@@ -223,6 +86,8 @@ export function CommandPalette({ activeModule }) {
     setQuery("");
     setSelectedIndex(0);
   }, [isOpen]);
+
+  let runningIndex = -1;
 
   return (
     <AnimatePresence>
@@ -274,47 +139,72 @@ export function CommandPalette({ activeModule }) {
             </div>
 
             <div ref={listRef} className="overflow-y-auto max-h-[50dvh] p-2">
-              {results.length === 0 ? (
+              {flat.length === 0 ? (
                 <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
                   Sin resultados
                 </p>
               ) : (
-                Object.entries(grouped).map(([section, items]) => (
-                  <div key={section} className="mb-2">
+                sections.map((section) => (
+                  <div key={section.id} className="mb-2">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))] px-3 py-1.5">
-                      {section}
+                      {section.title}
                     </p>
-                    {items.map((item) => {
-                      const idx = results.indexOf(item);
+                    {section.items.map((item) => {
+                      runningIndex += 1;
+                      const idx = runningIndex;
                       const isSelected = idx === selectedIndex;
                       return (
                         <button
                           key={item.key}
                           data-cmd-idx={idx}
-                          onClick={item.action}
+                          onClick={() => runItem(item)}
                           onMouseEnter={() => setSelectedIndex(idx)}
                           className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg transition-colors duration-100 text-left ${
                             item.blocked
-                              ? 'opacity-40 cursor-not-allowed'
-                              : `cursor-pointer ${isSelected ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--muted))]'}`
+                              ? "opacity-40 cursor-not-allowed"
+                              : `cursor-pointer ${
+                                  isSelected
+                                    ? "bg-[hsl(var(--muted))]"
+                                    : "hover:bg-[hsl(var(--muted))]"
+                                }`
                           }`}
                         >
-                          <div
-                            className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: `${item.color}20` }}
-                          >
-                            {item.blocked
-                              ? <WifiOff size={14} className="text-[hsl(var(--muted-foreground))]" />
-                              : <CmdIcon name={item.icon} size={14} color={item.color} />
-                            }
-                          </div>
+                          {item.kind === "module" && !item.blocked ? (
+                            <ModuleIcon module={item.module} size="sm" />
+                          ) : (
+                            <div
+                              className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
+                              style={{
+                                backgroundColor: item.color
+                                  ? `${item.color}20`
+                                  : "hsl(var(--muted))",
+                              }}
+                            >
+                              {item.blocked ? (
+                                <WifiOff
+                                  size={14}
+                                  className="text-[hsl(var(--muted-foreground))]"
+                                />
+                              ) : (
+                                <ModuleNavIcon
+                                  name={item.icon}
+                                  size={14}
+                                  style={{
+                                    color:
+                                      item.color ||
+                                      "hsl(var(--muted-foreground))",
+                                  }}
+                                />
+                              )}
+                            </div>
+                          )}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">
-                              {item.label}
+                              {item.title}
                             </p>
-                            {item.description && (
+                            {item.subtitle && (
                               <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
-                                {item.description}
+                                {item.subtitle}
                               </p>
                             )}
                           </div>

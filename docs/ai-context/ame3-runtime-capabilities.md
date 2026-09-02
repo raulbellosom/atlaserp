@@ -445,6 +445,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DatePickerField` | Standalone date picker |
 | `PageFooter` | Page footer bar |
 | `BrandFooter` | Branded footer with logo |
+| `ModuleNavIcon` | Renders a module/navigation `icon` name as a component. Resolves against the full lucide set plus legacy aliases and the custom `FleetVehicle` glyph; falls back to `Box`. Backed by `resolveModuleIcon(name, { fallback })` / `getModuleIconComponent(name)` (returns `null` when unresolved, for initials fallback). Single source of truth for the command palette, module sidebar, and module cards. |
 
 ### Atlas blueprint renderer
 
