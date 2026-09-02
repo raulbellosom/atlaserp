@@ -294,7 +294,20 @@ A test asserts the extensions and the three indexes exist after
   the plan: `chat_conversations` uses `type` (not `kind`) and `avatar_url` /
   `avatar_emoji` (no `avatar_object_key`) — reflected in the service SELECT and
   the `conversation` payload (`type`, `avatarUrl`, `avatarEmoji`).
-- **Plan B** — pending.
+- **Plan B — code complete 2026-09-02.** `buildSnippetSegments` (5 unit
+  tests), `useChatMessageSearch` debounced hook (v5 `placeholderData:
+  keepPreviousData`), `MessageSearchResults` "Mensajes" section wired into
+  `ChatSidebar` (shown at >= 2 chars, grouped by conversation, `<mark>`
+  highlight), `?msg=` routing through `ChatScreen` -> `ChatWindow`
+  `initialJumpMessageId` -> existing `setJumpTarget` path, in-conversation
+  search in `ChatWindow` switched from the loaded-page substring filter to the
+  server `pg_trgm` search (scoped by `conversationId`), match navigation drives
+  the jump loader, `ChatMessageList` retry budget 5 -> 12, search-aware
+  jump-failed toast. `vite build` green, ESLint clean on all touched files,
+  14 chat-lib + 436 chat/service API tests green.
+  **Pending:** manual browser QA at 390 px and 1440 px (light + dark) — the six
+  scenarios in Plan B Task 7 Step 6 (Playwright bridge not available this
+  session).
 
 ## Implementation plan split
 
