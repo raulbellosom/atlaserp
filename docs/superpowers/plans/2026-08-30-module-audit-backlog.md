@@ -420,20 +420,30 @@ correctly company-attributed. Spec:
 Non-blocking polish tracked during the Phase 1 build of `atlas.pfm` (Finanzas
 personales). Spec: `docs/superpowers/specs/2026-08-31-atlas-pfm-design.md`.
 
-- [ ] **PFM-1 — Ledger-account picker** in `WalletFormSheet` so a wallet can be
+- [x] **PFM-1 — Ledger-account picker** in `WalletFormSheet` so a wallet can be
   linked to an `atlas.ledger` account (`ledgerAccountId`). Backend already
   supports it end-to-end (read-only mirror); only the create/edit UI control is
-  missing.
-- [ ] **PFM-2 — Inline "+ Crear «X»" category creation** from
+  missing. `Done: 2026-09-02 (e8e697fa)` — `useLedgerAccounts` hook + optional
+  "Cuenta bancaria enlazada" `SelectField` (hidden when the user has no ledger
+  read access); supports link and unlink.
+- [x] **PFM-2 — Inline "+ Crear «X»" category creation** from
   `QuickAddMovementSheet` — swap `ComboboxField` back to `CreatableComboboxField`
   and wire `onCreate` to `useCreatePfmCategory` (hook already exists) with an
-  optimistic select.
+  optimistic select. `Done: 2026-09-02 (e8e697fa)` — done for both
+  `QuickAddMovementSheet` and `ReceiptReviewSheet`; new category `kind` follows
+  the current direction; fails soft without `pfm.categories.manage`.
 - [ ] **PFM-3 — Company-member picker** in `WalletMembersDialog` (replace the raw
   user-id `TextField`; reuse the `ContactPicker` pattern) and resolve member
-  `userId` to a display name in the dialog and in `MovementRow`.
-- [ ] **PFM-4 — Editable confirm amount** for variable pending charges (matters
+  `userId` to a display name in the dialog and in `MovementRow`. **Blocked on a
+  small backend addition:** there is no non-privileged "list my company's
+  members" endpoint — `GET /identity/users` needs `identity.users.read`, which a
+  regular pfm user should not need just to share a wallet. Needs a lightweight
+  company-directory endpoint (id + display name + avatar) first.
+- [x] **PFM-4 — Editable confirm amount** for variable pending charges (matters
   once Phase 2 recurring rules land — API `confirmMovement` already accepts an
-  `amount` override).
+  `amount` override). `Done: 2026-09-02 (e8e697fa)` — new `ConfirmChargeDialog`
+  (amount field, sends the override only when changed) replaces the plain
+  `ConfirmDialog` in `WalletDetailScreen` and `UpcomingChargesCard`.
 - [ ] **PFM-5 — Browser QA at 390px + 1440px** with the 14-aspect checklist —
   could not run during the build (Playwright MCP bridge extension not connected).
 
