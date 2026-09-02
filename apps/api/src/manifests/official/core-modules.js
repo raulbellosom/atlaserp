@@ -1383,7 +1383,7 @@ export const notesMap = createModuleManifest({
 export const atlasPfmManifest = createModuleManifest({
   key: "atlas.pfm",
   name: "Finanzas personales",
-  version: "0.4.0",
+  version: "0.5.0",
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
@@ -1420,6 +1420,7 @@ export const atlasPfmManifest = createModuleManifest({
     { key: "pfm.members.manage", name: "Gestionar colaboradores de carteras" },
     { key: "pfm.budgets.manage", name: "Administrar presupuestos" },
     { key: "pfm.goals.manage", name: "Administrar metas de ahorro" },
+    { key: "pfm.assistant.use", name: "Usar el asistente de finanzas" },
   ],
   navigation: [
     {
@@ -1478,6 +1479,7 @@ export const atlasPfmManifest = createModuleManifest({
       "pfm.members.manage": "pfm.members.manage",
       "pfm.budgets.manage": "pfm.budgets.manage",
       "pfm.goals.manage": "pfm.goals.manage",
+      "pfm.assistant.use": "pfm.assistant.use",
     },
   },
   blueprints: [],

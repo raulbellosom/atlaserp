@@ -953,6 +953,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "pfm",
     order: 56,
   },
+  "pfm.assistant.use": {
+    displayNameEs: "Usar el asistente de finanzas",
+    descriptionEs: "Permite conversar con el asistente de IA sobre las finanzas propias.",
+    groupKey: "pfm",
+    order: 65,
+  },
 
   // atlas.website
   "website.access": {
