@@ -25,9 +25,9 @@ export function tokenizeQuery(raw) {
   const norm = normalizeForSearch(raw).trim();
   if (!norm) return [];
   const parts = norm.split(/\s+/).filter(Boolean);
-  const long = parts.filter((t) => t.length >= MIN_TOKEN_LEN);
-  const chosen = (long.length ? long : parts.slice(0, 1)).slice(0, MAX_TOKENS);
-  return [...new Set(chosen)];
+  const uniqueLong = [...new Set(parts.filter((t) => t.length >= MIN_TOKEN_LEN))];
+  const base = uniqueLong.length ? uniqueLong : parts.slice(0, 1);
+  return base.slice(0, MAX_TOKENS);
 }
 
 function escapeLike(token) {
