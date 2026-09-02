@@ -459,3 +459,19 @@ personales). Spec: `docs/superpowers/specs/2026-08-31-atlas-pfm-design.md`.
   upload a real receipt photo, confirm PARSED → confirm → POSTED movement with
   the image attached. The adapter + state machine are unit-tested with mocked
   network; the real call has never run.
+
+### atlas.pfm — assistant sidebar (added 2026-09-02, shipped)
+
+Spec `docs/superpowers/specs/2026-09-02-pfm-assistant-design.md`, plans
+`docs/superpowers/plans/2026-09-02-pfm-assistant-plan-{a-api,b-ui}.md`. Backend +
+UI merged, unit-tested (Groq stubbed), migration applied to the live DB, manifest
+v0.5.0, `pnpm db:seed` run.
+
+- [ ] **PFM-8 — Browser QA of the assistant sidebar** at 390px + 1440px:
+  collapse/expand tab, ask a question, thread switching, delete (`ConfirmDialog`),
+  and the propose-movement confirm card (Registrar goes through the normal
+  movement endpoint). Needs `GROQ_API_KEY` in the env for a live run.
+- [ ] **PFM-9 — Live Groq tool-loop end-to-end** once `GROQ_API_KEY` is set:
+  verify "cuanto tengo en total" / "resumen del mes" call the right tools and the
+  numbers match the module, and that "apunta $X" produces a proposal (never an
+  auto-write). Only the stubbed loop has run.
