@@ -23,7 +23,6 @@ import { getApiUrl } from "../lib/runtimeConfig.js";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";
 import { resolveBlueprintPresentation } from "./blueprint-layout-resolver.js";
-import { ImmersiveShell } from './ImmersiveShell.jsx'
 import { normalizePath } from '../lib/pathUtils'
 
 const API_BASE_URL = getApiUrl();
@@ -914,13 +913,13 @@ export function BlueprintCrudScreen() {
     }
 
     return (
-      <ImmersiveShell moduleKey={moduleKey}>
+      <div className="h-full min-h-0 w-full overflow-auto">
         <CustomComponent
           token={token}
           navigate={navigate}
           moduleKey={moduleKey}
         />
-      </ImmersiveShell>
+      </div>
     )
   }
 

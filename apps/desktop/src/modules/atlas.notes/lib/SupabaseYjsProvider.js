@@ -21,6 +21,17 @@ export function base64ToBytes(b64) {
   return bytes
 }
 
+// GET /notes/:id/ydoc responds with { data: { state, version } } (Hono route
+// wraps the service result), while the service itself and older shapes hand back
+// a bare { state }. Reading `res.state` directly always saw `undefined` against
+// the live API, so the persisted Y.js document was never applied on reload and
+// the collaborative editor mounted blank. Accept both shapes.
+export function extractServerYState(res) {
+  const payload = res && typeof res === 'object' && res.data != null ? res.data : res
+  const state = payload?.state
+  return typeof state === 'string' && state.length > 0 ? state : null
+}
+
 export class SupabaseYjsProvider {
   constructor(ydoc, { noteId, supabase, atlas, token, onSynced, onStatus }) {
     this.ydoc = ydoc
@@ -59,11 +70,12 @@ export class SupabaseYjsProvider {
     // 1. Load persisted server state
     try {
       const res = await atlas.notes.getYDoc(this.noteId, token)
-      if (res?.state) {
-        Y.applyUpdate(this.ydoc, base64ToBytes(res.state), 'server-load')
+      const serverState = extractServerYState(res)
+      if (serverState) {
+        Y.applyUpdate(this.ydoc, base64ToBytes(serverState), 'server-load')
         this.hadServerState = true
         console.debug(
-          `[notes/yjs] loaded server state (${res.state.length} b64 chars), ` +
+          `[notes/yjs] loaded server state (${serverState.length} b64 chars), ` +
             `fragment length=${this.ydoc.getXmlFragment('default').length}`,
         )
       } else {
