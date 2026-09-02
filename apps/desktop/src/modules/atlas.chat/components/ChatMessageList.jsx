@@ -269,9 +269,10 @@ export function ChatMessageList({
   }, [hasMore, isLoadingMore, onLoadMore]);
 
   // Scroll to a message jumped to from outside — "Ver en el chat" in
-  // PinnedMessagesSheet, or tapping an inline reply quote. `nonce` lets the
-  // same id be re-targeted twice in a row. If the message isn't in the DOM
-  // yet, load older pages (up to 5 times) and retry before giving up.
+  // PinnedMessagesSheet, tapping an inline reply quote, or a message-search
+  // result. `nonce` lets the same id be re-targeted twice in a row. If the
+  // message isn't in the DOM yet, load older pages (up to 12 times) and retry
+  // before giving up — a search hit can be deep in history.
   useEffect(() => {
     const target = scrollToMessage;
     if (!target?.id || !listRef.current) return;
@@ -296,7 +297,7 @@ export function ChatMessageList({
       if (cancelled) return;
       const el = listRef.current?.querySelector(`[data-msg-id="${target.id}"]`);
       if (el) { jumpHandledRef.current = key; flash(el); return; }
-      if (attempts >= 5 || !hasMore) { jumpHandledRef.current = key; onJumpFailed?.(); return; }
+      if (attempts >= 12 || !hasMore) { jumpHandledRef.current = key; onJumpFailed?.(); return; }
       attempts += 1;
       handleLoadMore();
       setTimeout(tryScroll, 600);

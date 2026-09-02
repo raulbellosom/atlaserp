@@ -24,6 +24,7 @@ import {
   usePinMessage, useToggleReaction,
 } from "../hooks/useChatMessages";
 import { usePinnedMessages } from "../hooks/usePinnedMessages";
+import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
@@ -52,7 +53,7 @@ function ChatHeader({
   detailMembers,
   filesView, onToggleFilesView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
-  searchMatchCount, searchCurrentIdx, onNextMatch, onPrevMatch,
+  searchMatchCount, searchCurrentIdx, searchBusy, searchError, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
   onSelectionCancel, onDeleteForMe, onDeleteForAll, onForwardSelected,
   onEnterSelection,
@@ -140,8 +141,14 @@ function ChatHeader({
           className="flex-1 text-sm bg-transparent outline-none placeholder:text-[hsl(var(--muted-foreground))]"
         />
         {searchQuery && (
-          <span className={["text-xs shrink-0 tabular-nums", hasMatches ? "text-[hsl(var(--muted-foreground))]" : "text-red-400"].join(" ")}>
-            {hasMatches ? `${searchCurrentIdx + 1} / ${searchMatchCount}` : "Sin resultados"}
+          <span className={["text-xs shrink-0 tabular-nums", (hasMatches || searchBusy) && !searchError ? "text-[hsl(var(--muted-foreground))]" : "text-red-400"].join(" ")}>
+            {searchError
+              ? "Error al buscar"
+              : searchBusy && !hasMatches
+                ? "Buscando..."
+                : hasMatches
+                  ? `${searchCurrentIdx + 1} / ${searchMatchCount}`
+                  : "Sin resultados"}
           </span>
         )}
         <button
@@ -353,7 +360,7 @@ function saveHidden(conversationId, set) {
 
 // ── Main ChatWindow ───────────────────────────────────────────────────────────
 
-export function ChatWindow({ conversation, onClose, initialFilesView = false }) {
+export function ChatWindow({ conversation, onClose, initialFilesView = false, initialJumpMessageId = null }) {
   const navigate = useNavigate();
   const { userProfile, session } = useAuth();
   const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
@@ -553,6 +560,14 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     setJumpTarget({ id: messageId, nonce: Date.now() });
   }, []);
 
+  // A search result (global, or from another surface) opened this conversation
+  // with ?msg=<id> — reuse the same jump path pinned/reply jumps use.
+  useEffect(() => {
+    if (!initialJumpMessageId || !conversationId) return;
+    setFilesView(false);
+    setJumpTarget({ id: initialJumpMessageId, nonce: `msg-${initialJumpMessageId}` });
+  }, [initialJumpMessageId, conversationId]);
+
   const handleHideForMe = useCallback((messageId) => {
     setHiddenMessageIds((prev) => {
       const next = new Set(prev);
@@ -666,22 +681,38 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
     });
   }, [selectedMsgIds, messagesData, userProfile]);
 
-  // Ordered list of matching message IDs for navigation
-  const searchMatchIds = useMemo(() => {
-    if (!searchMode || !searchQuery.trim()) return [];
-    const all = messagesData?.data ?? [];
-    const q = searchQuery.toLowerCase();
-    return all
-      .filter((m) => !hiddenMessageIds.has(m.id) && m.body?.toLowerCase().includes(q))
-      .map((m) => m.id)
-      .reverse();
-  }, [messagesData, hiddenMessageIds, searchMode, searchQuery]);
+  // In-conversation search now hits the server (pg_trgm fuzzy) so it finds
+  // matches anywhere in history, not just the page currently loaded in the
+  // client. Ordered newest-match-first for next/prev navigation.
+  const {
+    orderedHitIds: rawSearchHitIds,
+    isSearching: isSearchingServer,
+    isError: searchError,
+  } = useChatMessageSearch({
+    q: searchQuery,
+    conversationId,
+    enabled: searchMode,
+    limit: 50,
+  });
+
+  const searchMatchIds = useMemo(
+    () => (searchMode ? rawSearchHitIds.filter((id) => !hiddenMessageIds.has(id)) : []),
+    [searchMode, rawSearchHitIds, hiddenMessageIds],
+  );
 
   const [searchCurrentIdx, setSearchCurrentIdx] = useState(0);
 
   useEffect(() => { setSearchCurrentIdx(0); }, [searchQuery]);
 
   const currentMatchId = searchMatchIds[searchCurrentIdx] ?? null;
+
+  // The current match may live in history that isn't paged in yet — drive the
+  // same loader the pinned/reply jump uses. ChatMessageList flashes it on
+  // arrival; searchMatchIds styles it once loaded.
+  useEffect(() => {
+    if (!searchMode || !currentMatchId) return;
+    setJumpTarget({ id: currentMatchId, nonce: `search-${currentMatchId}-${searchCurrentIdx}` });
+  }, [searchMode, currentMatchId, searchCurrentIdx]);
 
   const handleNextMatch = useCallback(() => {
     if (!searchMatchIds.length) return;
@@ -762,6 +793,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
         onSearchChange={setSearchQuery}
         searchMatchCount={searchMatchIds.length}
         searchCurrentIdx={searchCurrentIdx}
+        searchBusy={isSearchingServer}
+        searchError={searchError}
         onNextMatch={handleNextMatch}
         onPrevMatch={handlePrevMatch}
         selectionMode={selectionMode}
@@ -837,7 +870,13 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false }) 
               onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
               onReplyToMessage={(msg) => setReplyingTo(msg)}
               onJumpToMessage={(id) => setJumpTarget({ id, nonce: Date.now() })}
-              onJumpFailed={() => toast.error("No se pudo cargar el mensaje original.")}
+              onJumpFailed={() =>
+                toast.message(
+                  searchMode || initialJumpMessageId
+                    ? "Mostrando la conversacion; el mensaje puede estar mas atras en el historial."
+                    : "No se pudo cargar el mensaje original.",
+                )
+              }
               hiddenMessageIds={hiddenMessageIds}
               selectionMode={selectionMode}
               selectedMsgIds={selectedMsgIds}
