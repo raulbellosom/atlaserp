@@ -112,6 +112,15 @@ export const chatToggleReactionSchema = z.object({
   attachmentId: z.string().uuid().nullable().optional(),
 });
 
+// Query params for GET /chat/search/messages. Omit conversationId for a global
+// search across the caller's conversations; pass it to scope to one.
+export const chatMessageSearchQuerySchema = z.object({
+  q: z.string().max(200).optional().default(""),
+  conversationId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(30),
+  offset: z.coerce.number().int().min(0).max(300).optional().default(0),
+});
+
 export const chatMuteConversationSchema = z.object({
   muted: z.boolean(),
 });

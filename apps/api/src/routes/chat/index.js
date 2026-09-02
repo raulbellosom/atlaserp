@@ -17,6 +17,7 @@ import {
   chatAssignMemberRoleSchema,
   chatPinMessageSchema,
   chatToggleReactionSchema,
+  chatMessageSearchQuerySchema,
 } from "@atlas/validators";
 import { createChatService, ChatServiceError } from "./chat-service.js";
 import { createChatExternalInboxService } from "./chat-external-inbox-service.js";
@@ -28,6 +29,7 @@ import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
 import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
 import { createChannelDirectoryService } from "./channel-directory-service.js";
+import { createChatSearchService } from "./chat-search-service.js";
 import { createChatMentionsService } from "./chat-mentions-service.js";
 import { createChatReactionsService, ChatReactionsError } from "./chat-reactions-service.js";
 import { createChatEntityReferencesService } from "./chat-entity-references-service.js";
@@ -73,6 +75,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const channelDirectoryService = createChannelDirectoryService({ prisma });
   const reactionsService = createChatReactionsService({ prisma });
   const moderationService = createChatModerationService({ prisma });
+  const chatSearchService = createChatSearchService({ prisma });
 
   // ================================================================
   // INTERNAL CHAT — all routes require authentication
@@ -94,6 +97,28 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error listando conversaciones.");
+    }
+  });
+
+  // GET /chat/search/messages — fuzzy message search across the caller's
+  // conversations (or one, with ?conversationId=).
+  internal.get("/search/messages", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const parsed = chatMessageSearchQuerySchema.safeParse(c.req.query());
+      if (!parsed.success) {
+        return c.json({ error: "Parametros de busqueda invalidos." }, 422);
+      }
+      const { q, conversationId, limit, offset } = parsed.data;
+      const result = await chatSearchService.searchMessages({
+        authUserId: c.get("authUserId"),
+        q,
+        conversationId: conversationId || null,
+        limit,
+        offset,
+      });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error buscando mensajes.");
     }
   });
 
