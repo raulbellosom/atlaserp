@@ -7,7 +7,9 @@ import { createSummaryRouter } from "./summary-routes.js";
 import { createRecurringRouter } from "./recurring-routes.js";
 import { createReceiptsRouter } from "./receipts-routes.js";
 import { createBudgetsRouter } from "./budgets-routes.js";
+import { createAssistantRouter } from "./assistant-routes.js";
 import { createWalletsService } from "./wallets-service.js";
+import { createCategoriesService } from "./categories-service.js";
 import { createMovementsService } from "./movements-service.js";
 import { createLedgerLinkService } from "./ledger-link-service.js";
 import { createSummaryService } from "./summary-service.js";
@@ -17,6 +19,7 @@ import { createRecurringService } from "./recurring-service.js";
 import { createReceiptsService } from "./receipts-service.js";
 import { createBudgetsService } from "./budgets-service.js";
 import { createGoalsService } from "./goals-service.js";
+import { createAssistantService } from "./assistant-service.js";
 import { createVisionService } from "../../services/vision-service.js";
 import { createLedgerService } from "../ledger/ledger-service.js";
 
@@ -54,6 +57,16 @@ export function createPfmRouter({
   });
   const budgets = createBudgetsService({ prisma, notificationService: notificationService ?? null });
   const goals = createGoalsService({ prisma });
+  const categories = createCategoriesService({ prisma });
+  const assistant = createAssistantService({
+    prisma,
+    summary,
+    wallets,
+    movements,
+    budgets,
+    categories,
+    env: process.env,
+  });
 
   app.route(
     "/",
@@ -106,7 +119,8 @@ export function createPfmRouter({
       wallets,
     }),
   );
+  app.route("/", createAssistantRouter({ requirePermission, assistant }));
 
-  app.pfmServices = { recurring, summary, receipts, budgets, goals, investments };
+  app.pfmServices = { recurring, summary, receipts, budgets, goals, investments, assistant };
   return app;
 }
