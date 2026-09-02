@@ -19,6 +19,7 @@ function ChatScreenInner() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialFilesView = searchParams.get("view") === "files";
+  const jumpMessageId = searchParams.get("msg");
 
   // Extract conversation ID from /chat/inbox/<id>
   const conversationIdFromUrl = useMemo(() => {
@@ -59,8 +60,9 @@ function ChatScreenInner() {
     }
   }, [conversationIdFromUrl, activeConversation]);
 
-  function handleSelect(conv) {
-    navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`, { replace: true });
+  function handleSelect(conv, messageId) {
+    const qs = messageId ? `?msg=${encodeURIComponent(messageId)}` : "";
+    navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}${qs}`, { replace: true });
     setMobileShowWindow(true);
   }
 
@@ -107,6 +109,7 @@ function ChatScreenInner() {
           conversation={activeConversation}
           onClose={handleClose}
           initialFilesView={initialFilesView}
+          initialJumpMessageId={jumpMessageId}
         />
       </div>
     </div>
