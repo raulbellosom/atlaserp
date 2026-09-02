@@ -280,6 +280,22 @@ A test asserts the extensions and the three indexes exist after
   results, jump-to-message flash, in-conversation prev/next across an off-page
   match, dark mode on the `<mark>` highlight.
 
+## Verification
+
+- **Plan A — Verified: 2026-09-02** (live self-hosted Supabase). Migration
+  applied; `atlas_unaccent('JOSÉ Ñoño Reunión')` -> `jose nono reunion`;
+  `word_similarity('reunino', '…reunion…')` = 0.625. Direct
+  `chat-search-service` smoke against a seeded probe message:
+  `factur` (accent+partial), `reunino` (typo), `factura pague` (multi-word any
+  order), `jos` (sender/body fragment), and conversation-scoped search all
+  return the probe; gibberish and blank return `{ data: [] }`; a non-member
+  auth id does **not** see the probe (membership scoping holds). 13 service
+  unit tests + full 196-test chat API suite green. Column-name deviations from
+  the plan: `chat_conversations` uses `type` (not `kind`) and `avatar_url` /
+  `avatar_emoji` (no `avatar_object_key`) — reflected in the service SELECT and
+  the `conversation` payload (`type`, `avatarUrl`, `avatarEmoji`).
+- **Plan B** — pending.
+
 ## Implementation plan split
 
 Per the "split backend + frontend" rule, implementation is two plans:
