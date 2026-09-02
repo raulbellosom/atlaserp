@@ -3161,6 +3161,43 @@ model PfmReceipt {
   @@map("pfm_receipt")
 }
 
+enum PfmAssistantRole {
+  USER
+  ASSISTANT
+  TOOL
+
+  @@map("pfm_assistant_role")
+}
+
+model PfmAssistantThread {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  title     String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages PfmAssistantMessage[]
+
+  @@index([ownerId, updatedAt])
+  @@map("pfm_assistant_thread")
+}
+
+model PfmAssistantMessage {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  threadId  String           @map("thread_id") @db.Uuid
+  role      PfmAssistantRole
+  content   String
+  toolCalls Json?            @map("tool_calls")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  thread PfmAssistantThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("pfm_assistant_message")
+}
+
 enum PfmBudgetPeriod {
   MONTHLY
 
