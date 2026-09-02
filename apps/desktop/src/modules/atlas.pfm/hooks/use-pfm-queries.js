@@ -154,6 +154,21 @@ export function useGoals() {
   });
 }
 
+// Ledger accounts the current user can see, for the optional "link this wallet
+// to a bank account" picker in WalletFormSheet. Degrades to an empty list when
+// the user lacks ledger.accounts.read or the module is not installed.
+export function useLedgerAccounts() {
+  const token = useToken();
+  return useQuery({
+    queryKey: ["pfm", "ledger-accounts"],
+    queryFn: () => atlas.ledger.listAccounts(token),
+    enabled: Boolean(token),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    select: (res) => res?.data ?? [],
+  });
+}
+
 export function useWalletMembers(walletId, enabled = true) {
   const token = useToken();
   return useQuery({

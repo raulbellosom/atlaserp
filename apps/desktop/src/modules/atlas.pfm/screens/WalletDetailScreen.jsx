@@ -10,7 +10,6 @@ import {
   LoadingState,
   SelectField,
   SearchInput,
-  ConfirmDialog,
   resolveLucideIcon,
 } from "@atlas/ui";
 import { Plus, ArrowLeft, SlidersHorizontal, Wallet } from "lucide-react";
@@ -22,6 +21,7 @@ import {
   usePfmCategories,
 } from "../hooks/use-pfm-queries";
 import { MovementRow } from "../components/MovementRow";
+import { ConfirmChargeDialog } from "../components/ConfirmChargeDialog";
 import { QuickAddMovementSheet } from "../components/QuickAddMovementSheet";
 import { CreditCyclePanel } from "../components/CreditCyclePanel";
 import { InvestmentPanel } from "../components/InvestmentPanel";
@@ -211,16 +211,14 @@ export default function WalletDetailScreen() {
       <WalletFormSheet open={editOpen} onOpenChange={setEditOpen} wallet={wallet} />
       <AdjustBalanceSheet open={adjustOpen} onOpenChange={setAdjustOpen} wallet={wallet} />
 
-      <ConfirmDialog
+      <ConfirmChargeDialog
         open={Boolean(confirmTarget)}
         onOpenChange={(v) => !v && setConfirmTarget(null)}
-        title="Confirmar movimiento"
-        description={`Se aplicara ${formatMoney(confirmTarget?.amount, wallet.currency)} al saldo.`}
-        confirmLabel="Confirmar"
-        onConfirm={async () => {
-          await confirmMut.mutateAsync({ movementId: confirmTarget.id, walletId: wallet.id });
-          setConfirmTarget(null);
-        }}
+        charge={confirmTarget}
+        currency={wallet.currency}
+        onConfirm={(amount) =>
+          confirmMut.mutateAsync({ movementId: confirmTarget.id, walletId: wallet.id, amount })
+        }
       />
     </div>
   );

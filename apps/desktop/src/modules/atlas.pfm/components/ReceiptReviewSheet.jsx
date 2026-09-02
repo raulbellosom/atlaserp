@@ -12,7 +12,7 @@ import {
   Button,
   TextField,
   SelectField,
-  ComboboxField,
+  CreatableComboboxField,
   DateField,
 } from "@atlas/ui";
 import {
@@ -20,6 +20,7 @@ import {
   usePfmCategories,
   useConfirmReceipt,
   useReceiptImageUrl,
+  useCreatePfmCategory,
 } from "../hooks/use-pfm-queries";
 import { todayIso } from "../lib/format";
 
@@ -38,6 +39,7 @@ export function ReceiptReviewSheet({ open, onOpenChange, receipt }) {
   const [direction, setDirection] = useState("EXPENSE");
   const { data: categories = [] } = usePfmCategories(direction);
   const confirmMut = useConfirmReceipt();
+  const createCategoryMut = useCreatePfmCategory();
   const { data: imageUrl } = useReceiptImageUrl(receipt?.fileId);
   const [categoryId, setCategoryId] = useState(null);
 
@@ -146,12 +148,23 @@ export function ReceiptReviewSheet({ open, onOpenChange, receipt }) {
               />
             )}
           />
-          <ComboboxField
+          <CreatableComboboxField
             label="Categoria"
-            placeholder="Buscar..."
+            placeholder="Buscar o crear..."
+            searchPlaceholder="Buscar o crear..."
             options={categoryOptions}
             value={categoryId ?? ""}
             onChange={setCategoryId}
+            isCreating={createCategoryMut.isPending}
+            onCreate={async (name) => {
+              try {
+                const res = await createCategoryMut.mutateAsync({ name, kind: direction });
+                const id = res?.data?.id ?? res?.id ?? null;
+                if (id) setCategoryId(id);
+              } catch {
+                // e.g. missing pfm.categories.manage — leave the field untouched
+              }
+            }}
           />
           <Controller
             control={control}

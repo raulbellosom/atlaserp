@@ -12,7 +12,7 @@ import {
   Button,
   TextField,
   SelectField,
-  ComboboxField,
+  CreatableComboboxField,
   DateField,
 } from "@atlas/ui";
 import {
@@ -21,6 +21,7 @@ import {
   useCreateMovement,
   useUpdateMovement,
   useEnrichLedgerMovement,
+  useCreatePfmCategory,
 } from "../hooks/use-pfm-queries";
 import { todayIso } from "../lib/format";
 
@@ -55,6 +56,7 @@ export function QuickAddMovementSheet({ open, onOpenChange, defaultWalletId, edi
   const createMut = useCreateMovement();
   const updateMut = useUpdateMovement();
   const enrichMut = useEnrichLedgerMovement();
+  const createCategoryMut = useCreatePfmCategory();
 
   const {
     register,
@@ -169,12 +171,23 @@ export function QuickAddMovementSheet({ open, onOpenChange, defaultWalletId, edi
             control={control}
             name="categoryId"
             render={({ field }) => (
-              <ComboboxField
+              <CreatableComboboxField
                 label="Categoria"
-                placeholder="Buscar..."
+                placeholder="Buscar o crear..."
+                searchPlaceholder="Buscar o crear..."
                 options={categoryOptions}
                 value={field.value ?? ""}
                 onChange={field.onChange}
+                isCreating={createCategoryMut.isPending}
+                onCreate={async (name) => {
+                  try {
+                    const res = await createCategoryMut.mutateAsync({ name, kind: direction });
+                    const id = res?.data?.id ?? res?.id ?? null;
+                    if (id) field.onChange(id);
+                  } catch {
+                    // e.g. missing pfm.categories.manage — leave the field untouched
+                  }
+                }}
               />
             )}
           />

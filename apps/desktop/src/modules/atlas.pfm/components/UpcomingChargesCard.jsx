@@ -1,8 +1,9 @@
 // apps/desktop/src/modules/atlas.pfm/components/UpcomingChargesCard.jsx
 import { useState } from "react";
-import { SectionCard, Button, Badge, EmptyState, ConfirmDialog } from "@atlas/ui";
+import { SectionCard, Button, Badge, EmptyState } from "@atlas/ui";
 import { Check, SkipForward } from "lucide-react";
 import { useUpcoming, useConfirmMovement, useSkipMovement } from "../hooks/use-pfm-queries";
+import { ConfirmChargeDialog } from "./ConfirmChargeDialog";
 import { formatMoney } from "../lib/format";
 
 export function UpcomingChargesCard() {
@@ -61,19 +62,18 @@ export function UpcomingChargesCard() {
         ))}
       </ul>
 
-      <ConfirmDialog
+      <ConfirmChargeDialog
         open={Boolean(confirmTarget)}
         onOpenChange={(v) => !v && setConfirmTarget(null)}
-        title="Confirmar cargo"
-        description={`Se aplicara ${formatMoney(confirmTarget?.amount, confirmTarget?.currency)} a ${confirmTarget?.walletName ?? ""}.`}
-        confirmLabel="Confirmar"
-        onConfirm={async () => {
-          await confirmMut.mutateAsync({
+        charge={confirmTarget}
+        currency={confirmTarget?.currency}
+        onConfirm={(amount) =>
+          confirmMut.mutateAsync({
             movementId: confirmTarget.id,
             walletId: confirmTarget.walletId,
-          });
-          setConfirmTarget(null);
-        }}
+            amount,
+          })
+        }
       />
     </SectionCard>
   );

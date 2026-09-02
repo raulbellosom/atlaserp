@@ -15,8 +15,12 @@ import {
   SwatchField,
   IconPickerField,
 } from "@atlas/ui";
-import { useCreateWallet, useUpdateWallet } from "../hooks/use-pfm-queries";
+import { useCreateWallet, useUpdateWallet, useLedgerAccounts } from "../hooks/use-pfm-queries";
 import { WALLET_KIND_LABEL } from "../lib/format";
+
+// Radix <Select.Item> forbids an empty string value, so "no link" needs a real
+// sentinel; ledger account ids are UUIDs, so "none" never collides.
+const NO_LEDGER = "none";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre es requerido").max(120),
@@ -25,6 +29,7 @@ const schema = z.object({
   openingBalance: z.coerce.number().default(0),
   color: z.string().max(32).optional().nullable(),
   icon: z.string().max(48).optional().nullable(),
+  ledgerAccountId: z.string().optional().nullable(),
   reference: z.string().max(40).optional().nullable(),
   creditLimit: z.coerce.number().optional().nullable(),
   statementDay: z.coerce.number().int().min(1).max(31).optional().nullable(),
@@ -46,6 +51,7 @@ const EMPTY = {
   openingBalance: 0,
   color: "#0ea5e9",
   icon: "",
+  ledgerAccountId: NO_LEDGER,
   reference: "",
   creditLimit: "",
   statementDay: "",
@@ -64,6 +70,7 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
   const isEdit = Boolean(wallet);
   const createMut = useCreateWallet();
   const updateMut = useUpdateWallet();
+  const { data: ledgerAccounts = [] } = useLedgerAccounts();
 
   const {
     register,
@@ -88,6 +95,7 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
             openingBalance: wallet.openingBalance ?? 0,
             color: wallet.color ?? "#0ea5e9",
             icon: wallet.icon ?? "",
+            ledgerAccountId: wallet.ledgerAccountId ?? NO_LEDGER,
             reference: wallet.reference ?? "",
             creditLimit: wallet.creditLimit ?? "",
             statementDay: wallet.statementDay ?? "",
@@ -106,6 +114,10 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
       currency: values.currency,
       color: values.color ?? null,
       icon: values.icon || null,
+      ledgerAccountId:
+        values.ledgerAccountId && values.ledgerAccountId !== NO_LEDGER
+          ? values.ledgerAccountId
+          : null,
       reference: values.reference?.trim() || null,
     };
     if (values.kind === "CREDIT") {
@@ -248,6 +260,35 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
               hint="Rendimiento anual estimado; se acumula dia a dia"
               error={errors.expectedRate?.message}
               {...register("expectedRate")}
+            />
+          )}
+
+          {(ledgerAccounts.length > 0 || wallet?.ledgerAccountId) && (
+            <Controller
+              control={control}
+              name="ledgerAccountId"
+              render={({ field }) => {
+                const opts = [
+                  { value: NO_LEDGER, label: "Sin enlazar" },
+                  ...ledgerAccounts.map((a) => ({ value: a.id, label: a.name })),
+                ];
+                if (
+                  field.value &&
+                  field.value !== NO_LEDGER &&
+                  !ledgerAccounts.some((a) => a.id === field.value)
+                ) {
+                  opts.push({ value: field.value, label: "Cuenta enlazada" });
+                }
+                return (
+                  <SelectField
+                    label="Cuenta bancaria enlazada (opcional)"
+                    hint="Al enlazar, esta cartera refleja los movimientos de la cuenta del libro y no se editan aqui"
+                    options={opts}
+                    value={field.value || NO_LEDGER}
+                    onChange={field.onChange}
+                  />
+                );
+              }}
             />
           )}
 
