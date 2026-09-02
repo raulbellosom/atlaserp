@@ -5,6 +5,7 @@ import {
   scoreMatch,
   scoreItem,
   buildCommandItems,
+  mapSearchGroups,
   STATIC_PAGES,
 } from "../commandPalette.js";
 
@@ -218,6 +219,79 @@ test("static pages are always offered on an empty query", () => {
     pages.items.map((i) => i.target).sort(),
     STATIC_PAGES.map((p) => p.path).sort(),
   );
+});
+
+test("mapSearchGroups shapes sections and items, drops empty groups", () => {
+  assert.deepEqual(mapSearchGroups([]), []);
+  assert.deepEqual(mapSearchGroups([{ source: "contacts", label: "Contactos", items: [] }]), []);
+
+  const sections = mapSearchGroups([
+    {
+      source: "contacts",
+      label: "Contactos",
+      items: [
+        {
+          id: "c1",
+          title: "Acme",
+          subtitle: "a@acme.com",
+          icon: "ContactRound",
+          target: "/app/m/atlas.contacts/contacts/c1",
+        },
+      ],
+    },
+  ]);
+  assert.equal(sections[0].id, "search:contacts");
+  assert.equal(sections[0].title, "Contactos");
+  assert.deepEqual(sections[0].items[0], {
+    key: "record:contacts:c1",
+    kind: "record",
+    title: "Acme",
+    subtitle: "a@acme.com",
+    keywords: [],
+    icon: "ContactRound",
+    color: null,
+    target: "/app/m/atlas.contacts/contacts/c1",
+    blocked: false,
+  });
+});
+
+test("searchGroups are spliced after active and before modules, never blocked", () => {
+  const groups = [
+    {
+      source: "contacts",
+      label: "Contactos",
+      items: [
+        {
+          id: "c1",
+          title: "Zeta",
+          subtitle: null,
+          icon: "ContactRound",
+          target: "/app/m/atlas.contacts/contacts/c1",
+        },
+      ],
+    },
+  ];
+  const withActive = buildCommandItems({
+    availableModules: modules,
+    activeModule: contacts,
+    query: "empres", // matches the "Empresas" nav item so the active section survives
+    searchGroups: groups,
+  });
+  assert.deepEqual(
+    withActive.sections.map((s) => s.id).slice(0, 2),
+    ["active", "search:contacts"],
+  );
+
+  const noActive = buildCommandItems({
+    availableModules: modules,
+    activeModule: null,
+    query: "zeta",
+    searchGroups: groups,
+  });
+  assert.equal(noActive.sections[0].id, "search:contacts");
+  // "zeta" matches no local module/action, but the record section still shows
+  assert.ok(noActive.flat.some((i) => i.title === "Zeta"));
+  assert.ok(noActive.flat.every((i) => i.blocked === false));
 });
 
 test("child nav entries are expanded into their own items", () => {

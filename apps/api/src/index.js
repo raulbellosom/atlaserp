@@ -65,6 +65,7 @@ import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
 import { createPfmRouter } from "./routes/pfm/index.js";
 import { createUsersRouter } from './routes/users-routes.js'
+import { createSearchRouter } from "./routes/search-routes.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCatalogRouter } from "./routes/catalog/index.js";
 import { createPosRouter } from "./routes/pos/index.js";
@@ -4725,6 +4726,7 @@ mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmi
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, filesService, notificationService }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
+mountWithAuth(app, createSearchRouter({ prisma, getUserContext: getOrLoadUserContext }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));
 mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));

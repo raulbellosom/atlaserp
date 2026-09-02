@@ -1,13 +1,19 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, X, WifiOff } from "lucide-react";
 import { ModuleNavIcon } from "@atlas/ui";
 import { useCommandStore } from "../stores/command";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { useOfflineStore, OFFLINE_MODULES } from "@atlas/offline";
+import { useAuth } from "../auth/AuthProvider";
+import { atlas } from "../lib/atlas";
 import { ModuleIcon } from "./ModuleCard";
 import { buildCommandItems } from "../lib/commandPalette";
+
+const SEARCH_MIN_LENGTH = 2;
+const SEARCH_DEBOUNCE_MS = 200;
 
 export function CommandPalette({ activeModule }) {
   const { isOpen, closeCommand, openCommand } = useCommandStore();
@@ -18,6 +24,29 @@ export function CommandPalette({ activeModule }) {
   const listRef = useRef(null);
   const { availableModules } = useRuntimeModules();
   const isOnline = useOfflineStore((s) => s.isOnline);
+  const { session } = useAuth();
+  const token = session?.access_token;
+
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const trimmed = query.trim();
+    const t = setTimeout(() => setDebouncedQuery(trimmed), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const searchEnabled =
+    isOpen &&
+    isOnline &&
+    Boolean(token) &&
+    debouncedQuery.length >= SEARCH_MIN_LENGTH;
+
+  const searchQuery = useQuery({
+    queryKey: ["command-search", debouncedQuery],
+    queryFn: () => atlas.search.global(debouncedQuery, { limit: 5 }, token),
+    enabled: searchEnabled,
+    staleTime: 15000,
+    retry: false,
+  });
 
   const { sections, flat } = useMemo(
     () =>
@@ -27,9 +56,12 @@ export function CommandPalette({ activeModule }) {
         query,
         isOnline,
         offlineModuleKeys: OFFLINE_MODULES,
+        searchGroups: searchQuery.data?.groups ?? [],
       }),
-    [availableModules, activeModule, query, isOnline],
+    [availableModules, activeModule, query, isOnline, searchQuery.data],
   );
+
+  const searching = searchEnabled && searchQuery.isFetching;
 
   function runItem(item) {
     if (!item || item.blocked) return;
@@ -138,10 +170,16 @@ export function CommandPalette({ activeModule }) {
               </button>
             </div>
 
+            {searching && (
+              <div className="shrink-0 px-4 py-1.5 border-b border-[hsl(var(--border))] text-[11px] text-[hsl(var(--muted-foreground))]">
+                Buscando...
+              </div>
+            )}
+
             <div ref={listRef} className="overflow-y-auto max-h-[50dvh] p-2">
               {flat.length === 0 ? (
                 <p className="text-sm text-center text-[hsl(var(--muted-foreground))] py-8">
-                  Sin resultados
+                  {searching ? "Buscando..." : "Sin resultados"}
                 </p>
               ) : (
                 sections.map((section) => (

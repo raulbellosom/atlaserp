@@ -310,6 +310,12 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
         }),
     },
+    search: {
+      global: (q, { limit } = {}, token) =>
+        request(`/search${toQueryString({ q, limit })}`, {
+          headers: withAuthHeaders(token),
+        }),
+    },
     blueprints: {
       list: (token) =>
         request("/blueprints", {

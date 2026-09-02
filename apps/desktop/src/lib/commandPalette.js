@@ -129,6 +129,28 @@ function expandNav(module, nav, opts) {
   return out;
 }
 
+// Maps the `/search` response groups into palette sections. Server-side results
+// are already filtered by the query, so these are never re-scored locally.
+export function mapSearchGroups(groups = []) {
+  return (groups ?? [])
+    .filter((g) => g && Array.isArray(g.items) && g.items.length > 0)
+    .map((g) => ({
+      id: `search:${g.source}`,
+      title: g.label,
+      items: g.items.map((it) => ({
+        key: `record:${g.source}:${it.id}`,
+        kind: "record",
+        title: it.title,
+        subtitle: it.subtitle || null,
+        keywords: [],
+        icon: it.icon,
+        color: null,
+        target: it.target,
+        blocked: false,
+      })),
+    }));
+}
+
 function pageItem(page) {
   return {
     key: `page:${page.key}`,
@@ -151,6 +173,7 @@ export function buildCommandItems({
   query = "",
   isOnline = true,
   offlineModuleKeys = [],
+  searchGroups = [],
 } = {}) {
   const isBlocked = makeBlocked(isOnline, offlineModuleKeys);
   const q = normalizeText(query);
@@ -191,7 +214,7 @@ export function buildCommandItems({
     items: STATIC_PAGES.map(pageItem),
   });
 
-  const sections = rawSections
+  const localSections = rawSections
     .map((section) => {
       if (!q) return section;
       const scored = section.items
@@ -207,6 +230,14 @@ export function buildCommandItems({
       return { ...section, items: scored.map((entry) => entry.item) };
     })
     .filter((section) => section.items.length > 0);
+
+  // Records the user explicitly searched for sit just under the active module's
+  // own actions and above the generic module list.
+  const searchSections = mapSearchGroups(searchGroups);
+  const hasActive = localSections[0]?.id === "active";
+  const sections = hasActive
+    ? [localSections[0], ...searchSections, ...localSections.slice(1)]
+    : [...searchSections, ...localSections];
 
   const flat = sections.flatMap((section) => section.items);
 
