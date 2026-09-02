@@ -113,4 +113,26 @@ describe("budgets-service", () => {
     assert.equal(published[0].priority, "high");
     assert.match(published[0].dedupeKey, /overage/);
   });
+
+  it("scopes the spend rollup to the budget owner's own movements (shared system categories don't bleed)", async () => {
+    const seen = [];
+    const capture = async (strings) => {
+      seen.push(strings.join("?"));
+      return [];
+    };
+    const svc = createBudgetsService({
+      prisma: { $queryRaw: capture },
+      notificationService: { publish: async () => {} },
+    });
+    await svc.listBudgets({ companyId: COMPANY, actorId: OWNER, month: "2026-08" });
+    await svc.evaluateBudgets({ now: new Date("2026-08-20T00:00:00.000Z") });
+    assert.equal(seen.length, 2);
+    for (const sql of seen) {
+      assert.match(
+        sql.replace(/\s+/g, " "),
+        /m\.owner_id = b\.owner_id/,
+        "movement join must be scoped to the budget owner",
+      );
+    }
+  });
 });

@@ -6,7 +6,7 @@ import { PfmServiceError, getCompanyId, getActorId } from "./service-helpers.js"
 
 function handleError(c, err, fallback) {
   if (err instanceof PfmServiceError) return c.json({ error: err.message }, err.status);
-  if (process.env.NODE_ENV !== "production") console.error("[atlas.pfm]", err);
+  console.error("[atlas.pfm]", err);
   return c.json({ error: fallback }, 500);
 }
 

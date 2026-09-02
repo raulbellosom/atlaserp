@@ -52,7 +52,9 @@ export function createBudgetsService({ prisma, notificationService = null }) {
                ), 0) AS spent
         FROM pfm_budget b
         LEFT JOIN pfm_category c ON c.id = b.category_id
-        LEFT JOIN pfm_movement m ON m.category_id = b.category_id AND m.company_id = ${companyId}::uuid
+        LEFT JOIN pfm_movement m ON m.category_id = b.category_id
+          AND m.company_id = ${companyId}::uuid
+          AND m.owner_id = b.owner_id
         WHERE b.company_id = ${companyId}::uuid AND b.owner_id = ${actorId}::uuid AND b.enabled = true
         GROUP BY b.id, c.name
         ORDER BY c.name
@@ -113,7 +115,9 @@ export function createBudgetsService({ prisma, notificationService = null }) {
                ), 0) AS spent
         FROM pfm_budget b
         LEFT JOIN pfm_category c ON c.id = b.category_id
-        LEFT JOIN pfm_movement m ON m.category_id = b.category_id AND m.company_id = b.company_id
+        LEFT JOIN pfm_movement m ON m.category_id = b.category_id
+          AND m.company_id = b.company_id
+          AND m.owner_id = b.owner_id
         WHERE b.enabled = true
         GROUP BY b.id, c.name
       `;
