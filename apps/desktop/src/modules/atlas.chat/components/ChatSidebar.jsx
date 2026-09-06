@@ -3,7 +3,7 @@ import {
   Button, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@atlas/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video } from "lucide-react";
 import { toast } from "sonner";
 import { ChatConversationItem } from "./ChatConversationItem";
 import { MessageSearchResults } from "./MessageSearchResults";
@@ -12,6 +12,7 @@ import { CreateChatModal } from "./CreateChatModal";
 import { CreateChannelModal } from "./CreateChannelModal";
 import { ChannelDirectorySheet } from "./ChannelDirectorySheet";
 import { ChatSettingsDialog } from "./ChatSettingsDialog";
+import { NewMeetingDialog } from "./NewMeetingDialog";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useUnarchiveConversation } from "../hooks/useChatConversations";
@@ -30,6 +31,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
+  const [showMeeting, setShowMeeting] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -96,12 +98,17 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                 <Compass className="h-3.5 w-3.5 mr-2" />
                 Explorar canales
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setShowMeeting(true)}>
+                <Video className="h-3.5 w-3.5 mr-2" />
+                Nueva reunion
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
       <ChatSettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <NewMeetingDialog open={showMeeting} onOpenChange={setShowMeeting} defaultConversationId={activeId ?? null} />
 
       {/* Search */}
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] shrink-0">
