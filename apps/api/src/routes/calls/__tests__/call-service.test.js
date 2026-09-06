@@ -196,6 +196,7 @@ describe("createCallService", () => {
 
   it("activates a ringing call when an invited participant joins", async () => {
     const updates = [];
+    const broadcasts = [];
     const ringingCall = {
       id: CALL_ID,
       conversationId: CONVERSATION_ID,
@@ -223,20 +224,39 @@ describe("createCallService", () => {
       callParticipant: {
         update: (operation) => { updates.push({ model: "participant", operation }); return Promise.resolve({}); },
       },
-      $queryRaw: async () => [{ id: "membership" }],
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("INSERT INTO chat_messages")) return [{ id: "sysmsg-1", created_at: new Date() }];
+        if (sql.includes("chat_conversation_members")) {
+          return [{ userId: CALLER_ID, displayName: "Caller" }, { userId: CALLEE_ID, displayName: "Callee" }];
+        }
+        return [{ id: "membership" }];
+      },
+      $executeRaw: async () => 1,
       $transaction: async (operations) => Promise.all(operations),
     };
     class FakeToken {
       addGrant() {}
       async toJwt() { return "join-token"; }
     }
-    const service = createCallService({ prisma, env: enabledEnv(), AccessTokenImpl: FakeToken });
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      AccessTokenImpl: FakeToken,
+      broadcaster: {
+        broadcastToUsers: async (userIds, event, payload) => { broadcasts.push({ userIds, event, payload }); },
+      },
+    });
 
     const result = await service.joinCall({ authUserId: "callee-auth", callId: CALL_ID });
 
     assert.equal(result.token, "join-token");
     assert.equal(updates.find((entry) => entry.model === "participant").operation.data.status, "JOINED");
     assert.equal(updates.find((entry) => entry.model === "call").operation.data.status, "ACTIVE");
+    const systemBroadcast = broadcasts.find((b) => b.event === "chat.message.new");
+    assert.ok(systemBroadcast, "a chat.message.new broadcast is emitted for the started system message");
+    assert.equal(systemBroadcast.payload.conversationId, CONVERSATION_ID);
+    assert.equal(systemBroadcast.payload.senderId, null);
   });
 
   it("ends a direct call for everyone when the invited participant hangs up", async () => {

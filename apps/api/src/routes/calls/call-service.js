@@ -517,6 +517,9 @@ export function createCallService({
     }
     await prisma.$transaction(operations);
     const call = await getCallRecord(callId);
+    if (shouldActivate && before.status === "RINGING") {
+      await postCallSystemMessage(call, { event: "started", kind: call.kind });
+    }
     return {
       callId,
       call,
