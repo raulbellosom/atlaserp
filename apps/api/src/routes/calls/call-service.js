@@ -169,6 +169,26 @@ export function createCallService({
     return participant;
   }
 
+  // Shared "may this user manage the call?" gate: the initiator, or a member
+  // holding `channel.manage` (or a system role) on the conversation. Reused by
+  // the guest-link and guest-moderation services.
+  async function assertCanManageCall({ conversationId, initiatedByUserId, profileId, action = "gestionar esta llamada" }) {
+    if (profileId && profileId === initiatedByUserId) return;
+    const roleRows = await prisma.$queryRaw`
+      SELECT r.is_system AS "isSystem", r.permissions
+      FROM chat_conversation_members m
+      JOIN chat_channel_roles r ON r.id = m.role_id
+      WHERE m.conversation_id = ${conversationId}
+        AND m.user_id = ${profileId}
+        AND m.left_at IS NULL
+      LIMIT 1
+    `;
+    const role = roleRows[0];
+    if (!role?.isSystem && role?.permissions?.["channel.manage"] !== true) {
+      throw new CallServiceError(`No tienes permiso para ${action}.`, 403);
+    }
+  }
+
   async function createToken(config, call, profile) {
     const token = new AccessTokenImpl(config.apiKey, config.apiSecret, {
       identity: profile.id,
@@ -625,21 +645,12 @@ export function createCallService({
     const call = await getCallRecord(callId);
     await assertCallAccess(call, profile.id);
     if (call.status === "ENDED") return call;
-    if (profile.id !== call.initiatedByUserId) {
-      const roleRows = await prisma.$queryRaw`
-        SELECT r.is_system AS "isSystem", r.permissions
-        FROM chat_conversation_members m
-        JOIN chat_channel_roles r ON r.id = m.role_id
-        WHERE m.conversation_id = ${call.conversationId}
-          AND m.user_id = ${profile.id}
-          AND m.left_at IS NULL
-        LIMIT 1
-      `;
-      const role = roleRows[0];
-      if (!role?.isSystem && role?.permissions?.["channel.manage"] !== true) {
-        throw new CallServiceError("No tienes permiso para finalizar esta llamada.", 403);
-      }
-    }
+    await assertCanManageCall({
+      conversationId: call.conversationId,
+      initiatedByUserId: call.initiatedByUserId,
+      profileId: profile.id,
+      action: "finalizar esta llamada",
+    });
     await endCallRecord(call, "ended");
     return getCallRecord(callId);
   }
@@ -666,5 +677,6 @@ export function createCallService({
     endCall,
     expireStaleCalls,
     startExpirySweeper,
+    assertCanManageCall,
   };
 }
