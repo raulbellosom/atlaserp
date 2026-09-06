@@ -55,6 +55,7 @@ export function CallsProvider({ children }) {
   const joiningCallRef = useRef(null);
   const busyNoticeRef = useRef(new Set());
   const [pendingGuestCount, setPendingGuestCount] = useState(0);
+  const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
     activeRef.current = activeSession;
@@ -371,8 +372,14 @@ export function CallsProvider({ children }) {
   }, [on]);
 
   useEffect(() => {
-    if (!activeSession) setPendingGuestCount(0);
+    if (!activeSession) {
+      setPendingGuestCount(0);
+      setMinimized(false);
+    }
   }, [activeSession]);
+
+  const minimizeCall = useCallback(() => setMinimized(true), []);
+  const restoreCall = useCallback(() => setMinimized(false), []);
 
   const value = useMemo(() => ({
     enabled: config.enabled,
@@ -380,8 +387,11 @@ export function CallsProvider({ children }) {
     isStarting,
     activeCall: activeSession?.call ?? null,
     pendingGuestCount,
+    minimized: minimized && Boolean(activeSession),
+    minimizeCall,
+    restoreCall,
     startCall,
-  }), [config.enabled, config.loading, isStarting, activeSession?.call, pendingGuestCount, startCall]);
+  }), [config.enabled, config.loading, isStarting, activeSession, pendingGuestCount, minimized, minimizeCall, restoreCall, startCall]);
 
   return (
     <CallsContext.Provider value={value}>
@@ -400,6 +410,9 @@ export function CallsProvider({ children }) {
             onLeave={leaveActive}
             onUnanswered={endUnansweredCall}
             isInitiator={activeSession.call.initiatedByUserId === userProfile?.id}
+            minimized={minimized}
+            onMinimize={minimizeCall}
+            onRestore={restoreCall}
           />
         </Suspense>
       )}

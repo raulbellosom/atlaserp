@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  Minimize2,
   MonitorUp,
   PhoneOff,
   PictureInPicture2,
@@ -212,6 +213,17 @@ export function CallRoomLayout({ view, actions, chat }) {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {actions.minimize && (
+            <button
+              type="button"
+              onClick={actions.minimize}
+              title="Minimizar llamada"
+              aria-label="Minimizar llamada"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 hover:text-white"
+            >
+              <Minimize2 className="h-4 w-4" />
+            </button>
+          )}
           {canShare && (
             <button
               type="button"

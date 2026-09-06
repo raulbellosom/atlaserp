@@ -8,6 +8,7 @@ import { nextCallView } from "./lib/callChat";
 import { CallChatPanel } from "./CallChatPanel";
 import { CallGuestRoster } from "./CallGuestRoster";
 import { CallShareDialog } from "./CallShareDialog";
+import { MiniCallBubble } from "./MiniCallBubble";
 import { useCallGuests } from "./hooks/useCallGuests";
 import { CallRoomLayout } from "./CallRoomLayout";
 
@@ -31,7 +32,7 @@ function writeChatCollapsedPref(collapsed) {
   }
 }
 
-export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }) {
+export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, minimized = false, onMinimize, onRestore }) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
@@ -389,6 +390,20 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
       )
       : null;
 
+  if (minimized) {
+    return (
+      <MiniCallBubble
+        remoteParticipants={remoteParticipants}
+        localParticipant={room.localParticipant}
+        elapsed={elapsed}
+        micEnabled={micEnabled}
+        onToggleMic={toggleMicrophone}
+        onRestore={onRestore}
+        onHangUp={handleLeave}
+      />
+    );
+  }
+
   return (
     <>
     <CallRoomLayout
@@ -428,6 +443,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
         toggleScreen,
         toggleLayout: () => setLayoutMode((current) => current === "focus" ? "balanced" : "focus"),
         leave: handleLeave,
+        minimize: onMinimize,
       }}
       chat={{
         isMobile,
