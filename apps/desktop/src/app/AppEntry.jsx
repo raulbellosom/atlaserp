@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -32,6 +32,8 @@ import { PublicClientLogin } from "../shell/PublicClientLogin.jsx";
 import { ServerSetup } from "./ServerSetup.jsx";
 import { AppRouteGuard } from "./AppRouteGuard.jsx";
 import PublicNoteScreen from "../modules/atlas.notes/PublicNoteScreen.jsx";
+
+const GuestCallScreen = lazy(() => import("../modules/atlas.chat/calls/guest/GuestCallScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/atlas.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -126,6 +128,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
               {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
               <Route path="/app/p" element={<PublicShell />}>
                 <Route path="notes/:slug" element={<PublicNoteScreen />} />
+                <Route path="call/:token" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
+                <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
               </Route>
               <Route element={<AppRouteGuard mode="access" />}>
                 <Route path="/app" element={<RealtimeProvider><CallsProvider><AtlasApp /></CallsProvider></RealtimeProvider>}>
@@ -137,6 +141,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
               </Route>
               <Route path="/p" element={<PublicShell />}>
                 <Route path="notes/:slug" element={<PublicNoteScreen />} />
+                <Route path="call/:token" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
+                <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                 <Route path="*" element={<PublicModuleOutlet />} />
               </Route>
               <Route path="*" element={<PublicWebsiteEntry />} />
