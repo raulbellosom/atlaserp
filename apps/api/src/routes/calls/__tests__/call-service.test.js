@@ -261,9 +261,9 @@ describe("createCallService", () => {
 
   it("ends a direct call for everyone when the invited participant hangs up", async () => {
     const participantUpdates = [];
+    const broadcasts = [];
     let countWhere;
     let callUpdate;
-    let broadcastCall;
     let deletedRoom;
     const activeCall = {
       id: CALL_ID,
@@ -292,7 +292,15 @@ describe("createCallService", () => {
         updateMany: (operation) => { participantUpdates.push(operation); return Promise.resolve({ count: 1 }); },
         count: async ({ where }) => { countWhere = where; return 0; },
       },
-      $queryRaw: async () => [{ id: "membership" }],
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("INSERT INTO chat_messages")) return [{ id: "sysmsg-2", created_at: new Date() }];
+        if (sql.includes("chat_conversation_members")) {
+          return [{ userId: CALLER_ID, displayName: "Caller" }, { userId: CALLEE_ID, displayName: "Callee" }];
+        }
+        return [{ id: "membership" }];
+      },
+      $executeRaw: async () => 1,
       $transaction: async (operations) => Promise.all(operations),
     };
     class FakeRoomServiceClient {
@@ -304,7 +312,7 @@ describe("createCallService", () => {
       RoomServiceClientImpl: FakeRoomServiceClient,
       broadcaster: {
         broadcastToUsers: async (userIds, event, payload) => {
-          broadcastCall = { userIds, event, payload };
+          broadcasts.push({ userIds, event, payload });
         },
       },
     });
@@ -319,11 +327,16 @@ describe("createCallService", () => {
     });
     assert.equal(callUpdate.data.status, "ENDED");
     assert.equal(deletedRoom, `call_${CALL_ID}`);
-    assert.deepEqual(broadcastCall, {
-      userIds: [CALLER_ID, CALLEE_ID],
-      event: "chat.call.ended",
-      payload: { callId: CALL_ID, reason: "ended" },
-    });
+    assert.ok(
+      broadcasts.some((b) =>
+        b.event === "chat.call.ended"
+        && b.payload.callId === CALL_ID
+        && b.payload.reason === "ended"),
+      "still broadcasts chat.call.ended",
+    );
+    const endedSystem = broadcasts.find((b) => b.event === "chat.message.new");
+    assert.ok(endedSystem, "posts a chat.message.new for the terminal system message");
+    assert.equal(endedSystem.payload.conversationId, CONVERSATION_ID);
     assert.equal(participantUpdates.some((operation) => operation.data.status === "LEFT"), true);
   });
 
@@ -358,7 +371,13 @@ describe("createCallService", () => {
         updateMany: async () => ({ count: 1 }),
         count: async () => 0,
       },
-      $queryRaw: async () => [{ id: "membership" }],
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("INSERT INTO chat_messages")) return [{ id: "sysmsg-3", created_at: new Date() }];
+        if (sql.includes("chat_conversation_members")) return [{ userId: CALLEE_ID, displayName: "Callee" }];
+        return [{ id: "membership" }];
+      },
+      $executeRaw: async () => 1,
       $transaction: async (operations) => Promise.all(operations),
     };
     class FakeRoomServiceClient {

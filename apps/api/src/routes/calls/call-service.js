@@ -567,6 +567,13 @@ export function createCallService({
       }),
     ]);
     await closeLiveKitRoom(call);
+    await postCallSystemMessage(call, {
+      event: "ended",
+      kind: call.kind,
+      endReason: reason === "missed" ? "missed" : reason === "rejected" ? "rejected" : "ended",
+      startedAt: call.startedAt ?? null,
+      endedAt: now(),
+    });
     const participantIds = [];
     for (const participant of call.participants ?? []) {
       if (participant.userId && !participantIds.includes(participant.userId)) {
