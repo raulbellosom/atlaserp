@@ -14,6 +14,7 @@ import {
   PictureInPicture2,
   ScreenShareOff,
   SwitchCamera,
+  UserPlus,
   Volume2,
 } from "lucide-react";
 import { Track } from "livekit-client";
@@ -164,7 +165,14 @@ export function CallRoomLayout({ view, actions, chat }) {
     chatUnread = 0,
     hasScreenShare = false,
     panel: chatPanel = null,
+    canShare = false,
+    onShare = () => {},
+    hasGuests = false,
+    pendingLobby = 0,
+    roster = null,
   } = chat ?? {};
+
+  const showRoster = canShare && (hasGuests || pendingLobby > 0);
 
   const showChatColumn = !isMobile && chatExpanded;
   const showChatRail = !isMobile && !chatExpanded;
@@ -203,9 +211,25 @@ export function CallRoomLayout({ view, actions, chat }) {
                   connectionState === "failed" ? "No se pudo conectar" : "Conectando..."}
           </p>
         </div>
-        <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
-          {isVideoActive ? "Videollamada" : "Llamada de voz"}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          {canShare && (
+            <button
+              type="button"
+              onClick={onShare}
+              className="relative flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 hover:text-white"
+            >
+              <UserPlus className="h-3.5 w-3.5" /> Invitar
+              {pendingLobby > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold ring-2 ring-slate-950">
+                  {pendingLobby > 9 ? "9+" : pendingLobby}
+                </span>
+              )}
+            </button>
+          )}
+          <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/70">
+            {isVideoActive ? "Videollamada" : "Llamada de voz"}
+          </span>
+        </div>
       </header>
 
       {isMobile && (
@@ -290,6 +314,12 @@ export function CallRoomLayout({ view, actions, chat }) {
           <RemoteAudio key={`audio-${participant.identity}`} participant={participant} />
         ))}
       </main>
+
+      {showRoster && (
+        <div className="max-h-48 shrink-0 overflow-y-auto border-t border-white/10 bg-black/20">
+          {roster}
+        </div>
+      )}
 
       <footer
         className="flex shrink-0 flex-wrap items-center justify-center gap-1.5 border-t border-white/10 bg-black/30 pt-3 backdrop-blur-xl"
