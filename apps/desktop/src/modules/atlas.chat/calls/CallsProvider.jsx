@@ -12,8 +12,12 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import {
+  requestDesktopAttention,
+  showSystemNotification,
+} from "../../../lib/systemNotifications";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
-import { playCallSound } from "./callSounds";
+import { playCallSound, unlockCallSounds } from "./callSounds";
 import {
   claimCallForDevice,
   releaseCallForDevice,
@@ -79,7 +83,43 @@ export function CallsProvider({ children }) {
 
   useEffect(() => {
     if (!incomingCall?.id) return undefined;
-    return playCallSound("ringtone", { loop: true, volume: 0.5 });
+    const callId = incomingCall.id;
+    const soundToastId = `call-sound-blocked:${callId}`;
+    let disposed = false;
+    let stopSound = () => {};
+
+    function startRingtone() {
+      stopSound();
+      stopSound = playCallSound("ringtone", {
+        loop: true,
+        volume: 0.65,
+        onBlocked: () => {
+          if (disposed) return;
+          toast.warning("El telefono bloqueo el sonido de la llamada", {
+            id: soundToastId,
+            description: "Toca el boton para escuchar el tono.",
+            duration: Infinity,
+            action: {
+              label: "Activar sonido",
+              onClick: () => {
+                unlockCallSounds().then((unlocked) => {
+                  if (!unlocked || disposed || incomingRef.current?.id !== callId) return;
+                  toast.dismiss(soundToastId);
+                  startRingtone();
+                });
+              },
+            },
+          });
+        },
+      });
+    }
+
+    startRingtone();
+    return () => {
+      disposed = true;
+      stopSound();
+      toast.dismiss(soundToastId);
+    };
   }, [incomingCall?.id]);
 
   const fetchCall = useCallback(async (callId) => {
@@ -135,7 +175,22 @@ export function CallsProvider({ children }) {
     const isNewCall = incomingRef.current?.id !== call.id;
     incomingRef.current = call;
     setIncomingCall(call);
-    if (isNewCall) globalThis.navigator?.vibrate?.([400, 180, 400, 180, 400]);
+    if (isNewCall) {
+      globalThis.navigator?.vibrate?.([400, 180, 400, 180, 400]);
+      requestDesktopAttention().catch(() => {});
+      showSystemNotification({
+        title: call.initiator?.displayName ?? "Llamada entrante",
+        body: call.kind === "VIDEO" ? "Videollamada entrante" : "Llamada entrante",
+        tag: `call:${call.id}`,
+        data: {
+          link: call.conversationId
+            ? `/app/m/atlas.chat/chat/inbox/${call.conversationId}`
+            : "/app/m/atlas.chat/chat/inbox",
+          callId: call.id,
+        },
+        requireInteraction: true,
+      }).catch(() => {});
+    }
   }, [userProfile?.id, rejectIncomingWhileBusy]);
 
   const syncCurrentCall = useCallback(async () => {

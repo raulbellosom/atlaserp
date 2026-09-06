@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
 import {
   isWebPushSupported,
@@ -7,9 +8,15 @@ import {
   syncCurrentDeviceWebPushSubscription,
 } from "../lib/webPush";
 import { atlas } from "../lib/atlas";
+import {
+  getSystemNotificationPermission,
+  isTauriRuntime,
+  requestSystemNotificationPermission,
+} from "../lib/systemNotifications";
+import { unlockCallSounds } from "../modules/atlas.chat/calls/callSounds";
 
-// Returns a human-readable label for the current device/context.
-// Used as the device label stored in the DB so admins can identify subscriptions.
+const ENABLE_NOTIFICATIONS_TOAST_ID = "atlas-enable-notifications";
+
 function getPwaLabel() {
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
   if (isStandalone) {
@@ -22,65 +29,104 @@ function getPwaLabel() {
   return "Navegador web";
 }
 
-async function trySubscribe(token) {
+function enableFromUserGesture(token) {
+  const soundActivation = unlockCallSounds();
+  toast.dismiss(ENABLE_NOTIFICATIONS_TOAST_ID);
+
+  const notificationActivation = isTauriRuntime()
+    ? requestSystemNotificationPermission().then((permission) => {
+        if (permission !== "granted") throw new Error("Permiso de notificaciones denegado.");
+      })
+    : subscribeCurrentDeviceToWebPush({ token, deviceLabel: getPwaLabel() });
+
+  Promise.all([soundActivation, notificationActivation])
+    .then(([soundUnlocked]) => {
+      if (!soundUnlocked) throw new Error("El dispositivo no permitio activar el sonido.");
+      toast.success("Notificaciones y sonidos activados.");
+    })
+    .catch((error) => {
+      toast.error(error?.message ?? "No se pudieron activar las notificaciones.");
+    });
+}
+
+function showEnablePrompt(token) {
+  toast("Activa las notificaciones", {
+    id: ENABLE_NOTIFICATIONS_TOAST_ID,
+    description: "Recibe avisos y escucha las llamadas aunque Atlas no este visible.",
+    duration: Infinity,
+    action: {
+      label: "Activar",
+      onClick: () => enableFromUserGesture(token),
+    },
+  });
+}
+
+async function prepareNotifications(token) {
+  if (isTauriRuntime()) {
+    const permission = await getSystemNotificationPermission().catch(() => "unsupported");
+    if (permission === "default") showEnablePrompt(token);
+    return;
+  }
+
   if (!isWebPushSupported()) return;
-  // If the browser already denied push, requestPermission is a no-op
-  // and we'd throw anyway — skip early to avoid noise.
   if (typeof Notification !== "undefined" && Notification.permission === "denied") return;
 
-  // Only proceed if VAPID is configured on this server.
   const keyResponse = await atlas.notifications.getWebPushPublicKey(token).catch(() => null);
   if (!keyResponse?.data?.publicKey) return;
 
   const deviceLabel = getPwaLabel();
-
-  // If the browser already has an active push subscription, just sync it to the
-  // server (cheap upsert) without showing any permission prompt.
   const existing = await getCurrentWebPushSubscription().catch(() => null);
   if (existing) {
     await syncCurrentDeviceWebPushSubscription({ token, deviceLabel }).catch(() => {});
     return;
   }
 
-  // No subscription → request permission and subscribe.
-  // A short delay ensures the UI is stable and the page is interactive before
-  // the browser shows the permission dialog.
-  await new Promise((r) => setTimeout(r, 2500));
-  await subscribeCurrentDeviceToWebPush({ token, deviceLabel });
+  if (Notification.permission === "granted") {
+    await subscribeCurrentDeviceToWebPush({ token, deviceLabel }).catch(() => {});
+    return;
+  }
+
+  // Browsers require requestPermission() to run directly from a user gesture.
+  // The toast action is that gesture; a delayed automatic prompt gets blocked.
+  showEnablePrompt(token);
 }
 
 /**
- * Auto-subscribes the current device to Web Push after login.
- * - Runs once per authenticated session.
- * - If already subscribed → silently syncs the endpoint with the server.
- * - If not subscribed → requests browser permission and subscribes.
- * - Also re-subscribes when a new PWA shortcut is installed (appinstalled).
- * - Never throws to the caller; push is always optional.
+ * Prepares notifications after login.
+ * - If already subscribed, silently syncs the endpoint with the server.
+ * - If permission is pending, offers an explicit activation action.
+ * - In Tauri, enables native OS notifications instead of Web Push.
+ * - Also checks again when a PWA shortcut is installed.
  */
 export function usePushAutoSubscribe() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const hasRunRef = useRef(false);
 
-  // Run once per login session, after userProfile is loaded.
   useEffect(() => {
-    if (!token || !userProfile?.id) return;
+    if (!token || !userProfile?.id) {
+      hasRunRef.current = false;
+      return;
+    }
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
-    trySubscribe(token).catch(() => {});
+    prepareNotifications(token).catch(() => {});
   }, [token, userProfile?.id]);
 
-  // When any PWA shortcut is installed, subscribe (or sync) for that session.
   useEffect(() => {
     if (!token || !userProfile?.id) return;
+    let installTimer = null;
 
     function handleAppInstalled() {
-      // Wait a moment for the PWA to finish launching before triggering.
-      setTimeout(() => trySubscribe(token).catch(() => {}), 3000);
+      if (installTimer !== null) window.clearTimeout(installTimer);
+      installTimer = window.setTimeout(() => prepareNotifications(token).catch(() => {}), 3000);
     }
 
     window.addEventListener("appinstalled", handleAppInstalled);
-    return () => window.removeEventListener("appinstalled", handleAppInstalled);
+    return () => {
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      if (installTimer !== null) window.clearTimeout(installTimer);
+    };
   }, [token, userProfile?.id]);
 }

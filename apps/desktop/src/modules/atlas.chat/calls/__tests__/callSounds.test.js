@@ -49,4 +49,40 @@ describe("call sounds", () => {
     assert.equal(audio.paused, true);
     assert.equal(audio.currentTime, 0);
   });
+
+  it("retries a rejected mobile unlock on the next user gesture", async () => {
+    let shouldReject = true;
+    globalThis.Audio = class AudioMock {
+      play() {
+        return shouldReject
+          ? Promise.reject(new Error("NotAllowedError"))
+          : Promise.resolve();
+      }
+
+      pause() {}
+    };
+
+    const isolated = await import(`../callSounds.js?mobile-unlock=${Date.now()}`);
+    assert.equal(await isolated.unlockCallSounds(), false);
+
+    shouldReject = false;
+    assert.equal(await isolated.unlockCallSounds(), true);
+  });
+
+  it("reports when every ringtone playback path is blocked", async () => {
+    globalThis.Audio = class AudioMock {
+      play() {
+        return Promise.reject(new Error("NotAllowedError"));
+      }
+
+      pause() {}
+    };
+
+    const isolated = await import(`../callSounds.js?blocked=${Date.now()}`);
+    const blocked = new Promise((resolve) => {
+      isolated.playCallSound("ringtone", { loop: true, onBlocked: resolve });
+    });
+
+    assert.match((await blocked).message, /NotAllowedError/);
+  });
 });

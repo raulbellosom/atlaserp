@@ -3,7 +3,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { getSupabaseClient } from '../lib/supabase'
+import { isTauriRuntime, showSystemNotification } from '../lib/systemNotifications'
 import { toast } from 'sonner'
+import { playCallSound } from '../modules/atlas.chat/calls/callSounds'
 import { useChatFloatStore } from '../modules/atlas.chat/store/chatFloatStore'
 
 const RealtimeContext = createContext(null)
@@ -40,10 +42,22 @@ export function RealtimeProvider({ children }) {
         queryClient.invalidateQueries({ queryKey: ['notifications'] })
         dispatch('notification.new', payload)
         if (payload?.title) {
+          const isIncomingCall = payload.eventType === 'chat.call.incoming'
           const handleClick = () => {
             if (!payload.link) return
             const href = payload.link.startsWith('/m/') ? `/app${payload.link}` : payload.link
             navigate(href)
+          }
+          if (!isIncomingCall) {
+            playCallSound('notification')
+            if (document.hidden || isTauriRuntime()) {
+              showSystemNotification({
+                title: payload.title,
+                body: payload.body ?? '',
+                tag: payload.eventType ?? 'atlas-notification',
+                data: { link: payload.link ?? null },
+              }).catch(() => {})
+            }
           }
           toast(payload.title, {
             description: payload.body ?? undefined,

@@ -1,33 +1,36 @@
 import { useEffect } from "react";
 import { preloadCallSounds, unlockCallSounds } from "./callSounds.js";
 
-const UNLOCK_EVENTS = ["pointerdown", "touchend", "keydown"];
+// Safari documents touchend/click/keydown as media activation events. Using
+// pointerdown first can consume our in-flight guard before iOS reaches the
+// qualifying touchend event.
+const UNLOCK_EVENTS = ["touchend", "click", "keydown"];
 
 export function useCallSoundUnlock() {
   useEffect(() => {
     preloadCallSounds();
-    let unlocked = false;
     let unlocking = false;
 
     async function unlock() {
-      if (unlocked || unlocking) return;
+      if (unlocking) return;
       unlocking = true;
-      unlocked = await unlockCallSounds().catch(() => false);
+      await unlockCallSounds().catch(() => false);
       unlocking = false;
-      if (unlocked) {
-        UNLOCK_EVENTS.forEach((eventName) => {
-          document.removeEventListener(eventName, unlock, true);
-        });
-      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") unlock();
     }
 
     UNLOCK_EVENTS.forEach((eventName) => {
       document.addEventListener(eventName, unlock, true);
     });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       UNLOCK_EVENTS.forEach((eventName) => {
         document.removeEventListener(eventName, unlock, true);
       });
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 }

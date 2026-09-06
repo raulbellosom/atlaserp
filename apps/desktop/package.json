@@ -29,6 +29,7 @@
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-persist-client": "^5.101.0",
     "@tauri-apps/api": "latest",
+    "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-sql": "^2.3.0",
     "@tauri-apps/plugin-store": "^2.2.0",
     "@tiptap/core": "3.27.1",

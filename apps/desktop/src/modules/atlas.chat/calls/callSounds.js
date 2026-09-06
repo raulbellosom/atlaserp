@@ -1,7 +1,3 @@
-// App-wide short-sound layer. Named for calls (its first consumer) but also
-// owns the in-app notification chime — one unlock gesture, one priming pass,
-// covers every one-shot sound so they all work on iOS PWA where audio is
-// otherwise blocked outside a user gesture.
 export const CALL_SOUND_URLS = Object.freeze({
   ringtone: "/sounds/calls/ringtone.mp3",
   join: "/sounds/calls/join-call-sound.mp3",
@@ -9,20 +5,46 @@ export const CALL_SOUND_URLS = Object.freeze({
   notification: "/sounds/notification.mp3",
 });
 
+const SILENT_UNLOCK_WAV = "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+
 let audioContext = null;
 const bufferPromises = new Map();
-// One reusable, gesture-primed HTMLAudioElement per sound. iOS only lets an
-// <audio> element play without a user gesture AFTER it has been played once
-// during a gesture — so we prime each during unlockCallSounds() and then
-// replay the same element later (currentTime = 0), never `new Audio()`.
-const primedElements = new Map();
+const audioElements = new Map();
+const elementUnlockPromises = new Map();
+const unlockedElements = new Set();
+
+function clampVolume(value) {
+  return Math.min(1, Math.max(0, value));
+}
 
 function getAudioContext() {
+  if (audioContext?.state === "closed") audioContext = null;
   if (audioContext) return audioContext;
   const AudioContextImpl = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   if (!AudioContextImpl) return null;
   audioContext = new AudioContextImpl();
   return audioContext;
+}
+
+function ensureAudioElement(name) {
+  if (!CALL_SOUND_URLS[name] || typeof globalThis.Audio !== "function") return null;
+  let element = audioElements.get(name);
+  if (element) return element;
+
+  element = new globalThis.Audio(CALL_SOUND_URLS[name]);
+  element.preload = "auto";
+  element.playsInline = true;
+  element.setAttribute?.("playsinline", "");
+  element.setAttribute?.("aria-hidden", "true");
+  element.tabIndex = -1;
+
+  // Keeping the same media element attached for the whole session is
+  // important on iOS: autoplay permission is granted per element.
+  if (globalThis.document?.body && !element.isConnected) {
+    globalThis.document.body.appendChild(element);
+  }
+  audioElements.set(name, element);
+  return element;
 }
 
 async function loadBuffer(name, context) {
@@ -42,96 +64,156 @@ async function loadBuffer(name, context) {
   return bufferPromises.get(name);
 }
 
-// Create + silently play-then-pause an <audio> element so a later gestureless
-// .play() is allowed on iOS. Safe to call repeatedly — only primes once.
-function primeElement(name) {
-  if (typeof globalThis.Audio !== "function") return null;
-  let el = primedElements.get(name);
-  if (el) return el;
-  el = new globalThis.Audio(CALL_SOUND_URLS[name]);
-  el.preload = "auto";
-  el.muted = true;
-  const done = el.play();
-  if (done && typeof done.then === "function") {
-    done.then(() => {
-      el.pause();
-      el.currentTime = 0;
-      el.muted = false;
-    }).catch(() => {
-      // Even a rejected play() attempt inside the gesture is often enough to
-      // unlock iOS for a later real play; just restore the element either way.
-      el.muted = false;
-    });
-  } else {
-    el.pause();
-    el.currentTime = 0;
-    el.muted = false;
+function primeAudioElement(name) {
+  if (unlockedElements.has(name)) return Promise.resolve(true);
+  if (elementUnlockPromises.has(name)) return elementUnlockPromises.get(name);
+
+  const element = ensureAudioElement(name);
+  if (!element) return Promise.resolve(false);
+
+  // Do not use `muted` here. WebKit permits muted autoplay but can pause the
+  // element as soon as it becomes audible. Play real (but silent) PCM inside
+  // the gesture, then restore the target on this same reusable element.
+  element.muted = false;
+  element.volume = 1;
+  element.loop = false;
+  element.src = SILENT_UNLOCK_WAV;
+  try { element.load?.(); } catch {}
+  try { element.currentTime = 0; } catch {}
+
+  function restoreTarget() {
+    element.pause();
+    try { element.currentTime = 0; } catch {}
+    element.src = CALL_SOUND_URLS[name];
+    try { element.load?.(); } catch {}
   }
-  primedElements.set(name, el);
-  return el;
+
+  let playResult;
+  try {
+    playResult = element.play();
+  } catch {
+    restoreTarget();
+    return Promise.resolve(false);
+  }
+
+  const unlockPromise = Promise.resolve(playResult)
+    .then(() => {
+      restoreTarget();
+      unlockedElements.add(name);
+      return true;
+    })
+    .catch(() => {
+      restoreTarget();
+      return false;
+    })
+    .finally(() => elementUnlockPromises.delete(name));
+  elementUnlockPromises.set(name, unlockPromise);
+  return unlockPromise;
 }
 
-// Browsers only allow programmatic audio after a user gesture. CallsProvider
-// invokes this from the first pointer/key event anywhere in Atlas so a later
-// incoming call (or notification chime) can play even when the user is outside
-// the chat module.
-export async function unlockCallSounds() {
-  Object.keys(CALL_SOUND_URLS).forEach((name) => primeElement(name));
+function kickAudioContext(context) {
+  try {
+    const buffer = context.createBuffer(1, 1, 22050);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start(0);
+  } catch {}
+}
 
+export async function unlockCallSounds() {
+  // Invoke every play() synchronously before the first await so all attempts
+  // remain inside the pointer/touch/key activation that called this function.
+  const elementAttempts = Object.keys(CALL_SOUND_URLS).map(primeAudioElement);
   const context = getAudioContext();
-  if (!context) return primedElements.size > 0;
-  if (context.state === "suspended") await context.resume();
-  if (context.state !== "running") return primedElements.size > 0;
-  await Promise.allSettled(Object.keys(CALL_SOUND_URLS).map((name) => loadBuffer(name, context)));
-  return true;
+  let contextReady = false;
+
+  if (context) {
+    try {
+      if (context.state !== "running" && context.state !== "closed") {
+        kickAudioContext(context);
+        await context.resume();
+      }
+      contextReady = context.state === "running";
+      if (contextReady) {
+        await Promise.allSettled(
+          Object.keys(CALL_SOUND_URLS).map((name) => loadBuffer(name, context)),
+        );
+      }
+    } catch {}
+  }
+
+  const elementResults = await Promise.all(elementAttempts);
+  return contextReady || elementResults.some(Boolean);
 }
 
 export function preloadCallSounds() {
-  const context = getAudioContext();
-  if (!context) return;
-  Object.keys(CALL_SOUND_URLS).forEach((name) => { loadBuffer(name, context).catch(() => {}); });
+  Object.keys(CALL_SOUND_URLS).forEach((name) => {
+    try { ensureAudioElement(name)?.load?.(); } catch {}
+  });
 }
 
-export function playCallSound(name, { loop = false, volume = 0.65 } = {}) {
-  const src = CALL_SOUND_URLS[name];
-  if (!src || typeof globalThis === "undefined") return () => {};
+export function playCallSound(name, {
+  loop = false,
+  volume = 0.65,
+  onBlocked,
+} = {}) {
+  if (!CALL_SOUND_URLS[name] || typeof globalThis === "undefined") return () => {};
 
   let stopped = false;
   let sourceNode = null;
   let elementAudio = null;
 
-  async function start() {
+  async function playWithElement() {
+    elementAudio = ensureAudioElement(name);
+    if (!elementAudio) return false;
+    elementAudio.muted = false;
+    elementAudio.loop = loop;
+    elementAudio.volume = clampVolume(volume);
+    try { elementAudio.currentTime = 0; } catch {}
+    await elementAudio.play();
+    if (stopped) {
+      elementAudio.pause();
+      return true;
+    }
+    unlockedElements.add(name);
+    return true;
+  }
+
+  async function playWithWebAudio() {
     const context = getAudioContext();
-    if (context) {
+    if (!context) return false;
+    if (context.state !== "running" && context.state !== "closed") await context.resume();
+    if (context.state !== "running") return false;
+    const buffer = await loadBuffer(name, context);
+    if (stopped || !buffer) return true;
+    const gain = context.createGain();
+    gain.gain.value = clampVolume(volume);
+    sourceNode = context.createBufferSource();
+    sourceNode.buffer = buffer;
+    sourceNode.loop = loop;
+    sourceNode.connect(gain).connect(context.destination);
+    sourceNode.start();
+    return true;
+  }
+
+  async function start() {
+    let lastError = null;
+    const attempts = loop
+      ? [playWithElement, playWithWebAudio]
+      : [playWithWebAudio, playWithElement];
+
+    for (const attempt of attempts) {
       try {
-        if (context.state === "suspended") await context.resume();
-        const buffer = await loadBuffer(name, context);
-        if (stopped) return;
-        if (context.state === "running" && buffer) {
-          const gain = context.createGain();
-          gain.gain.value = Math.min(1, Math.max(0, volume));
-          sourceNode = context.createBufferSource();
-          sourceNode.buffer = buffer;
-          sourceNode.loop = loop;
-          sourceNode.connect(gain).connect(context.destination);
-          sourceNode.start();
-          return;
-        }
+        if (await attempt()) return;
       } catch (error) {
-        console.warn(`[atlas.calls] No se pudo reproducir ${name} con Web Audio:`, error);
+        lastError = error;
       }
     }
 
-    // Fallback: the gesture-primed element (reused, never a fresh Audio()).
-    try {
-      elementAudio = primedElements.get(name) ?? primeElement(name);
-      if (!elementAudio) return;
-      elementAudio.loop = loop;
-      elementAudio.volume = Math.min(1, Math.max(0, volume));
-      elementAudio.currentTime = 0;
-      await elementAudio.play();
-    } catch (error) {
-      console.warn(`[atlas.calls] El navegador bloqueo el sonido ${name}:`, error);
+    if (!stopped) {
+      console.warn(`[atlas.calls] El navegador bloqueo el sonido ${name}:`, lastError);
+      onBlocked?.(lastError);
     }
   }
 
@@ -142,7 +224,7 @@ export function playCallSound(name, { loop = false, volume = 0.65 } = {}) {
     try { sourceNode?.stop(); } catch {}
     if (elementAudio) {
       elementAudio.pause();
-      elementAudio.currentTime = 0;
+      try { elementAudio.currentTime = 0; } catch {}
       elementAudio.loop = false;
     }
   };

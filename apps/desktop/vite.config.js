@@ -273,7 +273,7 @@ export default defineConfig({
 
         // All known API path prefixes — needed so storefront SDK calls
         // (using ATLAS_APP_URL=localhost:5173) reach the API backend.
-        "^/(public|modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|auth|health|erp-badge-check|p)/": {
+        "^/(public|modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|calls|auth|health|erp-badge-check|p)/": {
           target: apiTarget,
           changeOrigin: true,
           configure: (p) => suppressStartup(p, "api-paths"),
