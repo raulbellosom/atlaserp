@@ -92,6 +92,7 @@ import { createDistServeService } from "./services/dist-serve-service.js";
 import { createNotificationDeliveryWorker } from "./services/notification-delivery-worker.js";
 import { createNotificationService } from "./services/notification-service.js";
 import { createRealtimeBroadcaster } from "./services/realtime-broadcaster.js";
+import { createSmtpService } from "./services/smtp-service.js";
 import {
   get as cacheGet,
   set as cacheSet,
@@ -3363,7 +3364,8 @@ app.route("/pwa", pwaRouter);
 // mountWithAuth intercept every request via secured.use("*", authMiddleware), which returns
 // 401 before the chat/notes public routes (e.g. POST /public/chat/session) can be reached.
 app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
-app.route("/", createCallsRouter({ prisma, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker }));
+const callsSmtpService = createSmtpService({ prisma });
+app.route("/", createCallsRouter({ prisma, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
 app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }));
 
 app.get("/public", (c) => {
@@ -4698,7 +4700,7 @@ app.route("/modules", modulesRouter);
 // intercepts every unmatched path before the wildcard route at the bottom can fire.
 // Moving this up as a use() middleware means it runs first for browser GETs to
 // non-API paths and calls next() for everything else (API AJAX calls, etc.).
-const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
+const API_PREFIX_RE = /^\/(modules|blueprints|files|contacts|company|identity|finance|hr|website|ledger|pfm|calendar|projects|catalog|pos|storefront|activity|notifications|inventory|chat|calls|public|auth|health|p|app|user|users|memberships|profile|settings|sync)\b/i
 // Static dist files that aren't HTML pages but live in the dist root (robots.txt, sitemap, webmanifest).
 const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
 app.use('*', async (c, next) => {
