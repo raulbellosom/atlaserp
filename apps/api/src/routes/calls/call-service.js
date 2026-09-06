@@ -1,4 +1,5 @@
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
+import { buildCallSystemMessage } from "./call-system-messages.js";
 
 const LIVE_CALL_STATUSES = ["RINGING", "ACTIVE"];
 const RING_TIMEOUT_MS = 36_000;
@@ -74,6 +75,43 @@ export function createCallService({
         AND m.left_at IS NULL
         AND c.deleted_at IS NULL
     `;
+  }
+
+  async function postCallSystemMessage(call, spec) {
+    try {
+      const { body, metadata } = buildCallSystemMessage(spec);
+      const payloadMeta = { call: { ...metadata.call, callId: call.id } };
+      const rows = await prisma.$queryRaw`
+        INSERT INTO chat_messages (conversation_id, sender_type, body, message_type, metadata)
+        VALUES (${call.conversationId}, 'system', ${body}, 'system', ${JSON.stringify(payloadMeta)}::jsonb)
+        RETURNING id, created_at
+      `;
+      const messageId = rows?.[0]?.id ?? null;
+      const createdAt = rows?.[0]?.created_at ?? now();
+      if (!messageId) return;
+      await prisma.$executeRaw`
+        UPDATE chat_conversations
+        SET last_message_id = ${messageId}, last_message_at = ${createdAt}, updated_at = NOW()
+        WHERE id = ${call.conversationId}
+      `;
+      const members = await listConversationMembers(call.conversationId);
+      const memberIds = members.map((member) => member.userId).filter(Boolean);
+      if (memberIds.length) {
+        await broadcaster?.broadcastToUsers?.(memberIds, "chat.message.new", {
+          conversationId: call.conversationId,
+          messageId,
+          senderId: null,
+          senderName: null,
+          threadRootId: null,
+          replyToMessageId: null,
+        });
+      }
+    } catch (error) {
+      console.warn(
+        "[atlas.calls] No se pudo publicar el mensaje de sistema de la llamada:",
+        error?.message ?? error,
+      );
+    }
   }
 
   async function assertMembership(conversationId, userProfileId) {
