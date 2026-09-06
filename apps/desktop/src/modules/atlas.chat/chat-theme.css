@@ -36,8 +36,10 @@
 
 .chat-glass-theme .chat-glass {
   background: hsl(var(--surface-2) / 0.6);
+  /* Single declaration — Lightning CSS adds `-webkit-` from browserslist. See
+     the note on `.glass` in apps/desktop/src/styles.css: hand-declaring both
+     lets the prod minifier drop the standard property and kill the blur. */
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid hsl(var(--border) / 0.5);
 }
 

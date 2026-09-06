@@ -193,9 +193,15 @@ html {
     min-height: 2.75rem;
     min-width: 2.75rem;
   }
+  /* Only the standard `backdrop-filter` is declared here — Lightning CSS (the
+     production minifier bundled with @tailwindcss/vite) adds `-webkit-` from the
+     package.json browserslist. Declaring both by hand triggers a minifier
+     dedupe bug: with a `var()` value it collapses the pair to whichever line
+     comes last, silently dropping the standard property in the prod build and
+     killing the blur in engines that don't honor `-webkit-backdrop-filter`
+     (Firefox, some webviews). Keep this a single declaration. */
   .glass {
     backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
@@ -203,7 +209,6 @@ html {
 
   .glass-strong {
     backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
     background: var(--glass-bg-strong);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
@@ -211,7 +216,6 @@ html {
 
   .glass-tinted {
     backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
     background: var(--glass-tint);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
@@ -219,7 +223,6 @@ html {
 
   .glass-subtle {
     backdrop-filter: blur(calc(var(--glass-blur) * 0.5));
-    -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.5));
     background: var(--glass-bg);
     border: 1px solid var(--glass-border-subtle);
   }
