@@ -30,22 +30,24 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     return list.filter((c) => c.type === "channel" || c.type === "group");
   }, [data]);
 
-  const [conversationId, setConversationId] = useState(defaultConversationId ?? "");
+  const NEW_ROOM = "__new__";
+  const [conversationId, setConversationId] = useState(defaultConversationId ?? NEW_ROOM);
+  const [resolvedId, setResolvedId] = useState(null); // real id after (maybe) creating a room
   const [mode, setMode] = useState("now"); // "now" | "schedule"
   const [emails, setEmails] = useState("");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(null); // { url, code, ... }
+  const [pending, setPending] = useState([]); // pendingManual entries
   const [showEventForm, setShowEventForm] = useState(false);
   const [copied, setCopied] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setMode("now"); setEmails(""); setLink(null); setShowEventForm(false); setBusy(false);
+    setMode("now"); setEmails(""); setLink(null); setPending([]); setShowEventForm(false); setBusy(false); setResolvedId(null);
     setConversationId(
-      defaultConversationId
-      && conversations.some((c) => c.id === defaultConversationId)
+      defaultConversationId && conversations.some((c) => c.id === defaultConversationId)
         ? defaultConversationId
-        : conversations[0]?.id ?? "",
+        : NEW_ROOM,
     );
   }, [open, defaultConversationId, conversations]);
 
@@ -63,20 +65,37 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     if (!conversationId) return;
     setBusy(true);
     try {
-      const created = unwrap(await atlas.calls.createLink(conversationId, token));
+      let targetId = conversationId;
+      if (conversationId === NEW_ROOM) {
+        const when = new Date().toLocaleDateString([], { day: "2-digit", month: "short" });
+        const room = unwrap(await atlas.chat.createChannel(
+          { title: `Reunión ${when}`, isPublic: false },
+          token,
+        ));
+        targetId = room?.id;
+        if (!targetId) throw new Error("No se pudo crear la sala.");
+      }
+      setResolvedId(targetId);
+
+      const created = unwrap(await atlas.calls.createLink(targetId, token));
       const newLink = created?.link ?? null;
       if (!newLink) throw new Error("No se pudo generar el enlace.");
       setLink(newLink);
 
       const list = emails.split(/[,\n;]+/).map((s) => s.trim()).filter(Boolean);
       if (list.length) {
-        const res = unwrap(await atlas.calls.sendInvites(conversationId, list, token).catch(() => null));
+        const res = unwrap(await atlas.calls.sendInvites(targetId, list, token));
         const n = (res?.invited?.length ?? 0) + (res?.matchedUsers?.length ?? 0);
-        if (n) toast.success(`${n} invitación(es) procesadas.`);
-        if (res?.pendingManual?.length) toast.message("Algunas quedaron pendientes — comparte el enlace manualmente.");
+        setPending(res?.pendingManual ?? []);
+        if (n) toast.success(`${n} invitación(es) enviadas.`);
+        if (res?.pendingManual?.length) {
+          toast.message(
+            res?.smtpConfigured === false
+              ? "El correo no está configurado — comparte los enlaces de abajo manualmente."
+              : "Algunos correos no se pudieron enviar — comparte los enlaces de abajo.",
+          );
+        }
       }
-
-      if (mode === "schedule") setShowEventForm(true);
     } catch (e) {
       toast.error(e?.message || "No se pudo crear la reunión.");
     } finally {
@@ -85,7 +104,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   }
 
   function startNow() {
-    startCall({ conversationId, kind: "VIDEO" });
+    startCall({ conversationId: resolvedId ?? conversationId, kind: "VIDEO" });
     onOpenChange(false);
   }
 
@@ -93,7 +112,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     return (
       <EventFormModal
         sourceModule="atlas.chat"
-        sourceEntityId={conversationId}
+        sourceEntityId={resolvedId ?? conversationId}
         initialAttendeeIds={memberIds}
         defaultVideoUrl={link.url}
         onClose={() => { setShowEventForm(false); onOpenChange(false); }}
@@ -115,21 +134,25 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
           <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
             Las llamadas no están configuradas en esta instancia.
           </p>
-        ) : conversations.length === 0 ? (
-          <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
-            Crea un canal o grupo primero para agendar una reunión.
-          </p>
         ) : (
           <div className="space-y-4">
             <SelectField
-              label="Canal o grupo"
+              label="Sala"
               value={conversationId}
-              onValueChange={setConversationId}
-              options={conversations.map((c) => ({
-                value: c.id,
-                label: getConversationDisplayName(c, userProfile?.id),
-              }))}
+              onValueChange={(v) => { setConversationId(v); setLink(null); setPending([]); setResolvedId(null); }}
+              options={[
+                { value: NEW_ROOM, label: "➕ Nueva sala de reunión" },
+                ...conversations.map((c) => ({
+                  value: c.id,
+                  label: getConversationDisplayName(c, userProfile?.id),
+                })),
+              ]}
             />
+            {conversationId === NEW_ROOM && (
+              <p className="-mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+                Se creará un canal privado para esta reunión. Los invitados externos entran por el enlace; el canal se actualiza al unirse.
+              </p>
+            )}
 
             <div>
               <span className="mb-1.5 block text-xs font-medium text-[hsl(var(--muted-foreground))]">¿Cuándo?</span>
@@ -141,7 +164,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                   <button
                     key={key}
                     type="button"
-                    onClick={() => { setMode(key); setLink(null); }}
+                    onClick={() => setMode(key)}
                     className={[
                       "flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors",
                       mode === key
@@ -163,7 +186,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               rows={2}
             />
 
-            {link && mode === "now" && (
+            {link && (
               <div className="space-y-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-3">
                 <div className="flex items-center gap-2">
                   <input readOnly value={link.url} className="flex-1 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-2.5 py-1.5 text-xs" />
@@ -178,17 +201,29 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                     {copied === "code" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
+                {pending.map((p) => (
+                  <div key={p.inviteId} className="flex items-center gap-2 text-xs">
+                    <span className="truncate text-[hsl(var(--muted-foreground))]">{p.email}: envío pendiente</span>
+                    <button type="button" className="underline" onClick={() => copy(p.url, p.inviteId)}>
+                      {copied === p.inviteId ? "copiado" : "copiar enlace"}
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
             <div className="flex justify-end gap-2 pt-1">
-              {link && mode === "now" ? (
+              {!link ? (
+                <Button onClick={generate} disabled={busy || !conversationId}>
+                  {busy ? "Creando..." : mode === "now" ? "Generar enlace" : "Continuar"}
+                </Button>
+              ) : mode === "now" ? (
                 <Button onClick={startNow}>
                   <Video className="mr-2 h-4 w-4" /> Iniciar videollamada
                 </Button>
               ) : (
-                <Button onClick={generate} disabled={busy || !conversationId}>
-                  {busy ? "Creando..." : mode === "now" ? "Generar enlace" : "Continuar a programar"}
+                <Button onClick={() => setShowEventForm(true)}>
+                  <Calendar className="mr-2 h-4 w-4" /> Programar en el calendario
                 </Button>
               )}
             </div>

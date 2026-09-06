@@ -8,7 +8,8 @@ function Tile({ participant, mirror }) {
   const ref = useRef(null);
   const camPub = participant?.getTrackPublication?.(Track.Source.Camera);
   const screenPub = participant?.getTrackPublication?.(Track.Source.ScreenShare);
-  const pub = (screenPub?.track && !screenPub.isMuted) ? screenPub : camPub;
+  const isScreen = Boolean(screenPub?.track && !screenPub.isMuted);
+  const pub = isScreen ? screenPub : camPub;
   const track = pub?.track && !pub.isMuted ? pub.track : null;
   useEffect(() => {
     const el = ref.current;
@@ -26,7 +27,7 @@ function Tile({ participant, mirror }) {
           autoPlay
           playsInline
           muted={participant?.isLocal}
-          className={`h-full w-full object-cover ${mirror ? "-scale-x-100" : ""}`}
+          className={`h-full w-full ${isScreen ? "object-contain" : "object-cover"} ${mirror ? "-scale-x-100" : ""}`}
         />
       ) : (
         <div className="flex h-full items-center justify-center text-2xl font-semibold text-violet-100">

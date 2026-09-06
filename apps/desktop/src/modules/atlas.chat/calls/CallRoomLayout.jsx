@@ -60,6 +60,10 @@ function ParticipantTile({
   mirrorLocalCamera = true,
   className = "",
   preferSource = "auto",
+  // "auto" = contain for screen-share, cover for camera. Pass "contain" to
+  // letterbox a camera feed too (used in the focus layout so a portrait phone
+  // camera in a landscape tile isn't cropped).
+  fit = "auto",
 }) {
   const screen = participant?.getTrackPublication?.(Track.Source.ScreenShare);
   const camera = participant?.getTrackPublication?.(Track.Source.Camera);
@@ -85,7 +89,7 @@ function ParticipantTile({
           participant={participant}
           source={source}
           muted={isLocal}
-          fit={isScreen ? "contain" : "cover"}
+          fit={fit === "contain" || isScreen ? "contain" : "cover"}
           mirror={isLocal && source === Track.Source.Camera && mirrorLocalCamera}
         />
       ) : (
@@ -300,7 +304,7 @@ export function CallRoomLayout({ view, actions, chat }) {
           </div>
         ) : useFocusLayout ? (
           <div className="relative mx-auto h-full max-w-6xl">
-            <ParticipantTile participant={remoteEntries[0].participant} isLocal={false} className="rounded-[1.5rem]" />
+            <ParticipantTile participant={remoteEntries[0].participant} isLocal={false} className="rounded-[1.5rem]" fit="contain" />
             <DraggablePip
               label={localEntry.participant?.name || "Tú"}
               initial={(localEntry.participant?.name || "T").slice(0, 1).toUpperCase()}
@@ -316,6 +320,7 @@ export function CallRoomLayout({ view, actions, chat }) {
                 participant={participant}
                 isLocal={isLocal}
                 mirrorLocalCamera={mirrorLocalCamera}
+                fit={participants.length <= 2 ? "contain" : "auto"}
               />
             ))}
           </div>

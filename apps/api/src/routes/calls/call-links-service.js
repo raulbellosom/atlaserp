@@ -215,7 +215,9 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
             html: mail.html,
           });
           invited.push({ email, inviteId: invite.id });
-        } catch {
+        } catch (err) {
+          console.warn("[atlas.calls] invite email failed:", email, err?.message ?? err);
+          await prisma.callInvite.update({ where: { id: invite.id }, data: { sentAt: null } }).catch(() => {});
           pendingManual.push({ email, inviteId: invite.id, url });
         }
       } else {
@@ -223,7 +225,7 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
       }
     }
 
-    return { matchedUsers, invited, pendingManual };
+    return { matchedUsers, invited, pendingManual, smtpConfigured: smtpOk };
   }
 
   return {

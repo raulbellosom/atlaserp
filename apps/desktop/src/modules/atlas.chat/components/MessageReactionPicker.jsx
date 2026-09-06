@@ -28,6 +28,10 @@ export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign 
         side={anchorAlign === "end" ? "left" : "right"}
         align="start"
         sideOffset={8}
+        // Keep the picker fully on-screen on narrow phones — without this the
+        // fixed-width emoji panel spills past the viewport edge next to a
+        // wide message bubble.
+        collisionPadding={8}
         // pointer-events-auto + an explicit high z-index are load-bearing when
         // this picker is opened from inside a modal Sheet/Dialog (e.g. the
         // ThreadPanel "Hilo" sheet): Radix Dialog sets `pointer-events: none`
@@ -46,7 +50,7 @@ export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign 
           // Unicode). The library's default is an Apple image sprite, which
           // reads as a different emoji set from what actually lands.
           emojiStyle={EmojiStyle.NATIVE}
-          width={260}
+          width="min(92vw, 300px)"
           height={320}
           searchPlaceholder="Buscar emoji..."
           lazyLoadEmojis
