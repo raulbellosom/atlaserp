@@ -5,6 +5,20 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Merge several refs (callback or object) into one callback ref, so a component
+ * can keep its own internal ref while still forwarding a caller-provided ref.
+ */
+export function mergeRefs(...refs) {
+  return (node) => {
+    for (const ref of refs) {
+      if (!ref) continue
+      if (typeof ref === 'function') ref(node)
+      else ref.current = node
+    }
+  }
+}
+
 export function formatTableDate(value, includeTime = false) {
   if (!value) return "—";
   const str = String(value);

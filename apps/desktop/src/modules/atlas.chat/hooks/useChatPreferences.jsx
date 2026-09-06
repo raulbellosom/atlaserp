@@ -44,10 +44,10 @@ export const FONT_SCALE_OPTIONS = [
 // `primary`/`foreground` null on the first entry — chatPreferencesStyle
 // below leaves --brand-primary alone in that case, so the company's real
 // brand color (whatever CompanyBranding.jsx has set) keeps showing through.
-// Every other preset's `wallpaperTint` is the same hex the bubbles use,
-// picked up by the .chat-wallpaper[data-accent] rules in chat-theme.css so
-// the background pattern leans toward the chosen color instead of staying a
-// flat neutral gray regardless of accent.
+// Every other preset's accent hex is also the one the bubbles use, picked up
+// by the .chat-wallpaper-layer[data-accent] rules in chat-theme.css (via the
+// --chat-wallpaper-ink custom property) so the background pattern leans toward
+// the chosen color instead of staying a flat neutral gray regardless of accent.
 export const ACCENT_PRESETS = [
   { key: "brand", label: "Marca de la empresa", primary: null, foreground: null },
   { key: "violet", label: "Violeta", primary: "#7c5cff", foreground: "#ffffff" },

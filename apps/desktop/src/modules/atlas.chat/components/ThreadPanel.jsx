@@ -21,7 +21,17 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
   // (chatPreferencesStyle) — re-apply them here so the thread respects the
   // same colours, font scale and wallpaper as the main conversation.
   const { prefs } = useChatPreferences();
-  const wallpaperClass = prefs.wallpaper ? "chat-wallpaper" : "";
+  // Same masked, tinted wallpaper the main message list uses (see
+  // chat-theme.css) — a `z-index:-1` layer behind the whole panel, painted
+  // only when the pref is on. `SheetContent` is `position: fixed`, so it
+  // already establishes the stacking context the negative z-index needs.
+  const wallpaperLayer = prefs.wallpaper ? (
+    <div
+      className="chat-wallpaper-layer"
+      data-accent={prefs.accentColorKey}
+      aria-hidden="true"
+    />
+  ) : null;
   // Sheet.jsx forces side="right" to a bottom sheet below the mobile
   // breakpoint. That variant is auto-height-up-to-85dvh with the SHEET ITSELF
   // owning the scroll, not a fixed-height flex column — so the inner
@@ -93,7 +103,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
           className={[
             // Solid, forced (see MessageComposer.jsx for the same `!`
             // pattern) fill in the exact token the message area's own
-            // .chat-wallpaper already paints (bg-[hsl(var(--background))]).
+            // .chat-wallpaper paints (bg-[hsl(var(--background))]).
             // An earlier version used the translucent .chat-glass here, which
             // overrides the generic dialog `glass-strong` wash but reads
             // two-toned: the base Sheet's own `gap-4` leaves the translucent
@@ -105,11 +115,9 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
             // different surface treatments.
             // px-0 (not p-0): let the shared bottom-sheet `pt-9` through so
             // the drag handle has its reserved space on the mobile variant.
-            "chat-glass-theme bg-[hsl(var(--background))]! w-full sm:max-w-lg lg:max-w-xl flex flex-col px-0 pb-0",
-            wallpaperClass,
+            "chat-glass-theme chat-wallpaper isolate bg-[hsl(var(--background))]! w-full sm:max-w-lg lg:max-w-xl flex flex-col px-0 pb-0",
             isMobile ? "h-[85dvh]" : "",
           ].join(" ")}
-          data-accent={prefs.accentColorKey}
           // paddingBottom: 0 cancels the Sheet's own blanket bottom-sheet
           // inset (bottom-sheet-shared.jsx forces ~1.5rem+safe-area via
           // inline style, so it can't be dropped via className p-0) — it's
@@ -118,6 +126,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
           // ~24px of empty space under an already-inset composer.
           style={{ ...chatPreferencesStyle(prefs), paddingBottom: 0 }}
         >
+          {wallpaperLayer}
           <SheetHeader className="px-4 pt-1">
             <SheetTitle className="chat-font-display flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
@@ -126,8 +135,7 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
           </SheetHeader>
 
           <div
-            className={["chat-scale-target", wallpaperClass, "flex-1 min-h-0 overflow-y-auto px-2 py-2"].join(" ")}
-            data-accent={prefs.accentColorKey}
+            className={["chat-scale-target", "flex-1 min-h-0 overflow-y-auto px-2 py-2"].join(" ")}
           >
             {isLoading && (
               <div className="space-y-2 px-2">

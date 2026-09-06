@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
+import { useIsolatedScroll } from '../hooks/useIsolatedScroll.js'
 
 // Stored format:  @[uuid:DisplayName]
 // Display format: @[DisplayName]   (no UUID visible in textarea)
@@ -119,6 +120,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   const [activeIdx, setActiveIdx] = useState(0)
   const textareaRef = useRef(null)
   const containerRef = useRef(null)
+  const menuRef = useRef(null)
+  // Portaled mention menu: keep wheel/touch scroll working inside a Dialog/Sheet.
+  useIsolatedScroll(menuRef, open)
 
   // Exposes the internal textarea's imperative API to the parent — needed so
   // callers (e.g. MessageComposer) can refocus after sending, which they
@@ -310,8 +314,9 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       />
       {open && filtered.length > 0 && createPortal(
         <div
+          ref={menuRef}
           data-mention-dropdown
-          className="min-w-50 max-w-65 rounded-xl py-1 overflow-y-auto"
+          className="min-w-50 max-w-65 rounded-xl py-1 overflow-y-auto overscroll-contain"
           style={{
             position: 'fixed',
             top: menuPos.top,

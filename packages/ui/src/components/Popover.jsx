@@ -1,6 +1,7 @@
-import { forwardRef } from 'react'
+import { forwardRef, useRef } from 'react'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
-import { cn } from '../lib/utils.js'
+import { cn, mergeRefs } from '../lib/utils.js'
+import { useIsolatedScroll } from '../hooks/useIsolatedScroll.js'
 
 const Popover = PopoverPrimitive.Root
 const PopoverTrigger = PopoverPrimitive.Trigger
@@ -10,10 +11,15 @@ const PopoverContent = forwardRef(function PopoverContent(
   { className, align = 'center', sideOffset = 4, ...props },
   ref
 ) {
+  // Keep wheel/touch scrolling alive when the popover is opened from inside a
+  // Dialog/Sheet (react-remove-scroll would otherwise cancel it). See
+  // useIsolatedScroll for the full explanation.
+  const scrollRef = useRef(null)
+  useIsolatedScroll(scrollRef)
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
-        ref={ref}
+        ref={mergeRefs(ref, scrollRef)}
         align={align}
         sideOffset={sideOffset}
         collisionPadding={8}

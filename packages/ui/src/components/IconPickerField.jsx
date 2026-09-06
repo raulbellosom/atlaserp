@@ -72,7 +72,7 @@ export function IconPickerField({
             onChange={(e) => setSearch(e.target.value)}
             className="mb-3 h-8 text-sm"
           />
-          <div className="grid grid-cols-6 gap-1 max-h-48 overflow-y-auto">
+          <div className="grid grid-cols-6 gap-1 max-h-48 overflow-y-auto overscroll-contain">
             {filtered.map(({ name, component: Icon }) => (
               <button
                 key={name}

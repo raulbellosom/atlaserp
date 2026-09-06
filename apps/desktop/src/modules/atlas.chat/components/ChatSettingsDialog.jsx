@@ -19,8 +19,6 @@ import {
 } from "../hooks/useChatPreferences";
 
 function ChatPreview({ draft }) {
-  const wallpaperClass = draft.wallpaper ? "chat-wallpaper" : "";
-
   // Dialog content renders through a Radix Portal straight to document.body
   // (see Dialog.jsx) — outside ChatScreen's own .chat-glass-theme wrapper in
   // the actual DOM, even though it's still inside it in the React tree. The
@@ -28,13 +26,21 @@ function ChatPreview({ draft }) {
   // by DOM ancestry, so without re-establishing that scope locally here,
   // neither would ever match inside the portaled dialog. Two nested divs:
   // the outer carries the scope class + the draft's CSS variable overrides,
-  // the inner is the thing those scoped rules actually target.
+  // the inner is the thing those scoped rules actually target. The wallpaper
+  // itself is the same masked `.chat-wallpaper-layer` the real message list
+  // uses (see chat-theme.css), painted behind the sample bubbles.
   return (
     <div className="chat-glass-theme" style={chatPreferencesStyle(draft)}>
       <div
-        className={["chat-scale-target", wallpaperClass, "rounded-xl border border-[hsl(var(--border))] overflow-hidden p-3 space-y-1.5"].join(" ")}
-        data-accent={draft.accentColorKey}
+        className={["chat-scale-target chat-wallpaper relative isolate", "rounded-xl border border-[hsl(var(--border))] overflow-hidden p-3 space-y-1.5"].join(" ")}
       >
+        {draft.wallpaper && (
+          <div
+            className="chat-wallpaper-layer"
+            data-accent={draft.accentColorKey}
+            aria-hidden="true"
+          />
+        )}
         <div className="flex justify-start">
           <div className="max-w-[75%] rounded-2xl rounded-bl-md px-3 py-1.5 bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] text-sm">
             Hola! Asi se ve un mensaje recibido.

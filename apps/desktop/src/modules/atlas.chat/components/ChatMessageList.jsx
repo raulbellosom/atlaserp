@@ -84,7 +84,16 @@ export function ChatMessageList({
   unreadCountAtOpen = 0,
 }) {
   const { prefs } = useChatPreferences();
-  const wallpaperClass = prefs.wallpaper ? "chat-wallpaper" : "";
+  // Tileable line-art wallpaper — a masked, tinted layer painted BEHIND the
+  // scrolling column (z-index:-1 inside an `isolate`d, `chat-wallpaper`
+  // container). See chat-theme.css. Rendered only when the pref is on.
+  const wallpaperLayer = prefs.wallpaper ? (
+    <div
+      className="chat-wallpaper-layer"
+      data-accent={prefs.accentColorKey}
+      aria-hidden="true"
+    />
+  ) : null;
   const bottomRef = useRef(null);
   const listRef = useRef(null);
   const topSentinelRef = useRef(null);
@@ -322,9 +331,9 @@ export function ChatMessageList({
   if (isLoading) {
     return (
       <div
-        className={["chat-scale-target", wallpaperClass, "flex-1 min-h-0 overflow-y-auto p-4 space-y-3"].join(" ")}
-        data-accent={prefs.accentColorKey}
+        className={["chat-scale-target chat-wallpaper relative isolate", "flex-1 min-h-0 overflow-y-auto p-4 space-y-3"].join(" ")}
       >
+        {wallpaperLayer}
         {[40, 60, 50, 70, 45].map((w, i) => (
           <div key={i} className={`flex items-end gap-2 ${i % 2 === 0 ? "" : "flex-row-reverse"}`}>
             <Skeleton className="h-7 w-7 rounded-full shrink-0" />
@@ -338,9 +347,9 @@ export function ChatMessageList({
   if (!messages?.length) {
     return (
       <div
-        className={["chat-scale-target", wallpaperClass, "flex-1 min-h-0 flex items-center justify-center"].join(" ")}
-        data-accent={prefs.accentColorKey}
+        className={["chat-scale-target chat-wallpaper relative isolate", "flex-1 min-h-0 flex items-center justify-center"].join(" ")}
       >
+        {wallpaperLayer}
         <div className="text-center space-y-1">
           <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay mensajes aun.</p>
           <p className="text-[hsl(var(--muted-foreground))] text-xs">
@@ -358,7 +367,8 @@ export function ChatMessageList({
   const grouped = enrichWithGroupInfo(groupMessagesByDate(visibleMessages));
 
   return (
-    <div className="relative flex-1 min-h-0 flex flex-col">
+    <div className="chat-wallpaper relative isolate flex-1 min-h-0 flex flex-col">
+      {wallpaperLayer}
       <PinnedMessagesBar
         pinnedMessages={pinnedMessages}
         onJump={onJumpToPinnedMessage ?? onJumpToMessage}
@@ -369,8 +379,7 @@ export function ChatMessageList({
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className={["chat-scale-target", wallpaperClass, "flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain py-3"].join(" ")}
-        data-accent={prefs.accentColorKey}
+        className={["chat-scale-target", "flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain py-3"].join(" ")}
       >
         {/* Sentinel watched by IntersectionObserver — triggers auto-load when scrolled into view */}
         <div ref={topSentinelRef} className="h-px" />

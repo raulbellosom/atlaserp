@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { cn } from "../lib/utils.js";
+import { useIsolatedScroll } from "../hooks/useIsolatedScroll.js";
 import { LoadingState } from "./LoadingState.jsx";
 import {
   FIELD_BASE,
@@ -1649,6 +1650,8 @@ export function ComboboxField({
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  // Portaled dropdown: keep wheel/touch scroll working inside a Dialog/Sheet.
+  useIsolatedScroll(dropdownRef, open);
 
   const selected = options.find((o) => o.value === value);
 
@@ -1784,7 +1787,7 @@ export function ComboboxField({
                   </button>
                 )}
               </div>
-              <div className="max-h-52 overflow-y-auto" role="listbox">
+              <div className="max-h-52 overflow-y-auto overscroll-contain" role="listbox">
                 {search.length < minSearchLength ? (
                   <p className="px-3 py-4 text-xs text-muted-foreground text-center">
                     Escribe al menos {minSearchLength} letras para buscar
@@ -1857,6 +1860,8 @@ export function RelationSelectField({
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  // Portaled dropdown: keep wheel/touch scroll working inside a Dialog/Sheet.
+  useIsolatedScroll(dropdownRef, open);
 
   const selected =
     value != null && value !== ""
@@ -2052,7 +2057,7 @@ export function RelationSelectField({
                   </button>
                 )}
               </div>
-              <div className="max-h-52 overflow-y-auto" role="listbox">
+              <div className="max-h-52 overflow-y-auto overscroll-contain" role="listbox">
                 {loading ? (
                   <LoadingState size="sm" message="Cargando opciones..." />
                 ) : loadError ? (
@@ -2191,6 +2196,8 @@ export function CreatableComboboxField({
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  // Portaled dropdown: keep wheel/touch scroll working inside a Dialog/Sheet.
+  useIsolatedScroll(dropdownRef, open);
 
   const selected = options.find((o) => o.value === value);
 
@@ -2331,7 +2338,7 @@ export function CreatableComboboxField({
                   </button>
                 )}
               </div>
-              <div className="max-h-52 overflow-y-auto" role="listbox">
+              <div className="max-h-52 overflow-y-auto overscroll-contain" role="listbox">
                 {filtered.length === 0 && !showCreate && (
                   <p className="px-3 py-4 text-sm text-muted-foreground text-center">
                     {emptyText}
@@ -2413,6 +2420,8 @@ export function CarColorPickerField({
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+  // Portaled dropdown: keep wheel/touch scroll working inside a Dialog/Sheet.
+  useIsolatedScroll(dropdownRef, open);
 
   const selected = colors.find((c) => c.name === value) ?? null;
 
@@ -2584,7 +2593,7 @@ export function CarColorPickerField({
                 )}
               </div>
 
-              <div className="max-h-72 overflow-y-auto" role="listbox">
+              <div className="max-h-72 overflow-y-auto overscroll-contain" role="listbox">
                 {/* Clear option */}
                 {clearable && value && !term && (
                   <button
