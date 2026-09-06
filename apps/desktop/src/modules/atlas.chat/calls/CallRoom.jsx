@@ -1,10 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { toast } from "sonner";
+import { useIsMobile } from "@atlas/ui";
+import { useChatMessages } from "../hooks/useChatMessages";
 import { playCallSound } from "./callSounds";
+import { nextCallView } from "./lib/callChat";
+import { CallChatPanel } from "./CallChatPanel";
 import { CallRoomLayout } from "./CallRoomLayout";
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
+
+const CHAT_PANEL_PREF_KEY = "atlas.calls.chatPanel.collapsed";
+
+function readChatCollapsedPref() {
+  try {
+    return localStorage.getItem(CHAT_PANEL_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeChatCollapsedPref(collapsed) {
+  try {
+    localStorage.setItem(CHAT_PANEL_PREF_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* private mode / storage disabled — non-fatal */
+  }
+}
 
 export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
@@ -21,6 +43,18 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
   const [needsAudio, setNeedsAudio] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [hasRemoteJoined, setHasRemoteJoined] = useState(false);
+
+  const conversationId = session.call.conversationId;
+  const isMobile = useIsMobile(1024);
+  const [mobileView, setMobileView] = useState("video");
+  const [chatExpanded, setChatExpanded] = useState(() => !readChatCollapsedPref());
+
+  const { data: chatData } = useChatMessages(conversationId);
+  const chatMsgCount = chatData?.data?.length ?? 0;
+  const chatActive = isMobile ? mobileView === "chat" : chatExpanded;
+  const chatSeenRef = useRef(0);
+  const chatLoadedRef = useRef(false);
+  const [chatUnread, setChatUnread] = useState(0);
 
   const refresh = useCallback(() => setRenderVersion((value) => value + 1), []);
   const screenShareSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
@@ -159,6 +193,26 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
     return () => window.clearTimeout(timer);
   }, [isInitiator, hasRemoteJoined, session.call.createdAt, onUnanswered]);
 
+  // Count chat messages that arrive while the panel is not the active view.
+  useEffect(() => {
+    if (!chatLoadedRef.current) {
+      if (chatData) {
+        chatLoadedRef.current = true;
+        chatSeenRef.current = chatMsgCount;
+      }
+      return;
+    }
+    if (chatActive) {
+      chatSeenRef.current = chatMsgCount;
+      setChatUnread(0);
+      return;
+    }
+    if (chatMsgCount > chatSeenRef.current) {
+      setChatUnread((current) => current + (chatMsgCount - chatSeenRef.current));
+      chatSeenRef.current = chatMsgCount;
+    }
+  }, [chatMsgCount, chatActive, chatData]);
+
   async function toggleMicrophone() {
     try {
       const next = !micEnabled;
@@ -260,6 +314,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
     session.call.kind === "VIDEO" || cameraEnabled || screenEnabled || anyRemoteHasVideo;
   const screenShareEntry =
     participants.find(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare)) ?? null;
+  const hasScreenShare = Boolean(screenShareEntry);
   const isDirectVideo = isVideoActive && participants.length === 2;
   const useFocusLayout = isDirectVideo && layoutMode === "focus" && !screenShareEntry;
   const mirrorLocalCamera = cameraFacing !== "environment";
@@ -269,6 +324,30 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
       ? "grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1"
       : "grid-cols-2 auto-rows-[minmax(10rem,1fr)] overflow-y-auto";
   void renderVersion;
+
+  useEffect(() => {
+    const corrected = nextCallView(mobileView, { hasScreenShare });
+    if (corrected !== mobileView) setMobileView(corrected);
+  }, [mobileView, hasScreenShare]);
+
+  const handleChatClose = useCallback(() => {
+    if (isMobile) {
+      setMobileView("video");
+    } else {
+      setChatExpanded(false);
+      writeChatCollapsedPref(true);
+    }
+  }, [isMobile]);
+
+  const handleToggleChatExpanded = useCallback((next) => {
+    setChatExpanded(next);
+    writeChatCollapsedPref(!next);
+  }, []);
+
+  const chatPanelNode =
+    !isMobile || mobileView === "chat"
+      ? <CallChatPanel conversationId={conversationId} onClose={handleChatClose} />
+      : null;
 
   return (
     <CallRoomLayout
@@ -308,6 +387,16 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false }
         toggleScreen,
         toggleLayout: () => setLayoutMode((current) => current === "focus" ? "balanced" : "focus"),
         leave: handleLeave,
+      }}
+      chat={{
+        isMobile,
+        mobileView,
+        onMobileViewChange: setMobileView,
+        chatExpanded,
+        onToggleChatExpanded: handleToggleChatExpanded,
+        chatUnread,
+        hasScreenShare,
+        panel: chatPanelNode,
       }}
     />
   );

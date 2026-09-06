@@ -6,6 +6,7 @@ import {
   Flashlight,
   FlashlightOff,
   LayoutGrid,
+  MessageSquare,
   Mic,
   MicOff,
   MonitorUp,
@@ -18,6 +19,7 @@ import {
 import { Track } from "livekit-client";
 import { playCallSound } from "./callSounds";
 import { DraggablePip } from "./DraggablePip";
+import { CallViewSwitcher } from "./CallViewSwitcher";
 
 function formatDuration(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -126,7 +128,7 @@ function OutgoingCallTone({ active }) {
   return null;
 }
 
-export function CallRoomLayout({ view, actions }) {
+export function CallRoomLayout({ view, actions, chat }) {
   const {
     session,
     connectionState,
@@ -153,6 +155,21 @@ export function CallRoomLayout({ view, actions }) {
     layoutMode,
   } = view;
 
+  const {
+    isMobile = false,
+    mobileView = "video",
+    onMobileViewChange = () => {},
+    chatExpanded = true,
+    onToggleChatExpanded = () => {},
+    chatUnread = 0,
+    hasScreenShare = false,
+    panel: chatPanel = null,
+  } = chat ?? {};
+
+  const showChatColumn = !isMobile && chatExpanded;
+  const showChatRail = !isMobile && !chatExpanded;
+  const mobileChatOpen = isMobile && mobileView === "chat";
+
   // While a screen share is live it becomes the full-viewport main view and
   // every camera feed (local + remote) floats over it as a draggable,
   // collapsible bubble.
@@ -164,8 +181,9 @@ export function CallRoomLayout({ view, actions }) {
     : [];
 
   return (
-    <div className="fixed inset-0 z-[10020] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-slate-950 text-white">
+    <div className="fixed inset-0 z-[10020] flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-slate-950 text-white">
       <OutgoingCallTone active={outgoingToneActive} />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       <header
         className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 pb-3"
         style={{
@@ -190,7 +208,35 @@ export function CallRoomLayout({ view, actions }) {
         </span>
       </header>
 
+      {isMobile && (
+        <CallViewSwitcher
+          view={mobileView}
+          onChange={onMobileViewChange}
+          hasScreenShare={hasScreenShare}
+          chatUnread={chatUnread}
+        />
+      )}
+
       <main className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+        {mobileChatOpen ? (
+          <div className="absolute inset-0 flex flex-col bg-[hsl(var(--background))]">
+            {hasScreenShare && (
+              <button
+                type="button"
+                onClick={() => onMobileViewChange("screen")}
+                className="flex items-center gap-2 bg-violet-600 px-4 py-2 text-left text-xs font-medium text-white"
+              >
+                <MonitorUp className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">
+                  {(screenShareEntry?.participant?.name) || "Alguien"} esta compartiendo pantalla
+                </span>
+                <span className="underline">Ver</span>
+              </button>
+            )}
+            <div className="min-h-0 flex-1">{chatPanel}</div>
+          </div>
+        ) : (
+          <>
         {screenShareEntry ? (
           <div className="relative mx-auto h-full max-w-6xl">
             <ParticipantTile
@@ -237,6 +283,8 @@ export function CallRoomLayout({ view, actions }) {
               />
             ))}
           </div>
+        )}
+          </>
         )}
         {remoteParticipants.map((participant) => (
           <RemoteAudio key={`audio-${participant.identity}`} participant={participant} />
@@ -288,6 +336,31 @@ export function CallRoomLayout({ view, actions }) {
           <span className="hidden sm:inline">Colgar</span>
         </Button>
       </footer>
+      </div>
+
+      {showChatColumn && (
+        <aside className="hidden w-[380px] shrink-0 border-l border-white/10 bg-[hsl(var(--background))] lg:block">
+          {chatPanel}
+        </aside>
+      )}
+
+      {showChatRail && (
+        <aside className="hidden w-12 shrink-0 flex-col items-center border-l border-white/10 bg-slate-950 pt-3 lg:flex">
+          <button
+            type="button"
+            onClick={() => onToggleChatExpanded(true)}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/80 hover:text-white"
+            title="Mostrar chat"
+          >
+            <MessageSquare className="h-5 w-5" />
+            {chatUnread > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold text-white ring-2 ring-slate-950">
+                {chatUnread > 9 ? "9+" : chatUnread}
+              </span>
+            )}
+          </button>
+        </aside>
+      )}
     </div>
   );
 }
