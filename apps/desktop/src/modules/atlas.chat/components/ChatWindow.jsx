@@ -6,7 +6,7 @@ import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
   MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
   ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
-  Phone, Video,
+  Phone, Video, UserPlus,
 } from "lucide-react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
@@ -19,6 +19,7 @@ import { ConversationTypeBadge } from "./ConversationTypeBadge";
 import { MemberAvatarStack } from "./MemberAvatarStack";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
 import { ThreadPanel } from "./ThreadPanel";
+import { CallShareDialog } from "../calls/CallShareDialog";
 import {
   useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, useDeleteAttachment,
   usePinMessage, useToggleReaction,
@@ -61,7 +62,7 @@ function ChatHeader({
   onArchive, isArchived,
   onOpenProfile,
   onOpenPinned,
-  callsEnabled, callPending, onStartAudioCall, onStartVideoCall,
+  callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onOpenGuestLink,
   embedded = null, onCollapse = null,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
@@ -273,6 +274,18 @@ function ChatHeader({
             >
               <Video className="h-4 w-4" />
             </Button>
+            {onOpenGuestLink && (conversation?.type === "channel" || conversation?.type === "group") && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={headerBtnCls}
+                onClick={onOpenGuestLink}
+                title="Invitar a alguien externo (enlace de reunión)"
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
+            )}
           </>
         )}
 
@@ -429,6 +442,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const [membersView, setMembersView] = useState(false);
   const [profileInitialTab, setProfileInitialTab] = useState(null);
   const [showPinned, setShowPinned] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [jumpTarget, setJumpTarget] = useState(null);
   const [threadPanelRootId, setThreadPanelRootId] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -828,6 +842,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         callPending={callPending}
         onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
         onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
+        onOpenGuestLink={callsEnabled ? () => setShareOpen(true) : undefined}
         isArchived={conversation?.is_archived ?? false}
         onArchive={conversationId
           ? () => conversation?.is_archived
@@ -970,6 +985,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onClose={() => setForwardMessage(null)}
         message={forwardMessage}
         conversations={conversations}
+      />
+
+      <CallShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        conversationId={conversationId}
       />
 
       <PinnedMessagesSheet
