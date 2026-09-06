@@ -398,6 +398,24 @@ export function useCreatePfmCategory() {
   });
 }
 
+export function useUpdatePfmCategory() {
+  const token = useToken();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }) => atlas.pfm.updateCategory(id, data, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "categories"] }),
+  });
+}
+
+export function useSetPfmCategoryEnabled() {
+  const token = useToken();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enabled }) => atlas.pfm.setCategoryEnabled(id, enabled, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "categories"] }),
+  });
+}
+
 export function useUpsertWalletMember() {
   const token = useToken();
   const invalidate = useInvalidatePfm();

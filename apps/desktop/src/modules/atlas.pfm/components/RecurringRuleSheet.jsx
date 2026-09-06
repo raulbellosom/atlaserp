@@ -15,6 +15,8 @@ import {
   ComboboxField,
   DateField,
   CheckboxField,
+  CurrencyField,
+  NumberField,
 } from "@atlas/ui";
 import {
   useWallets,
@@ -228,13 +230,17 @@ export function RecurringRuleSheet({ open, onOpenChange, rule, defaultWalletId }
             )}
           />
           {amountMode === "FIXED" && (
-            <TextField
-              label="Cantidad"
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              error={errors.amount?.message}
-              {...register("amount")}
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field }) => (
+                <CurrencyField
+                  label="Cantidad"
+                  error={errors.amount?.message}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -250,15 +256,36 @@ export function RecurringRuleSheet({ open, onOpenChange, rule, defaultWalletId }
                 />
               )}
             />
-            <TextField label="Cada" type="number" min="1" {...register("interval")} />
+            <Controller
+              control={control}
+              name="interval"
+              render={({ field }) => (
+                <NumberField
+                  label="Cada"
+                  min="1"
+                  allowNegative={false}
+                  allowDecimal={false}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
+              )}
+            />
           </div>
           {freq === "MONTHLY" && (
-            <TextField
-              label="Dia del mes"
-              type="number"
-              min="1"
-              max="31"
-              {...register("byMonthDay")}
+            <Controller
+              control={control}
+              name="byMonthDay"
+              render={({ field }) => (
+                <NumberField
+                  label="Dia del mes"
+                  min="1"
+                  max="31"
+                  allowNegative={false}
+                  allowDecimal={false}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
+              )}
             />
           )}
           <div className="grid grid-cols-2 gap-3">

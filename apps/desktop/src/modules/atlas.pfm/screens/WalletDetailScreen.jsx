@@ -11,6 +11,7 @@ import {
   SelectField,
   SearchInput,
   resolveLucideIcon,
+  ConfirmDialog,
 } from "@atlas/ui";
 import { Plus, ArrowLeft, SlidersHorizontal, Wallet } from "lucide-react";
 import {
@@ -18,6 +19,7 @@ import {
   useWalletMovements,
   useConfirmMovement,
   useSkipMovement,
+  useSetMovementEnabled,
   usePfmCategories,
 } from "../hooks/use-pfm-queries";
 import { MovementRow } from "../components/MovementRow";
@@ -69,12 +71,14 @@ export default function WalletDetailScreen() {
   const { data: categories = [] } = usePfmCategories();
   const confirmMut = useConfirmMovement();
   const skipMut = useSkipMovement();
+  const setEnabledMut = useSetMovementEnabled();
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   if (isLoading) {
     return (
@@ -179,6 +183,11 @@ export default function WalletDetailScreen() {
               }}
               onConfirm={(mv) => setConfirmTarget(mv)}
               onSkip={(mv) => skipMut.mutate({ movementId: mv.id, walletId: wallet.id })}
+              onDelete={
+                wallet.canWrite !== false && entry.item.source !== "ledger"
+                  ? (mv) => setDeleteTarget(mv)
+                  : undefined
+              }
             />
           ),
         )}
@@ -219,6 +228,22 @@ export default function WalletDetailScreen() {
         onConfirm={(amount) =>
           confirmMut.mutateAsync({ movementId: confirmTarget.id, walletId: wallet.id, amount })
         }
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        title="Eliminar movimiento"
+        description={`Se eliminara "${deleteTarget?.merchant || deleteTarget?.note || "este movimiento"}" y dejara de contarse en el saldo.`}
+        confirmLabel="Eliminar"
+        onConfirm={async () => {
+          await setEnabledMut.mutateAsync({
+            movementId: deleteTarget.id,
+            walletId: wallet.id,
+            enabled: false,
+          });
+          setDeleteTarget(null);
+        }}
       />
     </div>
   );

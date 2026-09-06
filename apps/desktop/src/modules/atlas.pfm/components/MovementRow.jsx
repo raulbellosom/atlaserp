@@ -1,9 +1,9 @@
 // apps/desktop/src/modules/atlas.pfm/components/MovementRow.jsx
 import { Badge, Button } from "@atlas/ui";
-import { Check, SkipForward, Pencil, SlidersHorizontal } from "lucide-react";
+import { Check, SkipForward, Pencil, SlidersHorizontal, Trash2 } from "lucide-react";
 import { formatMoney } from "../lib/format";
 
-export function MovementRow({ movement, currency, onEdit, onConfirm, onSkip }) {
+export function MovementRow({ movement, currency, onEdit, onConfirm, onSkip, onDelete }) {
   const isExpense = movement.direction === "EXPENSE";
   const amountText = `${isExpense ? "-" : "+"}${formatMoney(movement.amount, currency)}`;
   return (
@@ -59,6 +59,16 @@ export function MovementRow({ movement, currency, onEdit, onConfirm, onSkip }) {
         <Button size="icon" variant="ghost" aria-label="Editar" onClick={() => onEdit(movement)}>
           <Pencil className="h-4 w-4" />
         </Button>
+        {onDelete && (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Eliminar"
+            onClick={() => onDelete(movement)}
+          >
+            <Trash2 className="h-4 w-4 text-[hsl(var(--destructive))]" />
+          </Button>
+        )}
       </div>
     </div>
   );

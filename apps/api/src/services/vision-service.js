@@ -3,6 +3,7 @@
 // First AI integration in the repo. Vision LLM adapter for atlas.pfm receipt
 // parsing. Provider + model + key all come from env; with no key the caller
 // gets a 503 and the module still boots.
+import { isReasoningModel } from "./groq-model-helpers.js";
 
 export class VisionServiceError extends Error {
   constructor(message, status = 502) {
@@ -16,7 +17,8 @@ const RECEIPT_SYSTEM_PROMPT = [
   "Eres un extractor de datos de tickets de compra en español (México).",
   "Devuelve UNICAMENTE un objeto JSON valido, sin texto adicional, con esta forma:",
   '{"merchant": string|null, "total": number|null, "currency": string|null,',
-  '"date": string|null (formato ISO YYYY-MM-DD), "taxAmount": number|null,',
+  '"date": string|null (formato ISO YYYY-MM-DD), "time": string|null (formato HH:MM, 24 horas),',
+  '"taxAmount": number|null,',
   '"lines": [{"description": string, "amount": number}], "confidence": number (0..1)}',
   "Si un campo no es legible, usa null. La moneda por defecto es MXN.",
   "El total es el importe final pagado, con impuestos incluidos.",
@@ -47,6 +49,7 @@ function normalizeParsed(obj) {
     total: num(obj.total),
     currency: obj.currency ? String(obj.currency).toUpperCase().slice(0, 8) : "MXN",
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(obj.date ?? "")) ? obj.date : null,
+    time: /^\d{2}:\d{2}$/.test(String(obj.time ?? "")) ? obj.time : null,
     taxAmount: num(obj.taxAmount),
     lines: Array.isArray(obj.lines)
       ? obj.lines.slice(0, 50).map((l) => ({
@@ -58,10 +61,17 @@ function normalizeParsed(obj) {
   };
 }
 
+// Groq retired the llama-4-scout/maverick vision models; qwen/qwen3.6-27b is
+// the current (2026-09) default vision model on their OpenAI-compatible API.
+// It's a "thinking" model, so `reasoning_format: "hidden"` is required
+// alongside JSON mode — without it the model's chain-of-thought can leak into
+// `message.content` ahead of the JSON object.
+const DEFAULT_VISION_MODEL = "qwen/qwen3.6-27b";
+
 function createGroqAdapter({ env, fetchImpl }) {
   const apiKey = env.GROQ_API_KEY;
   const baseUrl = (env.GROQ_BASE_URL || "https://api.groq.com").replace(/\/$/, "");
-  const model = env.PFM_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
+  const model = env.PFM_VISION_MODEL || DEFAULT_VISION_MODEL;
   const timeoutMs = Number(env.PFM_VISION_TIMEOUT_MS) || 20000;
   const retryDelayMs = Number(env.PFM_VISION_RETRY_DELAY_MS) || 1500;
   const fetchFn = fetchImpl ?? globalThis.fetch;
@@ -72,6 +82,7 @@ function createGroqAdapter({ env, fetchImpl }) {
       model,
       temperature: 0,
       response_format: { type: "json_object" },
+      ...(isReasoningModel(model) ? { reasoning_format: "hidden" } : {}),
       messages: [
         { role: "system", content: RECEIPT_SYSTEM_PROMPT },
         {
@@ -119,7 +130,7 @@ function createGroqAdapter({ env, fetchImpl }) {
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         throw new VisionServiceError(
-          `El servicio de vision rechazo la peticion (${res.status}): ${detail.slice(0, 200)}`,
+          `El servicio de vision rechazo la peticion (${res.status}): ${detail.slice(0, 400)}`,
         );
       }
 

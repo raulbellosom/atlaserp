@@ -14,6 +14,7 @@ import {
   SelectField,
   CreatableComboboxField,
   DateField,
+  CurrencyField,
 } from "@atlas/ui";
 import {
   useWallets,
@@ -122,16 +123,20 @@ export function QuickAddMovementSheet({ open, onOpenChange, defaultWalletId, edi
           <DialogTitle>{isEdit ? "Editar movimiento" : "Nuevo movimiento"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <TextField
-            label="Monto"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            autoFocus
-            className="text-2xl font-bold"
-            error={errors.amount?.message}
-            disabled={isLedgerRow}
-            {...register("amount")}
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field }) => (
+              <CurrencyField
+                label="Monto"
+                autoFocus
+                className="text-2xl font-bold"
+                error={errors.amount?.message}
+                disabled={isLedgerRow}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
           <Controller
             control={control}

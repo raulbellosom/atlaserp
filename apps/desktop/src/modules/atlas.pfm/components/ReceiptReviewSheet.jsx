@@ -14,6 +14,8 @@ import {
   SelectField,
   CreatableComboboxField,
   DateField,
+  ImageViewer,
+  CurrencyField,
 } from "@atlas/ui";
 import {
   useWallets,
@@ -23,6 +25,7 @@ import {
   useCreatePfmCategory,
 } from "../hooks/use-pfm-queries";
 import { todayIso } from "../lib/format";
+import { ReceiptParsedInfo } from "./ReceiptParsedInfo";
 
 const schema = z.object({
   walletId: z.string().uuid("Elige una cartera"),
@@ -42,6 +45,7 @@ export function ReceiptReviewSheet({ open, onOpenChange, receipt }) {
   const createCategoryMut = useCreatePfmCategory();
   const { data: imageUrl } = useReceiptImageUrl(receipt?.fileId);
   const [categoryId, setCategoryId] = useState(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const {
     register,
@@ -101,20 +105,39 @@ export function ReceiptReviewSheet({ open, onOpenChange, receipt }) {
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {imageUrl && (
-            <img
-              src={imageUrl}
-              alt="Ticket"
-              className="max-h-48 w-full rounded-xl bg-[hsl(var(--muted))] object-contain"
-            />
+            <>
+              <button
+                type="button"
+                onClick={() => setViewerOpen(true)}
+                className="block w-full"
+              >
+                <img
+                  src={imageUrl}
+                  alt="Ticket"
+                  className="max-h-48 w-full rounded-xl bg-[hsl(var(--muted))] object-contain"
+                />
+              </button>
+              <ImageViewer
+                src={imageUrl}
+                alt="Ticket"
+                open={viewerOpen}
+                onClose={() => setViewerOpen(false)}
+              />
+            </>
           )}
-          <TextField
-            label="Monto"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            className="text-2xl font-bold"
-            error={errors.amount?.message}
-            {...register("amount")}
+          <ReceiptParsedInfo parsed={parsed} />
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field }) => (
+              <CurrencyField
+                label="Monto"
+                className="text-2xl font-bold"
+                error={errors.amount?.message}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
           <Controller
             control={control}

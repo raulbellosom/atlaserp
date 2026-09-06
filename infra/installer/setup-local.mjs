@@ -427,7 +427,7 @@ async function writeLocalEnv(envMap) {
   const groqApiKey        = parseEnvValue(existingEnvContent, "GROQ_API_KEY") || "";
   const groqBaseUrl       = parseEnvValue(existingEnvContent, "GROQ_BASE_URL") || "https://api.groq.com";
   const pfmVisionModel    = parseEnvValue(existingEnvContent, "PFM_VISION_MODEL")
-    || "meta-llama/llama-4-scout-17b-16e-instruct";
+    || "qwen/qwen3.6-27b";
   const pfmVisionTimeout  = parseEnvValue(existingEnvContent, "PFM_VISION_TIMEOUT_MS") || "20000";
   const fromLocalEnv = (key) => parseEnvValue(existingEnvContent, key) || process.env[key] || "";
   const liveKit = resolveLiveKitConfig({

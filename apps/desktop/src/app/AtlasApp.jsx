@@ -189,10 +189,17 @@ export function AtlasApp() {
   return (
     <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={handleTransportReady}>
       <ModuleBundleLoader>
-        {/* fixed inset-0 (not h-dvh) so the shell pins to the real PWA viewport
-            edges on iOS/Android standalone, where 100dvh can fall short of the
-            webview and leave a blank band of body background at the bottom. */}
-        <div className="fixed inset-0 overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+        {/* fixed to the top/left/right edges (pins the shell to the real PWA
+            viewport on iOS/Android standalone, where a plain h-dvh block could
+            leave a blank band of body background at the bottom), but ALSO given
+            an explicit h-dvh: without it the height is derived from inset:0
+            against the non-shrinking layout viewport, so on mobile browsers the
+            shell out-grows the visible area (whole-page rubber-band that drags
+            the fixed Topbar) and the h-full percentage chain below stops
+            resolving in WebKit (full-height module screens — notes/chat/pfm —
+            fall back to content height and make <main> double-scroll).
+            With height set, `bottom:0` is ignored as over-constrained. */}
+        <div className="fixed inset-x-0 top-0 h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}

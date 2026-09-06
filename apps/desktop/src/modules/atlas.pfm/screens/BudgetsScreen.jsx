@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  TextField,
+  CurrencyField,
 } from "@atlas/ui";
 import { Plus, Target, PiggyBank } from "lucide-react";
 import {
@@ -109,13 +109,10 @@ export default function BudgetsScreen() {
               {contribute?.sign < 0 ? "Retirar de" : "Aportar a"} {contribute?.goal?.name}
             </DialogTitle>
           </DialogHeader>
-          <TextField
+          <CurrencyField
             label="Monto"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            value={contribAmount}
-            onChange={(e) => setContribAmount(e.target.value)}
+            value={Number(contribAmount) || 0}
+            onChange={(v) => setContribAmount(String(v))}
           />
           {contribute?.goal && (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">

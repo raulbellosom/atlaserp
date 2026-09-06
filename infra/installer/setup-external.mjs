@@ -192,7 +192,7 @@ const OPTIONAL_VAR_GROUPS = [
       { key: "PFM_VISION_PROVIDER",  placeholder: "groq", comment: null },
       { key: "GROQ_API_KEY",         placeholder: "",     comment: null },
       { key: "GROQ_BASE_URL",        placeholder: "https://api.groq.com", comment: null },
-      { key: "PFM_VISION_MODEL",     placeholder: "meta-llama/llama-4-scout-17b-16e-instruct", comment: null },
+      { key: "PFM_VISION_MODEL",     placeholder: "qwen/qwen3.6-27b", comment: null },
       { key: "PFM_VISION_TIMEOUT_MS", placeholder: "20000", comment: null },
     ],
   },

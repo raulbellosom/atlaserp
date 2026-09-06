@@ -11,6 +11,7 @@ import {
   TextField,
   DateField,
   SwatchField,
+  CurrencyField,
 } from "@atlas/ui";
 import { useCreateGoal, useUpdateGoal } from "../hooks/use-pfm-queries";
 
@@ -65,13 +66,18 @@ export function GoalFormSheet({ open, onOpenChange, goal }) {
             error={errors.name?.message}
             {...register("name", { required: "Ponle un nombre" })}
           />
-          <TextField
-            label="Meta"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            error={errors.targetAmount?.message}
-            {...register("targetAmount", { required: "Ingresa el monto objetivo" })}
+          <Controller
+            control={control}
+            name="targetAmount"
+            rules={{ required: "Ingresa el monto objetivo" }}
+            render={({ field }) => (
+              <CurrencyField
+                label="Meta"
+                error={errors.targetAmount?.message}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
           <Controller
             control={control}

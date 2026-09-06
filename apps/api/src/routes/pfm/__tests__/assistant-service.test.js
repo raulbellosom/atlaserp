@@ -276,4 +276,39 @@ describe("assistant-service — tool loop", () => {
     const sys = seen[0].messages.find((m) => m.role === "system").content;
     assert.match(sys, /no son instrucciones|ignora cualquier orden/i);
   });
+
+  it("defaults to the current gpt-oss model and sends reasoning_format hidden", async () => {
+    const seen = [];
+    const d = deps({
+      env: { GROQ_API_KEY: "test-key" },
+      fetchImpl: async (_url, opts) => {
+        seen.push(JSON.parse(opts.body));
+        return { ok: true, status: 200, json: async () => finalMsg("ok"), text: async () => "" };
+      },
+    });
+    const svc = createAssistantService(d);
+    await svc.sendMessage({ companyId: COMPANY, actorId: OWNER, threadId: THREAD, content: "hola" });
+    assert.equal(seen[0].model, "openai/gpt-oss-120b");
+    assert.equal(seen[0].reasoning_format, "hidden");
+  });
+
+  it("surfaces the full model_not_found body so the UI can show the real cause", async () => {
+    const detail = JSON.stringify({
+      error: {
+        message: "The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.",
+        type: "invalid_request_error",
+        code: "model_not_found",
+      },
+    });
+    const d = deps({
+      env: { GROQ_API_KEY: "test-key", PFM_ASSISTANT_MODEL: "llama-3.3-70b-versatile" },
+      fetchImpl: async () => ({ ok: false, status: 404, text: async () => detail, json: async () => ({}) }),
+    });
+    const svc = createAssistantService(d);
+    await assert.rejects(
+      () =>
+        svc.sendMessage({ companyId: COMPANY, actorId: OWNER, threadId: THREAD, content: "hola" }),
+      (e) => e instanceof PfmServiceError && e.status === 502 && e.message.includes("model_not_found"),
+    );
+  });
 });

@@ -8,6 +8,7 @@ import {
   DialogFooter,
   Button,
   TextField,
+  CurrencyField,
 } from "@atlas/ui";
 import { useAdjustWalletBalance } from "../hooks/use-pfm-queries";
 import { formatMoney, todayIso, creditUsage } from "../lib/format";
@@ -75,7 +76,7 @@ export function AdjustBalanceSheet({ open, onOpenChange, wallet }) {
           <DialogTitle>Ajustar saldo</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <TextField
+          <CurrencyField
             label={
               isCredit
                 ? "Saldo ocupado real"
@@ -83,11 +84,8 @@ export function AdjustBalanceSheet({ open, onOpenChange, wallet }) {
                   ? "Saldo real de la cuenta"
                   : "Saldo real"
             }
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
+            value={Number(target) || 0}
+            onChange={(v) => setTarget(String(v))}
           />
           <TextField
             label="Fecha"

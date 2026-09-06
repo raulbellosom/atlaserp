@@ -14,6 +14,8 @@ import {
   SelectField,
   SwatchField,
   IconPickerField,
+  CurrencyField,
+  NumberField,
 } from "@atlas/ui";
 import { useCreateWallet, useUpdateWallet, useLedgerAccounts } from "../hooks/use-pfm-queries";
 import { WALLET_KIND_LABEL } from "../lib/format";
@@ -197,12 +199,17 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
           />
 
           {!isCredit && (
-            <TextField
-              label="Saldo inicial"
-              type="number"
-              step="0.01"
-              error={errors.openingBalance?.message}
-              {...register("openingBalance")}
+            <Controller
+              control={control}
+              name="openingBalance"
+              render={({ field }) => (
+                <CurrencyField
+                  label="Saldo inicial"
+                  error={errors.openingBalance?.message}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           )}
 
@@ -211,55 +218,84 @@ export function WalletFormSheet({ open, onOpenChange, wallet }) {
               <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
                 Tarjeta de credito
               </p>
-              <TextField
-                label="Limite de credito"
-                type="number"
-                step="0.01"
-                inputMode="decimal"
-                error={errors.creditLimit?.message}
-                {...register("creditLimit")}
+              <Controller
+                control={control}
+                name="creditLimit"
+                render={({ field }) => (
+                  <CurrencyField
+                    label="Limite de credito"
+                    error={errors.creditLimit?.message}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
               />
               <div className="grid grid-cols-2 gap-3">
-                <TextField
-                  label="Dia de corte"
-                  type="number"
-                  min="1"
-                  max="31"
-                  error={errors.statementDay?.message}
-                  {...register("statementDay")}
+                <Controller
+                  control={control}
+                  name="statementDay"
+                  render={({ field }) => (
+                    <NumberField
+                      label="Dia de corte"
+                      min="1"
+                      max="31"
+                      allowNegative={false}
+                      allowDecimal={false}
+                      error={errors.statementDay?.message}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
-                <TextField
-                  label="Dia limite de pago"
-                  type="number"
-                  min="1"
-                  max="31"
-                  error={errors.paymentDueDay?.message}
-                  {...register("paymentDueDay")}
+                <Controller
+                  control={control}
+                  name="paymentDueDay"
+                  render={({ field }) => (
+                    <NumberField
+                      label="Dia limite de pago"
+                      min="1"
+                      max="31"
+                      allowNegative={false}
+                      allowDecimal={false}
+                      error={errors.paymentDueDay?.message}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
                 />
               </div>
               {!isEdit && (
-                <TextField
-                  label="Saldo ocupado actual"
-                  type="number"
-                  step="0.01"
-                  inputMode="decimal"
-                  hint="Cuanto debes hoy en esta tarjeta"
-                  error={errors.openingUsed?.message}
-                  {...register("openingUsed")}
+                <Controller
+                  control={control}
+                  name="openingUsed"
+                  render={({ field }) => (
+                    <CurrencyField
+                      label="Saldo ocupado actual"
+                      hint="Cuanto debes hoy en esta tarjeta"
+                      error={errors.openingUsed?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  )}
                 />
               )}
             </div>
           )}
 
           {isInvestment && (
-            <TextField
-              label="Tasa anual esperada (%)"
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              hint="Rendimiento anual estimado; se acumula dia a dia"
-              error={errors.expectedRate?.message}
-              {...register("expectedRate")}
+            <Controller
+              control={control}
+              name="expectedRate"
+              render={({ field }) => (
+                <NumberField
+                  label="Tasa anual esperada (%)"
+                  allowNegative={false}
+                  hint="Rendimiento anual estimado; se acumula dia a dia"
+                  error={errors.expectedRate?.message}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                />
+              )}
             />
           )}
 

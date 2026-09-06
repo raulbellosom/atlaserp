@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/atlas.pfm/components/BudgetFormSheet.jsx
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,9 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
-  TextField,
   SelectField,
   ComboboxField,
+  CurrencyField,
 } from "@atlas/ui";
 import { useWallets, usePfmCategories, useCreateBudget, useUpdateBudget } from "../hooks/use-pfm-queries";
 
@@ -31,8 +31,8 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
   const [categoryId, setCategoryId] = useState("");
   const [walletId, setWalletId] = useState("all");
   const {
-    register,
     handleSubmit,
+    control,
     reset,
     watch,
     setValue,
@@ -90,13 +90,18 @@ export function BudgetFormSheet({ open, onOpenChange, budget }) {
             value={walletId}
             onChange={setWalletId}
           />
-          <TextField
-            label="Limite mensual"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
-            error={errors.amount?.message}
-            {...register("amount", { required: "Ingresa un monto" })}
+          <Controller
+            control={control}
+            name="amount"
+            rules={{ required: "Ingresa un monto" }}
+            render={({ field }) => (
+              <CurrencyField
+                label="Limite mensual"
+                error={errors.amount?.message}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
           <SelectField
             label="Avisarme al"

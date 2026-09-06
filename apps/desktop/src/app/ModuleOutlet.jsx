@@ -143,6 +143,9 @@ const SCREEN_MAP = {
   "atlas.pfm:/receipts": lazy(
     () => import("../modules/atlas.pfm/screens/ReceiptsScreen.jsx"),
   ),
+  "atlas.pfm:/categories": lazy(
+    () => import("../modules/atlas.pfm/screens/CategoriesScreen.jsx"),
+  ),
   "atlas.pfm:/budgets": lazy(
     () => import("../modules/atlas.pfm/screens/BudgetsScreen.jsx"),
   ),
@@ -521,6 +524,7 @@ function resolveScreen(moduleKey, subPath) {
     if (subPath.startsWith("/wallets/")) return SCREEN_MAP["atlas.pfm:/wallets/:id"] ?? null;
     if (subPath === "/recurring") return SCREEN_MAP["atlas.pfm:/recurring"] ?? null;
     if (subPath === "/receipts") return SCREEN_MAP["atlas.pfm:/receipts"] ?? null;
+    if (subPath === "/categories") return SCREEN_MAP["atlas.pfm:/categories"] ?? null;
     if (subPath === "/budgets") return SCREEN_MAP["atlas.pfm:/budgets"] ?? null;
     return null;
   }
@@ -765,9 +769,13 @@ export function ModuleOutlet() {
   );
 
   if (moduleKey === "atlas.pfm") {
+    // h-full (not flex-1): <main> is a plain overflow-y-auto block, not a flex
+    // container, so flex-1 here is inert and nothing below gets a resolved
+    // height. h-full resolves against <main>'s definite height and lets the
+    // screen column and the assistant sidebar own their own scroll regions.
     return (
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 overflow-auto">{screenNode}</div>
+      <div className="flex h-full min-h-0 overflow-hidden">
+        <div className="min-w-0 flex-1 overflow-y-auto">{screenNode}</div>
         <Suspense fallback={null}>
           <PfmAssistantSidebar />
         </Suspense>

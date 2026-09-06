@@ -35,12 +35,15 @@ function writeCollapsed(v) {
   }
 }
 
+// The backend's PfmServiceError messages (rate limit, not configured, Groq
+// rejection with the real detail...) are already good Spanish user-facing
+// text — the previous version of this function matched literal "429"/"503"/
+// "502" substrings in the message text (which none of those messages actually
+// contain; the status is a separate `err.status`, not embedded digits) and
+// fell through to a generic "Algo salio mal" for every real error, which is
+// why the assistant "always" seemed to fail the same way regardless of cause.
 function errText(err) {
-  const m = String(err?.message ?? "");
-  if (m.includes("429")) return "Vas muy rapido, espera un momento.";
-  if (m.includes("503")) return "El asistente no esta disponible ahora.";
-  if (m.includes("502")) return "El asistente no respondio, intenta de nuevo.";
-  return "Algo salio mal, intenta de nuevo.";
+  return String(err?.message ?? "").trim() || "Algo salio mal, intenta de nuevo.";
 }
 
 export function PfmAssistantSidebar() {
@@ -107,7 +110,7 @@ export function PfmAssistantSidebar() {
   }
 
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--background))] md:w-[360px]">
+    <aside className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-xl md:static md:inset-auto md:z-auto md:h-full md:w-[360px] md:shrink-0 md:shadow-none">
       <div className="flex items-center justify-between border-b border-[hsl(var(--border))] p-2">
         <span className="flex items-center gap-1.5 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-[hsl(var(--primary))]" /> Asistente

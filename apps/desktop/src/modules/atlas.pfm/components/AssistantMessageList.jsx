@@ -13,7 +13,7 @@ export function AssistantMessageList({ messages, pending, proposedAction, onProp
 
   if (messages.length === 0 && !pending) {
     return (
-      <div className="flex flex-1 items-center justify-center p-4">
+      <div className="flex min-h-0 flex-1 items-center justify-center p-4">
         <EmptyState
           icon={Sparkles}
           variant="compact"
@@ -25,7 +25,7 @@ export function AssistantMessageList({ messages, pending, proposedAction, onProp
   }
 
   return (
-    <div className="flex-1 space-y-2 overflow-y-auto p-3">
+    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
       {messages.map((m, i) => (
         <AssistantMessage key={i} role={m.role} content={m.content} />
       ))}

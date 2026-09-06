@@ -1,8 +1,25 @@
 // apps/api/src/routes/pfm/__tests__/receipts-service.test.js
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createReceiptsService } from "../receipts-service.js";
+import sharp from "sharp";
+import { createReceiptsService, prepareVisionImage } from "../receipts-service.js";
 import { PfmServiceError } from "../service-helpers.js";
+
+// processReceipt now re-encodes the downloaded bytes through sharp (to cap
+// the size/normalize orientation before sending to the vision API), so the
+// storage-download mock must return real, decodable image bytes rather than
+// an arbitrary buffer.
+const FAKE_IMAGE = await sharp({
+  create: { width: 4, height: 4, channels: 3, background: { r: 255, g: 0, b: 0 } },
+})
+  .jpeg()
+  .toBuffer();
+
+function fakeImageArrayBuffer() {
+  const ab = new ArrayBuffer(FAKE_IMAGE.length);
+  new Uint8Array(ab).set(FAKE_IMAGE);
+  return ab;
+}
 
 const COMPANY = "01900000-0000-7000-8000-000000000401";
 const OWNER = "01900000-0000-7000-8000-000000000402";
@@ -59,7 +76,7 @@ function baseDeps(over = {}) {
       storage: {
         from: () => ({
           download: async () => ({
-            data: { arrayBuffer: async () => new ArrayBuffer(8) },
+            data: { arrayBuffer: async () => fakeImageArrayBuffer() },
             error: null,
           }),
         }),
@@ -167,6 +184,24 @@ describe("receipts-service", () => {
     assert.equal(movement.data.receiptId, RECEIPT);
     assert.equal(receiptPatch.status, "CONFIRMED");
     assert.equal(receiptPatch.movementId, "mov1");
+  });
+
+  it("prepareVisionImage shrinks a large photo under Groq's base64 rejection threshold", async () => {
+    // A big, noisy (hard to compress) source image, standing in for an
+    // uncompressed phone-camera photo — this is what actually trips the
+    // "El servicio de vision rechazo la peticion (4xx)" error in the wild.
+    const noisy = Buffer.alloc(4000 * 3000 * 3);
+    for (let i = 0; i < noisy.length; i += 1) noisy[i] = (i * 2654435761) % 256;
+    const big = await sharp(noisy, { raw: { width: 4000, height: 3000, channels: 3 } })
+      .jpeg({ quality: 100 })
+      .toBuffer();
+    assert.ok(big.length > 3 * 1024 * 1024, "fixture should start above the cap");
+
+    const out = await prepareVisionImage(big);
+    assert.ok(out.length <= 3 * 1024 * 1024, `expected <=3MB, got ${out.length}`);
+    const meta = await sharp(out).metadata();
+    assert.equal(meta.format, "jpeg");
+    assert.ok(meta.width <= 2000 && meta.height <= 2000);
   });
 
   it("retryReceipt resets a FAILED receipt to PROCESSING with attempts 0", async () => {

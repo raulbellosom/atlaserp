@@ -116,6 +116,35 @@ describe("assistant-tools", () => {
     assert.equal(out.__proposedAction, undefined);
   });
 
+  it("the model can never override ctx (actorId/companyId) via tool-call arguments", async () => {
+    // The LLM only ever supplies things like walletId/month/categoryId in its
+    // tool-call JSON — actorId/companyId always come from the authenticated
+    // request (see assistant-service.js's callGroq loop) and get passed as
+    // `ctx`, a second, separate argument the model never sees or controls.
+    // This proves a runner can't be tricked into forwarding a spoofed ctx even
+    // if the model's arguments object happens to contain those key names.
+    let seenCtx = null;
+    const runners = buildToolRunners(
+      services({
+        movements: {
+          listMovements: async (args) => {
+            seenCtx = { companyId: args.companyId, actorId: args.actorId };
+            return { data: [] };
+          },
+        },
+      }),
+    );
+    await runners.list_movements(
+      {
+        walletId: WALLET,
+        actorId: "01900000-0000-7000-8000-0000000009ff",
+        companyId: "01900000-0000-7000-8000-0000000009ee",
+      },
+      CTX,
+    );
+    assert.deepEqual(seenCtx, CTX);
+  });
+
   it("propose_movement rejects a non-positive amount", async () => {
     const runners = buildToolRunners(services());
     const out = await runners.propose_movement(

@@ -31,6 +31,7 @@ describe("vision-service", () => {
           total: 89.5,
           currency: "MXN",
           date: "2026-08-15",
+          time: "14:32",
           taxAmount: 12.34,
           lines: [{ description: "Sabritas", amount: 20 }],
           confidence: 0.9,
@@ -45,11 +46,32 @@ describe("vision-service", () => {
     assert.equal(res.parsed.merchant, "OXXO");
     assert.equal(res.parsed.total, 89.5);
     assert.equal(res.parsed.currency, "MXN");
+    assert.equal(res.parsed.time, "14:32");
     assert.equal(res.model, "test-model");
     assert.equal(fetchMock.mock.callCount(), 1);
     const [url, opts] = fetchMock.mock.calls[0].arguments;
     assert.match(url, /groq\.com/);
     assert.match(opts.headers.Authorization, /^Bearer /);
+  });
+
+  it("discards a malformed time value instead of storing garbage", async () => {
+    const fetchMock = mock.fn(async () =>
+      groqBody(
+        JSON.stringify({
+          merchant: "OXXO",
+          total: 50,
+          currency: "MXN",
+          date: "2026-08-15",
+          time: "2:32pm",
+          taxAmount: null,
+          lines: [],
+          confidence: 0.5,
+        }),
+      ),
+    );
+    const svc = createVisionService({ env: { GROQ_API_KEY: "k" }, fetchImpl: fetchMock });
+    const res = await svc.extractReceipt({ imageBase64: IMG, mimeType: "image/jpeg" });
+    assert.equal(res.parsed.time, null);
   });
 
   it("tolerates a model that wraps JSON in prose / code fences", async () => {
@@ -89,6 +111,54 @@ describe("vision-service", () => {
     await assert.rejects(
       () => svc.extractReceipt({ imageBase64: IMG, mimeType: "image/jpeg" }),
       (e) => e instanceof VisionServiceError,
+    );
+  });
+
+  it("defaults to the current qwen vision model and sends reasoning_format hidden", async () => {
+    const fetchMock = mock.fn(async () =>
+      groqBody('{"merchant":null,"total":null,"currency":"MXN","date":null,"taxAmount":null,"lines":[],"confidence":null}'),
+    );
+    const svc = createVisionService({ env: { GROQ_API_KEY: "k" }, fetchImpl: fetchMock });
+    await svc.extractReceipt({ imageBase64: IMG, mimeType: "image/jpeg" });
+    const [, opts] = fetchMock.mock.calls[0].arguments;
+    const body = JSON.parse(opts.body);
+    assert.equal(body.model, "qwen/qwen3.6-27b");
+    assert.equal(body.reasoning_format, "hidden");
+  });
+
+  it("does not send reasoning_format for a non-reasoning model override", async () => {
+    const fetchMock = mock.fn(async () =>
+      groqBody('{"merchant":null,"total":null,"currency":"MXN","date":null,"taxAmount":null,"lines":[],"confidence":null}'),
+    );
+    const svc = createVisionService({
+      env: { GROQ_API_KEY: "k", PFM_VISION_MODEL: "meta-llama/llama-4-maverick-17b-128e-instruct" },
+      fetchImpl: fetchMock,
+    });
+    await svc.extractReceipt({ imageBase64: IMG, mimeType: "image/jpeg" });
+    const [, opts] = fetchMock.mock.calls[0].arguments;
+    const body = JSON.parse(opts.body);
+    assert.equal(body.reasoning_format, undefined);
+  });
+
+  it("surfaces the full model_not_found body so the UI can show the real cause", async () => {
+    const detail = JSON.stringify({
+      error: {
+        message:
+          "The model `meta-llama/llama-4-scout-17b-16e-instruct` does not exist or you do not have access to it.",
+        type: "invalid_request_error",
+        code: "model_not_found",
+      },
+    });
+    const fetchMock = mock.fn(async () => ({
+      ok: false,
+      status: 404,
+      text: async () => detail,
+      json: async () => ({}),
+    }));
+    const svc = createVisionService({ env: { GROQ_API_KEY: "k" }, fetchImpl: fetchMock });
+    await assert.rejects(
+      () => svc.extractReceipt({ imageBase64: IMG, mimeType: "image/jpeg" }),
+      (e) => e instanceof VisionServiceError && e.status === 502 && e.message.includes("model_not_found"),
     );
   });
 });

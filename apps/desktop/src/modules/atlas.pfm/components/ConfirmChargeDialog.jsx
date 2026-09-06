@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
   Button,
-  TextField,
+  CurrencyField,
 } from "@atlas/ui";
 import { formatMoney } from "../lib/format";
 
@@ -56,14 +56,11 @@ export function ConfirmChargeDialog({ open, onOpenChange, charge, currency, onCo
             <span className="font-medium text-[hsl(var(--foreground))]">{label}</span>
             {target}.
           </p>
-          <TextField
+          <CurrencyField
             label="Monto"
-            type="number"
-            step="0.01"
-            inputMode="decimal"
             autoFocus
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            value={Number(amount) || 0}
+            onChange={(v) => setAmount(String(v))}
             error={!valid && amount !== "" ? "Ingresa un monto mayor a cero" : undefined}
             hint={
               changed

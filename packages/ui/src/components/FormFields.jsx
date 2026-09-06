@@ -391,6 +391,30 @@ export const TextareaField = forwardRef(function TextareaField(
 // MarkdownField is in its own file: MarkdownField.jsx
 // ─── NumberField ──────────────────────────────────────────────────────────────
 
+// Native <input type="number"> silently lets the caret buffer hold "e", "+",
+// "-" and other syntax valid only in scientific/signed notation — visually
+// typeable even though a bad final string just resolves to an empty value.
+// Block anything that isn't a digit, a single decimal point, or (when
+// allowed) a single leading minus, so what you type is what you get.
+function handleNumericKeyDown(e, { allowNegative, allowDecimal }) {
+  const allowed = [
+    "Backspace", "Delete", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown",
+    "Tab", "Enter", "Home", "End",
+  ];
+  if (allowed.includes(e.key) || e.ctrlKey || e.metaKey) return;
+  if (/^[0-9]$/.test(e.key)) return;
+  const el = e.currentTarget;
+  if (allowDecimal && e.key === ".") {
+    if (el.value.includes(".")) e.preventDefault();
+    return;
+  }
+  if (allowNegative && e.key === "-") {
+    if (el.selectionStart !== 0 || el.value.includes("-")) e.preventDefault();
+    return;
+  }
+  e.preventDefault();
+}
+
 export const NumberField = forwardRef(function NumberField(
   {
     label,
@@ -399,11 +423,14 @@ export const NumberField = forwardRef(function NumberField(
     required,
     validate,
     onBlur,
+    onKeyDown,
     id,
     icon,
     prefix,
     suffix,
     className,
+    allowNegative = true,
+    allowDecimal = true,
     ...props
   },
   ref,
@@ -414,6 +441,11 @@ export const NumberField = forwardRef(function NumberField(
   function handleBlur(e) {
     if (validate) setLocalError(validate(e.target.value) || "");
     onBlur?.(e);
+  }
+
+  function handleKeyDown(e) {
+    handleNumericKeyDown(e, { allowNegative, allowDecimal });
+    onKeyDown?.(e);
   }
 
   const hasLeft = icon || prefix;
@@ -437,7 +469,9 @@ export const NumberField = forwardRef(function NumberField(
           ref={ref}
           id={id}
           type="number"
+          inputMode={allowDecimal ? "decimal" : "numeric"}
           onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className={fieldCls(
             error,
             cn(
