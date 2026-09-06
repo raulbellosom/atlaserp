@@ -16,6 +16,8 @@ import { EntityReferenceCard } from "./EntityReferenceCard";
 import { FileReferenceGroup } from "./FileReferenceGroup";
 import { AttachmentsBlock } from "./MessageAttachments";
 import { MessageQuote } from "./MessageQuote";
+import { CallLogCard } from "./CallLogCard";
+import { getCallMeta } from "./callLogMeta";
 import { MessageActionSheet } from "./MessageActionSheet";
 import { buildMessageActions } from "../lib/messageActions";
 
@@ -307,6 +309,10 @@ export function ChatMessageBubble({
         <div className="flex-1 h-px bg-[hsl(var(--border))]" />
       </div>
     );
+  }
+
+  if (getCallMeta(message)) {
+    return <CallLogCard message={message} />;
   }
 
   if (message.sender_type === "system" || message.message_type === "system") {
