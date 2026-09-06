@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
-  Button, SelectField, TextareaField,
+  Button, SelectField, TagsField,
 } from "@atlas/ui";
 import { Video, Calendar, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ import { useCalls } from "../calls/CallsProvider";
 function unwrap(r) {
   return r?.data ?? r;
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // "Nueva reunión" — pick a channel/group, generate a guest link (+ optional
 // email invites), then either start a video call now or schedule a calendar
@@ -34,7 +36,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   const [conversationId, setConversationId] = useState(defaultConversationId ?? NEW_ROOM);
   const [resolvedId, setResolvedId] = useState(null); // real id after (maybe) creating a room
   const [mode, setMode] = useState("now"); // "now" | "schedule"
-  const [emails, setEmails] = useState("");
+  const [emails, setEmails] = useState([]);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(null); // { url, code, ... }
   const [pending, setPending] = useState([]); // pendingManual entries
@@ -44,7 +46,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
 
   useEffect(() => {
     if (!open) return;
-    setMode("now"); setEmails(""); setLink(null); setPending([]); setShowEventForm(false); setBusy(false); setResolvedId(null);
+    setMode("now"); setEmails([]); setLink(null); setPending([]); setShowEventForm(false); setBusy(false); setResolvedId(null);
     setConversationId(
       defaultConversationId && conversations.some((c) => c.id === defaultConversationId)
         ? defaultConversationId
@@ -84,9 +86,8 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
       if (!newLink) throw new Error("No se pudo generar el enlace.");
       setLink(newLink);
 
-      const list = emails.split(/[,\n;]+/).map((s) => s.trim()).filter(Boolean);
-      if (list.length) {
-        const res = unwrap(await atlas.calls.sendInvites(targetId, list, token));
+      if (emails.length) {
+        const res = unwrap(await atlas.calls.sendInvites(targetId, emails, token));
         const n = (res?.invited?.length ?? 0) + (res?.matchedUsers?.length ?? 0);
         setPending(res?.pendingManual ?? []);
         if (n) toast.success(`${n} invitación(es) enviadas.`);
@@ -181,12 +182,15 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               </div>
             </div>
 
-            <TextareaField
+            <TagsField
               label="Invitados externos por correo (opcional)"
-              placeholder="ana@empresa.com, luis@otra.com"
+              placeholder="ana@empresa.com  (Enter para agregar)"
               value={emails}
-              onChange={(e) => setEmails(e.target.value)}
-              rows={2}
+              onChange={setEmails}
+              type="email"
+              inputMode="email"
+              normalizeItem={(v) => v.trim().toLowerCase()}
+              validateItem={(v) => (EMAIL_RE.test(v) ? null : "Correo no válido")}
             />
 
             {link && (

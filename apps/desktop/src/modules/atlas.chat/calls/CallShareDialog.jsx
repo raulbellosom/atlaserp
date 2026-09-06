@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
-  Button, TextareaField, CheckboxField, NumberField, ConfirmDialog,
+  Button, TagsField, CheckboxField, NumberField, ConfirmDialog,
 } from "@atlas/ui";
 import { Copy, Check, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,12 +12,14 @@ function unwrap(r) {
   return r?.data ?? r;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function CallShareDialog({ open, onOpenChange, conversationId }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [link, setLink] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [emails, setEmails] = useState("");
+  const [emails, setEmails] = useState([]);
   const [inviteResult, setInviteResult] = useState(null);
   const [copied, setCopied] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState(false);
@@ -62,12 +64,11 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
   }
 
   async function sendInvites() {
-    const list = emails.split(/[,\n;]+/).map((s) => s.trim()).filter(Boolean);
-    if (!list.length) return;
+    if (!emails.length) return;
     try {
-      const r = unwrap(await atlas.calls.sendInvites(conversationId, list, token));
+      const r = unwrap(await atlas.calls.sendInvites(conversationId, emails, token));
       setInviteResult(r);
-      setEmails("");
+      setEmails([]);
       const n = (r?.invited?.length ?? 0) + (r?.matchedUsers?.length ?? 0);
       if (n) toast.success(`${n} invitación(es) procesadas.`);
       if (r?.pendingManual?.length) toast.message("Algunas quedaron pendientes de envío — copia el enlace.");
@@ -134,15 +135,18 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
             />
 
             <div>
-              <TextareaField
+              <TagsField
                 label="Invitar por correo"
-                placeholder="ana@empresa.com, luis@otra.com"
+                placeholder="ana@empresa.com  (Enter para agregar)"
                 value={emails}
-                onChange={(e) => setEmails(e.target.value)}
-                rows={2}
+                onChange={setEmails}
+                type="email"
+                inputMode="email"
+                normalizeItem={(v) => v.trim().toLowerCase()}
+                validateItem={(v) => (EMAIL_RE.test(v) ? null : "Correo no válido")}
               />
               <div className="mt-2 flex justify-end">
-                <Button size="sm" onClick={sendInvites} disabled={!emails.trim()}>Enviar invitaciones</Button>
+                <Button size="sm" onClick={sendInvites} disabled={!emails.length}>Enviar invitaciones</Button>
               </div>
               {inviteResult?.matchedUsers?.length > 0 && (
                 <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">

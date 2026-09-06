@@ -1365,22 +1365,40 @@ export function TagsField({
   onChange,
   placeholder = "Escribe y presiona Enter",
   className,
+  // Optional per-item check. Return an error string to reject the entry, or
+  // null/"" to accept. Also used to filter a multi-item paste.
+  validateItem,
+  // Normalize each entry before it is stored (e.g. lowercase + trim an email).
+  normalizeItem = (v) => v.trim(),
+  type = "text",
+  inputMode,
 }) {
   const [input, setInput] = useState("");
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
   const inputRef = useRef(null);
 
-  function addTag() {
-    const tag = input.trim();
-    if (!tag) return;
+  function commit(raw) {
+    const tag = normalizeItem(String(raw ?? ""));
+    if (!tag) return false;
     if (value.includes(tag)) {
-      setLocalError("Etiqueta duplicada");
-      return;
+      setLocalError("Elemento duplicado");
+      return false;
+    }
+    if (validateItem) {
+      const err = validateItem(tag);
+      if (err) {
+        setLocalError(err);
+        return false;
+      }
     }
     setLocalError("");
     onChange?.([...value, tag]);
-    setInput("");
+    return true;
+  }
+
+  function addTag() {
+    if (commit(input)) setInput("");
   }
 
   function removeTag(i) {
@@ -1388,11 +1406,27 @@ export function TagsField({
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Enter" || e.key === ",") {
+    if (e.key === "Enter" || e.key === "," || e.key === " " || e.key === ";") {
       e.preventDefault();
       addTag();
     } else if (e.key === "Backspace" && !input && value.length > 0)
       removeTag(value.length - 1);
+  }
+
+  function handlePaste(e) {
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (!/[,;\s]/.test(text)) return; // single value — let it fall through to onChange
+    e.preventDefault();
+    const parts = text.split(/[,;\s]+/).map((p) => p.trim()).filter(Boolean);
+    const next = [...value];
+    for (const p of parts) {
+      const tag = normalizeItem(p);
+      if (!tag || next.includes(tag)) continue;
+      if (validateItem && validateItem(tag)) continue;
+      next.push(tag);
+    }
+    if (next.length !== value.length) { onChange?.(next); setLocalError(""); }
+    setInput("");
   }
 
   return (
@@ -1440,10 +1474,15 @@ export function TagsField({
         <input
           ref={inputRef}
           id={id}
-          type="text"
+          type={type}
+          inputMode={inputMode}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           onBlur={addTag}
           placeholder={value.length === 0 ? placeholder : ""}
           className="flex-1 min-w-24 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
