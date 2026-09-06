@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   Button, SelectField, TextareaField,
@@ -40,6 +40,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   const [pending, setPending] = useState([]); // pendingManual entries
   const [showEventForm, setShowEventForm] = useState(false);
   const [copied, setCopied] = useState("");
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +63,8 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   }
 
   async function generate() {
-    if (!conversationId) return;
+    if (!conversationId || submittingRef.current || link) return;
+    submittingRef.current = true;
     setBusy(true);
     try {
       let targetId = conversationId;
@@ -100,6 +102,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
       toast.error(e?.message || "No se pudo crear la reunión.");
     } finally {
       setBusy(false);
+      submittingRef.current = false;
     }
   }
 
@@ -201,6 +204,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                     {copied === "code" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
+                <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+                  El invitado abre <span className="font-mono">{link.url.replace(/\/p\/call\/.*$/, "/p/call")}</span> e ingresa el código, o usa el enlace directo.
+                </p>
                 {pending.map((p) => (
                   <div key={p.inviteId} className="flex items-center gap-2 text-xs">
                     <span className="truncate text-[hsl(var(--muted-foreground))]">{p.email}: envío pendiente</span>

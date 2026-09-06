@@ -76,6 +76,7 @@ describe("createCallService", () => {
         findUnique: async () => ({ id: CALLER_ID, displayName: "Caller", avatarFileId: null }),
       },
       calendarEvent: { findFirst: async () => null },
+      callLink: { findFirst: async () => null },
       call: {
         findMany: async () => [],
         findFirst: async () => null,
@@ -140,6 +141,7 @@ describe("createCallService", () => {
   it("rejects a duplicate live call with the existing id", async () => {
     const prisma = {
       userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      callLink: { findFirst: async () => null },
       call: {
         findMany: async () => [],
         findFirst: async () => ({ id: CALL_ID }),
@@ -173,6 +175,7 @@ describe("createCallService", () => {
     const prisma = {
       userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
       calendarEvent: { findFirst: async () => null },
+      callLink: { findFirst: async () => null },
       call: {
         findMany: async () => [],
         findFirst: async () => null,
@@ -192,6 +195,51 @@ describe("createCallService", () => {
         && error.details.busyUserIds[0] === CALLEE_ID,
     );
     assert.equal(participantsCreated, false);
+  });
+
+  it("allows a solo call and starts it ACTIVE when a meeting-room guest link exists", async () => {
+    let insertedStatus;
+    const soloCall = {
+      id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE",
+      initiatedByUserId: CALLER_ID, livekitRoomName: `call_${CALL_ID}`,
+      participants: [{ userId: CALLER_ID, status: "JOINED", user: { displayName: "Host" } }],
+      initiator: { id: CALLER_ID, displayName: "Host" }, calendarEvent: null,
+    };
+    const tx = {
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("FOR UPDATE")) return [{ id: CALLER_ID }];
+        if (sql.includes("DISTINCT ON")) return [];
+        if (sql.includes('INSERT INTO "call"')) {
+          insertedStatus = sql;
+          return [{ id: CALL_ID }];
+        }
+        return [];
+      },
+      callParticipant: { createMany: async () => {} },
+      call: { findUnique: async () => soloCall },
+    };
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Host" }) },
+      callLink: { findFirst: async () => ({ id: "link-1" }) },
+      calendarEvent: { findFirst: async () => null },
+      call: { findMany: async () => [], findFirst: async () => null, findUnique: async () => soloCall },
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("chat_conversation_members")) return [{ userId: CALLER_ID, displayName: "Host" }];
+        if (sql.includes("INSERT INTO chat_messages")) return [{ id: "m1", created_at: new Date() }];
+        return [{ userId: CALLER_ID, displayName: "Host" }];
+      },
+      $executeRaw: async () => 1,
+      $transaction: async (cb) => cb(tx),
+    };
+    class FakeToken { addGrant() {} async toJwt() { return "t"; } }
+    const service = createCallService({ prisma, env: enabledEnv(), AccessTokenImpl: FakeToken });
+
+    const out = await service.createCall({ authUserId: "auth", conversationId: CONVERSATION_ID, kind: "VIDEO" });
+
+    assert.equal(out.callId, CALL_ID);
+    assert.match(String(insertedStatus), /ACTIVE|CallStatus/);
   });
 
   it("activates a ringing call when an invited participant joins", async () => {

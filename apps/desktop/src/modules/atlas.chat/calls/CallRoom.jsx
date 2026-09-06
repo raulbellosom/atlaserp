@@ -218,12 +218,14 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   }, [session.call.createdAt, session.call.startedAt]);
 
   useEffect(() => {
-    if (!isInitiator || hasRemoteJoined) return undefined;
+    // A meeting-room call starts ACTIVE (host alone, guests join via link) —
+    // it must not auto-hang-up while the host waits for guests.
+    if (!isInitiator || hasRemoteJoined || session.call.status === "ACTIVE") return undefined;
     const createdAt = new Date(session.call.createdAt ?? Date.now()).getTime();
     const remaining = Math.max(0, UNANSWERED_CALL_TIMEOUT_MS - (Date.now() - createdAt));
     const timer = window.setTimeout(() => onUnanswered?.(), remaining);
     return () => window.clearTimeout(timer);
-  }, [isInitiator, hasRemoteJoined, session.call.createdAt, onUnanswered]);
+  }, [isInitiator, hasRemoteJoined, session.call.status, session.call.createdAt, onUnanswered]);
 
   // Count chat messages that arrive while the panel is not the active view.
   useEffect(() => {

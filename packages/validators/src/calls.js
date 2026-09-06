@@ -12,11 +12,12 @@ export const callInviteSchema = z.object({
 
 export const callGuestJoinSchema = z
   .object({
-    token: z.string().min(1).max(128).optional(),
-    code: z.string().min(1).max(32).optional(),
-    inviteToken: z.string().min(1).max(128).optional(),
+    // nullish: the guest page sends the unused fields as `null`, not `undefined`.
+    token: z.string().min(1).max(128).nullish(),
+    code: z.string().min(1).max(32).nullish(),
+    inviteToken: z.string().min(1).max(128).nullish(),
     displayName: z.string().trim().min(2).max(40),
-    email: z.string().email().optional(),
+    email: z.union([z.string().email(), z.literal(""), z.null()]).optional().transform((v) => v || undefined),
   })
   .refine((v) => v.token || v.code || v.inviteToken, {
     message: "Se requiere un enlace, código o invitación.",

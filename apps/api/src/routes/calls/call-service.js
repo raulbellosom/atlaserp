@@ -295,7 +295,14 @@ export function createCallService({
     if (!members.some((member) => member.userId === profile.id)) {
       throw new CallServiceError("Conversacion no encontrada.", 404);
     }
-    if (members.length < 2) {
+    // A "meeting room" — a conversation with a live guest link — can start a
+    // call with just the host; external guests join later via the link.
+    const meetingLink = await prisma.callLink.findFirst({
+      where: { conversationId, revokedAt: null },
+      select: { id: true },
+    });
+    const isMeetingRoom = Boolean(meetingLink);
+    if (members.length < 2 && !isMeetingRoom) {
       throw new CallServiceError("No hay otra persona disponible en esta conversacion.", 422);
     }
     const memberIds = [];
@@ -357,21 +364,26 @@ export function createCallService({
         invitedMembers = members.filter(
           (member) => member.userId === profile.id || !busySet.has(member.userId),
         );
-        if (invitedMembers.length < 2) {
+        if (invitedMembers.length < 2 && !isMeetingRoom) {
           throw new CallServiceError("El usuario ya esta en otra llamada.", 409, {
             code: "recipient_busy",
             busyUserIds: busyRecipientIds,
           });
         }
 
+        // A meeting-room call starts ACTIVE (host alone, guests join via link);
+        // a normal call starts RINGING until someone answers.
+        const soloRoom = isMeetingRoom && invitedMembers.length < 2;
+        const initialStatus = soloRoom ? "ACTIVE" : "RINGING";
+        const startedAt = soloRoom ? now() : null;
         const rows = await tx.$queryRaw`
           WITH generated AS (SELECT uuidv7() AS id)
           INSERT INTO "call" (
             id, conversation_id, calendar_event_id, kind, status,
-            initiated_by_user_id, livekit_room_name, created_at
+            initiated_by_user_id, livekit_room_name, created_at, started_at
           )
-          SELECT id, ${conversationId}, ${calendarEventId}, ${kind}::"CallKind", 'RINGING',
-                 ${profile.id}, 'call_' || id::text, NOW()
+          SELECT id, ${conversationId}, ${calendarEventId}, ${kind}::"CallKind", ${initialStatus}::"CallStatus",
+                 ${profile.id}, 'call_' || id::text, NOW(), ${startedAt}
           FROM generated
           RETURNING id
         `;
@@ -409,6 +421,11 @@ export function createCallService({
     }
 
     const call = await getCallRecord(created.id);
+    // A solo meeting-room call starts ACTIVE, so joinCall never fires the
+    // RINGING->ACTIVE "iniciada" system message — post it here.
+    if (call.status === "ACTIVE") {
+      await postCallSystemMessage(call, { event: "started", kind: call.kind });
+    }
     const recipientIds = [];
     for (const member of invitedMembers) {
       if (member.userId !== profile.id) recipientIds.push(member.userId);

@@ -24,7 +24,12 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
     setJoining(true);
     setState((s) => ({ ...s, error: null }));
     try {
-      const res = unwrap(await atlas.calls.guest.join({ token, code, inviteToken, displayName, email }));
+      const payload = { displayName };
+      if (token) payload.token = token;
+      if (code) payload.code = code;
+      if (inviteToken) payload.inviteToken = inviteToken;
+      if (email) payload.email = email;
+      const res = unwrap(await atlas.calls.guest.join(payload));
       if (res?.status === "waiting") {
         setState({ joined: true, status: "waiting", callEnded: false, error: null });
         return;
