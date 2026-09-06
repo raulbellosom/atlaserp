@@ -54,6 +54,7 @@ export function CallsProvider({ children }) {
   const incomingRef = useRef(null);
   const joiningCallRef = useRef(null);
   const busyNoticeRef = useRef(new Set());
+  const [pendingGuestCount, setPendingGuestCount] = useState(0);
 
   useEffect(() => {
     activeRef.current = activeSession;
@@ -349,13 +350,38 @@ export function CallsProvider({ children }) {
     leaveActive({ unanswered: true });
   }, [leaveActive]);
 
+  // Guest-lobby realtime events for the active call: keep a rough pending count
+  // and toast when someone new is waiting.
+  useEffect(() => {
+    if (!on) return undefined;
+    const bump = () => setPendingGuestCount((n) => n + 1);
+    const clear = () => setPendingGuestCount((n) => Math.max(0, n - 1));
+    const subs = [
+      on("chat.call.guest_waiting", (p) => {
+        bump();
+        if (activeRef.current?.call?.id === p?.callId) {
+          toast.message(`${p?.name ?? "Un invitado"} quiere unirse a la llamada.`);
+        }
+      }),
+      on("chat.call.guest_admitted", clear),
+      on("chat.call.guest_denied", clear),
+      on("chat.call.guest_kicked", clear),
+    ];
+    return () => subs.forEach((u) => u?.());
+  }, [on]);
+
+  useEffect(() => {
+    if (!activeSession) setPendingGuestCount(0);
+  }, [activeSession]);
+
   const value = useMemo(() => ({
     enabled: config.enabled,
     loading: config.loading,
     isStarting,
     activeCall: activeSession?.call ?? null,
+    pendingGuestCount,
     startCall,
-  }), [config.enabled, config.loading, isStarting, activeSession?.call, startCall]);
+  }), [config.enabled, config.loading, isStarting, activeSession?.call, pendingGuestCount, startCall]);
 
   return (
     <CallsContext.Provider value={value}>

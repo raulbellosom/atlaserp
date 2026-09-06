@@ -99,6 +99,24 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'chat.call.ended' }, ({ payload }) => {
         dispatch('chat.call.ended', payload)
       })
+      .on('broadcast', { event: 'chat.call.guest_waiting' }, ({ payload }) => {
+        dispatch('chat.call.guest_waiting', payload)
+      })
+      .on('broadcast', { event: 'chat.call.guest_joined' }, ({ payload }) => {
+        dispatch('chat.call.guest_joined', payload)
+      })
+      .on('broadcast', { event: 'chat.call.guest_left' }, ({ payload }) => {
+        dispatch('chat.call.guest_left', payload)
+      })
+      .on('broadcast', { event: 'chat.call.guest_admitted' }, ({ payload }) => {
+        dispatch('chat.call.guest_admitted', payload)
+      })
+      .on('broadcast', { event: 'chat.call.guest_denied' }, ({ payload }) => {
+        dispatch('chat.call.guest_denied', payload)
+      })
+      .on('broadcast', { event: 'chat.call.guest_kicked' }, ({ payload }) => {
+        dispatch('chat.call.guest_kicked', payload)
+      })
       .on('broadcast', { event: 'projects.task.updated' }, ({ payload }) => {
         dispatch('projects.task.updated', payload)
       })
