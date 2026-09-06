@@ -26,7 +26,9 @@ function useTrack(participant, source) {
 
 // Floating, draggable minimized-call widget. Rendered by CallRoom while the
 // call is minimized — CallRoom itself stays mounted so the LiveKit room keeps
-// running. Fixed to the viewport (below the z-[10020] full call overlay).
+// running. Fixed to the viewport at the same z tier as the full call overlay
+// (z-[46]): above app chrome, below the modal layer (z-50) so dialogs still
+// open on top of it.
 export function MiniCallBubble({
   remoteParticipants = [],
   localParticipant = null,
@@ -115,7 +117,7 @@ export function MiniCallBubble({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       style={style}
-      className="fixed z-[10015] w-44 touch-none select-none overflow-hidden rounded-2xl bg-slate-900 text-white shadow-2xl ring-1 ring-white/20"
+      className="fixed z-[46] w-44 touch-none select-none overflow-hidden rounded-2xl bg-slate-900 text-white shadow-2xl ring-1 ring-white/20"
     >
       <button
         type="button"

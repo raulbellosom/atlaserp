@@ -403,7 +403,7 @@ export function CallsProvider({ children }) {
         onDecline={declineIncoming}
       />
       {activeSession && (
-        <Suspense fallback={<div className="fixed inset-0 z-[10020] bg-slate-950" />}>
+        <Suspense fallback={<div className="fixed inset-0 z-[46] bg-slate-950" />}>
           <CallRoom
             key={activeSession.call.id}
             session={activeSession}

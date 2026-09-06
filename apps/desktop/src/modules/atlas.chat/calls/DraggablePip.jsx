@@ -5,8 +5,8 @@ const TAP_THRESHOLD_PX = 4;
 
 // Floating, draggable, collapsible tile for the in-call overlay. Kept here
 // rather than in @atlas/ui because it is call-specific: it clamps to the call
-// <main> and lives above the z-[10020] fixed call overlay. Drag uses Pointer
-// Events so mouse and touch share one code path.
+// <main> and lives inside the fixed call overlay's stacking context. Drag uses
+// Pointer Events so mouse and touch share one code path.
 export function DraggablePip({
   children,
   label = "",

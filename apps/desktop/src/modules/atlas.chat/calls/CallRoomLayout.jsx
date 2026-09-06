@@ -190,7 +190,7 @@ export function CallRoomLayout({ view, actions, chat }) {
     : [];
 
   return (
-    <div className="fixed inset-0 z-[10020] flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-slate-950 text-white">
+    <div className="fixed inset-0 z-[46] flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-slate-950 text-white">
       <OutgoingCallTone active={outgoingToneActive} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       <header
