@@ -443,4 +443,94 @@ describe("createCallService", () => {
     assert.ok(missBroadcast, "posts a chat.message.new for the missed call");
     assert.equal(missBroadcast.payload.conversationId, CONVERSATION_ID);
   });
+
+  it("does not post 'iniciada' when the initiator re-joins an already ACTIVE call", async () => {
+    const broadcasts = [];
+    const activeCall = {
+      id: CALL_ID,
+      conversationId: CONVERSATION_ID,
+      kind: "VIDEO",
+      status: "ACTIVE",
+      initiatedByUserId: CALLER_ID,
+      livekitRoomName: `call_${CALL_ID}`,
+      startedAt: new Date(),
+      participants: [
+        { userId: CALLER_ID, status: "JOINED", joinedAt: new Date(), user: { displayName: "Caller" } },
+        { userId: CALLEE_ID, status: "JOINED", joinedAt: new Date(), user: { displayName: "Callee" } },
+      ],
+      initiator: { id: CALLER_ID, displayName: "Caller" },
+      calendarEvent: null,
+    };
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      call: {
+        findMany: async () => [],
+        findUnique: async () => activeCall,
+        update: () => Promise.resolve({}),
+      },
+      callParticipant: { update: () => Promise.resolve({}) },
+      $queryRaw: async () => [{ id: "membership" }],
+      $executeRaw: async () => 1,
+      $transaction: async (operations) => Promise.all(operations),
+    };
+    class FakeToken { addGrant() {} async toJwt() { return "t"; } }
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      AccessTokenImpl: FakeToken,
+      broadcaster: { broadcastToUsers: async (u, event) => { broadcasts.push({ event }); } },
+    });
+
+    await service.joinCall({ authUserId: "caller-auth", callId: CALL_ID });
+
+    assert.equal(broadcasts.some((b) => b.event === "chat.message.new"), false);
+  });
+
+  it("a failing system-message insert never breaks the call operation", async () => {
+    const activeCall = {
+      id: CALL_ID,
+      conversationId: CONVERSATION_ID,
+      kind: "AUDIO",
+      status: "ACTIVE",
+      initiatedByUserId: CALLER_ID,
+      livekitRoomName: `call_${CALL_ID}`,
+      startedAt: new Date(Date.now() - 5000),
+      participants: [
+        { userId: CALLER_ID, status: "JOINED", user: { displayName: "Caller" } },
+        { userId: CALLEE_ID, status: "JOINED", user: { displayName: "Callee" } },
+      ],
+      initiator: { id: CALLER_ID, displayName: "Caller" },
+      calendarEvent: null,
+    };
+    const endedCall = { ...activeCall, status: "ENDED" };
+    let reads = 0;
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLEE_ID, displayName: "Callee" }) },
+      call: {
+        findUnique: async () => (reads++ === 0 ? activeCall : endedCall),
+        update: () => Promise.resolve({}),
+      },
+      callParticipant: {
+        update: () => Promise.resolve({}),
+        updateMany: () => Promise.resolve({ count: 1 }),
+        count: async () => 0,
+      },
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("INSERT INTO chat_messages")) throw new Error("boom");
+        return [{ id: "membership" }];
+      },
+      $executeRaw: async () => 1,
+      $transaction: async (operations) => Promise.all(operations),
+    };
+    class FakeRoom { async deleteRoom() {} }
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      RoomServiceClientImpl: FakeRoom,
+    });
+
+    const result = await service.leaveCall({ authUserId: "callee-auth", callId: CALL_ID });
+    assert.equal(result.status, "ENDED");
+  });
 });
