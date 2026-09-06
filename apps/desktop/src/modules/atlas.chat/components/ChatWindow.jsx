@@ -5,7 +5,7 @@ import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, Dropdow
 import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
   MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
-  ChevronUp, ChevronDown, Archive, ArchiveRestore, Pin,
+  ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
   Phone, Video,
 } from "lucide-react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
@@ -62,6 +62,7 @@ function ChatHeader({
   onOpenProfile,
   onOpenPinned,
   callsEnabled, callPending, onStartAudioCall, onStartVideoCall,
+  embedded = null, onCollapse = null,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -177,7 +178,16 @@ function ChatHeader({
   return (
     <>
       <div className="chat-glass flex items-center gap-3 px-3 sm:px-4 py-3 shrink-0">
-        {onClose && (
+        {embedded === "call" ? (
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors touch-manipulation shrink-0"
+            aria-label="Ocultar chat"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        ) : onClose ? (
           <button
             type="button"
             onClick={onClose}
@@ -186,7 +196,7 @@ function ChatHeader({
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-        )}
+        ) : null}
         <button type="button" onClick={() => onOpenProfile(null)} className="relative shrink-0" title="Ver perfil">
           {avatarUrl && !avatarErr ? (
             <img
@@ -239,7 +249,7 @@ function ChatHeader({
           ) : null}
         </div>
 
-        {callsEnabled && conversation?.type !== "external_support" && (
+        {!embedded && callsEnabled && conversation?.type !== "external_support" && (
           <>
             <Button
               type="button"
@@ -313,7 +323,7 @@ function ChatHeader({
               <CheckSquare className="h-3.5 w-3.5 mr-2" />
               Seleccionar mensajes
             </DropdownMenuItem>
-            {onArchive && (
+            {!embedded && onArchive && (
               <DropdownMenuItem onSelect={onArchive}>
                 {isArchived
                   ? <><ArchiveRestore className="h-3.5 w-3.5 mr-2" />Desarchivar</>
@@ -321,11 +331,15 @@ function ChatHeader({
                 }
               </DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-red-500 focus:text-red-500">
-              <Trash2 className="h-3.5 w-3.5 mr-2" />
-              Eliminar conversacion
-            </DropdownMenuItem>
+            {!embedded && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-red-500 focus:text-red-500">
+                  <Trash2 className="h-3.5 w-3.5 mr-2" />
+                  Eliminar conversacion
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -360,7 +374,7 @@ function saveHidden(conversationId, set) {
 
 // ── Main ChatWindow ───────────────────────────────────────────────────────────
 
-export function ChatWindow({ conversation, onClose, initialFilesView = false, initialJumpMessageId = null }) {
+export function ChatWindow({ conversation, onClose, initialFilesView = false, initialJumpMessageId = null, embedded = null, onCollapse = null }) {
   const navigate = useNavigate();
   const { userProfile, session } = useAuth();
   const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
@@ -785,6 +799,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onlineUsers={onlineUsers}
         detailMembers={detailMembers}
         onClose={onClose}
+        embedded={embedded}
+        onCollapse={onCollapse}
         filesView={filesView}
         onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); setProfileInitialTab(null); }}
         searchMode={searchMode}
