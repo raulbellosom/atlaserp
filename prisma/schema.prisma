@@ -377,6 +377,10 @@ model UserProfile {
   calendarNotifications  CalendarNotification[]   @relation("CalendarNotificationUser")
   callsInitiated         Call[]                    @relation("CallInitiator")
   callParticipants       CallParticipant[]         @relation("CallParticipantUser")
+  callLinksCreated       CallLink[]                @relation("CallLinkCreatedBy")
+  callInvitesSent        CallInvite[]              @relation("CallInviteInvitedBy")
+  callGuestsAdmitted     CallGuest[]               @relation("CallGuestAdmittedBy")
+  callMessagesSent       CallMessage[]             @relation("CallMessageSenderUser")
 
   projectsOwned      Project[]       @relation("ProjectOwner")
   projectMemberships ProjectMember[] @relation("ProjectMemberUser")
@@ -1856,6 +1860,8 @@ model Call {
   initiator     UserProfile       @relation("CallInitiator", fields: [initiatedByUserId], references: [id])
   calendarEvent CalendarEvent?    @relation(fields: [calendarEventId], references: [id])
   participants  CallParticipant[]
+  guests        CallGuest[]
+  messages      CallMessage[]
 
   @@index([conversationId])
   @@index([calendarEventId])
@@ -1879,6 +1885,106 @@ model CallParticipant {
   @@unique([callId, userId])
   @@index([userId, status])
   @@map("call_participant")
+}
+
+model CallLink {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  conversationId   String    @db.Uuid @map("conversation_id")
+  token            String    @unique
+  code             String    @unique
+  requireLobby     Boolean   @default(true) @map("require_lobby")
+  maxUses          Int?      @map("max_uses")
+  useCount         Int       @default(0) @map("use_count")
+  expiresAt        DateTime? @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdByUserId  String    @db.Uuid @map("created_by_user_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  createdBy UserProfile  @relation("CallLinkCreatedBy", fields: [createdByUserId], references: [id])
+  invites   CallInvite[]
+  guests    CallGuest[]
+
+  @@index([conversationId])
+  @@map("call_link")
+}
+
+model CallInvite {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  linkId          String    @db.Uuid @map("link_id")
+  email           String
+  emailNormalized String    @map("email_normalized")
+  token           String    @unique
+  invitedByUserId String    @db.Uuid @map("invited_by_user_id")
+  sentAt          DateTime? @map("sent_at")
+  acceptedAt      DateTime? @map("accepted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  link      CallLink    @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  invitedBy UserProfile @relation("CallInviteInvitedBy", fields: [invitedByUserId], references: [id])
+  guests    CallGuest[]
+
+  @@index([linkId, emailNormalized])
+  @@map("call_invite")
+}
+
+model CallGuest {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  callId           String    @db.Uuid @map("call_id")
+  linkId           String?   @db.Uuid @map("link_id")
+  inviteId         String?   @db.Uuid @map("invite_id")
+  displayName      String    @map("display_name")
+  email            String?
+  sessionTokenHash String    @map("session_token_hash")
+  livekitIdentity  String    @map("livekit_identity")
+  status           String    @default("LOBBY")
+  admittedByUserId String?   @db.Uuid @map("admitted_by_user_id")
+  joinIp           String?   @map("join_ip")
+  userAgent        String?   @map("user_agent")
+  admittedAt       DateTime? @map("admitted_at")
+  leftAt           DateTime? @map("left_at")
+  lastSeenAt       DateTime? @map("last_seen_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  call       Call          @relation(fields: [callId], references: [id], onDelete: Cascade)
+  link       CallLink?     @relation(fields: [linkId], references: [id])
+  invite     CallInvite?   @relation(fields: [inviteId], references: [id])
+  admittedBy UserProfile?  @relation("CallGuestAdmittedBy", fields: [admittedByUserId], references: [id])
+  messages   CallMessage[]
+
+  @@unique([callId, livekitIdentity])
+  @@index([callId, status])
+  @@index([sessionTokenHash])
+  @@map("call_guest")
+}
+
+model CallMessage {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  callId        String   @db.Uuid @map("call_id")
+  senderKind    String   @map("sender_kind")
+  senderUserId  String?  @db.Uuid @map("sender_user_id")
+  senderGuestId String?  @db.Uuid @map("sender_guest_id")
+  senderName    String   @map("sender_name")
+  body          String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  call        Call         @relation(fields: [callId], references: [id], onDelete: Cascade)
+  senderUser  UserProfile? @relation("CallMessageSenderUser", fields: [senderUserId], references: [id])
+  senderGuest CallGuest?   @relation(fields: [senderGuestId], references: [id])
+
+  @@index([callId, createdAt])
+  @@map("call_message")
+}
+
+model CallGuestJoinAttempt {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  ip        String
+  linkId    String?  @db.Uuid @map("link_id")
+  outcome   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ip, createdAt])
+  @@map("call_guest_join_attempt")
 }
 
 model CalendarEventFile {
