@@ -91,13 +91,17 @@ describe("createCallLinksService.sendInvites", () => {
       callInvite: { create: async ({ data }) => ({ id: `inv-${data.emailNormalized}`, ...data }) },
     };
     const sent = [];
-    const smtpService = { isConfigured: async () => true, sendEmail: async (m) => { sent.push(m.to); } };
+    const smtpService = { isConfigured: async () => true, sendEmail: async (m) => { sent.push(m); } };
     const svc = createCallLinksService({ prisma, smtpService, callService: { assertCanManageCall: async () => {} }, env: { PUBLIC_APP_URL: "https://app.test" } });
     const out = await svc.sendInvites({ authUserId: "auth", conversationId: CONV, profileId: USER, emails: ["match@x.com", "outsider@y.com"] });
     assert.deepEqual(out.matchedUsers.map((u) => u.userId), ["u-match"]);
     assert.equal(out.invited.length, 1);
     assert.equal(out.pendingManual.length, 0);
-    assert.deepEqual(sent, ["outsider@y.com"]);
+    assert.deepEqual(sent.map((m) => m.to), ["outsider@y.com"]);
+    // Uses the branded template, not a raw <p> blob.
+    assert.equal(sent[0].subject, "Te invitaron a una llamada");
+    assert.match(sent[0].html, /href="https:\/\/app\.test\/p\/call\/tok\?i=/);
+    assert.match(sent[0].text, /https:\/\/app\.test\/p\/call\/tok\?i=/);
   });
 
   it("returns pendingManual with a copyable URL when SMTP is not configured", async () => {

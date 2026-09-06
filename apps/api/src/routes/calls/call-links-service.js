@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { buildCallInviteEmail, resolveAppBaseUrl } from "../../services/email-templates.js";
 
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"; // no I L O U
 const CODE_LEN = 8;
@@ -20,7 +21,9 @@ export function generateCallCode() {
 }
 
 export function createCallLinksService({ prisma, smtpService, callService, env = process.env, now = () => new Date() }) {
-  const publicAppUrl = String(env.PUBLIC_APP_URL ?? env.ATLAS_APP_URL ?? "").replace(/\/+$/, "");
+  // Public SPA origin — read from the environment (PUBLIC_APP_URL / APP_URL /
+  // ATLAS_APP_URL / WEB_APP_URL, then a dev fallback). Never hardcoded.
+  const publicAppUrl = String(resolveAppBaseUrl(env) ?? "").replace(/\/+$/, "");
 
   function joinUrl(token, inviteToken) {
     const base = `${publicAppUrl}/p/call/${token}`;
@@ -174,6 +177,20 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
     const invited = [];
     const pendingManual = [];
 
+    // For a friendlier email ("Raul te invitó en «#general»"). Best-effort.
+    let inviterName = null;
+    let conversationTitle = null;
+    try {
+      const [inviterRow] = await prisma.$queryRaw`
+        SELECT display_name AS "displayName" FROM user_profile WHERE id = ${profileId} LIMIT 1
+      `;
+      inviterName = inviterRow?.displayName ?? null;
+      const [convRow] = await prisma.$queryRaw`
+        SELECT title FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+      `;
+      conversationTitle = convRow?.title ?? null;
+    } catch { /* fall back to the generic wording */ }
+
     for (const email of normalized) {
       if (matchedByEmail.has(email)) continue;
       const inviteToken = crypto.randomBytes(24).toString("hex");
@@ -190,11 +207,12 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
       const url = joinUrl(link.token, inviteToken);
       if (smtpOk) {
         try {
+          const mail = buildCallInviteEmail({ joinUrl: url, inviterName, conversationTitle, env });
           await smtpService.sendEmail({
             to: email,
-            subject: "Te invitaron a una llamada",
-            text: `Únete a la llamada: ${url}`,
-            html: `<p>Te invitaron a una llamada.</p><p><a href="${url}">Unirme a la llamada</a></p><p>${url}</p>`,
+            subject: mail.subject,
+            text: mail.text,
+            html: mail.html,
           });
           invited.push({ email, inviteId: invite.id });
         } catch {
