@@ -15,6 +15,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
   const [livekitUrl, setLivekitUrl] = useState(null);
   const [guests, setGuests] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [branding, setBranding] = useState(null);
   const [joining, setJoining] = useState(false);
   const pollRef = useRef(null);
   const hbRef = useRef(null);
@@ -30,6 +31,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
       if (inviteToken) payload.inviteToken = inviteToken;
       if (email) payload.email = email;
       const res = unwrap(await atlas.calls.guest.join(payload));
+      if (res?.branding) setBranding(res.branding);
       if (res?.status === "waiting") {
         setState({ joined: true, status: "waiting", callEnded: false, error: null });
         return;
@@ -56,6 +58,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
         setLivekitUrl(res.livekitUrl ?? null);
         setGuests(res.guests ?? []);
         setMessages(res.messages ?? []);
+        if (res.branding) setBranding(res.branding);
       } catch { /* transient */ }
     }
     tick();
@@ -86,7 +89,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
 
   return {
     phase: guestPhase(state),
-    state, call, livekitUrl, guests, messages, joining,
+    state, call, livekitUrl, guests, messages, branding, joining,
     join, fetchLivekitToken, sendMessage, leave,
   };
 }

@@ -24,6 +24,7 @@ function hashToken(raw) {
 
 export function createCallGuestService({
   prisma,
+  supabaseAdmin = null,
   env = process.env,
   AccessTokenImpl = AccessToken,
   RoomServiceClientImpl = RoomServiceClient,
@@ -33,6 +34,52 @@ export function createCallGuestService({
   notificationService = null,
   now = () => new Date(),
 }) {
+  const brandingCache = new Map(); // conversationId -> { at, data }
+
+  async function loadBranding(conversationId) {
+    if (!conversationId) return null;
+    const cached = brandingCache.get(conversationId);
+    if (cached && now().getTime() - cached.at < 5 * 60 * 1000) return cached.data;
+    let data = null;
+    try {
+      const rows = await prisma.$queryRaw`
+        SELECT co.name, co.website, co.city, co.state, co.contact_email AS "contactEmail",
+               co.phone, bc.logo_file_id AS "logoFileId", bc.primary_color AS "primaryColor"
+        FROM chat_conversations cc
+        JOIN company co ON co.id = cc.company_id
+        LEFT JOIN branding_config bc ON bc.company_id = co.id
+        WHERE cc.id = ${conversationId}
+        LIMIT 1
+      `;
+      const row = rows[0];
+      if (row) {
+        let logoUrl = null;
+        if (row.logoFileId && supabaseAdmin) {
+          try {
+            const fa = await prisma.fileAsset.findUnique({ where: { id: row.logoFileId } });
+            if (fa) {
+              const { data: signed } = await supabaseAdmin.storage
+                .from(fa.bucket)
+                .createSignedUrl(fa.objectKey, 3600);
+              logoUrl = signed?.signedUrl ?? null;
+            }
+          } catch { /* ignore */ }
+        }
+        data = {
+          companyName: row.name ?? null,
+          website: row.website ?? null,
+          location: [row.city, row.state].filter(Boolean).join(", ") || null,
+          email: row.contactEmail ?? null,
+          phone: row.phone ?? null,
+          logoUrl,
+          primaryColor: row.primaryColor ?? null,
+        };
+      }
+    } catch { /* branding is best-effort */ }
+    brandingCache.set(conversationId, { at: now().getTime(), data });
+    return data;
+  }
+
   function config() {
     return readLiveKitConfig(env);
   }
@@ -119,10 +166,11 @@ export function createCallGuestService({
       if (invite?.email && !email) email = invite.email;
     }
 
+    const branding = await loadBranding(link.conversationId);
     const call = await liveCallForConversation(link.conversationId);
     if (!call) {
       await recordAttempt(ip, link.id, "no_live_call");
-      return { status: "waiting" };
+      return { status: "waiting", branding };
     }
 
     const activeGuests = await prisma.callGuest.count({
@@ -195,6 +243,7 @@ export function createCallGuestService({
       status,
       callId: call.id,
       requiresLobby: link.requireLobby,
+      branding,
     };
   }
 
@@ -204,6 +253,7 @@ export function createCallGuestService({
     await prisma.callGuest.update({ where: { id: guest.id }, data: { lastSeenAt: now() } }).catch(() => {});
     const call = await liveCallById(guest.callId);
     const live = call && LIVE.includes(call.status);
+    const branding = await loadBranding(call?.conversationId ?? null);
 
     let roster = [];
     let messages = [];
@@ -228,6 +278,7 @@ export function createCallGuestService({
       livekitUrl: config().publicUrl,
       guests: roster,
       messages,
+      branding,
     };
   }
 

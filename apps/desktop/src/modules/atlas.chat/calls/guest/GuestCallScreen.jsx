@@ -1,10 +1,59 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Button, TextField } from "@atlas/ui";
-import { Loader2 } from "lucide-react";
+import { Loader2, PhoneOff, Globe } from "lucide-react";
 import { useGuestCall } from "./useGuestCall";
 import { endedReason } from "./lib/guestCall";
 import { GuestCallRoom } from "./GuestCallRoom";
+
+const ATLAS_LOGO = "/brand/atlas-logo-horizontal.png";
+
+function CompanyHeader({ branding }) {
+  if (!branding?.companyName && !branding?.logoUrl) return null;
+  return (
+    <div className="mb-4 flex flex-col items-center gap-2 text-center">
+      {branding.logoUrl ? (
+        <img src={branding.logoUrl} alt={branding.companyName ?? ""} className="h-12 max-w-[180px] object-contain" />
+      ) : null}
+      {branding.companyName ? (
+        <p className="text-base font-semibold text-gray-900">{branding.companyName}</p>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
+        {branding.location ? <span>{branding.location}</span> : null}
+        {branding.website ? (
+          <a href={branding.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-gray-700">
+            <Globe className="h-3 w-3" /> {branding.website.replace(/^https?:\/\//, "")}
+          </a>
+        ) : null}
+        {branding.email ? <span>{branding.email}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function Shell({ children }) {
+  return (
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-gray-50 p-4">
+      {/* Atlas ERP watermark */}
+      <img
+        src={ATLAS_LOGO}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 w-[min(70vw,520px)] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-[0.04] select-none"
+      />
+      <div className="relative z-10 w-full max-w-sm">
+        {children}
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
+          <img src={ATLAS_LOGO} alt="" className="h-3 opacity-60" /> Reunión con tecnología de Atlas ERP
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Card({ children }) {
+  return <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">{children}</div>;
+}
 
 export default function GuestCallScreen() {
   const { token = null } = useParams();
@@ -12,7 +61,6 @@ export default function GuestCallScreen() {
   const inviteToken = sp.get("i");
   const urlCode = sp.get("code");
 
-  // Force light + chromeless, same pattern as PublicNoteScreen.
   useEffect(() => {
     const html = document.documentElement;
     const hadDark = html.classList.contains("dark");
@@ -27,7 +75,6 @@ export default function GuestCallScreen() {
   const formRef = useRef({ name: "", email: "" });
   const waitTimer = useRef(null);
 
-  // While the call has not started, re-attempt the join with the same values.
   useEffect(() => {
     if (gc.phase === "lobby" && gc.state.status === "waiting") {
       waitTimer.current = setInterval(() => {
@@ -60,9 +107,38 @@ export default function GuestCallScreen() {
     );
   }
 
+  if (gc.phase === "ended") {
+    const ended = gc.state.callEnded;
+    return (
+      <Shell>
+        <Card>
+          <CompanyHeader branding={gc.branding} />
+          <div className="space-y-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <PhoneOff className="h-5 w-5 text-gray-500" />
+            </div>
+            <p className="text-base font-semibold text-gray-900">
+              {ended ? "La reunión ha terminado" : endedReason(gc.state)}
+            </p>
+            {ended && (
+              <p className="text-sm text-gray-500">Gracias por participar. Ya puedes cerrar esta pestaña.</p>
+            )}
+            {!ended && (
+              <Button variant="secondary" className="w-full" onClick={() => window.location.reload()}>
+                Volver a intentar
+              </Button>
+            )}
+          </div>
+        </Card>
+      </Shell>
+    );
+  }
+
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+    <Shell>
+      <Card>
+        <CompanyHeader branding={gc.branding} />
+
         {gc.phase === "gate" && (
           <form onSubmit={submitGate} className="space-y-4">
             <h1 className="text-lg font-semibold text-gray-900">Unirte a la llamada</h1>
@@ -97,20 +173,13 @@ export default function GuestCallScreen() {
           </div>
         )}
 
-        {gc.phase === "ended" && (
-          <div className="space-y-3 text-center">
-            <p className="text-sm text-gray-700">{endedReason(gc.state)}</p>
-            <Button variant="secondary" className="w-full" onClick={() => window.location.reload()}>Volver a intentar</Button>
-          </div>
-        )}
-
         {gc.phase === "error" && (
           <div className="space-y-3 text-center">
             <p className="text-sm text-red-600">{gc.state.error || "Algo salió mal."}</p>
             <Button variant="secondary" className="w-full" onClick={() => window.location.reload()}>Reintentar</Button>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </Shell>
   );
 }

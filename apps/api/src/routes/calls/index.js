@@ -40,6 +40,7 @@ function handleError(c, error, fallback) {
 
 export function createCallsRouter({
   prisma,
+  supabaseAdmin = null,
   authMiddleware,
   notificationService = null,
   broadcaster = null,
@@ -53,7 +54,7 @@ export function createCallsRouter({
   const calls = service ?? createCallService({ prisma, notificationService, broadcaster, deliveryWorker });
   const linksService = createCallLinksService({ prisma, smtpService, callService: calls });
   const guestService = createCallGuestService({
-    prisma, linksService, callService: calls, broadcaster, notificationService,
+    prisma, supabaseAdmin, linksService, callService: calls, broadcaster, notificationService,
   });
   const messagesService = createCallMessagesService({ prisma, guestService, broadcaster });
 
