@@ -237,7 +237,7 @@ export function CallRoomLayout({ view, actions, chat }) {
           </div>
         ) : (
           <>
-        {screenShareEntry ? (
+        {(!isMobile || mobileView === "screen") && screenShareEntry ? (
           <div className="relative mx-auto h-full max-w-6xl">
             <ParticipantTile
               participant={screenShareEntry.participant}
