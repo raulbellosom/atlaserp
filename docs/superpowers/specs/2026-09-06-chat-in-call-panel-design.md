@@ -146,16 +146,36 @@ view: "video" | "screen" | "chat"        (useState, default "video")
 ### 3.5 Call lifecycle system messages
 
 `call-service.js` writes a system message into `Call.conversationId` using the
-same raw-SQL insert path chat already uses for system rows (verify exact
-`chat_messages` shape / `message_type` / system-author convention during
-implementation — do not invent a new column).
+same raw-SQL insert path chat already uses for system rows
+(`chat-service.js` "creó el grupo" pattern: `INSERT INTO chat_messages
+(conversation_id, sender_type, body, message_type, metadata)`).
+
+**No new `message_type`.** `chat_messages` has a CHECK constraint
+`message_type IN ('text','image','file','system')`, so the call rows use
+`sender_type = 'system'`, `message_type = 'system'`, `sender_user_id = NULL`,
+and carry the discriminator in `metadata.call`:
+
+```json
+{ "call": { "callId": "<uuid>", "kind": "AUDIO|VIDEO",
+            "event": "started|ended",
+            "endReason": null | "ended" | "missed" | "rejected",
+            "durationSec": <int|null> } }
+```
+
+The client treats a system message as a call card iff `metadata.call` is
+present — no schema change, no migration.
 
 | Transition | Trigger in service | Text |
 |---|---|---|
-| Call -> `ACTIVE` | first `joinCall` that flips status (`shouldActivate`) | `"Videollamada iniciada"` / `"Llamada de voz iniciada"` (by `Call.kind`) |
-| Call -> `ENDED`, `endReason = "ended"` | `endCallRecord(call, "ended")` | `"Llamada finalizada · {mm:ss or h:mm:ss}"` (from `startedAt`→`endedAt`) |
-| Call -> `ENDED`, `endReason = "missed"` | `endCallRecord(call, "missed")` / `expireStaleCalls` | `"Llamada perdida"` |
-| Call -> `ENDED`, `endReason = "rejected"` | `endCallRecord(call, "rejected")` | `"Llamada rechazada"` |
+| Call -> `ACTIVE` | `joinCall`, only when `shouldActivate && before.status === "RINGING"` | `"Videollamada iniciada"` / `"Llamada de voz iniciada"` (by `Call.kind`) |
+| Call -> `ENDED`, real conversation | `endCallRecord(call, "ended")`, call had `startedAt` | `"Llamada finalizada · {m:ss or h:mm:ss}"` (from `startedAt`→now) |
+| Call -> `ENDED`, never activated | `endCallRecord(call, "ended")` with `startedAt == null`, or `expireStaleCalls` sweep | `"Llamada perdida"` |
+| Call -> `ENDED`, declined | `endCallRecord(call, "rejected")` | `"Llamada rechazada"` |
+
+`expireStaleCalls` does its own bulk transaction (it does **not** call
+`endCallRecord`), so its `findMany` select gains `conversationId, kind,
+startedAt` and it posts one "Llamada perdida" per swept call after the
+transaction.
 
 - Metadata on the message row carries `{ callId, kind, endReason, durationSec }`
   so the client can render the call card without a second fetch.
@@ -182,11 +202,11 @@ current-call state).
 `ChatMessageBubble.jsx` is at 1188 lines and the CLAUDE.md note says the next
 change must first extract the attachment sub-components into
 `MessageAttachments.jsx`. To respect that without ballooning this spec: the
-call-card branch goes in a **new sibling `CallLogCard.jsx`** that
-`ChatMessageBubble` imports and renders for `message_type === <system/call>`,
-adding only an import + a short branch to the big file rather than a new inline
-block. The attachment extraction remains its own separate task (not blocked by
-this spec, not done here).
+call-card render lives entirely in a **new sibling `CallLogCard.jsx`**; the
+change to `ChatMessageBubble.jsx` is only an import plus a 2-line early-return
+branch (`if (getCallMeta(message)) return <CallLogCard .../>`), placed just
+above the existing generic system-message branch. The attachment extraction
+remains its own separate task (not blocked by this spec, not done here).
 
 ## 4. Data flow
 
