@@ -63,7 +63,11 @@ const webManifest = {
   name: 'Atlas ERP',
   short_name: 'Atlas',
   description: 'CONNECT. MANAGE. GROW.',
-  start_url: '/',
+  // The ERP SPA is served under /app/ (VITE_BASE_PATH). The origin root serves
+  // the public marketing website, so the installed PWA must open the launcher.
+  id: '/app/',
+  scope: '/app/',
+  start_url: '/app/',
   display: 'standalone',
   background_color: '#0A1D44',
   theme_color: '#102A5E',
