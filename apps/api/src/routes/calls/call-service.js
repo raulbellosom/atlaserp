@@ -205,7 +205,7 @@ export function createCallService({
     const cutoff = new Date(now().getTime() - RING_TIMEOUT_MS);
     const stale = await prisma.call.findMany({
       where: { status: "RINGING", createdAt: { lte: cutoff } },
-      select: { id: true, livekitRoomName: true },
+      select: { id: true, livekitRoomName: true, conversationId: true, kind: true, startedAt: true },
     });
     if (!stale.length) return 0;
     const ids = stale.map((call) => call.id);
@@ -224,6 +224,9 @@ export function createCallService({
       }),
     ]);
     await Promise.all(stale.map(closeLiveKitRoom));
+    await Promise.all(stale.map((call) =>
+      postCallSystemMessage(call, { event: "ended", kind: call.kind, endReason: "missed" }),
+    ));
     return stale.length;
   }
 

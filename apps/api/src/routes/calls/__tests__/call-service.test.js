@@ -398,16 +398,26 @@ describe("createCallService", () => {
 
   it("marks unanswered calls missed after the ringing window and closes the room", async () => {
     const participantUpdates = [];
+    const broadcasts = [];
     let callUpdate;
     let deletedRoom;
     const prisma = {
       call: {
-        findMany: async () => [{ id: CALL_ID, livekitRoomName: `call_${CALL_ID}` }],
+        findMany: async () => [
+          { id: CALL_ID, livekitRoomName: `call_${CALL_ID}`, conversationId: CONVERSATION_ID, kind: "VIDEO", startedAt: null },
+        ],
         updateMany: (operation) => { callUpdate = operation; return Promise.resolve({ count: 1 }); },
       },
       callParticipant: {
         updateMany: (operation) => { participantUpdates.push(operation); return Promise.resolve({ count: 1 }); },
       },
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("INSERT INTO chat_messages")) return [{ id: "sysmsg-miss", created_at: new Date() }];
+        if (sql.includes("chat_conversation_members")) return [{ userId: CALLER_ID, displayName: "Caller" }];
+        return [{ id: "membership" }];
+      },
+      $executeRaw: async () => 1,
       $transaction: async (operations) => Promise.all(operations),
     };
     class FakeRoomServiceClient {
@@ -419,6 +429,9 @@ describe("createCallService", () => {
       env: enabledEnv(),
       now: () => now,
       RoomServiceClientImpl: FakeRoomServiceClient,
+      broadcaster: {
+        broadcastToUsers: async (userIds, event, payload) => { broadcasts.push({ userIds, event, payload }); },
+      },
     });
 
     assert.equal(await service.expireStaleCalls(), 1);
@@ -426,5 +439,8 @@ describe("createCallService", () => {
     assert.equal(participantUpdates[1].data.status, "LEFT");
     assert.deepEqual(callUpdate.data, { status: "ENDED", endedAt: now, endReason: "missed" });
     assert.equal(deletedRoom, `call_${CALL_ID}`);
+    const missBroadcast = broadcasts.find((b) => b.event === "chat.message.new");
+    assert.ok(missBroadcast, "posts a chat.message.new for the missed call");
+    assert.equal(missBroadcast.payload.conversationId, CONVERSATION_ID);
   });
 });
