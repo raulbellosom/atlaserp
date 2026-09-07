@@ -204,6 +204,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
 
     return () => {
       cancelled = true;
+      // A new room object -> re-arm the one-shot media publish for it.
+      mediaInitRef.current = false;
       events.forEach((event) => room.off(event, refresh));
       room.off(RoomEvent.ParticipantConnected, handleParticipantConnected);
       room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
