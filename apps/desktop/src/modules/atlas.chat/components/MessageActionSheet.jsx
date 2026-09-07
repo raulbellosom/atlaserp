@@ -105,8 +105,7 @@ export function MessageActionSheet({
   }
   const close = () => onOpenChange(false);
 
-  const surface =
-    "bg-[hsl(var(--popover,var(--card)))] text-[hsl(var(--popover-foreground,var(--foreground)))] border border-[hsl(var(--border))] shadow-2xl";
+  const surface = "glass-strong text-[hsl(var(--popover-foreground,var(--foreground)))] shadow-lg";
   const gate = armed ? "" : "pointer-events-none";
 
   const r = anchorRect;
@@ -119,7 +118,7 @@ export function MessageActionSheet({
       disabled={a.disabled}
       onClick={() => runAction(a)}
       className={[
-        "w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))] disabled:opacity-40",
+        "w-full flex items-center px-4 py-2.5 text-[13px] text-left hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] disabled:opacity-40 disabled:hover:bg-transparent",
         extra,
       ].join(" ")}
     >
@@ -128,7 +127,13 @@ export function MessageActionSheet({
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-200" role="dialog" aria-label="Acciones del mensaje">
+    <div
+      data-msg-action-menu
+      className="fixed inset-0 z-200"
+      role="dialog"
+      aria-label="Acciones del mensaje"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Dismiss layer. Touch: dim + blur everything except a sharp window over
           the pressed bubble. Mouse: an invisible full-screen click catcher. */}
       {coarse && r ? (
@@ -160,14 +165,14 @@ export function MessageActionSheet({
           top: pos?.pillTop ?? -9999,
           visibility: pos ? "visible" : "hidden",
         }}
-        className={["rounded-full px-1 flex items-center gap-0.5", surface, gate].join(" ")}
+        className={["rounded-full px-1 flex items-center gap-0.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100", surface, gate].join(" ")}
       >
         {QUICK_REACTIONS.map((emoji) => (
           <button
             key={emoji}
             type="button"
             onClick={() => { close(); onQuickReact?.(emoji); }}
-            className="h-9 w-8 text-lg flex items-center justify-center rounded-full active:scale-90 transition"
+            className="h-9 w-8 text-lg flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] active:scale-90 transition"
           >
             {emoji}
           </button>
@@ -176,7 +181,7 @@ export function MessageActionSheet({
           type="button"
           aria-label="Mas emojis"
           onClick={() => { close(); onOpenFullPicker?.(); }}
-          className="h-9 w-8 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))]"
+          className="h-9 w-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -191,7 +196,7 @@ export function MessageActionSheet({
           top: pos?.panelTop ?? -9999,
           visibility: pos ? "visible" : "hidden",
         }}
-        className={["w-60 max-w-[calc(100vw-16px)] rounded-2xl overflow-hidden py-1", surface, gate].join(" ")}
+        className={["w-60 max-w-[calc(100vw-16px)] rounded-xl overflow-hidden py-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100", surface, gate].join(" ")}
       >
         {primary.map((a) => menuItem(a))}
         {attachmentActions.length > 0 && (

@@ -308,7 +308,15 @@ export function ChatMessageBubble({
     onReply: () => onReply?.(message),
   });
 
+  // The action popover is a React child of this row but createPortal()s its
+  // DOM to <body>. React still bubbles the popover's synthetic events up
+  // through this row's handlers — so a click on a menu item would hit
+  // handleRowClickCapture (and swallow the first click), a pointerdown would
+  // arm long-press/swipe, etc. Ignore anything originating in the menu.
+  const fromMenu = (e) => Boolean(e.target?.closest?.("[data-msg-action-menu]"));
+
   function handleRowPointerUp(e) {
+    if (fromMenu(e)) return;
     longPress.onPointerUp?.(e);
     swipeHandlers.onPointerUp?.(e);
     if (coarse) { try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ } }
@@ -329,7 +337,7 @@ export function ChatMessageBubble({
   }
 
   function handleRowContextMenu(e) {
-    if (gesturesDisabled) return;
+    if (gesturesDisabled || fromMenu(e)) return;
     const attEl = e.target?.closest?.("[data-attachment-id]");
     // Bail on controls that aren't an attachment tile (links, the hover "..."
     // button, reaction pills) — but an attachment MUST open the unified menu,
@@ -352,8 +360,11 @@ export function ChatMessageBubble({
   }
 
   // Capture-phase: eat the click that follows a long-press / contextmenu so it
-  // can't fall through to a menu item or the row's own onClick.
+  // can't fall through to the row's own onClick. NEVER touch a click that came
+  // from the portaled action menu (see fromMenu) — that's what made the first
+  // click on a menu item / dismiss do nothing.
   function handleRowClickCapture(e) {
+    if (fromMenu(e)) return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       e.preventDefault();
@@ -362,10 +373,10 @@ export function ChatMessageBubble({
   }
 
   const rowGestureProps = {
-    onPointerDown: (e) => { longPress.onPointerDown?.(e); swipeHandlers.onPointerDown?.(e); },
-    onPointerMove: (e) => { longPress.onPointerMove?.(e); swipeHandlers.onPointerMove?.(e); },
+    onPointerDown: (e) => { if (fromMenu(e)) return; longPress.onPointerDown?.(e); swipeHandlers.onPointerDown?.(e); },
+    onPointerMove: (e) => { if (fromMenu(e)) return; longPress.onPointerMove?.(e); swipeHandlers.onPointerMove?.(e); },
     onPointerUp: handleRowPointerUp,
-    onPointerCancel: (e) => { longPress.onPointerCancel?.(e); swipeHandlers.onPointerCancel?.(e); },
+    onPointerCancel: (e) => { if (fromMenu(e)) return; longPress.onPointerCancel?.(e); swipeHandlers.onPointerCancel?.(e); },
     onClickCapture: handleRowClickCapture,
     onContextMenu: handleRowContextMenu,
     style: {
