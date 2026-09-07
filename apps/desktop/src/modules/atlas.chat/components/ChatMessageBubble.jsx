@@ -243,6 +243,16 @@ export function ChatMessageBubble({
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [actionSheet, setActionSheet] = useState({ open: false, point: null });
   const lastTapRef = useRef(0);
+  // Set the instant a long-press fires so the click/tap that lands when the
+  // finger lifts is swallowed instead of activating whatever is under it
+  // (previously it could hit the just-opened menu's "Seleccionar" item and
+  // drop the whole list into selection mode).
+  const suppressClickRef = useRef(false);
+  const coarse = useCoarsePointer();
+  // On touch, suppress the browser's native text selection / callout so a
+  // long-press opens OUR menu instead of starting a text selection that the
+  // user then drags across several bubbles. Desktop keeps text selectable.
+  const touchNoSelect = coarse ? "select-none [-webkit-touch-callout:none]" : "";
 
   const isDeleted = Boolean(message.deleted_at);
   const isPending = String(message.id ?? "").startsWith("temp-");
@@ -256,10 +266,13 @@ export function ChatMessageBubble({
     // finger instead of jumping to the top-left corner (point:null -> 0,0).
     // On true-mobile widths MessageActionSheet ignores the point and always
     // raises its bottom Sheet.
-    onLongPress: (e) => setActionSheet({
-      open: true,
-      point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
-    }),
+    onLongPress: (e) => {
+      suppressClickRef.current = true;
+      setActionSheet({
+        open: true,
+        point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
+      });
+    },
   });
   const { handlers: swipeHandlers, translateX } = useSwipeToReply({
     disabled: gesturesDisabled || !onReply,
@@ -271,6 +284,9 @@ export function ChatMessageBubble({
   function handleRowPointerUp(e) {
     longPress.onPointerUp?.(e);
     swipeHandlers.onPointerUp?.(e);
+    // A long-press just opened the menu — don't also register this lift as a
+    // tap (double-tap heart, etc.).
+    if (suppressClickRef.current) return;
     // Double-tap -> quick heart. Only when the tap lands on the bubble
     // background / text, never an attachment, link, or reaction pill.
     if (gesturesDisabled || !onToggleReaction) return;
@@ -287,7 +303,18 @@ export function ChatMessageBubble({
   function handleRowContextMenu(e) {
     if (gesturesDisabled) return;
     e.preventDefault();
+    suppressClickRef.current = true;
     setActionSheet({ open: true, point: { x: e.clientX, y: e.clientY } });
+  }
+
+  // Capture-phase: eat the click that follows a long-press / contextmenu so it
+  // can't fall through to a menu item or the row's own onClick.
+  function handleRowClickCapture(e) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
   }
 
   const rowGestureProps = {
@@ -295,6 +322,7 @@ export function ChatMessageBubble({
     onPointerMove: (e) => { longPress.onPointerMove?.(e); swipeHandlers.onPointerMove?.(e); },
     onPointerUp: handleRowPointerUp,
     onPointerCancel: (e) => { longPress.onPointerCancel?.(e); swipeHandlers.onPointerCancel?.(e); },
+    onClickCapture: handleRowClickCapture,
     onContextMenu: handleRowContextMenu,
     style: {
       transform: translateX ? `translateX(${translateX}px)` : undefined,
@@ -412,6 +440,7 @@ export function ChatMessageBubble({
         {...rowGestureProps}
         className={[
           "group/msg relative flex justify-end items-start gap-1 px-3 sm:px-4",
+          touchNoSelect,
           rowPaddingY,
           isPending ? "opacity-60" : "",
           selectionMode ? "cursor-pointer" : "",
@@ -602,6 +631,7 @@ export function ChatMessageBubble({
       {...rowGestureProps}
       className={[
         "group/msg relative flex items-start gap-1 px-3 sm:px-4",
+        touchNoSelect,
         rowPaddingY,
         isPending ? "opacity-60" : "",
         selectionMode ? "cursor-pointer" : "",

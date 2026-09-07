@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -23,6 +24,17 @@ export function MessageActionSheet({
   const actions = buildMessageActions({ ...actionProps, onReact: undefined });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
+
+  // The desktop/tablet menu opens at the finger while it's still pressed from
+  // the long-press. Ignore pointer input on the menu for a moment so the lift
+  // that ends the long-press can't immediately activate the item under it
+  // (which used to fire "Seleccionar" and drop the list into selection mode).
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!open) { setArmed(false); return undefined; }
+    const t = setTimeout(() => setArmed(true), 400);
+    return () => clearTimeout(t);
+  }, [open]);
 
   function runAction(a) {
     onOpenChange(false);
@@ -118,7 +130,12 @@ export function MessageActionSheet({
         </DropdownMenuTrigger>,
         document.body,
       )}
-      <DropdownMenuContent align="start" style={{ zIndex: 10000 }} onCloseAutoFocus={(e) => e.preventDefault()}>
+      <DropdownMenuContent
+        align="start"
+        style={{ zIndex: 10000 }}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        className={armed ? undefined : "pointer-events-none"}
+      >
         {quickRow(true)}
         <DropdownMenuSeparator />
         {primary.map((a) => (
