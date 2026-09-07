@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TagsField } from "@atlas/ui";
-import { Copy, Check, Send, Users } from "lucide-react";
+import { Copy, Check, Send, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -15,7 +15,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Shown centered in the call room while the host is alone (no other members,
 // no guests) — the Meet "add people" card. Generates / fetches the guest link
 // on mount and offers quick email invites.
-export function CallInvitePanel({ conversationId }) {
+export function CallInvitePanel({ conversationId, onClose }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const [link, setLink] = useState(null);
@@ -61,7 +61,19 @@ export function CallInvitePanel({ conversationId }) {
   return (
     <div className="w-full max-w-sm rounded-2xl bg-slate-900/90 p-5 text-slate-100 shadow-2xl ring-1 ring-white/10 backdrop-blur">
       <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-        <Users className="h-4 w-4 text-slate-400" /> Aún no hay nadie más
+        <Users className="h-4 w-4 text-slate-400" />
+        <span className="flex-1">Aún no hay nadie más</span>
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            title="Cerrar"
+            aria-label="Cerrar"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-slate-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
       {link ? (

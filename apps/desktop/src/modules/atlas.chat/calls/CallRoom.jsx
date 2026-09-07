@@ -55,6 +55,9 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const [needsAudio, setNeedsAudio] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [hasRemoteJoined, setHasRemoteJoined] = useState(false);
+  // The host can dismiss the "add people" card; it stays gone for the rest of
+  // this call (a new call gets a fresh CallRoom).
+  const [inviteDismissed, setInviteDismissed] = useState(false);
 
   const conversationId = session.call.conversationId;
   const isMobile = useIsMobile(1024);
@@ -522,8 +525,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         screenShareSupported,
         isDirectVideo,
         layoutMode,
-        invitePanel: isInitiator && isAlone
-          ? <CallInvitePanel conversationId={conversationId} />
+        invitePanel: isInitiator && isAlone && !inviteDismissed
+          ? <CallInvitePanel conversationId={conversationId} onClose={() => setInviteDismissed(true)} />
           : null,
       }}
       actions={{
