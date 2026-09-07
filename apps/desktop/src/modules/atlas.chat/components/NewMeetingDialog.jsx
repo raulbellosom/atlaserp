@@ -43,16 +43,18 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   const [showEventForm, setShowEventForm] = useState(false);
   const [copied, setCopied] = useState("");
   const submittingRef = useRef(false);
+  const createdRoomRef = useRef(null); // reuse the room created earlier this session
 
+  // Reset ONLY when the dialog opens. It must NOT re-run on `conversations`
+  // changing — the conversation list refetches after we create a channel /
+  // on any new message, and re-running here would wipe `link`, making the
+  // button say "Generar enlace" again and a second click create a 2nd room.
   useEffect(() => {
     if (!open) return;
-    setMode("now"); setEmails([]); setLink(null); setPending([]); setShowEventForm(false); setBusy(false); setResolvedId(null);
-    setConversationId(
-      defaultConversationId && conversations.some((c) => c.id === defaultConversationId)
-        ? defaultConversationId
-        : NEW_ROOM,
-    );
-  }, [open, defaultConversationId, conversations]);
+    setMode("now"); setEmails([]); setLink(null); setPending([]); setShowEventForm(false);
+    setBusy(false); setResolvedId(null); submittingRef.current = false; createdRoomRef.current = null;
+    setConversationId(defaultConversationId ?? NEW_ROOM);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = conversations.find((c) => c.id === conversationId) ?? null;
   const memberIds = (selected?.members ?? []).map((m) => m.userId).filter(Boolean);
@@ -71,13 +73,18 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     try {
       let targetId = conversationId;
       if (conversationId === NEW_ROOM) {
-        const when = new Date().toLocaleDateString([], { day: "2-digit", month: "short" });
-        const room = unwrap(await atlas.chat.createChannel(
-          { title: `Reunión ${when}`, isPublic: false },
-          token,
-        ));
-        targetId = room?.id;
-        if (!targetId) throw new Error("No se pudo crear la sala.");
+        if (createdRoomRef.current) {
+          targetId = createdRoomRef.current; // never create a 2nd room this session
+        } else {
+          const when = new Date().toLocaleDateString([], { day: "2-digit", month: "short" });
+          const room = unwrap(await atlas.chat.createChannel(
+            { title: `Reunión ${when}`, isPublic: false },
+            token,
+          ));
+          targetId = room?.id;
+          if (!targetId) throw new Error("No se pudo crear la sala.");
+          createdRoomRef.current = targetId;
+        }
       }
       setResolvedId(targetId);
 
@@ -107,9 +114,16 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     }
   }
 
-  function startNow() {
-    startCall({ conversationId: resolvedId ?? conversationId, kind: "VIDEO" });
-    onOpenChange(false);
+  const [starting, setStarting] = useState(false);
+  async function startNow() {
+    setStarting(true);
+    try {
+      const ok = await startCall({ conversationId: resolvedId ?? conversationId, kind: "VIDEO" });
+      if (ok) onOpenChange(false);
+      else toast.error("No se pudo iniciar la videollamada.");
+    } finally {
+      setStarting(false);
+    }
   }
 
   if (showEventForm && link) {
@@ -228,8 +242,8 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                   {busy ? "Creando..." : mode === "now" ? "Generar enlace" : "Continuar"}
                 </Button>
               ) : mode === "now" ? (
-                <Button onClick={startNow}>
-                  <Video className="mr-2 h-4 w-4" /> Iniciar videollamada
+                <Button onClick={startNow} disabled={starting}>
+                  <Video className="mr-2 h-4 w-4" /> {starting ? "Iniciando..." : "Iniciar videollamada"}
                 </Button>
               ) : (
                 <Button onClick={() => setShowEventForm(true)}>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
   SwipeableRow, ConfirmDialog, useIsMobile, useCoarsePointer,
@@ -35,6 +35,8 @@ export function ConversationRowActions({
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // pending destructive descriptor
+  const confirmTimer = useRef(null);
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
 
   const actions = buildConversationActions(conversation, { currentUserId });
   const nonDestructive = actions.filter((a) => !a.destructive);
@@ -43,7 +45,14 @@ export function ConversationRowActions({
   function run(descriptor) {
     setSheetOpen(false);
     if (descriptor.destructive) {
-      setConfirm(descriptor);
+      // Defer opening the ConfirmDialog until the ContextMenu / Sheet has
+      // fully closed AND finished its exit animation. Mounting a second Radix
+      // overlay while the first is still running its exit + focus-return +
+      // scroll-lock cleanup leaves the app with a stuck `aria-hidden` /
+      // `pointer-events: none` on <body> (right click stops working until a
+      // reload).
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+      confirmTimer.current = setTimeout(() => setConfirm(descriptor), 220);
       return;
     }
     onAction?.(descriptor.action, conversation);
@@ -76,7 +85,9 @@ export function ConversationRowActions({
           <ContextMenuTrigger asChild>
             <div>{children}</div>
           </ContextMenuTrigger>
-          <ContextMenuContent>
+          <ContextMenuContent
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
             {nonDestructive.map((a) => {
               const Icon = a.icon;
               return (
