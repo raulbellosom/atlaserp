@@ -597,8 +597,12 @@ export const MessageComposer = forwardRef(function MessageComposer(
         edgeInset
           ? "pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
           : (compact ? "pb-1.5" : "pb-2 sm:pb-3"),
-        // A single background class (never both at once).
-        !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "bg-[hsl(var(--background))]",
+        // A single background class (never both at once). surface-2 (not raw
+        // --background) so the bar reads as a distinct composer surface and,
+        // crucially, its safe-area bottom inset blends with the bar instead
+        // of showing as a band of page background below the input on
+        // iOS/tablet PWA.
+        !dropZoneDisabled && isDragOver ? "bg-[hsl(var(--primary)/0.05)]" : "bg-[hsl(var(--surface-2))]",
       ].join(" ")}
       onDragOver={dropZoneDisabled ? undefined : handleDragOver}
       onDragLeave={dropZoneDisabled ? undefined : handleDragLeave}

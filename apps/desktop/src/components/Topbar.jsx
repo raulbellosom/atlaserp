@@ -106,33 +106,38 @@ export function Topbar({
           <Breadcrumbs />
         </div>
 
-        {/* Center section: command palette trigger — absolutely centered so it never shifts */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center pointer-events-none">
-          {/* Full bar — hidden on mobile */}
+        {/* Center section: full command-palette bar — absolutely centered so it
+            never shifts. Only rendered at lg+, where the left and right
+            sections leave clear room around a 256px centred element. Below lg
+            (tablets included) it collapses to an icon that lives in the right
+            cluster (normal flow, no overlap). */}
+        <div className="absolute left-1/2 -translate-x-1/2 hidden lg:flex items-center pointer-events-none">
           <button
             onClick={openCommand}
-            className="pointer-events-auto hidden sm:flex h-9 w-64 max-w-xs items-center gap-2 px-3 rounded-xl glass-subtle hover:brightness-105 border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-all duration-150 cursor-pointer"
+            className="pointer-events-auto flex h-9 w-64 max-w-xs items-center gap-2 px-3 rounded-xl glass-subtle hover:brightness-105 border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-all duration-150 cursor-pointer"
           >
             <Search size={13} className="shrink-0" />
             <span className="flex-1 text-xs text-left">
               Buscar o ejecutar...
             </span>
-            <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[hsl(var(--border))] text-[10px] font-mono text-[hsl(var(--muted-foreground))] leading-none shrink-0">
+            <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[hsl(var(--border))] text-[10px] font-mono text-[hsl(var(--muted-foreground))] leading-none shrink-0">
               Ctrl+K
             </kbd>
-          </button>
-          {/* Icon-only — mobile only */}
-          <button
-            onClick={openCommand}
-            aria-label="Buscar"
-            className="pointer-events-auto sm:hidden h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
-          >
-            <Search size={16} />
           </button>
         </div>
 
         {/* Right section — pushed to the right */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
+          {/* Command-palette trigger (icon) — below lg only; the full centred
+              bar takes over at lg+. */}
+          <button
+            onClick={openCommand}
+            aria-label="Buscar o ejecutar"
+            title="Buscar o ejecutar (Ctrl+K)"
+            className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
+          >
+            <Search size={16} />
+          </button>
           <SyncStatusPopover
             isOnline={isOnline}
             isSyncing={isSyncing}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
+import { useCoarsePointer } from '../hooks/usePointerCapabilities.js'
 
 // WhatsApp / Telegram style swipeable list row (touch only).
 //
@@ -32,11 +33,8 @@ export function SwipeableRow({
   className = '',
 }) {
   const isMobile = useIsMobile(1024)
-  const gestureEnabled =
-    !disabled &&
-    isMobile &&
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(pointer: coarse)').matches
+  const coarse = useCoarsePointer()
+  const gestureEnabled = !disabled && isMobile && coarse
 
   const trayWidth = Math.min(rightActions.length, 3) * BUTTON_WIDTH
   const hasTray = trayWidth > 0

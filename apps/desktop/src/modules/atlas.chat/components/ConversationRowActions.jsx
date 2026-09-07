@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
-  SwipeableRow, ConfirmDialog, useIsMobile,
+  SwipeableRow, ConfirmDialog, useIsMobile, useCoarsePointer,
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@atlas/ui";
 import { Archive, ArchiveRestore, MoreHorizontal } from "lucide-react";
@@ -27,11 +27,11 @@ export function ConversationRowActions({
   onSwipeOpen = null,
   children,
 }) {
-  const isMobile = useIsMobile(1024);
-  const isTouch =
-    isMobile &&
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(pointer: coarse)").matches;
+  // Touch surface = coarse pointer AND a narrow-ish viewport (a desktop with a
+  // touchscreen keeps the right-click menu). Tablets land here.
+  const coarse = useCoarsePointer();
+  const narrow = useIsMobile(1024);
+  const isTouch = coarse && narrow;
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // pending destructive descriptor

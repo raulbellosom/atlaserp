@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  renderMentionText, useLongPress, useSwipeToReply,
+  renderMentionText, useLongPress, useSwipeToReply, useCoarsePointer,
 } from "@atlas/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -94,19 +94,26 @@ function MessageActions({
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
 
+  // On touch devices (tablets included) there is no hover, so the reveal-on
+  // -hover affordances would never appear — show them permanently there.
+  const coarse = useCoarsePointer();
+  const revealCls = coarse
+    ? "opacity-100"
+    : "opacity-0 group-hover/msg:opacity-100 focus:opacity-100";
+
   return (
     <>
-      {/* Hover-visible quick-react affordance — same hover pattern as the "..."
-          trigger below, but opens the reaction picker directly (no dropdown
-          detour). It isn't opened from inside another overlay's onSelect, so
-          it doesn't hit the Radix close/open race the dropdown item does. */}
+      {/* Quick-react affordance — opens the reaction picker directly (no
+          dropdown detour). It isn't opened from inside another overlay's
+          onSelect, so it doesn't hit the Radix close/open race the dropdown
+          item does. */}
       {onReact && (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onReact(); }}
           title="Reaccionar"
           aria-label="Reaccionar"
-          className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation"
+          className={`${revealCls} h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation`}
         >
           <Smile className="h-3.5 w-3.5" />
         </button>
@@ -115,7 +122,7 @@ function MessageActions({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 data-[state=open]:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation"
+            className={`${revealCls} data-[state=open]:opacity-100 h-6 w-6 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-opacity shrink-0 self-center touch-manipulation`}
             onClick={(e) => e.stopPropagation()}
           >
             <MoreHorizontal className="h-3.5 w-3.5" />

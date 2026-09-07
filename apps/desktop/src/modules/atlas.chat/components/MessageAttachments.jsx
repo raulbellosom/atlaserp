@@ -5,7 +5,7 @@ import {
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File, Trash2, Smile,
 } from "lucide-react";
-import { ConfirmDialog } from "@atlas/ui";
+import { ConfirmDialog, useCoarsePointer } from "@atlas/ui";
 import { formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -82,6 +82,7 @@ function useAttachmentUrl(att) {
 function AttachmentTileActions({ att, messageId, isOwn, onToggleReaction, onDeleteAttachment, deleting }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const coarse = useCoarsePointer();
 
   if (!onToggleReaction && !(isOwn && onDeleteAttachment)) return null;
 
@@ -91,7 +92,10 @@ function AttachmentTileActions({ att, messageId, isOwn, onToggleReaction, onDele
           either icon never also fires the tile's own onClick={() => onOpen(...)},
           which would open the full-screen viewer underneath the picker/dialog. */}
       <div
-        className="absolute top-1 right-1 flex items-center gap-1 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10"
+        className={[
+          "absolute top-1 right-1 flex items-center gap-1 transition-opacity z-10",
+          coarse ? "opacity-100" : "opacity-60 sm:opacity-0 sm:group-hover:opacity-100",
+        ].join(" ")}
         onClick={(e) => e.stopPropagation()}
       >
         {onToggleReaction && (
