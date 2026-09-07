@@ -1,6 +1,7 @@
 # Plan A (API) — atlas.chat forward endpoint + search DM titles
 
 Spec: `docs/superpowers/specs/2026-09-07-chat-scroll-and-message-actions-design.md`
+Status: implemented 2026-09-07 (commit 0ef0c500).
 Scope: server + SDK + validators + API tests. No migration.
 
 ## A1 — Direct-conversation titles in message search

@@ -1,7 +1,7 @@
 # atlas.chat — scroll-on-open fix + message actions overhaul
 
 Date: 2026-09-07
-Status: approved
+Status: implemented (commits ac052868 scroll fix, 0ef0c500 Plan A, ac550385 Plan B)
 Author: Raul Belloso Medina (with Claude)
 
 ## Context

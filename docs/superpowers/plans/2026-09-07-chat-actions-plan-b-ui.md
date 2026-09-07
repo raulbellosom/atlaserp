@@ -1,6 +1,7 @@
 # Plan B (UI) — atlas.chat message actions
 
 Spec: `docs/superpowers/specs/2026-09-07-chat-scroll-and-message-actions-design.md`
+Status: implemented 2026-09-07 (commit ac550385).
 Depends on Plan A (SDK `atlas.chat.forwardMessages`, search DM titles).
 Scope: `apps/desktop/src/modules/atlas.chat/**`, no API changes.
 
