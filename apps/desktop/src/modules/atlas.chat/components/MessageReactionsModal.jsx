@@ -60,12 +60,12 @@ export function MessageReactionsModal({ open, onOpenChange, reactions, members, 
 
   return (
     <Dialog open={open && !isEmpty} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent size="sm" scrollable>
         <DialogHeader>
           <DialogTitle>Reacciones</DialogTitle>
         </DialogHeader>
         {!isEmpty && (
-          <div className="max-h-80 overflow-y-auto -mx-1 px-1">
+          <div className="min-h-0 overflow-y-auto overscroll-contain -mx-1 px-1">
             {reactions.map(({ emoji, userIds }, i) => (
               <div key={emoji} className={i > 0 ? "mt-3 pt-3 border-t border-[hsl(var(--border))]" : ""}>
                 <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1">

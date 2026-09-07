@@ -46,6 +46,9 @@ export function createSwipeController({ threshold = 64, direction = "right", onR
         if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
         horizontal = Math.abs(dx) > Math.abs(dy) * H_RATIO;
         if (!horizontal) { start = null; return; } // vertical intent -> yield to scroll
+        // Leave the opposite direction available to a parent gesture (for
+        // example, swiping out of a conversation instead of replying).
+        if (dx * sign <= 0) { reset(); return; }
         // Now that it's a swipe, claim the pointer so we keep getting moves
         // even if the finger slides off the row. A drag produces no `click`,
         // so this no longer breaks button activation.

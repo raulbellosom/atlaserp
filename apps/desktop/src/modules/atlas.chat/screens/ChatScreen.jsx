@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
+import { useIsMobile, useSwipeToReply } from "@atlas/ui";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
@@ -27,9 +28,9 @@ function ChatScreenInner() {
     return match ? match[1] : null;
   }, [wildcard]);
 
-  const [mobileShowWindow, setMobileShowWindow] = useState(
-    () => Boolean(conversationIdFromUrl),
-  );
+  const mobileShowWindow = Boolean(conversationIdFromUrl);
+  const isMobile = useIsMobile();
+  const windowRef = useRef(null);
 
   const { data, isLoading } = useChatConversations();
   const conversations = data?.data ?? [];
@@ -53,30 +54,41 @@ function ChatScreenInner() {
     [conversations, archivedConversations, conversationIdFromUrl],
   );
 
-  // Once the conversation list loads and the URL ID resolves, reveal the window on mobile
-  useEffect(() => {
-    if (conversationIdFromUrl && activeConversation) {
-      setMobileShowWindow(true);
-    }
-  }, [conversationIdFromUrl, activeConversation]);
-
   function handleSelect(conv, messageId) {
     const qs = messageId ? `?msg=${encodeURIComponent(messageId)}` : "";
-    navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}${qs}`, { replace: true });
-    setMobileShowWindow(true);
+    navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}${qs}`, { replace: Boolean(conversationIdFromUrl) });
   }
 
   function handleCreated(conv) {
     if (conv?.id) {
-      navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`, { replace: true });
-      setMobileShowWindow(true);
+      navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`, { replace: Boolean(conversationIdFromUrl) });
     }
   }
 
   function handleClose() {
     navigate("/app/m/atlas.chat/chat/inbox", { replace: true });
-    setMobileShowWindow(false);
   }
+
+  const { handlers: backSwipe } = useSwipeToReply({
+    direction: "left",
+    threshold: 90,
+    disabled: !isMobile || !mobileShowWindow,
+    onReply: handleClose,
+  });
+
+  useEffect(() => {
+    const node = windowRef.current;
+    if (!node || !isMobile || !mobileShowWindow) return;
+    // Safari reserves edge touches for browser history. Keep these inside
+    // the chat; ordinary vertical scrolling and controls remain native.
+    function containEdgeGesture(event) {
+      if (event.touches.length !== 1 || event.target.closest('button,a,input,textarea,[contenteditable="true"],[role="dialog"]')) return;
+      const x = event.touches[0].clientX;
+      if (x < 20 || x > window.innerWidth - 20) event.preventDefault();
+    }
+    node.addEventListener("touchstart", containEdgeGesture, { passive: false });
+    return () => node.removeEventListener("touchstart", containEdgeGesture);
+  }, [isMobile, mobileShowWindow]);
 
   const { prefs } = useChatPreferences();
 
@@ -100,6 +112,14 @@ function ChatScreenInner() {
 
       {/* Chat window — fills remaining space */}
       <div
+        ref={windowRef}
+        {...backSwipe}
+        onPointerDown={(event) => {
+          if (event.pointerType !== "touch" || !event.currentTarget.contains(event.target)) return;
+          if (event.target.closest('button,a,input,textarea,[contenteditable="true"],[role="dialog"],[aria-pressed]')) return;
+          backSwipe.onPointerDown?.(event);
+        }}
+        style={isMobile ? { touchAction: "pan-y", overscrollBehaviorX: "contain" } : undefined}
         className={[
           "flex flex-1 min-w-0 min-h-0 overflow-hidden",
           mobileShowWindow ? "flex" : "hidden md:flex",

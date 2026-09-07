@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
-  Button, SelectField, TagsField,
+  Button, SelectField, TagsField, ErrorState,
 } from "@atlas/ui";
 import { Video, Calendar } from "lucide-react";
 import { toast } from "sonner";
@@ -11,6 +11,8 @@ import { atlas } from "../../../lib/atlas";
 import { useChatConversations } from "../hooks/useChatConversations";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useCalls } from "../calls/CallsProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { startMeeting } from "../lib/startMeeting.js";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -28,7 +30,8 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const { data } = useChatConversations();
-  const { enabled: callsEnabled, startCall } = useCalls();
+  const { enabled: callsEnabled, isStarting, activeCall, startCall } = useCalls();
+  const queryClient = useQueryClient();
 
   const conversations = useMemo(() => {
     const list = unwrap(data) ?? [];
@@ -39,15 +42,15 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   const [mode, setMode] = useState("now"); // "now" | "schedule"
   const [emails, setEmails] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
   const [scheduled, setScheduled] = useState(null); // { targetId, link } once ready for EventFormModal
   const submittingRef = useRef(false);
   const createdRoomRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
-    setMode("now"); setEmails([]); setBusy(false); setScheduled(null);
-    submittingRef.current = false; createdRoomRef.current = null;
-    setConversationId(defaultConversationId ?? NEW_ROOM);
+    setMode("now"); setEmails([]); setError(null); setScheduled(null);
+    setConversationId(conversations.some((c) => c.id === defaultConversationId) ? defaultConversationId : NEW_ROOM);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = conversations.find((c) => c.id === conversationId) ?? null;
@@ -64,17 +67,39 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   }
 
   async function startNow() {
-    if (submittingRef.current) return;
+    if (submittingRef.current || isStarting || activeCall) return;
     submittingRef.current = true;
     setBusy(true);
+    setError(null);
     try {
-      const targetId = await resolveTargetId();
-      const ok = await startCall({ conversationId: targetId, kind: "VIDEO" });
-      if (ok) onOpenChange(false);
-      else toast.error("No se pudo iniciar la reunión.");
+      const ok = await startMeeting({
+        resolveTargetId,
+        createLink: async (targetId) => {
+          // Existing multi-member conversations can ring normally without
+          // requiring the caller to have permission to manage guest links.
+          if (targetId !== createdRoomRef.current && memberIds.length >= 2) return;
+          if (targetId !== createdRoomRef.current) {
+            const existing = unwrap(await atlas.calls.getLink(targetId, token));
+            if (existing?.link) return;
+          }
+          const result = unwrap(await atlas.calls.createLink(targetId, token));
+          if (!result?.link) throw new Error("No se pudo preparar el enlace de la reunión.");
+        },
+        startCall,
+        discardNewRoom: async (targetId) => {
+          if (createdRoomRef.current !== targetId) return;
+          await atlas.chat.deleteConversation(targetId, token);
+          createdRoomRef.current = null;
+        },
+      });
+      if (ok) {
+        createdRoomRef.current = null;
+        onOpenChange(false);
+      }
     } catch (e) {
-      toast.error(e?.message || "No se pudo iniciar la reunión.");
+      setError(e?.message || "No se pudo iniciar la reunión.");
     } finally {
+      queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       setBusy(false);
       submittingRef.current = false;
     }
@@ -127,6 +152,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
         onClose={() => { setScheduled(null); onOpenChange(false); }}
         onSaved={async () => {
           await sendScheduledInvites(scheduled.targetId);
+          createdRoomRef.current = null;
           toast.success(`Reunión programada. Código de invitados: ${scheduled.link.code}`);
           setScheduled(null);
           onOpenChange(false);
@@ -136,10 +162,10 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
+      <DialogContent size="sm" scrollable>
         <DialogHeader><DialogTitle>Nueva reunión</DialogTitle></DialogHeader>
-
+        <div className="min-h-0 overflow-y-auto overscroll-contain">
         {!callsEnabled ? (
           <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
             Las llamadas no están configuradas en esta instancia.
@@ -149,6 +175,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
             <SelectField
               label="Sala"
               value={conversationId}
+              disabled={busy}
               onValueChange={setConversationId}
               options={[
                 { value: NEW_ROOM, label: "➕ Nueva sala de reunión" },
@@ -167,12 +194,13 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
                 <button
                   key={key}
                   type="button"
+                  disabled={busy}
                   onClick={() => setMode(key)}
                   className={[
                     "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
                     mode === key
-                      ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]"
-                      : "border-[hsl(var(--border))] hover:border-[hsl(var(--primary)/0.4)]",
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/40",
                   ].join(" ")}
                 >
                   <span className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--foreground))]">
@@ -196,9 +224,11 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
               />
             )}
 
+            {error && <ErrorState className="py-3" title="No se pudo iniciar la reunión" description={error} />}
+            {activeCall && <p className="text-sm text-muted-foreground">Ya tienes una llamada en curso. Termínala antes de iniciar otra reunión.</p>}
             <div className="flex justify-end pt-1">
               {mode === "now" ? (
-                <Button onClick={startNow} disabled={busy}>
+                <Button onClick={startNow} disabled={busy || isStarting || Boolean(activeCall)}>
                   <Video className="mr-2 h-4 w-4" /> {busy ? "Abriendo..." : "Iniciar reunión"}
                 </Button>
               ) : (
@@ -209,6 +239,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
             </div>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

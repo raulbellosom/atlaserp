@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
-  renderMentionText, useLongPress, useSwipeToReply, useCoarsePointer,
+  renderMentionText, useLongPress, useSwipeToReply, useCoarsePointer, useIsMobile,
 } from "@atlas/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -43,14 +43,14 @@ function SelectionCircle({ isSelected }) {
       className={[
         "shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-150 self-center",
         isSelected
-          ? "bg-[hsl(var(--primary))] border-[hsl(var(--primary))]"
+          ? "bg-primary border-primary text-primary-foreground"
           : "border-[hsl(var(--foreground)/0.5)] bg-[hsl(var(--background)/0.85)]",
       ].join(" ")}
       style={!isSelected ? { boxShadow: "0 0 0 1px hsl(var(--foreground)/0.15)" } : undefined}
     >
       {isSelected && (
         <svg viewBox="0 0 10 8" className="w-3 h-2.5" fill="none">
-          <path d="M1 4l2.5 2.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M1 4l2.5 2.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
     </div>
@@ -249,6 +249,7 @@ export function ChatMessageBubble({
   // drop the whole list into selection mode).
   const suppressClickRef = useRef(false);
   const coarse = useCoarsePointer();
+  const isMobile = useIsMobile();
   // On touch, suppress the browser's native text selection / callout so a
   // long-press opens OUR menu instead of starting a text selection that the
   // user then drags across several bubbles. Desktop keeps text selectable.
@@ -276,7 +277,7 @@ export function ChatMessageBubble({
   });
   const { handlers: swipeHandlers, translateX } = useSwipeToReply({
     disabled: gesturesDisabled || !onReply,
-    direction: isOwn ? "left" : "right",
+    direction: isOwn && !isMobile ? "left" : "right",
     threshold: SWIPE_THRESHOLD,
     onReply: () => onReply?.(message),
   });
@@ -434,6 +435,7 @@ export function ChatMessageBubble({
       <div
         data-msg-id={message.id}
         role={selectionMode ? "button" : undefined}
+        aria-pressed={selectionMode ? isSelected : undefined}
         tabIndex={selectionMode ? 0 : undefined}
         onClick={selectionMode ? onSelect : undefined}
         onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
@@ -444,9 +446,10 @@ export function ChatMessageBubble({
           rowPaddingY,
           isPending ? "opacity-60" : "",
           selectionMode ? "cursor-pointer" : "",
-          selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
+          selectionMode && isSelected ? "bg-primary/12" : "",
           isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
-          highlightRow ? "bg-[hsl(var(--primary)/0.05)] border-l-2 border-[hsl(var(--primary))] pl-2" : "",
+          highlightRow ? "border-l-2 border-primary pl-2" : "",
+          highlightRow && !(selectionMode && isSelected) ? "bg-primary/5" : "",
         ].join(" ")}
       >
         <SwipeReplyHint translateX={translateX} isOwn />
@@ -625,6 +628,7 @@ export function ChatMessageBubble({
     <div
       data-msg-id={message.id}
       role={selectionMode ? "button" : undefined}
+      aria-pressed={selectionMode ? isSelected : undefined}
       tabIndex={selectionMode ? 0 : undefined}
       onClick={selectionMode ? onSelect : undefined}
       onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
@@ -635,9 +639,10 @@ export function ChatMessageBubble({
         rowPaddingY,
         isPending ? "opacity-60" : "",
         selectionMode ? "cursor-pointer" : "",
-        selectionMode && isSelected ? "bg-[hsl(var(--primary)/0.08)]" : "",
+        selectionMode && isSelected ? "bg-primary/12" : "",
         isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
-        highlightRow ? "bg-[hsl(var(--primary)/0.05)] border-l-2 border-[hsl(var(--primary))] pl-2" : "",
+        highlightRow ? "border-l-2 border-primary pl-2" : "",
+        highlightRow && !(selectionMode && isSelected) ? "bg-primary/5" : "",
       ].join(" ")}
     >
       <SwipeReplyHint translateX={translateX} isOwn={false} />

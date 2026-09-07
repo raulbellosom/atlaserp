@@ -13,6 +13,8 @@ import { CreateChannelModal } from "./CreateChannelModal";
 import { ChannelDirectorySheet } from "./ChannelDirectorySheet";
 import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import { NewMeetingDialog } from "./NewMeetingDialog";
+import { AvatarCircle } from "./AvatarCircle";
+import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useConversationActionHandler } from "../hooks/useChatConversations";
@@ -146,7 +148,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           />
         )}
 
-        {!isLoading && !filtered.length && search && (
+        {!isLoading && !filtered.length && search && !hasMessageQuery && (
           <EmptyState
             className="py-8"
             title="Sin resultados"
@@ -154,7 +156,37 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           />
         )}
 
-        {filtered.map((conv) => {
+        {search.trim() && filtered.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto overscroll-x-contain py-2">
+            {filtered.map((conv) => {
+              const other = (conv.members ?? []).find((m) => m.userId !== userProfile?.id);
+              const name = getConversationDisplayName(conv, userProfile?.id);
+              return (
+                <button
+                  key={conv.id}
+                  type="button"
+                  title={name}
+                  aria-label={`Abrir ${name}`}
+                  onClick={() => onSelect(conv)}
+                  className="flex w-16 shrink-0 flex-col items-center gap-1 rounded-xl p-1.5 hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <AvatarCircle
+                    name={name}
+                    avatarUrl={conv.avatarUrl ?? (conv.type === "direct" ? other?.avatarUrl : null)}
+                    avatarEmoji={conv.avatar_emoji}
+                    type={conv.type}
+                    online={conv.type === "direct" && isUserOnline(other?.userId)}
+                  />
+                  <span className="w-full truncate text-center text-xs">
+                    {conv.type === "direct" ? name.split(" ")[0] : name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {!search.trim() && filtered.map((conv) => {
           const otherMember = conv.type === "direct"
             ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id)
             : null;
@@ -179,7 +211,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
         })}
 
         {/* Archived section */}
-        {(archivedConversations.length > 0 || search) && (
+        {filteredArchived.length > 0 && (
           <div className="pt-2">
             <button
               type="button"
@@ -244,10 +276,8 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             )}
           </div>
         )}
-      </div>
-
       {hasMessageQuery && (
-        <div className="border-t border-[hsl(var(--border))] px-2 pb-2 overflow-y-auto max-h-[45%] shrink-0">
+        <div className="border-t border-border pb-2">
           <MessageSearchResults
             hits={messageHits}
             isSearching={messageSearching}
@@ -257,6 +287,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           />
         </div>
       )}
+      </div>
 
       <CreateChatModal
         open={showCreate}

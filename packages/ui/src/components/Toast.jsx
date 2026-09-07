@@ -4,10 +4,12 @@ function Toaster({ ...props }) {
   return (
     <Sonner
       className="toaster group"
+      expand
+      closeButton
       toastOptions={{
         classNames: {
           toast: [
-            'group toast glass',
+            'group toast glass pointer-events-auto!',
             'group-[.toaster]:rounded-xl group-[.toaster]:border-[hsl(var(--border))]',
             'group-[.toaster]:shadow-lg',
           ].join(' '),

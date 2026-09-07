@@ -53,6 +53,7 @@ export function CallsProvider({ children }) {
   const activeRef = useRef(null);
   const incomingRef = useRef(null);
   const joiningCallRef = useRef(null);
+  const startingCallRef = useRef(false);
   const busyNoticeRef = useRef(new Set());
   const [pendingGuestCount, setPendingGuestCount] = useState(0);
   const [minimized, setMinimized] = useState(false);
@@ -271,28 +272,46 @@ export function CallsProvider({ children }) {
     dismissAnsweredOnOtherDevice,
   });
 
-  const startCall = useCallback(async ({ conversationId, kind, calendarEventId }) => {
-    if (!config.enabled || isStarting) return false;
+  const startCall = useCallback(async ({ conversationId, kind, calendarEventId, throwOnError = false }) => {
+    if (!config.enabled || isStarting || startingCallRef.current || activeRef.current) {
+      const error = Object.assign(new Error(
+        !config.enabled ? "Las llamadas no están disponibles."
+          : activeRef.current ? "Ya tienes una llamada en curso."
+            : "Ya se está iniciando una llamada.",
+      ), { status: 409 });
+      if (throwOnError) throw error;
+      toast.error(error.message);
+      return false;
+    }
+    startingCallRef.current = true;
     setIsStarting(true);
     try {
       const response = await atlas.calls.create({ conversationId, kind, calendarEventId }, token);
-      connectWithResponse(response);
+      if (!connectWithResponse(response)) throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
       return true;
     } catch (error) {
-      const existingCallId = error?.details?.details?.callId;
-      if (error?.status === 409 && existingCallId) {
+      const details = error?.details?.details ?? error?.details;
+      const existingCallId = details?.callId;
+      if (error?.status === 409 && existingCallId && details?.code !== "caller_busy") {
         try {
-          connectWithResponse(await atlas.calls.join(existingCallId, token));
+          if (!connectWithResponse(await atlas.calls.join(existingCallId, token))) {
+            throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
+          }
           toast.info("Te uniste a la llamada que ya estaba en curso.");
           return true;
         } catch (joinError) {
+          // A call already exists even if joining it fails; keep its room.
+          joinError.callMayExist = true;
+          if (throwOnError) throw joinError;
           toast.error(joinError?.message || "No se pudo unir a la llamada.");
           return false;
         }
       }
+      if (throwOnError) throw error;
       toast.error(error?.message || "No se pudo iniciar la llamada.");
       return false;
     } finally {
+      startingCallRef.current = false;
       setIsStarting(false);
     }
   }, [config.enabled, isStarting, token, connectWithResponse]);

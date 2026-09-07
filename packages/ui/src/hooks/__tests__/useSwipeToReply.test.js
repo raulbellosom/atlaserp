@@ -19,6 +19,12 @@ function drag(ctrl, points, tgt = target) {
 }
 
 describe("createSwipeController", () => {
+  it("leaves opposite-direction swipes to the parent without capturing", () => {
+    const tgt = makeTarget();
+    const ctrl = createSwipeController({ direction: "right" });
+    drag(ctrl, [[200, 0], [170, 2], [80, 4]], tgt);
+    assert.equal(tgt.calls.capture, 0);
+  });
   it("fires onReply for a right swipe past threshold (direction=right)", () => {
     let fired = 0;
     const ctrl = createSwipeController({ threshold: 64, direction: "right", onReply: () => fired++, onTranslate: () => {} });

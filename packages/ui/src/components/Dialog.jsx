@@ -41,7 +41,7 @@ const SIZE_CLASSES = {
 };
 
 const DialogContent = forwardRef(function DialogContent(
-  { className, style, children, size = "md", mobileVariant = "sheet", ...props },
+  { className, style, children, size = "md", mobileVariant = "sheet", scrollable = false, onInteractOutside, ...props },
   ref,
 ) {
   const {
@@ -60,6 +60,10 @@ const DialogContent = forwardRef(function DialogContent(
         ref={ref}
         aria-describedby={undefined}
         {...props}
+        onInteractOutside={(event) => {
+          if (event.target?.closest?.('[data-sonner-toaster]')) event.preventDefault();
+          onInteractOutside?.(event);
+        }}
         style={mobileVariant === "center"
           ? style
           : bottomSheetDragStyle({ dragY, dragging, style })}
@@ -95,6 +99,8 @@ const DialogContent = forwardRef(function DialogContent(
           "md:data-[state=closed]:zoom-out-95 md:data-[state=open]:zoom-in-95",
           "md:duration-200",
           className,
+          mobileVariant !== "center" && "max-md:max-w-none",
+          scrollable && "flex flex-col overflow-hidden md:overflow-hidden",
         )}
       >
         {/* Drag handle — mobile only; handles swipe-to-dismiss. md:hidden
@@ -122,7 +128,7 @@ const DialogContent = forwardRef(function DialogContent(
 const DialogHeader = function DialogHeader({ className, ...props }) {
   return (
     <div
-      className={cn("flex flex-col gap-1.5 text-left mb-4", className)}
+      className={cn("flex shrink-0 flex-col gap-1.5 text-left mb-4 pr-6", className)}
       {...props}
     />
   );
