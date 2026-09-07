@@ -113,14 +113,18 @@ the same way regardless).
 - On change: optimistically update local `link` state, then
   `atlas.calls.updateLink(conversationId, { requireLobby: value === "lobby" }, token)`.
   On failure: `toast.error(...)` and revert local state.
-- Decision: `SelectField` (not `CheckboxField`) — it names both modes explicitly,
-  which matches how the request was phrased. `CallShareDialog`'s existing checkbox
-  is left as-is for now; wording divergence is acceptable and can be unified later.
+- Decision (revised during planning): a **two-button segmented toggle** styled with
+  the card's own dark slate/violet palette, not a `SelectField`. The card is a
+  bespoke dark surface; a themed `SelectField` follows the app theme and clashes in
+  light mode. Plain `<button>`s are not a native `<select>`, so the UI-first policy
+  holds. Both modes are still named explicitly. `CallShareDialog`'s existing
+  checkbox is left as-is; wording can be unified later.
 
 ### 2b — Per-conversation default, in `ChannelGeneralTab`
 
-- New section "Acceso a las llamadas" containing the same `SelectField`
-  (`"Con aprobación (PIN)"` / `"Libre acceso"`).
+- New "Libre acceso a las llamadas" `SwitchField` (revised during planning from a
+  `SelectField`, to match the `SwitchField` already used in this file for "Solo
+  administradores pueden escribir"). Switch on = `requireLobby: false`.
 - On mount: load the conversation's link via `atlas.calls.createLink` (get-or-create;
   the endpoint returns the existing link when there is one). If the caller lacks
   `channel.manage` the request 403s and is swallowed — the section is hidden in that
