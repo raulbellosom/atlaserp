@@ -241,7 +241,7 @@ export function ChatMessageBubble({
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
-  const [actionSheet, setActionSheet] = useState({ open: false, point: null, rect: null });
+  const [actionSheet, setActionSheet] = useState({ open: false, point: null, rect: null, attachment: null });
   const lastTapRef = useRef(0);
   // Set the instant a long-press fires so the click/tap that lands when the
   // finger lifts is swallowed instead of activating whatever is under it
@@ -274,23 +274,30 @@ export function ChatMessageBubble({
 
   const longPress = useLongPress({
     disabled: gesturesDisabled,
-    // Capture the press coordinates so the desktop/tablet action menu
-    // (MessageActionSheet's non-mobile DropdownMenu path) anchors next to the
-    // finger instead of jumping to the top-left corner (point:null -> 0,0).
-    // On true-mobile widths MessageActionSheet ignores the point and always
-    // raises its bottom Sheet.
+    // We do our own target filtering below (attachments MUST long-press
+    // through to open the unified menu, other controls must not).
+    ignoreInteractiveTarget: true,
     onLongPress: (e) => {
+      const t = e?.target;
+      const attEl = t?.closest?.("[data-attachment-id]");
+      // Allow the press on the bubble body / text and on an attachment tile;
+      // ignore it on the hover "..." button, reaction pills, links, inputs.
+      if (!attEl && t?.closest?.("a,button,input,textarea,[role=button]")) return;
       suppressClickRef.current = true;
       // Drop any text selection iOS may have started during the hold before
       // our menu opens — otherwise the first tap on a menu item only clears
       // the selection and a second tap is needed to actually act.
       try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ }
-      const rowEl = e?.target?.closest?.("[data-msg-id]");
-      const r = rowEl?.getBoundingClientRect?.();
+      const anchorEl = attEl ?? t?.closest?.("[data-msg-id]");
+      const r = anchorEl?.getBoundingClientRect?.();
+      const attachment = attEl
+        ? (message.attachments ?? []).find((a) => String(a.id) === attEl.dataset.attachmentId) ?? null
+        : null;
       setActionSheet({
         open: true,
         point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
         rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
+        attachment,
       });
     },
   });
@@ -323,18 +330,23 @@ export function ChatMessageBubble({
 
   function handleRowContextMenu(e) {
     if (gesturesDisabled) return;
-    // Images, files, links and entity cards carry their own right-click menu
-    // (AttachmentContextMenu) — Radix doesn't stop the event bubbling, so
-    // without this guard both that menu AND the message menu open stacked.
-    if (e.target?.closest?.("a,button,img,video,input,textarea,[role=button]")) return;
+    const attEl = e.target?.closest?.("[data-attachment-id]");
+    // Bail on controls that aren't an attachment tile (links, the hover "..."
+    // button, reaction pills) — but an attachment MUST open the unified menu,
+    // which then also carries its copy/download/open items.
+    if (!attEl && e.target?.closest?.("a,button,input,textarea,[role=button]")) return;
     e.preventDefault();
     suppressClickRef.current = true;
-    const rowEl = e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
-    const r = rowEl?.getBoundingClientRect?.();
+    const anchorEl = attEl ?? e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
+    const r = anchorEl?.getBoundingClientRect?.();
+    const attachment = attEl
+      ? (message.attachments ?? []).find((a) => String(a.id) === attEl.dataset.attachmentId) ?? null
+      : null;
     setActionSheet({
       open: true,
       point: { x: e.clientX, y: e.clientY },
       rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
+      attachment,
     });
   }
 
@@ -519,6 +531,7 @@ export function ChatMessageBubble({
           onOpenChange={(o) => setActionSheet((s) => ({ ...s, open: o }))}
           anchorPoint={actionSheet.point}
           anchorRect={actionSheet.rect}
+          attachment={actionSheet.attachment}
           isOwn
           actionProps={{
             hasBody, isOwn: true, canPin, isPinned, canReply,
@@ -697,6 +710,7 @@ export function ChatMessageBubble({
         onOpenChange={(o) => setActionSheet((s) => ({ ...s, open: o }))}
         anchorPoint={actionSheet.point}
         anchorRect={actionSheet.rect}
+        attachment={actionSheet.attachment}
         isOwn={false}
         actionProps={{
           hasBody, isOwn: false, canPin, isPinned, canReply,

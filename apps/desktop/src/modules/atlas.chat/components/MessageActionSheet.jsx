@@ -6,6 +6,7 @@ import {
 } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
+import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
 
 // Unified action surface. Mobile: an anchored popover over the pressed message
 // (iMessage/Telegram style) raised by long-press. Desktop: DropdownMenu at the
@@ -16,7 +17,8 @@ export function MessageActionSheet({
   open,
   onOpenChange,
   anchorPoint,        // {x,y} for desktop right-click
-  anchorRect,         // the pressed message row's DOMRect — mobile popover anchor
+  anchorRect,         // the pressed message row's / attachment's DOMRect
+  attachment,         // the attachment tile that was pressed, if any
   isOwn = false,      // right-align the mobile popover for own messages
   actionProps,        // args for buildMessageActions (minus onReact)
   onQuickReact,       // (emoji) => void
@@ -26,6 +28,11 @@ export function MessageActionSheet({
   const actions = buildMessageActions({ ...actionProps, onReact: undefined });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
+  // Attachment actions (copy image / copy link / download / open) merged into
+  // the same menu when an image/file tile was the press target. useAttachmentUrl
+  // is safe to call with undefined — it just stays disabled.
+  const { data: attUrl } = useAttachmentUrl(attachment ?? undefined);
+  const attachmentActions = attachment ? buildAttachmentActions({ att: attachment, url: attUrl }) : [];
 
   // Mobile popover placement — the reaction pill sits just above the pressed
   // bubble, the action card just below it (flipped above when there's no room),
@@ -210,7 +217,23 @@ export function MessageActionSheet({
               <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
             </button>
           ))}
-          {primary.length > 0 && danger.length > 0 && <div className="h-px bg-[hsl(var(--border))] my-1" />}
+          {attachmentActions.length > 0 && (
+            <>
+              <div className="h-px bg-[hsl(var(--border))] my-1" />
+              {attachmentActions.map((a) => (
+                <button
+                  key={a.key}
+                  type="button"
+                  disabled={a.disabled}
+                  onClick={() => runAction(a)}
+                  className="w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))] disabled:opacity-40"
+                >
+                  <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
+                </button>
+              ))}
+            </>
+          )}
+          {primary.length + attachmentActions.length > 0 && danger.length > 0 && <div className="h-px bg-[hsl(var(--border))] my-1" />}
           {danger.map((a) => (
             <button
               key={a.key}
@@ -261,7 +284,13 @@ export function MessageActionSheet({
             <a.icon className="h-3.5 w-3.5 mr-2" />{a.label}
           </DropdownMenuItem>
         ))}
-        {primary.length > 0 && danger.length > 0 && <DropdownMenuSeparator />}
+        {attachmentActions.length > 0 && <DropdownMenuSeparator />}
+        {attachmentActions.map((a) => (
+          <DropdownMenuItem key={a.key} disabled={a.disabled} onSelect={() => runAction(a)}>
+            <a.icon className="h-3.5 w-3.5 mr-2" />{a.label}
+          </DropdownMenuItem>
+        ))}
+        {primary.length + attachmentActions.length > 0 && danger.length > 0 && <DropdownMenuSeparator />}
         {danger.map((a) => (
           <DropdownMenuItem
             key={a.key}

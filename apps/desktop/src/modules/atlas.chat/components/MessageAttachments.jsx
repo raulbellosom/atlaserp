@@ -7,10 +7,7 @@ import {
   FileArchive, FileCode, File, Trash2, Smile,
   Copy, Link2, ExternalLink,
 } from "lucide-react";
-import {
-  ConfirmDialog, useCoarsePointer,
-  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
-} from "@atlas/ui";
+import { ConfirmDialog, useCoarsePointer } from "@atlas/ui";
 import { formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -52,19 +49,21 @@ function getFileTypeInfo(mimeType = "") {
 
 // Hook: resolve the signed URL for an attachment.
 // The API now embeds `url` directly in the attachment object from listMessages,
-// so we skip the network call entirely when it's already present.
-function useAttachmentUrl(att) {
+// so we skip the network call entirely when it's already present. Safe to call
+// with a null/empty att (e.g. MessageActionSheet calls it unconditionally) —
+// the query just stays disabled.
+export function useAttachmentUrl(att) {
   const { session } = useAuth();
-  const embeddedUrl = isSignedUrlUsable(att.url) ? att.url : null;
+  const embeddedUrl = isSignedUrlUsable(att?.url) ? att.url : null;
   return useQuery({
-    queryKey: ["chat-attachment-url", att.id],
+    queryKey: ["chat-attachment-url", att?.id],
     queryFn: async () => {
-      if (isSignedUrlUsable(att.url)) return att.url;
+      if (isSignedUrlUsable(att?.url)) return att.url;
       try {
         const res = await atlas.chat.getAttachmentSignedUrl(att.id, session?.access_token);
         return res?.data?.url ?? null;
       } catch (err) {
-        console.warn("[chat] getAttachmentSignedUrl failed", { id: att.id, status: err?.status, msg: err?.message });
+        console.warn("[chat] getAttachmentSignedUrl failed", { id: att?.id, status: err?.status, msg: err?.message });
         throw err;
       }
     },
@@ -75,8 +74,48 @@ function useAttachmentUrl(att) {
     // an already-expired Storage URL as fresh for another hour.
     staleTime: 5 * 60 * 1000,
     retry: 2,
-    enabled: Boolean(session?.access_token),
+    enabled: Boolean(att?.id && session?.access_token),
   });
+}
+
+// Media-tile actions (copy image / copy link / download / open) as a plain
+// list, merged into the unified message menu (MessageActionSheet) so an image
+// or file message shows BOTH its message actions and these. `url` may be null
+// (still resolving) — those entries render disabled.
+export function buildAttachmentActions({ att, url }) {
+  if (!att) return [];
+  const isImage = isImageMime(att.mimeType);
+  const items = [];
+  if (isImage) {
+    items.push({
+      key: "att-copy-image", label: "Copiar imagen", icon: Copy, disabled: !url,
+      onSelect: async () => {
+        if (!url) return;
+        try { await copyImageToClipboard(url); toast.success("Imagen copiada"); }
+        catch {
+          try { await navigator.clipboard?.writeText(url); toast.message("No se pudo copiar la imagen — se copió el enlace"); }
+          catch { toast.error("No se pudo copiar"); }
+        }
+      },
+    });
+  }
+  items.push({
+    key: "att-copy-link", label: "Copiar enlace", icon: Link2, disabled: !url,
+    onSelect: async () => {
+      if (!url) return;
+      try { await navigator.clipboard?.writeText(url); toast.success("Enlace copiado"); }
+      catch { toast.error("No se pudo copiar el enlace"); }
+    },
+  });
+  items.push({
+    key: "att-download", label: "Descargar", icon: Download, disabled: !url,
+    onSelect: () => url && downloadAttachment(url, att.fileName),
+  });
+  items.push({
+    key: "att-open", label: "Abrir en pestaña nueva", icon: ExternalLink, disabled: !url,
+    onSelect: () => url && window.open(url, "_blank", "noopener,noreferrer"),
+  });
+  return items;
 }
 
 // ── Right-click quick actions for a media tile ────────────────────────────────
@@ -109,61 +148,6 @@ function downloadAttachment(url, fileName) {
   a.target = "_blank";
   a.rel = "noopener noreferrer";
   a.click();
-}
-
-function AttachmentContextMenu({ att, url, children }) {
-  const isImage = isImageMime(att?.mimeType);
-
-  async function handleCopyImage() {
-    if (!url) return;
-    try {
-      await copyImageToClipboard(url);
-      toast.success("Imagen copiada");
-    } catch {
-      try {
-        await navigator.clipboard?.writeText(url);
-        toast.message("No se pudo copiar la imagen — se copió el enlace");
-      } catch {
-        toast.error("No se pudo copiar");
-      }
-    }
-  }
-
-  async function handleCopyLink() {
-    if (!url) return;
-    try {
-      await navigator.clipboard?.writeText(url);
-      toast.success("Enlace copiado");
-    } catch {
-      toast.error("No se pudo copiar el enlace");
-    }
-  }
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
-        {isImage && (
-          <ContextMenuItem disabled={!url} onSelect={handleCopyImage}>
-            <Copy /> Copiar imagen
-          </ContextMenuItem>
-        )}
-        <ContextMenuItem disabled={!url} onSelect={handleCopyLink}>
-          <Link2 /> Copiar enlace
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem disabled={!url} onSelect={() => url && downloadAttachment(url, att?.fileName)}>
-          <Download /> Descargar
-        </ContextMenuItem>
-        <ContextMenuItem
-          disabled={!url}
-          onSelect={() => url && window.open(url, "_blank", "noopener,noreferrer")}
-        >
-          <ExternalLink /> Abrir en pestaña nueva
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  );
 }
 
 // ── Per-tile action icons (react + delete) ─────────────────────────────────
@@ -274,8 +258,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
   const [failedUrl, setFailedUrl] = useState(null);
 
   return (
-    <AttachmentContextMenu att={att} url={url}>
-    <div className="relative group block rounded-xl overflow-hidden" style={{ minHeight: 80 }}>
+    <div data-attachment-id={att.id} className="relative group block rounded-xl overflow-hidden" style={{ minHeight: 80 }}>
       <button
         type="button"
         onClick={() => onOpen?.(allAttachments, index)}
@@ -318,7 +301,6 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
         attachmentId={att.id}
       />
     </div>
-    </AttachmentContextMenu>
   );
 }
 
@@ -331,8 +313,8 @@ function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
   const videoSrc = url ? `${url}#t=0.001` : null;
 
   return (
-    <AttachmentContextMenu att={att} url={url}>
     <div
+      data-attachment-id={att.id}
       className="relative group block rounded-xl overflow-hidden bg-black/25 mt-1.5"
       style={{ width: 220, height: 140, maxWidth: "100%" }}
     >
@@ -392,7 +374,6 @@ function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
         attachmentId={att.id}
       />
     </div>
-    </AttachmentContextMenu>
   );
 }
 
@@ -639,8 +620,8 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
   }
 
   return (
-    <AttachmentContextMenu att={att} url={url}>
     <div
+      data-attachment-id={att.id}
       className={[
         "flex items-center gap-2.5 mt-1.5 px-3 py-2 rounded-xl max-w-55",
         isOwn ? "bg-white/15" : "bg-[hsl(var(--border))]",
@@ -667,7 +648,6 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
         <Download className="h-4 w-4" />
       </button>
     </div>
-    </AttachmentContextMenu>
   );
 }
 
@@ -677,8 +657,7 @@ function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0,
   const [failedUrl, setFailedUrl] = useState(null);
 
   return (
-    <AttachmentContextMenu att={att} url={url}>
-    <div className="absolute inset-0 w-full h-full group">
+    <div data-attachment-id={att.id} className="absolute inset-0 w-full h-full group">
       <button
         type="button"
         onClick={() => onOpen?.(allAttachments, index)}
@@ -729,7 +708,6 @@ function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0,
         </>
       )}
     </div>
-    </AttachmentContextMenu>
   );
 }
 
