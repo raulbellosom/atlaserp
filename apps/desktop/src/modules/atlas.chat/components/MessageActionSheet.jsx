@@ -1,30 +1,30 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-  useIsMobile,
-} from "@atlas/ui";
+import { useCoarsePointer } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
 
-// Unified action surface. Mobile: an anchored popover over the pressed message
-// (iMessage/Telegram style) raised by long-press. Desktop: DropdownMenu at the
-// cursor, raised by right-click. Both render the same quick-reaction row +
-// buildMessageActions() list. The desktop hover menu (MessageActions in
-// ChatMessageBubble) is separate and unchanged.
+// Unified action surface for a message — one popover for every trigger:
+//   - touch long-press: dimmed + blurred backdrop with a sharp "window" over
+//     the pressed bubble (WhatsApp/Telegram), reaction pill above, action card
+//     below; a short arm delay so the finger-lift doesn't activate an item.
+//   - mouse right-click: the same card anchored at the cursor with an invisible
+//     click-catcher for dismiss, live on the first click.
+// No Radix menu here — a programmatically-opened Radix DropdownMenu under the
+// cursor swallowed the first click.
 export function MessageActionSheet({
   open,
   onOpenChange,
-  anchorPoint,        // {x,y} for desktop right-click
-  anchorRect,         // the pressed message row's / attachment's DOMRect
+  anchorPoint,        // {x,y} — mouse right-click position
+  anchorRect,         // pressed message row's / attachment's DOMRect
   attachment,         // the attachment tile that was pressed, if any
-  isOwn = false,      // right-align the mobile popover for own messages
+  isOwn = false,      // hug the bubble's side on touch
   actionProps,        // args for buildMessageActions (minus onReact)
   onQuickReact,       // (emoji) => void
   onOpenFullPicker,   // () => void
 }) {
-  const isMobile = useIsMobile();
+  const coarse = useCoarsePointer();
   const actions = buildMessageActions({ ...actionProps, onReact: undefined });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
@@ -34,14 +34,12 @@ export function MessageActionSheet({
   const { data: attUrl } = useAttachmentUrl(attachment ?? undefined);
   const attachmentActions = attachment ? buildAttachmentActions({ att: attachment, url: attUrl }) : [];
 
-  // Mobile popover placement — the reaction pill sits just above the pressed
-  // bubble, the action card just below it (flipped above when there's no room),
-  // both side-aligned to the bubble and clamped to the viewport.
   const pillRef = useRef(null);
   const panelRef = useRef(null);
   const [pos, setPos] = useState(null);
+
   useLayoutEffect(() => {
-    if (!isMobile || !open) { setPos(null); return; }
+    if (!open) { setPos(null); return; }
     const panel = panelRef.current;
     const pill = pillRef.current;
     if (!panel || !pill) return;
@@ -49,18 +47,23 @@ export function MessageActionSheet({
     const vh = window.innerHeight;
     const m = 8;
     const gap = 8;
-    const pw = panel.getBoundingClientRect().width;
-    const ph = panel.getBoundingClientRect().height;
-    const pillW = pill.getBoundingClientRect().width;
-    const pillH = pill.getBoundingClientRect().height;
+    const pr = panel.getBoundingClientRect();
+    const plr = pill.getBoundingClientRect();
+    const pw = pr.width;
+    const ph = pr.height;
+    const pillW = plr.width;
+    const pillH = plr.height;
 
-    const rect = anchorRect ?? { top: vh / 2 - 20, bottom: vh / 2 + 20, left: m, right: vw - m };
-    // Horizontal: hug the bubble's side.
+    // Touch anchors to the bubble; mouse anchors to the cursor point.
+    const rect = (!coarse && anchorPoint)
+      ? { top: anchorPoint.y, bottom: anchorPoint.y, left: anchorPoint.x, right: anchorPoint.x }
+      : anchorRect ?? { top: vh / 2 - 20, bottom: vh / 2 + 20, left: m, right: vw - m };
+
     const clampX = (x, w) => Math.max(m, Math.min(x, vw - w - m));
-    const panelLeft = isOwn ? clampX(rect.right - pw, pw) : clampX(rect.left, pw);
-    const pillLeft = isOwn ? clampX(rect.right - pillW, pillW) : clampX(rect.left, pillW);
+    const alignRight = coarse && isOwn;
+    const panelLeft = alignRight ? clampX(rect.right - pw, pw) : clampX(rect.left, pw);
+    const pillLeft = alignRight ? clampX(rect.right - pillW, pillW) : clampX(rect.left, pillW);
 
-    // Vertical: card below the bubble, or above if it would overflow.
     const belowTop = rect.bottom + gap;
     const flip = belowTop + ph > vh - m;
     const panelTop = flip
@@ -71,241 +74,138 @@ export function MessageActionSheet({
       : Math.max(m, rect.top - gap - pillH);
 
     setPos({ panelLeft, panelTop, pillLeft, pillTop });
-  }, [isMobile, open, anchorRect, isOwn]);
+  }, [open, anchorRect, anchorPoint, isOwn, coarse, attachmentActions.length, primary.length, danger.length]);
 
   useEffect(() => {
-    if (!isMobile || !open) return undefined;
+    if (!open) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onOpenChange(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isMobile, open, onOpenChange]);
+  }, [open, onOpenChange]);
 
-  // Mobile only: the popover opens while the finger is still down from the
+  // Touch only: the popover opens while the finger is still down from the
   // long-press, so ignore pointer input on it for a beat — otherwise the lift
-  // that ends the long-press activates whatever item is under it. On desktop
-  // the menu is opened by the RIGHT button; the left click that follows is a
-  // deliberate selection, so gating it just makes every action need two clicks.
-  const [armed, setArmed] = useState(!isMobile);
+  // that ends the long-press activates whatever item is under it. A mouse
+  // right-click produces no such synthetic click, so it stays live immediately.
+  const [armed, setArmed] = useState(!coarse);
   useEffect(() => {
-    if (!isMobile) { setArmed(true); return undefined; }
+    if (!coarse) { setArmed(true); return undefined; }
     if (!open) { setArmed(false); return undefined; }
     setArmed(false);
-    const t = setTimeout(() => setArmed(true), 280);
+    const t = setTimeout(() => setArmed(true), 220);
     return () => clearTimeout(t);
-  }, [open, isMobile]);
+  }, [open, coarse]);
+
+  if (!open) return null;
 
   function runAction(a) {
+    if (a.disabled) return;
     onOpenChange(false);
     a.onSelect?.();
   }
+  const close = () => onOpenChange(false);
 
-  const quickRow = (small) => (
-    <div className={small ? "flex items-center gap-0.5 px-1 py-1" : "flex items-center justify-between gap-1 px-2 py-2"}>
-      {QUICK_REACTIONS.map((emoji) => (
-        <button
-          key={emoji}
-          type="button"
-          onClick={() => { onOpenChange(false); onQuickReact?.(emoji); }}
-          className={[
-            "rounded-full flex items-center justify-center hover:bg-[hsl(var(--muted))] active:scale-90 transition",
-            small ? "h-7 w-7 text-base" : "h-10 w-10 text-xl",
-          ].join(" ")}
-        >
-          {emoji}
-        </button>
-      ))}
-      <button
-        type="button"
-        aria-label="Mas emojis"
-        onClick={() => { onOpenChange(false); onOpenFullPicker?.(); }}
-        className={[
-          "rounded-full flex items-center justify-center hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
-          small ? "h-7 w-7" : "h-10 w-10",
-        ].join(" ")}
-      >
-        <Plus className={small ? "h-4 w-4" : "h-5 w-5"} />
-      </button>
-    </div>
+  const surface =
+    "bg-[hsl(var(--popover,var(--card)))] text-[hsl(var(--popover-foreground,var(--foreground)))] border border-[hsl(var(--border))] shadow-2xl";
+  const gate = armed ? "" : "pointer-events-none";
+
+  const r = anchorRect;
+  const scrim = "bg-black/55 backdrop-blur-[3px]";
+
+  const menuItem = (a, extra = "") => (
+    <button
+      key={a.key}
+      type="button"
+      disabled={a.disabled}
+      onClick={() => runAction(a)}
+      className={[
+        "w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))] disabled:opacity-40",
+        extra,
+      ].join(" ")}
+    >
+      <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
+    </button>
   );
 
-  if (isMobile) {
-    if (!open) return null;
-    const surface =
-      "bg-[hsl(var(--popover,var(--card)))] text-[hsl(var(--popover-foreground,var(--foreground)))] border border-[hsl(var(--border))] shadow-2xl";
-    const close = () => onOpenChange(false);
-    const scrim = "bg-black/55 backdrop-blur-[3px]";
-    // Dim + blur everything EXCEPT the pressed bubble — four strips leave a
-    // sharp "window" over its rect so you can still see which message this is
-    // (WhatsApp/Telegram style). Falls back to a full scrim if we have no rect.
-    const r = anchorRect;
-    return createPortal(
-      <div className="fixed inset-0 z-200" role="dialog" aria-label="Acciones del mensaje">
-        {r ? (
-          <>
-            <button type="button" aria-label="Cerrar" onClick={close}
-              className={["absolute left-0 right-0 top-0", scrim].join(" ")}
-              style={{ height: Math.max(0, r.top) }} />
-            <button type="button" aria-label="Cerrar" onClick={close}
-              className={["absolute left-0 right-0 bottom-0", scrim].join(" ")}
-              style={{ top: r.bottom }} />
-            <button type="button" aria-label="Cerrar" onClick={close}
-              className={["absolute left-0", scrim].join(" ")}
-              style={{ top: r.top, height: Math.max(0, r.bottom - r.top), width: Math.max(0, r.left) }} />
-            <button type="button" aria-label="Cerrar" onClick={close}
-              className={["absolute right-0", scrim].join(" ")}
-              style={{ top: r.top, height: Math.max(0, r.bottom - r.top), left: r.right }} />
-          </>
-        ) : (
+  return createPortal(
+    <div className="fixed inset-0 z-200" role="dialog" aria-label="Acciones del mensaje">
+      {/* Dismiss layer. Touch: dim + blur everything except a sharp window over
+          the pressed bubble. Mouse: an invisible full-screen click catcher. */}
+      {coarse && r ? (
+        <>
           <button type="button" aria-label="Cerrar" onClick={close}
-            className={["absolute inset-0", scrim].join(" ")} />
-        )}
-
-        {/* Quick-reaction pill, just above the pressed bubble */}
-        <div
-          ref={pillRef}
-          style={{
-            position: "fixed",
-            left: pos?.pillLeft ?? -9999,
-            top: pos?.pillTop ?? -9999,
-            visibility: pos ? "visible" : "hidden",
-          }}
-          className={[
-            "rounded-full px-1 flex items-center gap-0.5",
-            surface,
-            armed ? "" : "pointer-events-none",
-          ].join(" ")}
-        >
-          {QUICK_REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => { onOpenChange(false); onQuickReact?.(emoji); }}
-              className="h-10 w-9 text-xl flex items-center justify-center rounded-full active:scale-90 transition"
-            >
-              {emoji}
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-label="Mas emojis"
-            onClick={() => { onOpenChange(false); onOpenFullPicker?.(); }}
-            className="h-10 w-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))]"
-          >
-            <Plus className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Action card, just below (or above) the pressed bubble */}
-        <div
-          ref={panelRef}
-          style={{
-            position: "fixed",
-            left: pos?.panelLeft ?? -9999,
-            top: pos?.panelTop ?? -9999,
-            visibility: pos ? "visible" : "hidden",
-          }}
-          className={[
-            "w-60 max-w-[calc(100vw-16px)] rounded-2xl overflow-hidden py-1",
-            surface,
-            armed ? "" : "pointer-events-none",
-          ].join(" ")}
-        >
-          {primary.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              onClick={() => runAction(a)}
-              className="w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))]"
-            >
-              <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
-            </button>
-          ))}
-          {attachmentActions.length > 0 && (
-            <>
-              <div className="h-px bg-[hsl(var(--border))] my-1" />
-              {attachmentActions.map((a) => (
-                <button
-                  key={a.key}
-                  type="button"
-                  disabled={a.disabled}
-                  onClick={() => runAction(a)}
-                  className="w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))] disabled:opacity-40"
-                >
-                  <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
-                </button>
-              ))}
-            </>
-          )}
-          {primary.length + attachmentActions.length > 0 && danger.length > 0 && <div className="h-px bg-[hsl(var(--border))] my-1" />}
-          {danger.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              onClick={() => runAction(a)}
-              className={[
-                "w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))]",
-                a.danger ? "text-red-500" : "",
-              ].join(" ")}
-            >
-              <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
-            </button>
-          ))}
-        </div>
-      </div>,
-      document.body,
-    );
-  }
-
-  // Desktop right-click: anchor a DropdownMenu at the cursor via a fixed 0-size
-  // trigger. The trigger span is portaled to <body> so it escapes the chat's
-  // `zoom` (--chat-zoom font scale) and `backdrop-filter` (.chat-glass)
-  // subtree — inside either of those, `position: fixed` coordinates are
-  // remapped/scaled by Chromium, which is why the menu used to open offset
-  // from the actual click point. createPortal keeps the Radix Root context
-  // intact even though the DOM node lands elsewhere.
-  return (
-    <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
-      {createPortal(
-        <DropdownMenuTrigger asChild>
-          <span
-            aria-hidden
-            style={{ position: "fixed", left: anchorPoint?.x ?? 0, top: anchorPoint?.y ?? 0, width: 0, height: 0 }}
-          />
-        </DropdownMenuTrigger>,
-        document.body,
+            className={["absolute left-0 right-0 top-0", scrim].join(" ")}
+            style={{ height: Math.max(0, r.top) }} />
+          <button type="button" aria-label="Cerrar" onClick={close}
+            className={["absolute left-0 right-0 bottom-0", scrim].join(" ")}
+            style={{ top: r.bottom }} />
+          <button type="button" aria-label="Cerrar" onClick={close}
+            className={["absolute left-0", scrim].join(" ")}
+            style={{ top: r.top, height: Math.max(0, r.bottom - r.top), width: Math.max(0, r.left) }} />
+          <button type="button" aria-label="Cerrar" onClick={close}
+            className={["absolute right-0", scrim].join(" ")}
+            style={{ top: r.top, height: Math.max(0, r.bottom - r.top), left: r.right }} />
+        </>
+      ) : (
+        <button type="button" aria-label="Cerrar" onClick={close}
+          className={["absolute inset-0", coarse ? scrim : ""].join(" ")} />
       )}
-      <DropdownMenuContent
-        align="start"
-        style={{ zIndex: 10000 }}
-        // Opened programmatically at the cursor — don't let Radix pull focus
-        // into the menu on open, which otherwise swallows the first click.
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onCloseAutoFocus={(e) => e.preventDefault()}
+
+      {/* Quick-reaction pill */}
+      <div
+        ref={pillRef}
+        style={{
+          position: "fixed",
+          left: pos?.pillLeft ?? -9999,
+          top: pos?.pillTop ?? -9999,
+          visibility: pos ? "visible" : "hidden",
+        }}
+        className={["rounded-full px-1 flex items-center gap-0.5", surface, gate].join(" ")}
       >
-        {quickRow(true)}
-        <DropdownMenuSeparator />
-        {primary.map((a) => (
-          <DropdownMenuItem key={a.key} onSelect={() => runAction(a)}>
-            <a.icon className="h-3.5 w-3.5 mr-2" />{a.label}
-          </DropdownMenuItem>
-        ))}
-        {attachmentActions.length > 0 && <DropdownMenuSeparator />}
-        {attachmentActions.map((a) => (
-          <DropdownMenuItem key={a.key} disabled={a.disabled} onSelect={() => runAction(a)}>
-            <a.icon className="h-3.5 w-3.5 mr-2" />{a.label}
-          </DropdownMenuItem>
-        ))}
-        {primary.length + attachmentActions.length > 0 && danger.length > 0 && <DropdownMenuSeparator />}
-        {danger.map((a) => (
-          <DropdownMenuItem
-            key={a.key}
-            onSelect={() => runAction(a)}
-            className={a.danger ? "text-red-500 focus:text-red-500" : undefined}
+        {QUICK_REACTIONS.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => { close(); onQuickReact?.(emoji); }}
+            className="h-9 w-8 text-lg flex items-center justify-center rounded-full active:scale-90 transition"
           >
-            <a.icon className="h-3.5 w-3.5 mr-2" />{a.label}
-          </DropdownMenuItem>
+            {emoji}
+          </button>
         ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <button
+          type="button"
+          aria-label="Mas emojis"
+          onClick={() => { close(); onOpenFullPicker?.(); }}
+          className="h-9 w-8 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))]"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Action card */}
+      <div
+        ref={panelRef}
+        style={{
+          position: "fixed",
+          left: pos?.panelLeft ?? -9999,
+          top: pos?.panelTop ?? -9999,
+          visibility: pos ? "visible" : "hidden",
+        }}
+        className={["w-60 max-w-[calc(100vw-16px)] rounded-2xl overflow-hidden py-1", surface, gate].join(" ")}
+      >
+        {primary.map((a) => menuItem(a))}
+        {attachmentActions.length > 0 && (
+          <>
+            <div className="h-px bg-[hsl(var(--border))] my-1" />
+            {attachmentActions.map((a) => menuItem(a))}
+          </>
+        )}
+        {primary.length + attachmentActions.length > 0 && danger.length > 0 && (
+          <div className="h-px bg-[hsl(var(--border))] my-1" />
+        )}
+        {danger.map((a) => menuItem(a, a.danger ? "text-red-500" : ""))}
+      </div>
+    </div>,
+    document.body,
   );
 }
