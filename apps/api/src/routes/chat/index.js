@@ -16,6 +16,7 @@ import {
   chatUpdateChannelRoleSchema,
   chatAssignMemberRoleSchema,
   chatPinMessageSchema,
+  chatPinConversationSchema,
   chatToggleReactionSchema,
   chatMessageSearchQuerySchema,
 } from "@atlas/validators";
@@ -143,6 +144,32 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "Error desarchivando conversacion.");
+    }
+  });
+
+  // PATCH /chat/conversations/:id/pin
+  internal.patch("/conversations/:id/pin", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const { pinned } = chatPinConversationSchema.parse(await c.req.json());
+      const result = await chatService.pinConversation({ conversationId, authUserId, pinned });
+      return c.json(result);
+    } catch (err) {
+      if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
+      return handleError(c, err, "Error fijando conversacion.");
+    }
+  });
+
+  // POST /chat/conversations/:id/hide  (direct chats only — "Eliminar chat")
+  internal.post("/conversations/:id/hide", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const result = await chatService.hideConversation({ conversationId, authUserId });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error eliminando la conversacion de la lista.");
     }
   });
 

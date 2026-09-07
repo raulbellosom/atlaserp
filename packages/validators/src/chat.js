@@ -125,6 +125,10 @@ export const chatMuteConversationSchema = z.object({
   muted: z.boolean(),
 });
 
+export const chatPinConversationSchema = z.object({
+  pinned: z.boolean(),
+});
+
 export const chatCreateReportSchema = z.object({
   reportedUserId: z.string().uuid(),
   conversationId: z.string().uuid().optional(),

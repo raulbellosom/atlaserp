@@ -22,6 +22,23 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify({}),
       }),
 
+    // Pin / unpin to the top of the caller's own conversation list.
+    pinConversation: (conversationId, pinned, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/pin`, {
+        method: "PATCH",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ pinned }),
+      }),
+
+    // "Eliminar chat" for a direct conversation — hides it from the caller's
+    // list until a new message resurfaces it. Rejected for channels/groups.
+    hideConversation: (conversationId, token) =>
+      request(`/chat/conversations/${encodeURIComponent(conversationId)}/hide`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
     createConversation: (data, token) =>
       request("/chat/conversations", {
         method: "POST",

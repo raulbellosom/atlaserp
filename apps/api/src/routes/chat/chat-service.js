@@ -158,6 +158,14 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           updated_at = NOW()
       WHERE id = ${conversationId}
     `;
+    // A new message resurfaces the conversation for anyone who "deleted" (hid)
+    // it from their list — WhatsApp behaviour. Archived / muted / pinned state
+    // is deliberately left untouched.
+    await prisma.$executeRaw`
+      UPDATE chat_conversation_members
+      SET hidden_at = NULL
+      WHERE conversation_id = ${conversationId} AND hidden_at IS NOT NULL
+    `;
   }
 
   async function getConversationMemberIds(conversationId) {
@@ -243,7 +251,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // ------------------------------------------------------------------
 
   const conversationReadsService = createChatConversationReadsService({ prisma, getUserProfileId, assertMember, batchSignAvatarUrls });
-  const { listConversations, archiveConversation, unarchiveConversation, getConversation } = conversationReadsService;
+  const { listConversations, archiveConversation, unarchiveConversation, pinConversation, hideConversation, getConversation } = conversationReadsService;
 
   async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null }) {
     if (channelLinksService) channelLinksService.assertBothOrNeither(linkedModule, linkedEntityId);
@@ -1283,6 +1291,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     listConversations,
     archiveConversation,
     unarchiveConversation,
+    pinConversation,
+    hideConversation,
     createConversation,
     getConversation,
     updateConversation,

@@ -17,6 +17,11 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
     const archiveClause = archived
       ? Prisma.sql`AND ccm.archived_at IS NOT NULL`
       : Prisma.sql`AND ccm.archived_at IS NULL`;
+    // "Deleted" (hidden) direct chats drop out of the active list until a new
+    // message resurfaces them (see updateConversationLastMessage). The archived
+    // view is unaffected — hidden only ever applies to unarchived direct chats,
+    // but the guard is cheap and correct in both branches.
+    const hiddenClause = archived ? Prisma.empty : Prisma.sql`AND ccm.hidden_at IS NULL`;
 
     const rows = await prisma.$queryRaw`
       SELECT
@@ -106,7 +111,9 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
           LEFT JOIN auth.users au ON au.id = up.auth_user_id
         ) AS members,
         ccm.archived_at IS NOT NULL AS is_archived,
-        ccm.muted_at IS NOT NULL AS is_muted
+        ccm.muted_at IS NOT NULL AS is_muted,
+        ccm.pinned_at,
+        ccm.pinned_at IS NOT NULL AS is_pinned
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = c.id
@@ -115,8 +122,10 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
       WHERE c.deleted_at IS NULL
         AND c.type != 'external_support'
         ${archiveClause}
+        ${hiddenClause}
         ${cursorClause}
-      ORDER BY COALESCE(c.last_message_at, c.created_at) DESC
+      ORDER BY (ccm.pinned_at IS NOT NULL) DESC, ccm.pinned_at DESC,
+               COALESCE(c.last_message_at, c.created_at) DESC
       LIMIT ${limit + 1}
     `;
 
@@ -164,6 +173,33 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
     await prisma.$executeRaw`
       UPDATE chat_conversation_members
       SET archived_at = NULL
+      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
+    `;
+    return { ok: true };
+  }
+
+  async function pinConversation({ conversationId, authUserId, pinned }) {
+    const profileId = await getUserProfileId(authUserId);
+    await prisma.$executeRaw`
+      UPDATE chat_conversation_members
+      SET pinned_at = ${pinned ? new Date() : null}
+      WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
+    `;
+    return { ok: true, pinned: Boolean(pinned) };
+  }
+
+  async function hideConversation({ conversationId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+    const [conv] = await prisma.$queryRaw`
+      SELECT type FROM chat_conversations WHERE id = ${conversationId} AND deleted_at IS NULL LIMIT 1
+    `;
+    if (!conv) throw new ChatServiceError("Conversacion no encontrada.", 404);
+    if (conv.type !== "direct") {
+      throw new ChatServiceError("Solo los chats directos se pueden eliminar de la lista.", 400);
+    }
+    await prisma.$executeRaw`
+      UPDATE chat_conversation_members
+      SET hidden_at = NOW()
       WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
     `;
     return { ok: true };
@@ -224,5 +260,5 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
     return conv;
   }
 
-  return { listConversations, archiveConversation, unarchiveConversation, getConversation };
+  return { listConversations, archiveConversation, unarchiveConversation, pinConversation, hideConversation, getConversation };
 }
