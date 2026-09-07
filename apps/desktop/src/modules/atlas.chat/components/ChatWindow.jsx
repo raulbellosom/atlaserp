@@ -881,6 +881,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
             </div>
           ) : (
             <ChatMessageList
+              key={conversationId}
               messages={messages}
               isLoading={isLoading}
               currentUserId={userProfile?.id}

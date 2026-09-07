@@ -414,6 +414,7 @@ function ExternalChatPane({ conversation, onBack }) {
       </div>
 
       <ChatMessageList
+        key={conversation.id}
         messages={messagesData?.data ?? []}
         isLoading={isLoading}
         currentUserId={userProfile?.id}

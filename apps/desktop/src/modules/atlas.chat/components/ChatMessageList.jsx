@@ -97,9 +97,27 @@ export function ChatMessageList({
   const bottomRef = useRef(null);
   const listRef = useRef(null);
   const topSentinelRef = useRef(null);
-  const isInitialLoadRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
   const restoreScrollRef = useRef(false);
+  // Set once we've placed the opening scroll for this mounted conversation.
+  // The list is keyed by conversation id upstream, so this ref resets on
+  // every conversation switch — without the key it would stay true and every
+  // conversation after the first would skip the instant jump and animate a
+  // long catch-up scroll instead.
+  const didInitialScrollRef = useRef(false);
+  // Live "viewer is parked at the bottom" flag, kept current by handleScroll.
+  // Gates every auto-scroll-to-latest so we never yank someone who has
+  // scrolled up to read history.
+  const atBottomRef = useRef(true);
+  // Head/tail ids from the previous render — lets the follow effect tell a
+  // real append (scroll down) from a load-more prepend (stay put) or a
+  // background refetch that leaves both ends unchanged (do nothing).
+  const prevFirstIdRef = useRef(null);
+  const prevLastIdRef = useRef(null);
+  // Raised while an explicit jump (search hit, reply quote, pinned message,
+  // notification deep-link) is resolving so the opening/typing/new-message
+  // auto-scrolls don't fight it back down to the bottom.
+  const suppressAutoScrollRef = useRef(false);
   // The last jump request we've already acted on — keyed by nonce so an
   // unrelated re-render never re-scrolls you back to the same message.
   const jumpHandledRef = useRef(null);
@@ -147,31 +165,78 @@ export function ChatMessageList({
     }
   }, [messages?.length]);
 
-  useEffect(() => {
-    if (!messages?.length) return;
-    if (isInitialLoadRef.current) {
-      isInitialLoadRef.current = false;
-      if (unreadBoundary?.id) {
-        // Land on the first unread message, not the very bottom — the
-        // banner effect below re-arms itself against this same id.
-        requestAnimationFrame(() => {
-          const el = listRef.current?.querySelector(`[data-msg-id="${unreadBoundary.id}"]`);
-          if (el) el.scrollIntoView({ block: "start" });
-          else if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-        });
-      } else if (listRef.current) {
-        listRef.current.scrollTop = listRef.current.scrollHeight;
+  // Opening placement — runs once per mounted conversation. Jumps INSTANTLY
+  // to the first unread message (or the bottom), then keeps re-pinning for a
+  // short settle window while late-loading media (images/video/audio/file
+  // cards) grows the column. Without the re-pin the first jump lands against
+  // un-laid-out content near the top and a later effect has to animate one
+  // long catch-up scroll to reach the bottom. Bails the instant the viewer
+  // scrolls themselves or an explicit jump takes over.
+  useLayoutEffect(() => {
+    if (didInitialScrollRef.current) return;
+    if (!messages?.length || !listRef.current) return;
+    didInitialScrollRef.current = true;
+    if (scrollToMessage?.id || suppressAutoScrollRef.current) return;
+
+    const list = listRef.current;
+    const targetId = unreadBoundary?.id ?? null;
+    let cancelled = false;
+    let lastHeight = -1;
+    const deadline = performance.now() + 1500;
+
+    function pin() {
+      if (cancelled || suppressAutoScrollRef.current || !listRef.current) return;
+      const el = targetId
+        ? listRef.current.querySelector(`[data-msg-id="${targetId}"]`)
+        : null;
+      if (el) el.scrollIntoView({ block: "start" });
+      else listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+    function step() {
+      if (cancelled || suppressAutoScrollRef.current) return;
+      if (list.scrollHeight !== lastHeight) {
+        lastHeight = list.scrollHeight;
+        pin();
       }
-      return;
+      if (performance.now() < deadline) requestAnimationFrame(step);
     }
-    // Only auto-scroll if NOT triggered by load-more (scroll restore handles that)
-    if (!restoreScrollRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages?.length, unreadBoundary]);
+    const stop = () => { cancelled = true; };
+
+    pin();
+    requestAnimationFrame(step);
+    list.addEventListener("wheel", stop, { once: true, passive: true });
+    list.addEventListener("touchmove", stop, { once: true, passive: true });
+    return () => {
+      cancelled = true;
+      list.removeEventListener("wheel", stop);
+      list.removeEventListener("touchmove", stop);
+    };
+  }, [messages?.length, unreadBoundary?.id, scrollToMessage?.id]);
+
+  // Follow a newly-appended message — but only a real append (not a
+  // load-more prepend, not a background refetch that leaves both ends
+  // unchanged) and only when the viewer is already parked at the bottom.
+  useEffect(() => {
+    const list = messages ?? [];
+    const firstId = list[0]?.id ?? null;
+    const lastId = list[list.length - 1]?.id ?? null;
+    const prevFirst = prevFirstIdRef.current;
+    const prevLast = prevLastIdRef.current;
+    prevFirstIdRef.current = firstId;
+    prevLastIdRef.current = lastId;
+
+    if (!didInitialScrollRef.current || suppressAutoScrollRef.current) return;
+    if (restoreScrollRef.current) return;
+    const prepended = prevFirst !== null && firstId !== prevFirst;
+    const appended = prevLast !== null && lastId !== prevLast;
+    if (prepended || !appended) return;
+    if (!atBottomRef.current) return;
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     if (!typingUsers?.length) return;
+    if (suppressAutoScrollRef.current || !atBottomRef.current) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [typingUsers?.length]);
 
@@ -189,6 +254,7 @@ export function ChatMessageList({
     const el = listRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    atBottomRef.current = distanceFromBottom < 120;
     setShowScrollButton(distanceFromBottom > 240);
   }, []);
 
@@ -293,6 +359,12 @@ export function ChatMessageList({
 
     let cancelled = false;
     let attempts = 0;
+    // Hold off the opening / new-message / typing auto-scrolls while we hunt
+    // for the target and page through history — otherwise they keep yanking
+    // the view back to the bottom and the jump visibly "gives up" even
+    // though it found nothing wrong.
+    suppressAutoScrollRef.current = true;
+    const release = () => { suppressAutoScrollRef.current = false; };
 
     function flash(el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -305,14 +377,14 @@ export function ChatMessageList({
     function tryScroll() {
       if (cancelled) return;
       const el = listRef.current?.querySelector(`[data-msg-id="${target.id}"]`);
-      if (el) { jumpHandledRef.current = key; flash(el); return; }
-      if (attempts >= 12 || !hasMore) { jumpHandledRef.current = key; onJumpFailed?.(); return; }
+      if (el) { jumpHandledRef.current = key; flash(el); release(); return; }
+      if (attempts >= 20 || !hasMore) { jumpHandledRef.current = key; onJumpFailed?.(); release(); return; }
       attempts += 1;
       handleLoadMore();
-      setTimeout(tryScroll, 600);
+      setTimeout(tryScroll, 450);
     }
     tryScroll();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; release(); };
   }, [scrollToMessage, hasMore, handleLoadMore, onJumpFailed]);
 
   // Auto-load when user scrolls up to the sentinel near the top of the list

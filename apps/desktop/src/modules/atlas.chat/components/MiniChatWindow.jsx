@@ -360,6 +360,7 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
         {!minimized && !profileView && (
           <>
             <ChatMessageList
+              key={id}
               messages={data?.data ?? []}
               isLoading={isLoading}
               currentUserId={userProfile?.id}
