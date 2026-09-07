@@ -590,12 +590,13 @@ export const MessageComposer = forwardRef(function MessageComposer(
         // `env()` calc never both compile to `padding-bottom` at equal
         // specificity (whichever lands later in the sheet would silently win).
         compact ? "px-2 pt-1.5" : "px-3 pt-2 sm:px-4 sm:pt-3",
-        // The iOS home-indicator gap is added once via `edgeInset` (see prop
-        // doc) by whichever caller owns the screen's bottom edge — never
-        // unconditionally, which is what stacked a second inset inside the
-        // ThreadPanel sheet and shoved the input bar upward.
+        // When `edgeInset` (the composer owns the screen's bottom edge) the bar
+        // sits FLUSH with the bottom — only the device's own safe-area inset is
+        // added, never extra breathing room, so there's no strip of background
+        // below the input on tablet/PWA. Non-edge callers (ThreadPanel sheet,
+        // mini window) keep a normal pad and must not add a second inset.
         edgeInset
-          ? "pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
+          ? "pb-[env(safe-area-inset-bottom,0px)]"
           : (compact ? "pb-1.5" : "pb-2 sm:pb-3"),
         // A single background class (never both at once). surface-2 (not raw
         // --background) so the bar reads as a distinct composer surface and,

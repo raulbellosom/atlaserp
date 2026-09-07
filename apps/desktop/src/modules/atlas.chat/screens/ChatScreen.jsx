@@ -81,7 +81,7 @@ function ChatScreenInner() {
   const { prefs } = useChatPreferences();
 
   return (
-    <div className="chat-glass-theme flex h-full overflow-hidden" style={chatPreferencesStyle(prefs)}>
+    <div className="chat-glass-theme flex h-full min-h-0 overflow-hidden" style={chatPreferencesStyle(prefs)}>
       {/* Conversation list — full width on mobile, fixed 288px on desktop */}
       <div
         className={[

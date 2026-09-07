@@ -248,7 +248,13 @@ export function AtlasApp() {
             ))}
 
           <div className="flex flex-col flex-1 min-w-0 min-h-0">
-            <main className="flex-1 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
+            {/* min-h-0 is load-bearing: without it this flex-1 item's implicit
+                min-height:auto lets it grow past its track when a child is a
+                full-height flex layout (chat/notes), so `h-full` further down
+                resolves against a too-tall <main> and a strip of shell
+                background shows below the content (e.g. under the chat
+                composer). */}
+            <main className="flex-1 min-h-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
               <Outlet />
             </main>
             <BrandFooter className="hidden lg:flex" />
