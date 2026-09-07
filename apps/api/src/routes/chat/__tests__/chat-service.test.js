@@ -505,6 +505,7 @@ describe("chat-service — sendMessage mentions", () => {
         sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
       }],
       [{ user_id: MENTIONED_USER_ID }, { user_id: "other-user" }], // otherMembers query inside the notification setImmediate block
+      [], // resolveChatEmailRecipients — no recipient is "away", so no email fan-out
     ]);
     prisma.membership.findFirst = async () => ({ companyId: "company-1" });
 
@@ -547,6 +548,7 @@ describe("chat-service — sendMessage mentions", () => {
         sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
       }],
       [{ user_id: "other-user" }],
+      [], // resolveChatEmailRecipients — no away recipients
     ]);
     prisma.membership.findFirst = async () => ({ companyId: "company-1" });
 
@@ -591,6 +593,7 @@ describe("chat-service — sendMessage mentions", () => {
         sender: { id: null, displayName: null, avatarFileId: null }, attachments: null,
       }],
       [{ user_id: "other-user" }],
+      [], // resolveChatEmailRecipients — no away recipients
     ]);
     prisma.membership.findFirst = async () => ({ companyId: "company-1" });
 
@@ -922,6 +925,7 @@ describe("chat-service — sendMessage thread reply notifications", () => {
         { sender_user_id: PRIOR_REPLIER_ID },
         { sender_user_id: MENTIONED_USER_ID },
       ],
+      [], // resolveChatEmailRecipients (thread path) — no away recipients
     ], [
       { count: 1 }, // counter UPDATE inside tx
     ]);
@@ -972,6 +976,7 @@ describe("chat-service — sendMessage thread reply notifications", () => {
         { sender_user_id: ROOT_AUTHOR_ID },
         { sender_user_id: FORMER_MEMBER_ID },
       ],
+      [], // resolveChatEmailRecipients (thread path) — no away recipients
     ], [
       { count: 1 },
     ]);

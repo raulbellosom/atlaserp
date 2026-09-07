@@ -1,4 +1,10 @@
 // Shared by the publisher and Settings so a displayed default is also enforced.
+//
+// Note: enabling email for `chat.message.new` / `chat.thread.reply` does NOT mean
+// "one email per message". chat-service.js additionally gates chat-message email
+// on recipient inactivity (ATLAS_CHAT_EMAIL_AWAY_MINUTES) plus a per-conversation
+// throttle (ATLAS_CHAT_EMAIL_THROTTLE_HOURS). Mentions and channel-adds are the
+// IMPORTANT_EVENTS below and do email on every occurrence.
 const IMPORTANT_EVENTS = new Set([
   'projects.member.added',
   'projects.task.assigned',

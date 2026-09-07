@@ -49,6 +49,18 @@ function buildPrismaMock() {
           ) ?? null
         );
       }
+      // chat.mail throttle shape: { userId, dedupeKey, OR: [{readAt:null},{createdAt:{gte}}] }
+      if (Array.isArray(where?.OR) && where.OR.some((r) => Object.hasOwn(r, "readAt") || r?.createdAt?.gte)) {
+        const since = where.OR.find((r) => r?.createdAt?.gte)?.createdAt.gte ?? null;
+        return (
+          notifications.find(
+            (row) =>
+              row.userId === where.userId &&
+              row.dedupeKey === where.dedupeKey &&
+              (row.readAt == null || (since && row.createdAt >= since)),
+          ) ?? null
+        );
+      }
       return notifications.find((row) => matchWhere(row, where)) ?? null;
     },
     create: async ({ data }) => {
@@ -120,8 +132,78 @@ function buildPrismaMock() {
     },
     notificationDelivery: {
       createMany: async ({ data }) => {
-        deliveries.push(...data);
+        for (const d of data) {
+          deliveries.push({
+            id: makeUuidFromInt(seq),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            attempts: 0,
+            sentAt: null,
+            lastError: null,
+            ...d,
+          });
+          seq += 1;
+        }
         return { count: data.length };
+      },
+      findMany: async ({ where = {}, take } = {}) => {
+        let rows = deliveries.filter((d) => {
+          if (where.channel && d.channel !== where.channel) return false;
+          if (where.status && d.status !== where.status) return false;
+          if (where.id?.in && !where.id.in.includes(d.id)) return false;
+          if (where.attempts?.lt != null && !(d.attempts < where.attempts.lt)) return false;
+          if (where.notificationId?.in && !where.notificationId.in.includes(d.notificationId)) return false;
+          return true;
+        });
+        rows = rows.map((d) => {
+          const n = notifications.find((row) => row.id === d.notificationId) ?? null;
+          return {
+            ...d,
+            notification: n
+              ? {
+                  ...n,
+                  user: {
+                    id: n.userId,
+                    email: n.userId ? `${n.userId}@example.test` : null,
+                    displayName: "Test User",
+                  },
+                }
+              : null,
+          };
+        });
+        return typeof take === "number" ? rows.slice(0, take) : rows;
+      },
+      updateMany: async ({ where = {}, data }) => {
+        let count = 0;
+        for (const d of deliveries) {
+          if (where.channel && d.channel !== where.channel) continue;
+          if (where.status && d.status !== where.status) continue;
+          if (where.id?.in && !where.id.in.includes(d.id)) continue;
+          if (where.updatedAt?.lt && !(d.updatedAt < where.updatedAt.lt)) continue;
+          Object.assign(d, data, { updatedAt: new Date() });
+          count += 1;
+        }
+        return { count };
+      },
+      updateManyAndReturn: async ({ where = {}, data, select }) => {
+        const changed = [];
+        for (const d of deliveries) {
+          if (where.id?.in && !where.id.in.includes(d.id)) continue;
+          if (where.status && d.status !== where.status) continue;
+          const patch = { ...data };
+          if (patch.attempts?.increment != null) {
+            patch.attempts = (d.attempts ?? 0) + patch.attempts.increment;
+          }
+          Object.assign(d, patch, { updatedAt: new Date() });
+          changed.push(select ? { id: d.id } : { ...d });
+        }
+        return changed;
+      },
+      update: async ({ where, data }) => {
+        const d = deliveries.find((row) => row.id === where.id);
+        if (!d) throw new Error("delivery not found");
+        Object.assign(d, data, { updatedAt: new Date() });
+        return d;
       },
     },
     notificationPreference: {
@@ -130,8 +212,11 @@ function buildPrismaMock() {
       upsert: async ({ create, update }) => ({ ...create, ...update }),
     },
     pushSubscription: {
-      upsert: async ({ create, update }) => ({ ...create, ...update }),
+      upsert: async ({ create, update }) => ({ id: "sub-new", ...create, ...update }),
       findFirst: async () => null,
+      findMany: async () => [],
+      update: async ({ data }) => ({ id: "sub-new", ...data }),
+      updateMany: async () => ({ count: 0 }),
       delete: async () => ({ id: "deleted" }),
     },
     $transaction: async (fn) =>
@@ -362,16 +447,42 @@ describe('important notification channels', () => {
   it('delivers queued email and push from a published event through the worker', async () => {
     const prisma = buildPrismaMock();
     await createNotificationService({ prisma }).publish({ companyId: COMPANY_ID, input: { ...input('notes.note.shared'), link: '/app/m/atlas.notes?note=demo' } });
-    prisma.notificationDelivery.findMany = async ({ where }) => prisma._deliveries.filter(d => d.channel === where.channel && d.status === 'queued').map(d => ({ ...d, id: d.channel, notification: { ...prisma._notifications[0], user: { email: 'recipient@example.test' } } }));
-    prisma.notificationDelivery.update = async ({ where, data }) => Object.assign(prisma._deliveries.find(d => d.channel === where.id), data);
-    prisma.pushSubscription.findMany = async () => [{ id: 'sub', endpoint: 'https://push.example.test', p256dh: 'key', auth: 'auth' }];
+    prisma.pushSubscription.findMany = async () => [{ id: 'sub', endpoint: 'https://push.example.test', p256dh: 'key', auth: 'auth', userAgent: null }];
     const emails = [], pushes = [];
     const worker = createNotificationDeliveryWorker({ prisma, smtpService: { sendEmail: async mail => emails.push(mail) }, webPushService: { buildPushPayload: ({ notification }) => notification, sendToSubscription: async payload => { pushes.push(payload); return { ok: true }; } } });
     assert.equal((await worker.processPendingNotificationDeliveries({ channel: 'email' })).sent, 1);
     assert.equal((await worker.processPendingNotificationDeliveries({ channel: 'web_push' })).sent, 1);
-    assert.equal(emails[0].to, 'recipient@example.test');
+    assert.equal(emails[0].to, `${RECIPIENT_A}@example.test`);
     assert.equal(pushes[0].payload.link, '/app/m/atlas.notes?note=demo');
     assert.ok(prisma._deliveries.every(d => d.status === 'sent'));
+  });
+
+  it('claims each queued delivery once across concurrent worker passes', async () => {
+    const prisma = buildPrismaMock();
+    await createNotificationService({ prisma }).publish({ companyId: COMPANY_ID, input: input('notes.note.shared') });
+    const emails = [];
+    const worker = createNotificationDeliveryWorker({ prisma, smtpService: { sendEmail: async (mail) => { await new Promise((r) => setTimeout(r, 5)); emails.push(mail); } }, webPushService: { buildPushPayload: ({ notification }) => notification, sendToSubscription: async () => ({ ok: true }) } });
+    const [a, b] = await Promise.all([
+      worker.processPendingNotificationDeliveries({ channel: 'email' }),
+      worker.processPendingNotificationDeliveries({ channel: 'email' }),
+    ]);
+    assert.equal(a.sent + b.sent, 1);
+    assert.equal(emails.length, 1);
+    assert.equal(prisma._deliveries.filter((d) => d.channel === 'email' && d.status === 'sent').length, 1);
+  });
+
+  it('requeues a stuck sending row and then delivers it', async () => {
+    const prisma = buildPrismaMock();
+    await createNotificationService({ prisma }).publish({ companyId: COMPANY_ID, input: input('notes.note.shared') });
+    const stuck = prisma._deliveries.find((d) => d.channel === 'email');
+    stuck.status = 'sending';
+    stuck.updatedAt = new Date(Date.now() - 10 * 60_000);
+    const emails = [];
+    const worker = createNotificationDeliveryWorker({ prisma, smtpService: { sendEmail: async (mail) => emails.push(mail) }, webPushService: { buildPushPayload: ({ notification }) => notification, sendToSubscription: async () => ({ ok: true }) } });
+    const result = await worker.processPendingNotificationDeliveries({ channel: 'email' });
+    assert.equal(result.sent, 1);
+    assert.equal(emails.length, 1);
+    assert.equal(stuck.status, 'sent');
   });
 });
 
@@ -385,4 +496,116 @@ it('reports unread notifications beyond the current page', async () => {
   const result = await service.list({ authUserId: AUTH_USER_ID, query: { limit: 10 } });
   assert.equal(result.data.length, 10);
   assert.equal(result.unreadCount, 25);
+});
+
+describe('chat email throttle (chat.mail: dedupeKey)', () => {
+  const mailInput = () => ({
+    eventType: 'chat.message.new',
+    title: 'Nuevo mensaje de Ana',
+    recipients: { userIds: [RECIPIENT_A] },
+    channels: ['email'],
+    sourceType: 'chat_conversation',
+    sourceId: 'conv-1',
+    dedupeKey: 'chat.mail:conv-1:' + RECIPIENT_A,
+  });
+
+  it('suppresses a second chat email while the first is unread', async () => {
+    const prisma = buildPrismaMock();
+    const service = createNotificationService({ prisma });
+    const first = await service.publish({ companyId: COMPANY_ID, respectChannelDefaults: false, input: mailInput() });
+    const second = await service.publish({ companyId: COMPANY_ID, respectChannelDefaults: false, input: mailInput() });
+    assert.equal(first.created, 1);
+    assert.equal(second.created, 0);
+    assert.equal(second.deduped, 1);
+  });
+
+  it('re-arms once the prior chat email is read and outside the throttle window', async () => {
+    const prisma = buildPrismaMock();
+    const service = createNotificationService({ prisma });
+    await service.publish({ companyId: COMPANY_ID, respectChannelDefaults: false, input: mailInput() });
+    const prior = prisma._notifications[0];
+    prior.readAt = new Date();
+    prior.createdAt = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const again = await service.publish({ companyId: COMPANY_ID, respectChannelDefaults: false, input: mailInput() });
+    assert.equal(again.created, 1);
+  });
+
+  it('still suppresses a read prior email if it is inside the throttle window', async () => {
+    const prisma = buildPrismaMock();
+    const service = createNotificationService({ prisma });
+    await service.publish({ companyId: COMPANY_ID, respectChannelDefaults: false, input: mailInput() });
+    prisma._notifications[0].readAt = new Date();
+    const again = await service.publish({ companyId: COMPANY_ID, respectChannelDefaults: false, input: mailInput() });
+    assert.equal(again.created, 0);
+    assert.equal(again.deduped, 1);
+  });
+});
+
+describe('subscribeWebPush prunes stale device subscriptions', () => {
+  function withPushStore(prisma) {
+    const store = [];
+    let n = 100;
+    prisma._pushSubs = store;
+    prisma.pushSubscription = {
+      upsert: async ({ where, create, update }) => {
+        const existing = store.find((s) => s.endpoint === where.endpoint);
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
+        const row = { id: makeUuidFromInt(n++), enabled: true, ...create };
+        store.push(row);
+        return row;
+      },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        for (const s of store) {
+          if (where.userId && s.userId !== where.userId) continue;
+          if (where.id?.not && s.id === where.id.not) continue;
+          if (where.enabled != null && s.enabled !== where.enabled) continue;
+          if (where.userAgent != null && s.userAgent !== where.userAgent) continue;
+          Object.assign(s, data);
+          count += 1;
+        }
+        return { count };
+      },
+      findFirst: async () => null,
+      delete: async () => ({}),
+    };
+    return store;
+  }
+
+  const sub = (endpoint, ua, label) => ({
+    authUserId: AUTH_USER_ID,
+    userAgent: ua,
+    input: { endpoint, keys: { p256dh: 'p', auth: 'a' }, deviceLabel: label },
+  });
+
+  it('disables prior subscriptions with the same user agent', async () => {
+    const prisma = buildPrismaMock();
+    const store = withPushStore(prisma);
+    const service = createNotificationService({ prisma });
+    await service.subscribeWebPush(sub('https://push/old', 'iPhone; CriOS'));
+    await service.subscribeWebPush(sub('https://push/new', 'iPhone; CriOS'));
+    const enabled = store.filter((s) => s.enabled).map((s) => s.endpoint);
+    assert.deepEqual(enabled, ['https://push/new']);
+  });
+
+  it('leaves other devices alone', async () => {
+    const prisma = buildPrismaMock();
+    const store = withPushStore(prisma);
+    const service = createNotificationService({ prisma });
+    await service.subscribeWebPush(sub('https://push/phone', 'iPhone'));
+    await service.subscribeWebPush(sub('https://push/laptop', 'Macintosh'));
+    assert.equal(store.filter((s) => s.enabled).length, 2);
+  });
+
+  it('never prunes when neither user agent nor device label is known', async () => {
+    const prisma = buildPrismaMock();
+    const store = withPushStore(prisma);
+    const service = createNotificationService({ prisma });
+    await service.subscribeWebPush({ authUserId: AUTH_USER_ID, userAgent: null, input: { endpoint: 'https://push/a', keys: { p256dh: 'p', auth: 'a' } } });
+    await service.subscribeWebPush({ authUserId: AUTH_USER_ID, userAgent: null, input: { endpoint: 'https://push/b', keys: { p256dh: 'p', auth: 'a' } } });
+    assert.equal(store.filter((s) => s.enabled).length, 2);
+  });
 });

@@ -3,6 +3,9 @@ import { createWebPushService } from "./web-push-service.js";
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_BATCH_SIZE = 25;
+// A row parked in 'sending' longer than this was almost certainly abandoned by a
+// killed/crashed pass — reclaim it on the next tick.
+const SENDING_RECLAIM_MINUTES = 5;
 
 function asErrorMessage(err) {
   if (err instanceof Error) return err.message;
@@ -71,22 +74,6 @@ async function resolveAppBaseUrl({ prisma }) {
   return null;
 }
 
-function resolveApiBaseUrl() {
-  const candidates = [
-    process.env.ATLAS_API_URL,
-    process.env.API_URL,
-    process.env.VITE_ATLAS_API_URL,
-  ];
-  for (const candidate of candidates) {
-    const normalized = normalizeBaseUrl(candidate);
-    if (normalized) return normalized;
-  }
-  if (process.env.NODE_ENV !== "production") {
-    return "http://localhost:4010";
-  }
-  return null;
-}
-
 function toAbsoluteLink(link, appBaseUrl) {
   if (!link || typeof link !== "string") return null;
   const value = link.trim();
@@ -140,6 +127,11 @@ const EVENT_TYPE_LABELS = {
   "projects.task.reaction": "Reaccion a tu comentario",
   "projects.task.status_changed": "Estado de tarea actualizado",
   "projects.task.due_soon": "Tarea por vencer",
+  // Chat
+  "chat.message.new": "Mensaje de chat",
+  "chat.thread.reply": "Respuesta en un hilo",
+  "chat.mention.new": "Mencion en un chat",
+  "chat.member.added": "Te agregaron a un chat",
   // Inventory
   "inventory.item.mention": "Mencion en inventario",
   "inventory.item.comment": "Comentario en elemento",
@@ -148,6 +140,14 @@ const EVENT_TYPE_LABELS = {
   "ledger.account_invite": "Invitacion a cuenta",
   "ledger.group_invite": "Invitacion a grupo",
   "ledger.access_revoked": "Acceso revocado",
+  // Growth
+  "growth.lead.created": "Nuevo lead",
+  "growth.lead.assigned": "Lead asignado",
+  // Finanzas personales
+  "pfm.budget.threshold": "Presupuesto cerca del limite",
+  "pfm.budget.overage": "Presupuesto excedido",
+  // Notas
+  "notes.note.shared": "Nota compartida",
   // Website / storefront
   "website.sale.confirmed": "Venta confirmada",
   // System
@@ -174,33 +174,144 @@ const SOURCE_TYPE_LABELS = {
   Task: "Tarea",
   LedgerAccount: "Cuenta contable",
   LedgerGroup: "Grupo contable",
+  chat_conversation: "Conversacion",
+  chat_message: "Mensaje",
 };
 
+// Leading segments we strip when humanizing an unmapped dotted/snake token, so a
+// fallback never shows a raw identifier like "chat.message.new" to the user.
+const TOKEN_NAMESPACES = new Set([
+  "chat", "projects", "project", "calendar", "ledger", "pfm", "inventory",
+  "notes", "note", "growth", "website", "system", "hr", "finance",
+]);
+
+function humanizeToken(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  const parts = raw.split(/[._-]+/).filter(Boolean);
+  if (parts.length > 1 && TOKEN_NAMESPACES.has(parts[0].toLowerCase())) parts.shift();
+  const joined = parts.join(" ").trim();
+  return joined ? joined.charAt(0).toUpperCase() + joined.slice(1) : "";
+}
+
+function labelForEventType(raw) {
+  return EVENT_TYPE_LABELS[raw] ?? (humanizeToken(raw) || raw || "Notificacion");
+}
+
+function labelForSourceType(raw) {
+  return SOURCE_TYPE_LABELS[raw] ?? humanizeToken(raw);
+}
+
+// An https URL whose host is not loopback — safe to reference from an email.
+function asPublicHttps(value) {
+  const normalized = normalizeBaseUrl(value);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    if (url.protocol !== "https:") return null;
+    if (/^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\])$/i.test(url.hostname)) return null;
+    return normalized;
+  } catch {
+    return null;
+  }
+}
+
+function resolveEmailLogoUrl(appBaseUrl) {
+  const explicit = asPublicHttps(process.env.ATLAS_EMAIL_LOGO_URL);
+  if (explicit) return explicit;
+  const base = asPublicHttps(appBaseUrl);
+  if (base) return `${base}/brand/atlas-logo-horizontal.png`;
+  return null;
+}
+
+function brandHeaderHtml(logoUrl) {
+  if (logoUrl) {
+    return `<img src="${logoUrl}" alt="Atlas ERP" style="height:26px;display:block;margin-bottom:10px" />`;
+  }
+  return `<div style="font-size:18px;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin-bottom:8px">Atlas<span style="color:#2563eb">ERP</span></div>`;
+}
+
+const EMAIL_FOOTER_HTML = `<tr><td style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:12px;color:#64748b">Este correo fue generado automaticamente por Atlas ERP.</td></tr>`;
+
+function buildChatEmail({ notification, link, logoUrl, createdAt }) {
+  const meta = notification?.metadata ?? {};
+  const kind = typeof meta.kind === "string" ? meta.kind : null;
+  const senderName = meta.senderName || notification?.title || "Alguien";
+  const convTitle = meta.conversationTitle || null;
+  const snippet = meta.snippet || notification?.body || "";
+  const verb = kind === "chat_mention" ? "te mencionó" : "te escribió";
+  const kicker =
+    kind === "chat_mention" ? "Te mencionaron en un chat"
+    : kind === "chat_member_added" ? "Te agregaron a un chat"
+    : kind === "chat_thread_reply" ? "Respuesta en un hilo"
+    : "Nuevo mensaje de chat";
+  const subject = convTitle ? `${senderName} · ${convTitle}` : `Nuevo mensaje de ${senderName}`;
+  const cta = link
+    ? `<a href="${link}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:600">Abrir conversación</a>`
+    : "";
+
+  const html = `
+<div style="background:#f3f4f6;padding:24px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#111827">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+    <tr>
+      <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
+        ${brandHeaderHtml(logoUrl)}
+        <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">${escapeHtml(kicker)}</div>
+        <h1 style="margin:6px 0 0 0;font-size:22px;line-height:1.3;color:#0f172a">${escapeHtml(senderName)}</h1>
+        <div style="margin-top:2px;font-size:13px;color:#64748b">${escapeHtml(convTitle || "Conversación directa")}</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px">
+        <div style="border-left:3px solid #2563eb;padding:2px 0 2px 14px;margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#334155;white-space:pre-wrap">${escapeHtml(snippet) || "(mensaje sin texto)"}</div>
+        ${cta}
+        ${createdAt ? `<div style="margin-top:14px;font-size:12px;color:#94a3b8">Recibido el ${escapeHtml(createdAt)}</div>` : ""}
+      </td>
+    </tr>
+    ${EMAIL_FOOTER_HTML}
+  </table>
+</div>
+  `.trim();
+
+  const text = [
+    `${senderName} ${verb}${convTitle ? ` en ${convTitle}` : ""}:`,
+    "",
+    `"${snippet || "(mensaje sin texto)"}"`,
+    "",
+    link ? `Abrir: ${link}` : null,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+
+  return { subject, html, text };
+}
+
 function buildNotificationEmail({ notification, appBaseUrl }) {
+  const rawEventType = notification?.eventType ?? "general";
+  const kind = typeof notification?.metadata?.kind === "string" ? notification.metadata.kind : null;
+  const link = toAbsoluteLink(notification?.link ?? null, appBaseUrl);
+  const logoUrl = resolveEmailLogoUrl(appBaseUrl);
+  const createdAt = formatDateTime(notification?.createdAt);
+
+  if ((kind && kind.startsWith("chat_")) || rawEventType.startsWith("chat.")) {
+    return buildChatEmail({ notification, link, logoUrl, createdAt });
+  }
+
   const title = notification?.title ?? "Notificacion de Atlas";
   const body = notification?.body ?? "";
-  const link = toAbsoluteLink(notification?.link ?? null, appBaseUrl);
-  const apiBaseUrl = resolveApiBaseUrl();
-  const logoUrl = apiBaseUrl
-    ? toAbsoluteLink("/brand/atlas-logo-horizontal.png", apiBaseUrl)
-    : null;
-  const createdAt = formatDateTime(notification?.createdAt);
   const eventStart = formatDateTime(notification?.metadata?.startAt);
   const reminderLead = reminderLeadText(notification?.metadata?.minutesBefore);
   const titleEsc = escapeHtml(title);
   const bodyEsc = escapeHtml(body);
-  const rawEventType = notification?.eventType ?? "general";
-  const eventTypeEsc = escapeHtml(EVENT_TYPE_LABELS[rawEventType] ?? rawEventType);
+  const eventTypeEsc = escapeHtml(labelForEventType(rawEventType));
   const rawPriority = notification?.priority ?? "medium";
   const priorityEsc = escapeHtml(PRIORITY_LABELS[rawPriority] ?? rawPriority);
+  const sourceLabel = notification?.sourceType ? labelForSourceType(notification.sourceType) : null;
 
   const details = [
     createdAt ? `Generado: ${createdAt}` : null,
     eventStart ? `Evento: ${eventStart}` : null,
     reminderLead ? `Recordatorio: ${reminderLead}` : null,
-    notification?.sourceType
-      ? `Origen: ${SOURCE_TYPE_LABELS[notification.sourceType] ?? notification.sourceType}`
-      : null,
+    sourceLabel ? `Origen: ${sourceLabel}` : null,
   ].filter(Boolean);
 
   const html = `
@@ -208,7 +319,7 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
-        ${logoUrl ? `<img src="${logoUrl}" alt="Atlas ERP" style="height:26px;display:block;margin-bottom:10px" />` : ""}
+        ${brandHeaderHtml(logoUrl)}
         <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Notificaciones Atlas</div>
         <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0f172a">${titleEsc}</h1>
       </td>
@@ -234,11 +345,7 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
         }
       </td>
     </tr>
-    <tr>
-      <td style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:12px;color:#64748b">
-        Este correo fue generado automaticamente por Atlas ERP.
-      </td>
-    </tr>
+    ${EMAIL_FOOTER_HTML}
   </table>
 </div>
   `.trim();
@@ -248,7 +355,6 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
     "",
     title,
     body ? body : null,
-    details.length ? details.join("\n") : null,
     link ? `Abrir: ${link}` : null,
   ]
     .filter(Boolean)
@@ -276,31 +382,65 @@ export function createNotificationDeliveryWorker({
     notificationIds = null,
   } = {}) {
     const appBaseUrl = await resolveAppBaseUrl({ prisma });
-    const rows = await prisma.notificationDelivery.findMany({
+    const take = Math.min(Math.max(Number(limit) || DEFAULT_BATCH_SIZE, 1), 200);
+    const restrict =
+      Array.isArray(notificationIds) && notificationIds.length
+        ? { notificationId: { in: notificationIds } }
+        : {};
+
+    // Reclaim rows a killed/crashed pass abandoned mid-flight (status 'sending'
+    // with no recent heartbeat).
+    await prisma.notificationDelivery.updateMany({
       where: {
         channel,
-        status: "queued",
-        attempts: { lt: maxAttempts },
-        ...(Array.isArray(notificationIds) && notificationIds.length
-          ? { notificationId: { in: notificationIds } }
-          : {}),
+        status: "sending",
+        updatedAt: { lt: new Date(Date.now() - SENDING_RECLAIM_MINUTES * 60_000) },
       },
-      include: {
-        notification: {
+      data: { status: "queued" },
+    });
+
+    // Claim this pass's batch atomically: read candidates, then flip them
+    // queued -> sending guarded by `status: 'queued'`. Postgres serialises the
+    // UPDATEs, so a row that a concurrent worker already flipped no longer
+    // matches and is not returned here — each queued row is processed by exactly
+    // one pass, without a second worker or an overlapping tick double-sending.
+    const candidates = await prisma.notificationDelivery.findMany({
+      where: { channel, status: "queued", attempts: { lt: maxAttempts }, ...restrict },
+      orderBy: [{ createdAt: "asc" }],
+      take,
+      select: { id: true },
+    });
+    const candidateIds = candidates.map((row) => row.id);
+
+    let claimedIds = [];
+    if (candidateIds.length) {
+      const claimed = await prisma.notificationDelivery.updateManyAndReturn({
+        where: { id: { in: candidateIds }, status: "queued" },
+        data: { status: "sending", attempts: { increment: 1 } },
+        select: { id: true },
+      });
+      claimedIds = claimed.map((row) => row.id);
+    }
+
+    const rows = claimedIds.length
+      ? await prisma.notificationDelivery.findMany({
+          where: { id: { in: claimedIds } },
           include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                displayName: true,
+            notification: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    displayName: true,
+                  },
+                },
               },
             },
           },
-        },
-      },
-      orderBy: [{ createdAt: "asc" }],
-      take: Math.min(Math.max(Number(limit) || DEFAULT_BATCH_SIZE, 1), 200),
-    });
+          orderBy: [{ createdAt: "asc" }],
+        })
+      : [];
 
     let processed = 0;
     let sent = 0;
@@ -309,7 +449,8 @@ export function createNotificationDeliveryWorker({
 
     for (const delivery of rows) {
       processed += 1;
-      const attempts = (delivery.attempts ?? 0) + 1;
+      // attempts was already incremented by the claim above.
+      const attempts = delivery.attempts ?? 1;
       const recipientEmail = delivery.notification?.user?.email ?? null;
 
       try {
@@ -328,7 +469,7 @@ export function createNotificationDeliveryWorker({
             text: mail.text,
           });
         } else if (channel === "web_push") {
-          const subscriptions = await prisma.pushSubscription.findMany({
+          const allSubs = await prisma.pushSubscription.findMany({
             where: {
               userId: delivery.notification?.userId,
               enabled: true,
@@ -338,8 +479,27 @@ export function createNotificationDeliveryWorker({
               endpoint: true,
               p256dh: true,
               auth: true,
+              userAgent: true,
+              lastSeenAt: true,
+              createdAt: true,
             },
           });
+          // Collapse orphan subscriptions for the same physical device (same
+          // user agent) to the freshest one — otherwise a rotated endpoint that
+          // Apple/FCM still accepts makes the device buzz twice. Rows with a
+          // null user agent can't be grouped, so each is kept.
+          const byDevice = new Map();
+          const subscriptions = [];
+          for (const s of allSubs) {
+            if (!s.userAgent) {
+              subscriptions.push(s);
+              continue;
+            }
+            const fresh = (row) => row.lastSeenAt ?? row.createdAt ?? new Date(0);
+            const prev = byDevice.get(s.userAgent);
+            if (!prev || fresh(s) > fresh(prev)) byDevice.set(s.userAgent, s);
+          }
+          subscriptions.push(...byDevice.values());
           if (!subscriptions.length) {
             throw new Error("Destinatario sin suscripciones push activas.");
           }
@@ -362,6 +522,12 @@ export function createNotificationDeliveryWorker({
             });
             if (result.ok) {
               successfulDeliveries += 1;
+              await prisma.pushSubscription
+                .update({
+                  where: { id: subscription.id },
+                  data: { lastSeenAt: new Date() },
+                })
+                .catch(() => {});
               continue;
             }
             errors.push(result.error ?? "Envio fallido.");

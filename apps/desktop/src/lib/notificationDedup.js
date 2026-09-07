@@ -18,7 +18,7 @@ export function notificationKey(n) {
   return `c:${parts.join("|")}`;
 }
 
-export function claimNotification(key, windowMs = 4000) {
+export function claimNotification(key, windowMs = 6000) {
   if (!key) return true; // no key -> can't dedupe, let it through
   const now = Date.now();
   if (seen.size > 200) {

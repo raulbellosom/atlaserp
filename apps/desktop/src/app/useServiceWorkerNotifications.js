@@ -63,11 +63,15 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
         const link = resolveNotificationLink(message.link);
 
         // Collapse the web-push copy against the in-app (Supabase broadcast)
-        // one. For chat messages RealtimeProvider keys on sender+conversation,
-        // so match that shape here (title === sender, callId === conversation).
-        const dupKey = message.eventType === "chat.message.new" && message.callId
-          ? `c:chat.message.new|${title}|${message.callId}`
-          : notificationKey({ eventType: message.eventType, title, body });
+        // one. Both surfaces now carry the notification's dedupeKey, so
+        // notificationKey() produces the same `dk:` key on each; it falls back
+        // to a content hash when no dedupeKey is present.
+        const dupKey = notificationKey({
+          dedupeKey: message.dedupeKey,
+          eventType: message.eventType,
+          title,
+          body,
+        });
         if (!claimNotification(dupKey)) {
           invalidateNotifications();
           return;

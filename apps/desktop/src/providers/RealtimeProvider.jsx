@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { playCallSound } from '../modules/atlas.chat/calls/callSounds'
 import { useChatFloatStore } from '../modules/atlas.chat/store/chatFloatStore'
 import { notificationKey, claimNotification } from '../lib/notificationDedup'
+import { getStoredWebPushSubscriptionId } from '../lib/webPush'
 
 const RealtimeContext = createContext(null)
 
@@ -48,18 +49,24 @@ export function RealtimeProvider({ children }) {
         // a toast on top of it is noise.
         if (isIncomingCall) return
         // Collapse the in-app + web-push copies of the same alert.
-        if (!claimNotification(notificationKey(payload))) return
+        const dupKey = notificationKey(payload)
+        if (!claimNotification(dupKey)) return
         const handleClick = () => {
           if (!payload.link) return
           const href = payload.link.startsWith('/m/') ? `/app${payload.link}` : payload.link
           navigate(href)
         }
         playCallSound('notification')
-        if (document.hidden || isTauriRuntime()) {
+        // The service worker's `push` handler already raises the OS notification
+        // whenever web-push is active on this device — firing one here too is the
+        // desktop/Tauri double. Only take this path when there's no push
+        // subscription to do it for us (or under Tauri, which has no SW push).
+        const hasPushSub = Boolean(getStoredWebPushSubscriptionId())
+        if ((document.hidden || isTauriRuntime()) && (isTauriRuntime() || !hasPushSub)) {
           showSystemNotification({
             title: payload.title,
             body: payload.body ?? '',
-            tag: payload.eventType ?? 'atlas-notification',
+            tag: dupKey ?? payload.eventType ?? 'atlas-notification',
             data: { link: payload.link ?? null },
           }).catch(() => {})
         }

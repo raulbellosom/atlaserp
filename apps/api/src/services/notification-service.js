@@ -9,6 +9,13 @@ import { getDefaultNotificationPreference } from '@atlas/core';
 
 const DEDUPE_WINDOW_MS = 5000;
 
+// Chat-message emails (`chat.mail:<conv>:<user>` dedupe keys) are throttled to at
+// most one per conversation per recipient within this window, and additionally
+// suppressed while a prior one is still unread — opening the conversation marks
+// it read (markReadBySource), which re-arms the next email.
+const CHAT_MAIL_THROTTLE_MS =
+  Number(process.env.ATLAS_CHAT_EMAIL_THROTTLE_HOURS ?? 24) * 60 * 60 * 1000;
+
 const PRIORITY_KIND_MAP = {
   low: "info",
   medium: "info",
@@ -203,6 +210,20 @@ export function createNotificationService({ prisma, broadcaster = null }) {
       });
       return Boolean(row);
     }
+    // Chat email throttle: skip if a prior chat email for this conversation is
+    // still unread OR was created within the throttle window.
+    if (dedupeKey.startsWith('chat.mail:')) {
+      const since = new Date(Date.now() - CHAT_MAIL_THROTTLE_MS);
+      const row = await tx.notification.findFirst({
+        where: {
+          userId,
+          dedupeKey,
+          OR: [{ readAt: null }, { createdAt: { gte: since } }],
+        },
+        select: { id: true },
+      });
+      return Boolean(row);
+    }
     const since = new Date(Date.now() - DEDUPE_WINDOW_MS);
     const row = await tx.notification.findFirst({
       where: { userId, dedupeKey, createdAt: { gte: since } },
@@ -226,7 +247,12 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return { updated: result.count };
   }
 
-  async function publish({ companyId, actorId = null, input }) {
+  // `respectChannelDefaults: false` — the caller has already decided the
+  // recipient should get this on the external channels (e.g. chat-service has
+  // run its own away/throttle gate for chat-message email), so email/web_push
+  // are allowed unless the recipient has an EXPLICIT saved opt-out. `mute` and
+  // in-app defaults are still honoured.
+  async function publish({ companyId, actorId = null, input, respectChannelDefaults = true }) {
     const parsed = notificationPublishSchema.parse(input ?? {});
     const recipientUserIds = await resolveRecipientUserIds({
       companyId,
@@ -264,8 +290,12 @@ export function createNotificationService({ prisma, broadcaster = null }) {
         const allowedChannels = parsed.channels.filter((ch) => {
           if (muted) return false;
           if (ch === 'in_app') return effective.inAppEnabled !== false;
-          if (ch === 'email') return effective.emailEnabled === true;
-          if (ch === 'web_push') return effective.pushEnabled === true;
+          if (ch === 'email') {
+            return respectChannelDefaults ? effective.emailEnabled === true : pref?.emailEnabled !== false;
+          }
+          if (ch === 'web_push') {
+            return respectChannelDefaults ? effective.pushEnabled === true : pref?.pushEnabled !== false;
+          }
           return true;
         });
 
@@ -325,6 +355,11 @@ export function createNotificationService({ prisma, broadcaster = null }) {
         body: parsed.body ?? null,
         priority: parsed.priority ?? "medium",
         link: parsed.link ?? null,
+        // Lets the client collapse the realtime copy against the web-push copy
+        // of the same alert (both compute `dk:<dedupeKey>`). Only stable when an
+        // explicit dedupeKey was supplied (chat events do); otherwise the client
+        // falls back to a content hash, which already matches across surfaces.
+        dedupeKey: parsed.dedupeKey ?? null,
       }).catch(() => {});
     }
 
@@ -400,6 +435,27 @@ export function createNotificationService({ prisma, broadcaster = null }) {
         lastSeenAt: new Date(),
       },
     });
+
+    // Browsers rotate the push endpoint (and every PWA reinstall / permission
+    // re-grant mints a new one), leaving orphan rows that still accept pushes on
+    // Apple/FCM for a long time — the delivery worker then fans the same message
+    // out to every one of them and the device shows N copies. Retire the prior
+    // subscriptions for THIS device now that a fresh one is registered. Match on
+    // userAgent only: it is the real per-device/browser fingerprint, whereas
+    // deviceLabel is a generic constant ("Dispositivo web") shared across all of
+    // a user's devices, and matching userId alone would kill real devices.
+    if (userAgent) {
+      await prisma.pushSubscription.updateMany({
+        where: {
+          userId: profileId,
+          id: { not: row.id },
+          enabled: true,
+          userAgent,
+        },
+        data: { enabled: false },
+      });
+    }
+
     return { data: row };
   }
 

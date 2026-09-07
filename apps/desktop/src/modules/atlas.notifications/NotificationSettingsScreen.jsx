@@ -48,7 +48,8 @@ const EVENT_CATALOG = [
   {
     eventType: "chat.message.new",
     title: "Mensaje de chat",
-    description: "Cuando alguien te envia un mensaje directo o de grupo.",
+    description:
+      "Aviso por cada mensaje directo o de grupo. El correo solo se envia cuando llevas un rato sin abrir la conversacion, no en cada mensaje.",
     icon: MessageCircle,
   },
   {

@@ -39,8 +39,10 @@ self.addEventListener("push", (event) => {
     icon: payload?.icon || "/icon-192.png",
     badge: payload?.badge || "/icon-192.png",
     tag: payload?.tag,
-    // renotify only on iOS — Android Chrome triggers a spam warning on rapid pushes
-    renotify: Boolean(payload?.tag) && /iphone|ipad|ipod/i.test(self.navigator?.userAgent ?? ""),
+    // Only re-alert for incoming calls. For chat and everything else a repeat
+    // push with the same tag should replace the existing notification silently
+    // (rapid renotify reads as spam and iOS stacks each buzz separately).
+    renotify: isIncomingCall,
     requireInteraction: isIncomingCall,
     vibrate: isIncomingCall ? [500, 200, 500, 200, 500] : undefined,
     actions: isIncomingCall ? [{ action: "open-call", title: "Contestar" }] : undefined,
@@ -59,6 +61,7 @@ self.addEventListener("push", (event) => {
         link,
         notificationId: payload?.data?.notificationId ?? null,
         eventType: payload?.data?.eventType ?? null,
+        dedupeKey: payload?.data?.dedupeKey ?? null,
         callId: payload?.data?.metadata?.callId ?? payload?.data?.sourceId ?? null,
       }),
       self.registration.showNotification(title, options),

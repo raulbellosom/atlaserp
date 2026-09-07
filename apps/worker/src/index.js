@@ -154,7 +154,15 @@ async function reconnect() {
   }
 }
 
+// Bare setInterval ticks can stack when a pass runs longer than its interval
+// (slow SMTP, dead push endpoints) or when two worker processes overlap. A
+// per-tick in-flight flag keeps a single process from processing the same rows
+// twice; the delivery worker's atomic claim covers the multi-process case.
+const tickRunning = { calendar: false, delivery: false, tasksDueSoon: false }
+
 async function runCalendarReminderTick() {
+  if (tickRunning.calendar) return
+  tickRunning.calendar = true
   try {
     const result = await calendarNotificationService.processReminders()
     if ((result?.processed ?? 0) > 0) {
@@ -165,10 +173,14 @@ async function runCalendarReminderTick() {
   } catch (err) {
     console.error('[worker] calendar reminder tick failed:', err?.message ?? err)
     if (isConnectionError(err)) await reconnect()
+  } finally {
+    tickRunning.calendar = false
   }
 }
 
 async function runDeliveryTick() {
+  if (tickRunning.delivery) return
+  tickRunning.delivery = true
   try {
     const channels = ['email', 'web_push']
     for (const channel of channels) {
@@ -185,6 +197,8 @@ async function runDeliveryTick() {
   } catch (err) {
     console.error('[worker] notification delivery tick failed:', err?.message ?? err)
     if (isConnectionError(err)) await reconnect()
+  } finally {
+    tickRunning.delivery = false
   }
 }
 
@@ -201,6 +215,8 @@ async function runSyncCleanupTick() {
 }
 
 async function runTasksDueSoonTick() {
+  if (tickRunning.tasksDueSoon) return
+  tickRunning.tasksDueSoon = true
   try {
     const result = await projectsNotifService.processTasksDueSoon()
     if ((result?.published ?? 0) > 0) {
@@ -211,6 +227,8 @@ async function runTasksDueSoonTick() {
   } catch (err) {
     console.error('[worker] tasks due soon tick failed:', err?.message ?? err)
     if (isConnectionError(err)) await reconnect()
+  } finally {
+    tickRunning.tasksDueSoon = false
   }
 }
 

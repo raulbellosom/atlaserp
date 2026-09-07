@@ -175,6 +175,11 @@ describe("notification-delivery-worker web_push channel", () => {
     const prisma = {
       notificationDelivery: {
         findMany: async () => deliveries,
+        updateMany: async () => ({ count: 0 }),
+        updateManyAndReturn: async () => {
+          for (const d of deliveries) d.attempts = (d.attempts ?? 0) + 1;
+          return deliveries.map((d) => ({ id: d.id }));
+        },
         update: async ({ where, data }) => {
           updates.push({ where, data });
           return { id: where.id, ...data };
@@ -226,6 +231,11 @@ describe("notification-delivery-worker web_push channel", () => {
     const prisma = {
       notificationDelivery: {
         findMany: async () => deliveries,
+        updateMany: async () => ({ count: 0 }),
+        updateManyAndReturn: async () => {
+          for (const d of deliveries) d.attempts = (d.attempts ?? 0) + 1;
+          return deliveries.map((d) => ({ id: d.id }));
+        },
         update: async ({ where, data }) => {
           updates.push({ where, data });
           return { id: where.id, ...data };

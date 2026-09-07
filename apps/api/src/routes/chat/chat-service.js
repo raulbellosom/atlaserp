@@ -18,6 +18,15 @@ const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const _signedUrlCache = new Map();
 const SIGNED_URL_TTL_MS = 55 * 60 * 1000; // 55 minutes
 
+// Chat-message email is NOT sent per message. A recipient only gets one when
+// they've been away from the conversation for a while AND haven't already had a
+// chat email for it recently. Mentions and channel-adds are unaffected (they
+// always email). Tunable via env for ops.
+const CHAT_EMAIL_AWAY_MS =
+  Number(process.env.ATLAS_CHAT_EMAIL_AWAY_MINUTES ?? 120) * 60 * 1000;
+const CHAT_EMAIL_THROTTLE_MS =
+  Number(process.env.ATLAS_CHAT_EMAIL_THROTTLE_HOURS ?? 24) * 60 * 60 * 1000;
+
 function getCachedSignedUrl(bucket, objectKey, variant) {
   const key = `${bucket}:${objectKey}:${variant}`;
   const entry = _signedUrlCache.get(key);
@@ -82,12 +91,55 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           channels: ['in_app', 'email', 'web_push'],
           sourceType: 'chat_conversation',
           sourceId: conversation.id,
-          metadata: { conversationId: conversation.id },
+          metadata: {
+            kind: 'chat_member_added',
+            conversationId: conversation.id,
+            conversationTitle: conversation.title ?? null,
+            conversationType: conversation.type ?? null,
+          },
         },
       });
     } catch (err) {
       console.error('[chat.member.added]', err?.message ?? err);
     }
+  }
+
+  // Which of `candidateIds` should get an EMAIL for a plain chat message right
+  // now. Email is deliberately not per-message: a recipient qualifies only when
+  //   - they have no recent read of this conversation (away >= CHAT_EMAIL_AWAY_MS),
+  //   - they have not themselves sent a message here in that same window, and
+  //   - no chat email for this conversation reached them within CHAT_EMAIL_THROTTLE_MS.
+  // The publish layer additionally dedupes on `chat.mail:<conv>:<user>` so the
+  // throttle also resets the moment they open the conversation (mark-read).
+  async function resolveChatEmailRecipients({ conversationId, candidateIds, now = new Date() }) {
+    const ids = [...new Set((candidateIds ?? []).map((id) => id?.toString()).filter(Boolean))];
+    if (!ids.length) return [];
+    const awaySince = new Date(now.getTime() - CHAT_EMAIL_AWAY_MS);
+    const throttleSince = new Date(now.getTime() - CHAT_EMAIL_THROTTLE_MS);
+    const rows = await prisma.$queryRaw`
+      SELECT m.user_id
+      FROM chat_conversation_members m
+      WHERE m.conversation_id = ${conversationId}
+        AND m.left_at IS NULL
+        AND m.user_id = ANY(${ids}::uuid[])
+        AND (m.last_read_at IS NULL OR m.last_read_at < ${awaySince})
+        AND NOT EXISTS (
+          SELECT 1 FROM chat_messages sent
+          WHERE sent.conversation_id = ${conversationId}
+            AND sent.sender_user_id = m.user_id
+            AND sent.created_at >= ${awaySince}
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM notification n
+          JOIN notification_delivery d ON d.notification_id = n.id
+          WHERE n.user_id = m.user_id
+            AND n.source_type = 'chat_conversation'
+            AND n.source_id::text = ${conversationId}
+            AND d.channel = 'email'
+            AND n.created_at >= ${throttleSince}
+        )
+    `;
+    return rows.map((r) => r.user_id.toString());
   }
 
   async function assertMember(conversationId, userProfileId) {
@@ -883,8 +935,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
-    const [convRow] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+    const [convRow] = await prisma.$queryRaw`SELECT type, title FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
     const conversationType = convRow?.type ?? null;
+    const conversationTitle = convRow?.title ?? null;
     await assertNotBlocked(conversationId, profileId, conversationType);
 
     // Validate the quoted message (WhatsApp-style inline reply): must exist,
@@ -1071,6 +1124,59 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             .map((m) => m.user_id.toString())
             .filter((id) => !mentionedSet.has(id));
           const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
+          const emailPreview = body.length > 280 ? `${body.slice(0, 280)}…` : body;
+          const senderName = fullMsg?.sender?.displayName ?? "Alguien";
+          const isNamedRoom =
+            (conversationType === "channel" || conversationType === "group") &&
+            Boolean(conversationTitle);
+
+          // One email-only notification per eligible recipient (see
+          // resolveChatEmailRecipients). Never per message: gated by away-time
+          // and a per-conversation throttle, and additionally deduped on
+          // `chat.mail:<conv>:<user>` by the publish layer.
+          async function sendChatEmails(candidateIds, kind) {
+            let emailIds = [];
+            try {
+              emailIds = await resolveChatEmailRecipients({ conversationId, candidateIds });
+            } catch (err) {
+              // Email eligibility is best-effort — a failure here must never
+              // block the in-app / push notifications or the mention fan-out.
+              console.error("[chat.mail]", err?.message ?? err);
+              return;
+            }
+            for (const uid of emailIds) {
+              await notificationService.publish({
+                companyId,
+                actorId: profileId,
+                // Eligibility already decided by resolveChatEmailRecipients —
+                // send unless the recipient has an explicit email opt-out.
+                respectChannelDefaults: false,
+                input: {
+                  eventType: kind === "chat_thread_reply" ? "chat.thread.reply" : "chat.message.new",
+                  title: isNamedRoom
+                    ? `${senderName} · ${conversationTitle}`
+                    : `Nuevo mensaje de ${senderName}`,
+                  body: emailPreview,
+                  link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+                  recipients: { userIds: [uid] },
+                  channels: ["email"],
+                  priority: "medium",
+                  sourceType: "chat_conversation",
+                  sourceId: conversationId,
+                  dedupeKey: `chat.mail:${conversationId}:${uid}`,
+                  metadata: {
+                    kind,
+                    conversationId,
+                    conversationTitle: conversationTitle ?? null,
+                    conversationType: conversationType ?? null,
+                    senderName,
+                    senderId: profileId.toString(),
+                    snippet: emailPreview,
+                  },
+                },
+              }).catch((err) => console.error("[chat.mail]", err?.message ?? err));
+            }
+          }
 
           if (resolvedThreadRootId) {
             // Thread replies never fan out chat.message.new to the whole
@@ -1103,13 +1209,14 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                   body: preview,
                   link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
                   recipients: { userIds: threadRecipientIds },
-                  channels: ["in_app", "email", "web_push"],
+                  channels: ["in_app", "web_push"],
                   priority: "medium",
                   sourceType: "chat_conversation",
                   sourceId: conversationId,
                   dedupeKey: `chat.thread.reply:${msg.id}`,
                 },
               });
+              await sendChatEmails(threadRecipientIds, "chat_thread_reply");
             }
           } else if (recipientIds.length) {
             await notificationService.publish({
@@ -1121,13 +1228,14 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 body: preview,
                 link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: recipientIds },
-                channels: ["in_app", "email", "web_push"],
+                channels: ["in_app", "web_push"],
                 priority: "medium",
                 sourceType: "chat_conversation",
                 sourceId: conversationId,
                 dedupeKey: `chat.message.new:${msg.id}`,
               },
             });
+            await sendChatEmails(recipientIds, "chat_message");
           }
 
           if (mentionResult.notifyUserIds.length) {
@@ -1136,7 +1244,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
               actorId: profileId,
               input: {
                 eventType: "chat.mention.new",
-                title: "Te mencionaron en un chat",
+                title: `Te mencionó ${senderName}`,
                 body: preview,
                 link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: mentionResult.notifyUserIds },
@@ -1145,6 +1253,15 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 sourceType: "chat_conversation",
                 sourceId: conversationId,
                 dedupeKey: `chat.mention.new:${msg.id}`,
+                metadata: {
+                  kind: "chat_mention",
+                  conversationId,
+                  conversationTitle: conversationTitle ?? null,
+                  conversationType: conversationType ?? null,
+                  senderName,
+                  senderId: profileId.toString(),
+                  snippet: emailPreview,
+                },
               },
             });
           }
