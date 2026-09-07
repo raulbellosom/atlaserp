@@ -4,7 +4,7 @@ import {
   SwipeableRow, ConfirmDialog, useIsMobile,
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@atlas/ui";
-import { Archive, ArchiveRestore } from "lucide-react";
+import { Archive, ArchiveRestore, MoreHorizontal } from "lucide-react";
 import { buildConversationActions, fullSwipeAction } from "../lib/buildConversationActions.js";
 
 // Wraps a single conversation row with per-platform affordances:
@@ -118,7 +118,7 @@ export function ConversationRowActions({
   swipeActions.push({
     key: "more",
     label: "Más",
-    icon: undefined,
+    icon: MoreHorizontal,
     tone: "default",
     onSelect: () => setSheetOpen(true),
   });

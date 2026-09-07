@@ -63,6 +63,14 @@ function getDistance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function getMidpoint(a, b) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function touchPoint(t) {
+  return { x: t.clientX, y: t.clientY };
+}
+
 function ToolbarBtn({ children, title, onClick, disabled, active }) {
   return (
     <button
@@ -97,11 +105,16 @@ export function AdvancedFileViewer({
   const [rotation, setRotation] = useState(0);
   const [flipX, setFlipX] = useState(false);
   const [flipY, setFlipY] = useState(false);
+  // `zoom` is a multiplier over the computed fit scale (see fitScale below), so
+  // zoom === 1 always means "fills the visible area" and the toolbar's 100%
+  // reads true regardless of the file's natural pixel size.
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [pinching, setPinching] = useState(false);
   const [filmstripOpen, setFilmstripOpen] = useState(true);
+  const [naturalSize, setNaturalSize] = useState(null);   // { w, h } from <img onLoad>
+  const [containerSize, setContainerSize] = useState(null); // { w, h } from ResizeObserver
   // Real video thumbnails (browser-painted first frame, same trick as
   // MessageAttachments.jsx's VideoCard) resolved only for a small window
   // around the active index -- resolving+loading all of them at once for a
@@ -121,6 +134,12 @@ export function AdvancedFileViewer({
     startPan: { x: 0, y: 0 },
     startPoint: { x: 0, y: 0 },
   });
+  // Touch-gesture snapshots (iOS-reliable Touch Events path — see the effect
+  // near handlePointerDown). Refs, not state, so per-frame updates never
+  // re-render mid-gesture.
+  const pinchRef = useRef(null); // { dist, zoom, pan, center } | null
+  const panRef = useRef(null);   // { point, pan } | null
+  const lastTapRef = useRef(0);
 
   const file = files?.[activeIndex] ?? null;
   const kind = useMemo(() => getFileKind(file?.mimeType), [file?.mimeType]);
@@ -135,7 +154,10 @@ export function AdvancedFileViewer({
     setPan({ x: 0, y: 0 });
     setDragging(false);
     setPinching(false);
+    setNaturalSize(null);
     pointersRef.current.clear();
+    pinchRef.current = null;
+    panRef.current = null;
     gestureRef.current = {
       mode: null,
       startDistance: 0,
@@ -216,6 +238,52 @@ export function AdvancedFileViewer({
     );
   }, []);
 
+  // Track the image container's box so "fit" can be recomputed on modal
+  // resize / device rotation, not just on first paint.
+  useEffect(() => {
+    const el = imageContainerRef.current;
+    if (!el || kind !== "image") return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setContainerSize({ w: r.width, h: r.height });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [kind, signedUrl, loading]);
+
+  // Scale at which the image, at its natural size, exactly fills the visible
+  // area (by whichever axis binds first). No cap: big images shrink, small
+  // images grow — it never exceeds the modal's visible box. Accounts for the
+  // 90/270 rotation swap so a rotated photo still fits.
+  const rotatedQuarter = Math.abs(rotation % 180) === 90;
+  const fitScale = useMemo(() => {
+    if (!naturalSize || !containerSize || !naturalSize.w || !naturalSize.h) return 1;
+    const natW = rotatedQuarter ? naturalSize.h : naturalSize.w;
+    const natH = rotatedQuarter ? naturalSize.w : naturalSize.h;
+    const s = Math.min(containerSize.w / natW, containerSize.h / natH);
+    return Number.isFinite(s) && s > 0 ? s : 1;
+  }, [naturalSize, containerSize, rotatedQuarter]);
+
+  // `zoom` (toolbar %) is a multiplier over the fit; this is the real scale.
+  const effectiveScale = fitScale * zoom;
+
+  const clampPan = useCallback(
+    (next) => {
+      if (!naturalSize || !containerSize) return { x: 0, y: 0 };
+      const natW = rotatedQuarter ? naturalSize.h : naturalSize.w;
+      const natH = rotatedQuarter ? naturalSize.w : naturalSize.h;
+      const maxX = Math.max(0, (natW * effectiveScale - containerSize.w) / 2);
+      const maxY = Math.max(0, (natH * effectiveScale - containerSize.h) / 2);
+      return {
+        x: Math.min(maxX, Math.max(-maxX, next.x)),
+        y: Math.min(maxY, Math.max(-maxY, next.y)),
+      };
+    },
+    [naturalSize, containerSize, effectiveScale, rotatedQuarter],
+  );
+
   useEffect(() => {
     const el = imageContainerRef.current;
     if (!el) return;
@@ -228,18 +296,137 @@ export function AdvancedFileViewer({
     return () => el.removeEventListener("wheel", handleImageWheel);
   }, [nudgeZoom, signedUrl, loading, kind]);
 
+  // Latest transform state for the imperative Touch Events handlers below —
+  // refs so per-frame reads never force the effect to re-bind its listeners.
+  const liveRef = useRef({});
+  liveRef.current = { zoom, pan, clampPan };
+
+  // Touch gestures (pinch-zoom + pan + double-tap). iOS WebKit's multi-touch
+  // Pointer Events are unreliable — `pointercancel` storms during a pinch made
+  // the old handler re-seed its start distance every frame (the "1% per pinch"
+  // bug). Raw Touch Events with a non-passive listener are the robust path;
+  // the Pointer handlers below are now mouse/trackpad only.
   useEffect(() => {
     const el = imageContainerRef.current;
     if (!el || kind !== "image") return;
-    function preventNativePinch(e) {
-      if (e.touches.length > 1) e.preventDefault();
+
+    function centerAbs() {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     }
-    el.addEventListener("touchstart", preventNativePinch, { passive: false });
-    return () => el.removeEventListener("touchstart", preventNativePinch);
+
+    function onTouchStart(e) {
+      if (e.touches.length >= 2) {
+        e.preventDefault();
+        const p0 = touchPoint(e.touches[0]);
+        const p1 = touchPoint(e.touches[1]);
+        const c = centerAbs();
+        const mid = getMidpoint(p0, p1);
+        pinchRef.current = {
+          dist: getDistance(p0, p1) || 1,
+          zoom: liveRef.current.zoom,
+          pan: liveRef.current.pan,
+          centerAbs: c,
+          midRel: { x: mid.x - c.x, y: mid.y - c.y },
+        };
+        panRef.current = null;
+        lastTapRef.current = 0;
+        setPinching(true);
+        setDragging(false);
+      } else if (e.touches.length === 1) {
+        const p = touchPoint(e.touches[0]);
+        panRef.current = { point: p, pan: liveRef.current.pan };
+        // double-tap -> toggle fit / 2x, anchored at the tap
+        const now = Date.now();
+        if (now - lastTapRef.current < 280) {
+          lastTapRef.current = 0;
+          const c = centerAbs();
+          setZoom((z) => {
+            const zoomingIn = z <= 1;
+            if (!zoomingIn) {
+              setPan({ x: 0, y: 0 });
+              return 1;
+            }
+            setPan(
+              liveRef.current.clampPan({
+                x: -(p.x - c.x) * 0.6,
+                y: -(p.y - c.y) * 0.6,
+              }),
+            );
+            return 2;
+          });
+        } else {
+          lastTapRef.current = now;
+        }
+      }
+    }
+
+    function onTouchMove(e) {
+      if (e.touches.length >= 2 && pinchRef.current) {
+        e.preventDefault();
+        const p0 = touchPoint(e.touches[0]);
+        const p1 = touchPoint(e.touches[1]);
+        const snap = pinchRef.current;
+        const ratio = getDistance(p0, p1) / snap.dist;
+        const nextZoom = clampZoom(snap.zoom * ratio);
+        const scaleRatio = nextZoom / snap.zoom;
+        const mid = getMidpoint(p0, p1);
+        const m1 = { x: mid.x - snap.centerAbs.x, y: mid.y - snap.centerAbs.y };
+        setZoom(nextZoom);
+        setPan(
+          liveRef.current.clampPan({
+            x: m1.x + scaleRatio * (snap.pan.x - snap.midRel.x),
+            y: m1.y + scaleRatio * (snap.pan.y - snap.midRel.y),
+          }),
+        );
+        return;
+      }
+      if (e.touches.length === 1 && panRef.current) {
+        // Only pan when zoomed past fit — otherwise a one-finger drag on a
+        // fitted image would do nothing but churn renders.
+        if (liveRef.current.zoom <= 1) return;
+        e.preventDefault();
+        const p = touchPoint(e.touches[0]);
+        const snap = panRef.current;
+        setDragging(true);
+        setPan(
+          liveRef.current.clampPan({
+            x: snap.pan.x + (p.x - snap.point.x),
+            y: snap.pan.y + (p.y - snap.point.y),
+          }),
+        );
+      }
+    }
+
+    function onTouchEnd(e) {
+      if (e.touches.length === 1) {
+        // dropped from a pinch to one finger — reseed pan from here so the
+        // transition into a one-finger drag doesn't jump
+        pinchRef.current = null;
+        setPinching(false);
+        panRef.current = { point: touchPoint(e.touches[0]), pan: liveRef.current.pan };
+      } else if (e.touches.length === 0) {
+        pinchRef.current = null;
+        panRef.current = null;
+        setPinching(false);
+        setDragging(false);
+      }
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
   }, [kind, signedUrl, loading]);
 
   function handlePointerDown(event) {
-    if (kind !== "image") return;
+    if (kind !== "image" || event.pointerType === "touch") return;
 
     pointersRef.current.set(event.pointerId, {
       x: event.clientX,
@@ -270,7 +457,7 @@ export function AdvancedFileViewer({
   }
 
   function handlePointerMove(event) {
-    if (kind !== "image") return;
+    if (kind !== "image" || event.pointerType === "touch") return;
     if (!pointersRef.current.has(event.pointerId)) return;
 
     pointersRef.current.set(event.pointerId, {
@@ -298,7 +485,7 @@ export function AdvancedFileViewer({
   }
 
   function handlePointerEnd(event) {
-    if (kind !== "image") return;
+    if (kind !== "image" || event.pointerType === "touch") return;
 
     pointersRef.current.delete(event.pointerId);
     setDragging(false);
@@ -326,7 +513,7 @@ export function AdvancedFileViewer({
   }
 
   function handleImageDoubleClick(event) {
-    if (kind !== "image") return;
+    if (kind !== "image" || event.pointerType === "touch") return;
     event.preventDefault();
     const isZoomed = zoom > 1;
     const nextZoom = isZoomed ? 1 : 2;
@@ -340,10 +527,7 @@ export function AdvancedFileViewer({
     const rect = event.currentTarget.getBoundingClientRect();
     const offsetX = event.clientX - (rect.left + rect.width / 2);
     const offsetY = event.clientY - (rect.top + rect.height / 2);
-    setPan({
-      x: -offsetX * 0.6,
-      y: -offsetY * 0.6,
-    });
+    setPan(clampPan({ x: -offsetX * 0.6, y: -offsetY * 0.6 }));
   }
 
   function resetTransforms() {
@@ -406,10 +590,16 @@ export function AdvancedFileViewer({
 
   const gestureActive = dragging || pinching;
 
+  // scale() is the fit-relative effective scale, so the image renders at its
+  // natural box size and this brings it to "fills the visible area" at zoom 1.
   const imageTransformStyle = {
-    transform: `rotate(${rotation}deg) scaleX(${flipX ? -1 : 1}) scaleY(${flipY ? -1 : 1}) scale(${zoom})`,
+    transform: `rotate(${rotation}deg) scaleX(${flipX ? -1 : 1}) scaleY(${flipY ? -1 : 1}) scale(${effectiveScale})`,
     transformOrigin: "center",
     transition: gestureActive ? "none" : "transform 120ms ease",
+    width: naturalSize ? `${naturalSize.w}px` : undefined,
+    height: naturalSize ? `${naturalSize.h}px` : undefined,
+    maxWidth: "none",
+    maxHeight: "none",
   };
 
   const panTransformStyle = {
@@ -574,14 +764,24 @@ export function AdvancedFileViewer({
               >
                 <div
                   style={panTransformStyle}
-                  className="max-h-full max-w-full flex items-center justify-center"
+                  className="flex items-center justify-center"
                 >
+                  {/* Rendered at natural size; imageTransformStyle's scale()
+                      is the fit-relative effective scale (zoom 1 == fits the
+                      visible area). Hidden until measured to avoid a
+                      one-frame full-resolution flash. */}
                   <img
                     src={signedUrl}
                     alt={file?.originalName ?? "Archivo"}
                     draggable={false}
-                    className="max-h-full max-w-full object-contain will-change-transform pointer-events-none"
-                    style={imageTransformStyle}
+                    onLoad={(e) =>
+                      setNaturalSize({
+                        w: e.currentTarget.naturalWidth,
+                        h: e.currentTarget.naturalHeight,
+                      })
+                    }
+                    className="will-change-transform pointer-events-none block"
+                    style={{ ...imageTransformStyle, visibility: naturalSize ? "visible" : "hidden" }}
                   />
                 </div>
               </div>
@@ -694,73 +894,98 @@ export function AdvancedFileViewer({
                 )}
               </>
             )}
-          </div>
 
-          {/* ── FILMSTRIP (multi-file) ──────────────────── */}
-          {(files?.length ?? 0) > 1 && (
-            <div className="shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60">
-              <button
-                onClick={() => setFilmstripOpen((v) => !v)}
-                aria-label={filmstripOpen ? "Ocultar miniaturas" : "Mostrar miniaturas"}
-                title={filmstripOpen ? "Ocultar miniaturas" : "Mostrar miniaturas"}
-                className="w-full h-6 flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/40 transition-colors duration-150"
-              >
+            {/* ── FLOATING GLASS FILMSTRIP (multi-file) ───────
+                Overlays the content area (iOS Photos style) instead of a
+                docked bar cramped against the bottom toolbar. Auto-hides
+                while a pinch/pan gesture is running. */}
+            {(files?.length ?? 0) > 1 && !loading && signedUrl && (
+              <>
                 {filmstripOpen ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <div
+                    className={[
+                      "absolute left-1/2 -translate-x-1/2 bottom-3 z-20",
+                      "max-w-[calc(100%-1.5rem)] glass rounded-2xl p-1.5",
+                      "flex items-center gap-1.5",
+                      "transition-all duration-200",
+                      gestureActive
+                        ? "opacity-0 translate-y-2 pointer-events-none"
+                        : "opacity-100",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-center gap-2 overflow-x-auto px-0.5 py-0.5">
+                      {files.map((f, i) => {
+                        const fKind = getFileKind(f.mimeType);
+                        const videoThumbUrl =
+                          fKind === "video" ? videoThumbUrls[f.id] : null;
+                        return (
+                          <button
+                            key={f.id ?? i}
+                            ref={(node) => {
+                              if (node) thumbRefs.current.set(i, node);
+                              else thumbRefs.current.delete(i);
+                            }}
+                            onClick={() => onIndexChange(i)}
+                            aria-label={`Ir a ${f.originalName ?? f.name ?? `archivo ${i + 1}`}`}
+                            aria-current={i === activeIndex}
+                            className={[
+                              "h-12 w-12 shrink-0 rounded-lg overflow-hidden transition-all duration-150",
+                              i === activeIndex
+                                ? "ring-2 ring-[hsl(var(--primary))] opacity-100"
+                                : "opacity-50 hover:opacity-90",
+                            ].join(" ")}
+                          >
+                            {videoThumbUrl ? (
+                              // #t=0.1 forces the browser to seek and paint
+                              // that frame as a thumbnail — same trick as
+                              // MessageAttachments.jsx's VideoCard.
+                              <video
+                                src={`${videoThumbUrl}#t=0.1`}
+                                className="h-12 w-12 object-cover pointer-events-none"
+                                muted
+                                playsInline
+                                preload="metadata"
+                              />
+                            ) : (
+                              <FileVisual
+                                file={f}
+                                previewUrl={f.thumbnailUrl ?? null}
+                                className="h-12 w-12 object-cover"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setFilmstripOpen(false)}
+                      aria-label="Ocultar miniaturas"
+                      title="Ocultar miniaturas"
+                      className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/50 transition-colors"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : (
-                  <ChevronUp className="h-3.5 w-3.5" />
+                  <button
+                    onClick={() => setFilmstripOpen(true)}
+                    aria-label="Mostrar miniaturas"
+                    title="Mostrar miniaturas"
+                    className={[
+                      "absolute left-1/2 -translate-x-1/2 bottom-3 z-20",
+                      "h-8 px-3 glass rounded-full flex items-center gap-1.5",
+                      "text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]",
+                      "transition-all duration-200",
+                      gestureActive ? "opacity-0 pointer-events-none" : "opacity-100",
+                    ].join(" ")}
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    {activeIndex + 1} / {files.length}
+                  </button>
                 )}
-              </button>
-              {filmstripOpen && (
-                <div className="flex items-center gap-2 px-3 pb-2.5 overflow-x-auto">
-                  {files.map((f, i) => {
-                    const fKind = getFileKind(f.mimeType);
-                    const videoThumbUrl =
-                      fKind === "video" ? videoThumbUrls[f.id] : null;
-                    return (
-                      <button
-                        key={f.id ?? i}
-                        ref={(node) => {
-                          if (node) thumbRefs.current.set(i, node);
-                          else thumbRefs.current.delete(i);
-                        }}
-                        onClick={() => onIndexChange(i)}
-                        aria-label={`Ir a ${f.originalName ?? f.name ?? `archivo ${i + 1}`}`}
-                        aria-current={i === activeIndex}
-                        className={[
-                          "h-12 w-12 shrink-0 rounded-lg overflow-hidden transition-all duration-150",
-                          i === activeIndex
-                            ? "ring-2 ring-[hsl(var(--primary))] opacity-100"
-                            : "opacity-50 hover:opacity-90",
-                        ].join(" ")}
-                      >
-                        {videoThumbUrl ? (
-                          // Appending #t=0.1 forces the browser to seek and
-                          // paint that frame as a thumbnail -- same trick as
-                          // MessageAttachments.jsx's VideoCard, but with
-                          // preload="metadata" (not "auto") since this can
-                          // run for up to 7 thumbnails at once.
-                          <video
-                            src={`${videoThumbUrl}#t=0.1`}
-                            className="h-12 w-12 object-cover pointer-events-none"
-                            muted
-                            playsInline
-                            preload="metadata"
-                          />
-                        ) : (
-                          <FileVisual
-                            file={f}
-                            previewUrl={f.thumbnailUrl ?? null}
-                            className="h-12 w-12 object-cover"
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
           {/* ── BOTTOM TOOLBAR ───────────────────────────── */}
           {/* Always reserved at the same height once a file is loaded, so
