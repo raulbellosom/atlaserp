@@ -21,6 +21,26 @@ import { getCallMeta } from "./callLogMeta";
 import { MessageActionSheet } from "./MessageActionSheet";
 import { buildMessageActions } from "../lib/messageActions";
 
+// Block native text selection app-wide the instant a touch lands on a message
+// row (chat-suppress-select in chat-theme.css). It has to be in place BEFORE
+// iOS's long-press selection timer fires (~500ms) — applying user-select:none
+// afterwards or clearing the range can't abort the selection loupe / the
+// "Copy · Translate" bar once they appear. Released on pointerup/cancel, with
+// a safety timeout so a stolen gesture can't leave selection disabled forever.
+let _selReleaseTimer = null;
+function suppressNativeSelection() {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.add("chat-suppress-select");
+  try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ }
+  clearTimeout(_selReleaseTimer);
+  _selReleaseTimer = setTimeout(releaseNativeSelection, 2500);
+}
+function releaseNativeSelection() {
+  if (typeof document === "undefined") return;
+  clearTimeout(_selReleaseTimer);
+  document.documentElement.classList.remove("chat-suppress-select");
+}
+
 // ── Corner radius for grouped bubbles ─────────────────────────────────────────
 function bubbleRadius(isOwn, isFirst, isLast) {
   const FULL = "rounded-[var(--chat-radius-bubble)]";
@@ -248,6 +268,10 @@ export function ChatMessageBubble({
   // (previously it could hit the just-opened menu's "Seleccionar" item and
   // drop the whole list into selection mode).
   const suppressClickRef = useRef(false);
+  // Rect + attachment id captured at pointerdown, when e.currentTarget (the
+  // row) is still live — the deferred long-press callback can't rely on the
+  // event's target/currentTarget being usable ~450ms later.
+  const pressRef = useRef({ rect: null, attId: null });
   const coarse = useCoarsePointer();
   const isMobile = useIsMobile();
   // On touch, suppress the browser's native text selection / callout so a
@@ -263,6 +287,7 @@ export function ChatMessageBubble({
   // gets eaten by handleRowClickCapture.
   useEffect(() => {
     if (actionSheet.open) return undefined;
+    releaseNativeSelection();
     const t = setTimeout(() => { suppressClickRef.current = false; }, 60);
     return () => clearTimeout(t);
   }, [actionSheet.open]);
@@ -279,19 +304,14 @@ export function ChatMessageBubble({
     ignoreInteractiveTarget: true,
     onLongPress: (e) => {
       const t = e?.target;
-      const attEl = t?.closest?.("[data-attachment-id]");
       // Allow the press on the bubble body / text and on an attachment tile;
       // ignore it on the hover "..." button, reaction pills, links, inputs.
-      if (!attEl && t?.closest?.("a,button,input,textarea,[role=button]")) return;
+      if (!pressRef.current.attId && t?.closest?.("a,button,input,textarea,[role=button]")) return;
       suppressClickRef.current = true;
-      // Drop any text selection iOS may have started during the hold before
-      // our menu opens — otherwise the first tap on a menu item only clears
-      // the selection and a second tap is needed to actually act.
       try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ }
-      const anchorEl = attEl ?? t?.closest?.("[data-msg-id]");
-      const r = anchorEl?.getBoundingClientRect?.();
-      const attachment = attEl
-        ? (message.attachments ?? []).find((a) => String(a.id) === attEl.dataset.attachmentId) ?? null
+      const { rect: r, attId } = pressRef.current;
+      const attachment = attId
+        ? (message.attachments ?? []).find((a) => String(a.id) === attId) ?? null
         : null;
       setActionSheet({
         open: true,
@@ -317,6 +337,7 @@ export function ChatMessageBubble({
 
   function handleRowPointerUp(e) {
     if (fromMenu(e)) return;
+    releaseNativeSelection();
     longPress.onPointerUp?.(e);
     swipeHandlers.onPointerUp?.(e);
     if (coarse) { try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ } }
@@ -373,10 +394,32 @@ export function ChatMessageBubble({
   }
 
   const rowGestureProps = {
-    onPointerDown: (e) => { if (fromMenu(e)) return; longPress.onPointerDown?.(e); swipeHandlers.onPointerDown?.(e); },
+    onPointerDown: (e) => {
+      if (fromMenu(e)) return;
+      // Capture the anchor now, while e.currentTarget (the row) is live.
+      const attEl = e.target?.closest?.("[data-attachment-id]");
+      const anchorEl = attEl ?? e.currentTarget;
+      const rect = anchorEl?.getBoundingClientRect?.() ?? null;
+      pressRef.current = {
+        rect: rect && { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height },
+        attId: attEl?.dataset?.attachmentId ?? null,
+      };
+      // The instant a finger lands, block native text selection app-wide
+      // (see chat-suppress-select in chat-theme.css) — this beats iOS's
+      // long-press selection timer, which `user-select:none` set later or
+      // getSelection().removeAllRanges() can't fully abort once it fires.
+      if (e.pointerType === "touch") suppressNativeSelection();
+      longPress.onPointerDown?.(e);
+      swipeHandlers.onPointerDown?.(e);
+    },
     onPointerMove: (e) => { if (fromMenu(e)) return; longPress.onPointerMove?.(e); swipeHandlers.onPointerMove?.(e); },
     onPointerUp: handleRowPointerUp,
-    onPointerCancel: (e) => { if (fromMenu(e)) return; longPress.onPointerCancel?.(e); swipeHandlers.onPointerCancel?.(e); },
+    onPointerCancel: (e) => {
+      if (fromMenu(e)) return;
+      releaseNativeSelection();
+      longPress.onPointerCancel?.(e);
+      swipeHandlers.onPointerCancel?.(e);
+    },
     onClickCapture: handleRowClickCapture,
     onContextMenu: handleRowContextMenu,
     style: {

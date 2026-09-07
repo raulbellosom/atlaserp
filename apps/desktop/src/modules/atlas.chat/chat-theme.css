@@ -43,14 +43,26 @@
   border: 1px solid hsl(var(--border) / 0.5);
 }
 
-/* Touch: kill native text selection / callout on message rows so a long-press
-   opens our action popover instead of starting a selection the user then drags
-   across bubbles. `data-touch` is set by ChatMessageBubble only when the
-   primary pointer is coarse, so pointer-fine devices (desktop) keep text fully
-   selectable. `!important` + the descendant `*` beat any child rule that
-   re-enables selection (iOS is picky here). */
-.chat-msg-row[data-touch="1"],
-.chat-msg-row[data-touch="1"] * {
+/* Touch: kill native text selection / callout so a long-press opens our action
+   popover instead of iOS's selection loupe + "Copy/Translate" bar. Two layers,
+   because a mis-reporting WKWebView can't be trusted on `pointer: coarse`
+   alone:
+   1. A static rule for any coarse-pointer device (the common case).
+   2. `chat-suppress-select` — added to <html> by ChatMessageBubble on a
+      `pointerType === 'touch'` press (reliable, not media-query based) and
+      removed on release. This beats iOS's ~500ms selection timer because it
+      is in place the instant the finger lands. Desktop mouse presses never
+      add it, so click-drag text selection still works there. */
+@media (pointer: coarse) {
+  .chat-msg-row,
+  .chat-msg-row * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+  }
+}
+.chat-suppress-select,
+.chat-suppress-select *:not(input):not(textarea):not([contenteditable]) {
   -webkit-user-select: none !important;
   user-select: none !important;
   -webkit-touch-callout: none !important;
