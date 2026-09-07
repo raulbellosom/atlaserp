@@ -582,3 +582,138 @@ describe("createCallService", () => {
     assert.equal(result.status, "ENDED");
   });
 });
+
+describe("createCallService.inviteMembersToLiveCall", () => {
+  const HOST = CALLER_ID;
+  const GUEST = CALLEE_ID;
+
+  function buildPrisma({ liveCall = null, existingMemberIds = [], existingParticipantIds = [] } = {}) {
+    const calls = { executeRaw: [], createManyParticipants: null };
+    const prisma = {
+      membership: { findFirst: async () => ({ companyId: "co-1" }) },
+      call: { findFirst: async () => liveCall },
+      callParticipant: {
+        findMany: async () => existingParticipantIds.map((userId) => ({ userId })),
+        createMany: async ({ data }) => { calls.createManyParticipants = data; return { count: data.length }; },
+      },
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("FROM user_profile") && sql.includes("id = ANY")) {
+          return [{ displayName: "Nuevo Usuario" }];
+        }
+        if (sql.includes("FROM user_profile")) return [{ displayName: "Anfitrion" }];
+        if (sql.includes("chat_conversation_members")) {
+          return existingMemberIds.map((userId) => ({ userId }));
+        }
+        return [];
+      },
+      $executeRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        calls.executeRaw.push(sql);
+        return 1;
+      },
+    };
+    return { prisma, calls };
+  }
+
+  it("adds a non-member, attaches them to the live call and fires the incoming-call alert", async () => {
+    const { prisma, calls } = buildPrisma({
+      liveCall: { id: CALL_ID, kind: "VIDEO", initiatedByUserId: HOST },
+    });
+    const published = [];
+    const broadcasts = [];
+    const flushed = [];
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      notificationService: { publish: async (args) => { published.push(args); return { data: [{ id: "n1" }] }; } },
+      broadcaster: { broadcastToUsers: async (ids, event, payload) => { broadcasts.push({ ids, event, payload }); } },
+      deliveryWorker: { processPendingNotificationDeliveries: async (args) => { flushed.push(args); } },
+    });
+
+    const out = await service.inviteMembersToLiveCall({
+      conversationId: CONVERSATION_ID,
+      inviterProfileId: HOST,
+      users: [{ userId: GUEST, email: "guest@x.com" }],
+    });
+
+    assert.deepEqual(out.notified, [GUEST]);
+    assert.deepEqual(out.addedMembers, [GUEST]);
+    assert.deepEqual(out.addedParticipants, [GUEST]);
+    assert.deepEqual(calls.createManyParticipants, [
+      { callId: CALL_ID, userId: GUEST, status: "RINGING", livekitIdentity: GUEST },
+    ]);
+
+    assert.equal(published.length, 1);
+    assert.equal(published[0].input.eventType, "chat.call.incoming");
+    assert.deepEqual(published[0].input.recipients.userIds, [GUEST]);
+    assert.deepEqual(published[0].input.channels, ["in_app", "web_push"]);
+    assert.equal(published[0].input.dedupeKey, `chat.call.incoming:${CALL_ID}`);
+
+    assert.ok(broadcasts.some((b) => b.event === "chat.call.incoming" && b.ids.includes(GUEST)));
+    assert.ok(broadcasts.some((b) => b.event === "chat.conversation.new" && b.ids.includes(GUEST)));
+    assert.deepEqual(flushed, [{ channel: "web_push", notificationIds: ["n1"], limit: 1 }]);
+  });
+
+  it("skips the member insert for someone already in the conversation", async () => {
+    const { prisma, calls } = buildPrisma({
+      liveCall: { id: CALL_ID, kind: "AUDIO", initiatedByUserId: HOST },
+      existingMemberIds: [GUEST],
+      existingParticipantIds: [GUEST],
+    });
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      notificationService: { publish: async () => ({ data: [] }) },
+      broadcaster: { broadcastToUsers: async () => {} },
+    });
+
+    const out = await service.inviteMembersToLiveCall({
+      conversationId: CONVERSATION_ID,
+      inviterProfileId: HOST,
+      users: [{ userId: GUEST }],
+    });
+
+    assert.deepEqual(out.addedMembers, []);
+    assert.deepEqual(out.addedParticipants, []);
+    assert.deepEqual(out.notified, [GUEST]);
+    assert.equal(calls.createManyParticipants, null);
+    assert.ok(!calls.executeRaw.some((sql) => sql.includes("INSERT INTO chat_conversation_members")));
+  });
+
+  it("still notifies (no ring / no participant) when there is no live call", async () => {
+    const { prisma, calls } = buildPrisma({ liveCall: null });
+    const published = [];
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      notificationService: { publish: async (args) => { published.push(args); return { data: [{ id: "n2" }] }; } },
+      broadcaster: { broadcastToUsers: async () => {} },
+    });
+
+    const out = await service.inviteMembersToLiveCall({
+      conversationId: CONVERSATION_ID,
+      inviterProfileId: HOST,
+      users: [{ userId: GUEST }],
+    });
+
+    assert.deepEqual(out.notified, [GUEST]);
+    assert.deepEqual(out.addedParticipants, []);
+    assert.equal(calls.createManyParticipants, null);
+    assert.equal(published[0].input.dedupeKey, `chat.call.invite:${CONVERSATION_ID}:${HOST}`);
+    assert.match(published[0].input.metadata.conversationId, /2222/);
+  });
+
+  it("returns early for an empty user list without touching the db", async () => {
+    let touched = false;
+    const prisma = new Proxy({}, { get() { touched = true; return () => { throw new Error("no db"); }; } });
+    const service = createCallService({ prisma, env: enabledEnv() });
+    const out = await service.inviteMembersToLiveCall({
+      conversationId: CONVERSATION_ID,
+      inviterProfileId: HOST,
+      users: [],
+    });
+    assert.deepEqual(out, { notified: [], addedMembers: [], addedParticipants: [] });
+    assert.equal(touched, false);
+  });
+});

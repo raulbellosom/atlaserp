@@ -7,7 +7,7 @@ import { Copy, Check, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
-import { summarizeInviteResult } from "./lib/inviteResult";
+import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -70,8 +70,9 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
       const r = unwrap(await atlas.calls.sendInvites(conversationId, emails, token));
       setInviteResult(r);
       setEmails([]);
-      const { successCount, notice } = summarizeInviteResult(r);
-      if (successCount) toast.success(`${successCount} invitación(es) procesadas.`);
+      const { notice } = summarizeInviteResult(r);
+      const outcome = describeInviteOutcome(r);
+      if (outcome) toast.success(outcome);
       if (notice) {
         toast.message(notice.title, notice.description ? { description: notice.description } : undefined);
       }
@@ -159,9 +160,10 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
               <div className="mt-2 flex justify-end">
                 <Button size="sm" onClick={sendInvites} disabled={!emails.length}>Enviar invitaciones</Button>
               </div>
-              {inviteResult?.matchedUsers?.length > 0 && (
+              {(inviteResult?.notifiedUsers?.length ?? inviteResult?.matchedUsers?.length ?? 0) > 0 && (
                 <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
-                  {inviteResult.matchedUsers.length} ya tienen cuenta — agrégalos como miembros y llámalos normalmente.
+                  {inviteResult.notifiedUsers?.length ?? inviteResult.matchedUsers.length} ya tienen cuenta: se
+                  añadieron a la reunión y recibieron el aviso de llamada en la app.
                 </p>
               )}
               {inviteResult?.pendingManual?.length > 0 && (

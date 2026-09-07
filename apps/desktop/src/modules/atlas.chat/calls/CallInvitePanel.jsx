@@ -4,7 +4,7 @@ import { Copy, Check, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
-import { summarizeInviteResult } from "./lib/inviteResult";
+import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -44,8 +44,9 @@ export function CallInvitePanel({ conversationId }) {
     setSending(true);
     try {
       const res = unwrap(await atlas.calls.sendInvites(conversationId, emails, token));
-      const { successCount, notice } = summarizeInviteResult(res);
-      if (successCount) toast.success(`${successCount} invitación(es) enviadas.`);
+      const { notice } = summarizeInviteResult(res);
+      const outcome = describeInviteOutcome(res);
+      if (outcome) toast.success(outcome);
       if (notice) {
         toast.message(notice.title, notice.description ? { description: notice.description } : undefined);
       }

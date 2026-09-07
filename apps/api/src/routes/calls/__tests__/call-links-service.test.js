@@ -92,9 +92,21 @@ describe("createCallLinksService.sendInvites", () => {
     };
     const sent = [];
     const smtpService = { isConfigured: async () => true, sendEmail: async (m) => { sent.push(m); } };
-    const svc = createCallLinksService({ prisma, smtpService, callService: { assertCanManageCall: async () => {} }, env: { PUBLIC_APP_URL: "https://app.test" } });
+    const inviteCalls = [];
+    const callService = {
+      assertCanManageCall: async () => {},
+      inviteMembersToLiveCall: async (args) => {
+        inviteCalls.push(args);
+        return { notified: args.users.map((u) => u.userId), addedMembers: [], addedParticipants: [] };
+      },
+    };
+    const svc = createCallLinksService({ prisma, smtpService, callService, env: { PUBLIC_APP_URL: "https://app.test" } });
     const out = await svc.sendInvites({ authUserId: "auth", conversationId: CONV, profileId: USER, emails: ["match@x.com", "outsider@y.com"] });
     assert.deepEqual(out.matchedUsers.map((u) => u.userId), ["u-match"]);
+    // Matched platform users are pulled into the meeting + pinged, not emailed.
+    assert.deepEqual(out.notifiedUsers.map((u) => u.userId), ["u-match"]);
+    assert.equal(inviteCalls.length, 1);
+    assert.deepEqual(inviteCalls[0].users.map((u) => u.userId), ["u-match"]);
     assert.equal(out.invited.length, 1);
     assert.equal(out.pendingManual.length, 0);
     assert.deepEqual(sent.map((m) => m.to), ["outsider@y.com"]);

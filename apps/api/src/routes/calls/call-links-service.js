@@ -173,6 +173,24 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
     const matchedByEmail = new Map(companyRows.map((r) => [r.email, r.userId]));
     const matchedUsers = [...matchedByEmail.entries()].map(([email, userId]) => ({ email, userId }));
 
+    // Platform users get pulled straight into the meeting (member + live-call
+    // participant) plus the in-app / web_push "incoming call" alert — no guest
+    // email. Best-effort: a failure here never blocks the external invites.
+    let notifiedUsers = [];
+    if (matchedUsers.length && callService?.inviteMembersToLiveCall) {
+      try {
+        const res = await callService.inviteMembersToLiveCall({
+          conversationId,
+          inviterProfileId: profileId,
+          users: matchedUsers,
+        });
+        const notifiedIds = new Set(res?.notified ?? []);
+        notifiedUsers = matchedUsers.filter((u) => notifiedIds.has(u.userId));
+      } catch (err) {
+        console.warn("[atlas.calls] No se pudo avisar a los usuarios con cuenta:", err?.message ?? err);
+      }
+    }
+
     const invited = [];
     const pendingManual = [];
     // First delivery failure message, surfaced to the UI so the host knows the
@@ -251,7 +269,7 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
       }
     }
 
-    return { matchedUsers, invited, pendingManual, smtpConfigured: smtpOk, sendError };
+    return { matchedUsers, notifiedUsers, invited, pendingManual, smtpConfigured: smtpOk, sendError };
   }
 
   return {

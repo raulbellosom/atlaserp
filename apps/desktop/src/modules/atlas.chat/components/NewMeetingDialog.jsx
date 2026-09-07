@@ -13,7 +13,7 @@ import { getConversationDisplayName } from "../lib/chatUtils";
 import { useCalls } from "../calls/CallsProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { startMeeting } from "../lib/startMeeting.js";
-import { summarizeInviteResult } from "../calls/lib/inviteResult";
+import { summarizeInviteResult, describeInviteOutcome } from "../calls/lib/inviteResult";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -129,8 +129,9 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     if (!emails.length) return;
     try {
       const res = unwrap(await atlas.calls.sendInvites(targetId, emails, token));
-      const { successCount, notice } = summarizeInviteResult(res);
-      if (successCount) toast.success(`${successCount} invitación(es) enviadas.`);
+      const { notice } = summarizeInviteResult(res);
+      const outcome = describeInviteOutcome(res);
+      if (outcome) toast.success(outcome);
       if (notice) {
         toast.message(notice.title, notice.description ? { description: notice.description } : undefined);
       }

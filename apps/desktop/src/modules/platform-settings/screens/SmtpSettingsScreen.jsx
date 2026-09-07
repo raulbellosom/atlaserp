@@ -76,7 +76,16 @@ export default function SmtpSettingsScreen() {
     saveMutation.mutate(payload)
   }
 
-  const configured = configQuery.data?.data?.configured ?? false
+  const smtpData = configQuery.data?.data
+  const configured = smtpData?.configured ?? false
+  const statusReason = smtpData?.status_reason ?? null
+  const statusMessage = smtpData?.status_message ?? null
+  // A saved-but-unusable config (almost always: JWT_SECRET changed, so the stored
+  // password no longer decrypts) reports configured=false WITH a reason. Surface
+  // it, and keep the "Enviar prueba" button available so the admin can confirm a
+  // re-save fixed it.
+  const savedButBroken = !configured && statusReason && statusReason !== 'not_configured'
+  const canTest = configured || savedButBroken
 
   return (
     <div className="flex flex-col min-h-full">
@@ -91,6 +100,18 @@ export default function SmtpSettingsScreen() {
           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
             <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
             SMTP configurado
+          </div>
+        )}
+
+        {savedButBroken && (
+          <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg dark:text-amber-200 dark:bg-amber-950/40 dark:border-amber-900">
+            <span className="mt-1 w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <span>
+              {statusMessage
+                || 'La configuracion SMTP guardada no se puede usar. Vuelve a escribir la contrasena y guarda.'}
+              <br />
+              Mientras tanto, ningun correo de la plataforma sale (notificaciones, calendario, invitaciones a llamadas).
+            </span>
           </div>
         )}
 
@@ -167,7 +188,7 @@ export default function SmtpSettingsScreen() {
               <Button type="submit" disabled={saveMutation.isPending} className="flex-1">
                 {saveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
               </Button>
-              {configured && (
+              {canTest && (
                 <Button
                   type="button"
                   variant="outline"

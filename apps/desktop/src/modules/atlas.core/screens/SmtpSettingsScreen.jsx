@@ -105,7 +105,15 @@ export default function SmtpSettingsScreen() {
     saveMutation.mutate(payload);
   }
 
-  const configured = configQuery.data?.data?.configured ?? false;
+  const smtpData = configQuery.data?.data;
+  const configured = smtpData?.configured ?? false;
+  const statusReason = smtpData?.status_reason ?? null;
+  const statusMessage = smtpData?.status_message ?? null;
+  // A saved-but-unusable config (almost always: JWT_SECRET changed, so the stored
+  // password no longer decrypts) reports configured=false WITH a reason. Surface
+  // it, and keep the test button available so a re-save can be verified.
+  const savedButBroken = !configured && statusReason && statusReason !== "not_configured";
+  const canTest = configured || savedButBroken;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -126,8 +134,25 @@ export default function SmtpSettingsScreen() {
                 Configurado
               </span>
             )}
+            {savedButBroken && (
+              <span className="flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full dark:text-amber-200 dark:bg-amber-950/40 dark:border-amber-900">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Revisar
+              </span>
+            )}
           </div>
           <div className="p-4 space-y-4">
+            {savedButBroken && (
+              <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg dark:text-amber-200 dark:bg-amber-950/40 dark:border-amber-900">
+                <span className="mt-1 w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                <span>
+                  {statusMessage
+                    || "La configuracion SMTP guardada no se puede usar. Vuelve a escribir la contrasena y guarda."}
+                  <br />
+                  Mientras tanto, ningun correo de la plataforma sale (notificaciones, calendario, invitaciones a llamadas).
+                </span>
+              </div>
+            )}
             {configQuery.isPending ? (
               <>
                 <div className="grid grid-cols-2 gap-3">

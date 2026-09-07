@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { summarizeInviteResult } from "../inviteResult.js";
+import { summarizeInviteResult, describeInviteOutcome } from "../inviteResult.js";
 
 describe("summarizeInviteResult", () => {
   it("counts emailed invites plus matched company users as successes", () => {
@@ -11,6 +11,34 @@ describe("summarizeInviteResult", () => {
     });
     assert.equal(successCount, 3);
     assert.equal(notice, null);
+  });
+
+  it("prefers notifiedUsers over matchedUsers when the API splits them out", () => {
+    const summary = summarizeInviteResult({
+      invited: [{ email: "a@x.com" }],
+      matchedUsers: [{ userId: "u1" }, { userId: "u2" }],
+      notifiedUsers: [{ userId: "u1" }],
+      pendingManual: [],
+    });
+    assert.equal(summary.notifiedCount, 1);
+    assert.equal(summary.emailedCount, 1);
+    assert.equal(summary.successCount, 2);
+  });
+
+  it("describeInviteOutcome mentions both the in-app pings and the emails", () => {
+    const text = describeInviteOutcome({
+      invited: [{ email: "a@x.com" }, { email: "b@x.com" }],
+      notifiedUsers: [{ userId: "u1" }],
+    });
+    assert.match(text, /1 usuario de Atlas/);
+    assert.match(text, /2 invitaciones enviadas por correo/);
+  });
+
+  it("describeInviteOutcome returns null when nothing succeeded", () => {
+    assert.equal(
+      describeInviteOutcome({ invited: [], notifiedUsers: [], pendingManual: [{ email: "a@x.com", reason: "smtp_error" }] }),
+      null,
+    );
   });
 
   it("shows the 'not configured' notice when SMTP is simply absent", () => {
