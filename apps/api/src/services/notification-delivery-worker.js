@@ -201,38 +201,25 @@ function labelForSourceType(raw) {
   return SOURCE_TYPE_LABELS[raw] ?? humanizeToken(raw);
 }
 
-// An https URL whose host is not loopback — safe to reference from an email.
-function asPublicHttps(value) {
-  const normalized = normalizeBaseUrl(value);
-  if (!normalized) return null;
-  try {
-    const url = new URL(normalized);
-    if (url.protocol !== "https:") return null;
-    if (/^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\])$/i.test(url.hostname)) return null;
-    return normalized;
-  } catch {
-    return null;
-  }
-}
-
-function resolveEmailLogoUrl(appBaseUrl) {
-  const explicit = asPublicHttps(process.env.ATLAS_EMAIL_LOGO_URL);
-  if (explicit) return explicit;
-  const base = asPublicHttps(appBaseUrl);
-  if (base) return `${base}/brand/atlas-logo-horizontal.png`;
-  return null;
-}
-
-function brandHeaderHtml(logoUrl) {
+// `brand` is resolved per company from BrandingConfig (see resolveCompanyBrand):
+// { logoUrl, companyName }. With a logo we show it; otherwise a text wordmark
+// using the company name, falling back to "Atlas ERP".
+function brandHeaderHtml(brand) {
+  const logoUrl = brand?.logoUrl ?? null;
   if (logoUrl) {
-    return `<img src="${logoUrl}" alt="Atlas ERP" style="height:26px;display:block;margin-bottom:10px" />`;
+    const alt = escapeHtml(brand?.companyName || "Logo");
+    return `<img src="${logoUrl}" alt="${alt}" style="max-height:32px;display:block;margin-bottom:10px" />`;
+  }
+  const name = brand?.companyName;
+  if (name) {
+    return `<div style="font-size:18px;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin-bottom:8px">${escapeHtml(name)}</div>`;
   }
   return `<div style="font-size:18px;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin-bottom:8px">Atlas<span style="color:#2563eb">ERP</span></div>`;
 }
 
 const EMAIL_FOOTER_HTML = `<tr><td style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:12px;color:#64748b">Este correo fue generado automaticamente por Atlas ERP.</td></tr>`;
 
-function buildChatEmail({ notification, link, logoUrl, createdAt }) {
+function buildChatEmail({ notification, link, brand, createdAt }) {
   const meta = notification?.metadata ?? {};
   const kind = typeof meta.kind === "string" ? meta.kind : null;
   const senderName = meta.senderName || notification?.title || "Alguien";
@@ -254,7 +241,7 @@ function buildChatEmail({ notification, link, logoUrl, createdAt }) {
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
-        ${brandHeaderHtml(logoUrl)}
+        ${brandHeaderHtml(brand)}
         <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">${escapeHtml(kicker)}</div>
         <h1 style="margin:6px 0 0 0;font-size:22px;line-height:1.3;color:#0f172a">${escapeHtml(senderName)}</h1>
         <div style="margin-top:2px;font-size:13px;color:#64748b">${escapeHtml(convTitle || "Conversación directa")}</div>
@@ -285,15 +272,14 @@ function buildChatEmail({ notification, link, logoUrl, createdAt }) {
   return { subject, html, text };
 }
 
-function buildNotificationEmail({ notification, appBaseUrl }) {
+function buildNotificationEmail({ notification, appBaseUrl, brand = null }) {
   const rawEventType = notification?.eventType ?? "general";
   const kind = typeof notification?.metadata?.kind === "string" ? notification.metadata.kind : null;
   const link = toAbsoluteLink(notification?.link ?? null, appBaseUrl);
-  const logoUrl = resolveEmailLogoUrl(appBaseUrl);
   const createdAt = formatDateTime(notification?.createdAt);
 
   if ((kind && kind.startsWith("chat_")) || rawEventType.startsWith("chat.")) {
-    return buildChatEmail({ notification, link, logoUrl, createdAt });
+    return buildChatEmail({ notification, link, brand, createdAt });
   }
 
   const title = notification?.title ?? "Notificacion de Atlas";
@@ -319,7 +305,7 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
-        ${brandHeaderHtml(logoUrl)}
+        ${brandHeaderHtml(brand)}
         <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Notificaciones Atlas</div>
         <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0f172a">${titleEsc}</h1>
       </td>
@@ -351,7 +337,7 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
   `.trim();
 
   const text = [
-    `Atlas ERP`,
+    brand?.companyName || "Atlas ERP",
     "",
     title,
     body ? body : null,
@@ -363,15 +349,67 @@ function buildNotificationEmail({ notification, appBaseUrl }) {
   return { subject: title, html, text };
 }
 
+// Email logos are opened long after the send, so sign them for a week rather
+// than the usual hour.
+const EMAIL_LOGO_SIGNED_TTL_SECONDS = 7 * 24 * 60 * 60;
+
 export function createNotificationDeliveryWorker({
   prisma,
   smtpService = null,
   webPushService = null,
+  supabaseAdmin = null,
   logger = console,
   maxAttempts = DEFAULT_MAX_ATTEMPTS,
 }) {
   const smtp = smtpService ?? createSmtpService({ prisma });
   const webPush = webPushService ?? createWebPushService({ prisma });
+
+  // company id -> { logoUrl, companyName } for the email header. Logo comes from
+  // BrandingConfig; falls back to the company name, then the Atlas wordmark.
+  async function resolveCompanyBrands(companyIds) {
+    const ids = [...new Set(companyIds.filter(Boolean))];
+    const brands = new Map();
+    if (!ids.length) return brands;
+
+    let companies = [];
+    try {
+      companies = await prisma.company.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true, brandingConfig: { select: { logoFileId: true } } },
+      });
+    } catch (err) {
+      logger?.warn?.(`[notification-delivery] company brand lookup failed: ${asErrorMessage(err)}`);
+      return brands;
+    }
+
+    const logoFileIds = companies.map((c) => c.brandingConfig?.logoFileId).filter(Boolean);
+    const assetsById = new Map();
+    if (logoFileIds.length && supabaseAdmin) {
+      const assets = await prisma.fileAsset
+        .findMany({ where: { id: { in: logoFileIds } }, select: { id: true, bucket: true, objectKey: true } })
+        .catch(() => []);
+      for (const asset of assets) assetsById.set(asset.id, asset);
+    }
+
+    for (const company of companies) {
+      let logoUrl = null;
+      const asset = company.brandingConfig?.logoFileId
+        ? assetsById.get(company.brandingConfig.logoFileId)
+        : null;
+      if (asset && supabaseAdmin) {
+        try {
+          const { data } = await supabaseAdmin.storage
+            .from(asset.bucket)
+            .createSignedUrl(asset.objectKey, EMAIL_LOGO_SIGNED_TTL_SECONDS);
+          logoUrl = data?.signedUrl ?? null;
+        } catch {
+          logoUrl = null;
+        }
+      }
+      brands.set(company.id, { logoUrl, companyName: company.name ?? null });
+    }
+    return brands;
+  }
 
   async function processPendingNotificationDeliveries({
     channel = "email",
@@ -442,6 +480,11 @@ export function createNotificationDeliveryWorker({
         })
       : [];
 
+    const brandByCompany =
+      channel === "email"
+        ? await resolveCompanyBrands(rows.map((d) => d.notification?.companyId))
+        : new Map();
+
     let processed = 0;
     let sent = 0;
     let failed = 0;
@@ -461,6 +504,7 @@ export function createNotificationDeliveryWorker({
           const mail = buildNotificationEmail({
             notification: delivery.notification,
             appBaseUrl,
+            brand: brandByCompany.get(delivery.notification?.companyId) ?? null,
           });
           await smtp.sendEmail({
             to: recipientEmail,

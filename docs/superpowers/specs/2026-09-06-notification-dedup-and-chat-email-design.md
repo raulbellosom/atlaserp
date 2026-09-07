@@ -63,10 +63,15 @@ the channels array and the user's saved preference enabling it, one email fires 
 
 | Question | Decision |
 |---|---|
-| When does a plain chat message email? | **Recipient is away + throttled**: no recent read/activity in the conversation (~2h, tunable) AND at most one email per conversation per recipient per 24h, reset when they open the conversation. |
+| When does a plain chat message email? | **Recipient is away + throttled**: no recent read/activity in the conversation (2h) AND at most one email per conversation per recipient per 24h, reset when they open the conversation. Fixed constants, not env. |
 | Do @mentions / channel-add keep emailing every time? | **Yes, always** (`chat.mention.new`, `chat.member.added` unchanged). Only plain messages + thread replies get the gate. |
 | Duplicate-push fix scope | **Everything + one-time cleanup**: prune stale subs on subscribe, atomic claim + in-flight guard, fix client double-path, plus a cleanup script for existing duplicate rows. |
-| Email content | Lead with sender + snippet for chat; drop the technical table for chat; never show raw enum tokens anywhere; logo via a dedicated public URL env or fall back to a text wordmark; fix the plain-text part (Gmail push preview). |
+| Email content | Lead with sender + snippet for chat; drop the technical table for chat; never show raw enum tokens anywhere; logo comes from the company's `BrandingConfig` (signed for a week) or falls back to the company-name / Atlas wordmark — no env; fix the plain-text part (Gmail push preview). |
+
+**No new env vars.** The away window (2 h) and the per-conversation throttle (24 h)
+are fixed product behavior, defined as constants in `chat-service.js` /
+`notification-service.js` (the way Meet / Teams do it), not configuration. The
+email logo is resolved from `BrandingConfig.logoFileId` per company.
 
 ## Non-goals
 - No server-side realtime presence system. "Away" is derived from
@@ -86,8 +91,9 @@ the channels array and the user's saved preference enabling it, one email fires 
 4. `chat.mention.new` and `chat.member.added` still email every time.
 5. The chat email shows the sender's name and a snippet, an "Abrir conversación" CTA, and
    **no** `Tipo:` / `Origen:` / `Prioridad:` block. The plain-text part reads as a sentence,
-   not a field dump. No `localhost`/internal `<img>` is emitted; with no
-   `ATLAS_EMAIL_LOGO_URL` set, a styled `Atlas ERP` wordmark renders instead.
+   not a field dump. The header shows the company's `BrandingConfig` logo when set;
+   otherwise the company name, else a styled `Atlas ERP` wordmark. No `localhost`/internal
+   `<img>` is ever emitted.
 6. Non-chat emails never render a raw enum/identifier token (humanized fallback).
 7. `node --env-file=.env scripts/dedupe-push-subscriptions.mjs` reports duplicate
    subscription groups; with `--apply` it disables all but the newest per `(userId,
@@ -98,5 +104,5 @@ the channels array and the user's saved preference enabling it, one email fires 
 ## Rollout / ops
 - Core change: deploy **API + worker + web**. `POST /modules/sync` does not ship it.
 - After deploy, run `scripts/dedupe-push-subscriptions.mjs --apply` once.
-- Optional env: `ATLAS_EMAIL_LOGO_URL` (public https), `ATLAS_CHAT_EMAIL_AWAY_MINUTES`
-  (default 120), `ATLAS_CHAT_EMAIL_THROTTLE_HOURS` (default 24). Document in `.env.example`.
+- No new env vars. Away/throttle windows are constants; the email logo is the
+  company's `BrandingConfig` logo.

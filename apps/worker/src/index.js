@@ -65,7 +65,8 @@ const pgPool = new pg.Pool({
 })
 const prismaAdapter = new PrismaPg(pgPool)
 const prisma = new PrismaClient({ adapter: prismaAdapter })
-const deliveryWorker = createNotificationDeliveryWorker({ prisma })
+const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
+const deliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin: workerSupabaseAdmin })
 const calendarNotificationService = createCalendarNotificationService({ prisma })
 const DELIVERY_INTERVAL_MS = Number(process.env.ATLAS_NOTIFICATION_DELIVERY_INTERVAL_MS ?? 30000)
 const syncCleanupWorker = createSyncLogCleanupWorker({ prisma })
@@ -84,7 +85,6 @@ const pfmRecurringService = createPfmRecurringService({
   calendarBridge: createPfmCalendarBridge({ prisma }),
 })
 const PFM_RECURRING_INTERVAL_MS = 60 * 60 * 1000
-const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
 const pfmReceiptsService = createPfmReceiptsService({
   prisma,
   vision: createPfmVisionService({ env: process.env }),

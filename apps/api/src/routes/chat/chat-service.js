@@ -18,14 +18,17 @@ const PROFILE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const _signedUrlCache = new Map();
 const SIGNED_URL_TTL_MS = 55 * 60 * 1000; // 55 minutes
 
-// Chat-message email is NOT sent per message. A recipient only gets one when
-// they've been away from the conversation for a while AND haven't already had a
-// chat email for it recently. Mentions and channel-adds are unaffected (they
-// always email). Tunable via env for ops.
-const CHAT_EMAIL_AWAY_MS =
-  Number(process.env.ATLAS_CHAT_EMAIL_AWAY_MINUTES ?? 120) * 60 * 1000;
-const CHAT_EMAIL_THROTTLE_MS =
-  Number(process.env.ATLAS_CHAT_EMAIL_THROTTLE_HOURS ?? 24) * 60 * 60 * 1000;
+// Chat-message email is NOT sent per message — only as a "you're missing
+// messages" nudge, the way Meet / Teams do it. These windows are product
+// behavior, not configuration:
+//   - the recipient must have had no read/activity in the conversation for
+//     CHAT_EMAIL_AWAY_MS, and
+//   - at most one such email per conversation per recipient within
+//     CHAT_EMAIL_THROTTLE_MS (also re-armed the moment they open it).
+// CHAT_EMAIL_THROTTLE_MS must stay in sync with CHAT_MAIL_THROTTLE_MS in
+// notification-service.js (the publish-layer dedupe for `chat.mail:` keys).
+const CHAT_EMAIL_AWAY_MS = 2 * 60 * 60 * 1000; // 2 hours
+const CHAT_EMAIL_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function getCachedSignedUrl(bucket, objectKey, variant) {
   const key = `${bucket}:${objectKey}:${variant}`;

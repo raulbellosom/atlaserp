@@ -6,9 +6,9 @@ Execute directly on `main`.
 
 ## A1. Gate chat-message email — `apps/api/src/routes/chat/chat-service.js`
 
-- Add module-level consts:
-  - `CHAT_EMAIL_AWAY_MS = Number(process.env.ATLAS_CHAT_EMAIL_AWAY_MINUTES ?? 120) * 60_000`
-  - `CHAT_EMAIL_THROTTLE_MS = Number(process.env.ATLAS_CHAT_EMAIL_THROTTLE_HOURS ?? 24) * 3_600_000`
+- Add module-level consts (fixed product behavior — Meet/Teams style, NOT env):
+  - `CHAT_EMAIL_AWAY_MS = 2 * 60 * 60 * 1000` (2 h)
+  - `CHAT_EMAIL_THROTTLE_MS = 24 * 60 * 60 * 1000` (24 h)
 - New helper inside `createChatService`:
   `async function resolveChatEmailRecipients({ conversationId, candidateIds, now = new Date() })`
   - Returns `string[]` — subset of `candidateIds` eligible for an email. Empty fast-path when
@@ -66,8 +66,8 @@ Execute directly on `main`.
     return Boolean(row);
   }
   ```
-- `const CHAT_MAIL_THROTTLE_MS = Number(process.env.ATLAS_CHAT_EMAIL_THROTTLE_HOURS ?? 24) * 3_600_000;`
-  near `DEDUPE_WINDOW_MS`.
+- `const CHAT_MAIL_THROTTLE_MS = 24 * 60 * 60 * 1000;` near `DEDUPE_WINDOW_MS` (keep in
+  sync with `CHAT_EMAIL_THROTTLE_MS` in chat-service.js).
 - Net effect: one chat email per `(conversation, recipient)` until they open the conversation
   (`markReadBySource('chat_conversation', id)` from `useChatMessages.js` marks it read), and
   never more than one per 24h even if never opened.
@@ -169,14 +169,17 @@ Execute directly on `main`.
   `EVENT_TYPE_LABELS[..] ?? humanizeToken(..)` / `SOURCE_TYPE_LABELS[..] ?? humanizeToken(..)`.
   Drop the `Origen` row when the humanized value equals the raw (i.e. still meaningless).
   Trim the plain-text `details.join("\n")` dump to just `title`, `body`, `Abrir: link`.
-- **Logo** precedence in `buildNotificationEmail`:
-  1. `normalizeBaseUrl`-style absolute-https check on `process.env.ATLAS_EMAIL_LOGO_URL` →
-     `<img src>`.
-  2. else if `appBaseUrl` is https and host is not `localhost`/`127.` →
-     `${appBaseUrl}/brand/atlas-logo-horizontal.png`.
-  3. else → no `<img>`; render `<div>`-styled `Atlas ERP` wordmark.
-  - `resolveApiBaseUrl()` is no longer used for the logo (it pointed at the internal API).
-    Leave the function if referenced elsewhere; otherwise remove.
+- **Logo** — from the company's `BrandingConfig`, NOT env:
+  - `createNotificationDeliveryWorker` gains a `supabaseAdmin` param (wired from
+    `apps/api/src/index.js` and `apps/worker/src/index.js`).
+  - `processPendingNotificationDeliveries` resolves a `Map<companyId, { logoUrl, companyName }>`
+    for the batch's distinct company ids: `company.findMany({ select: { id, name,
+    brandingConfig: { select: { logoFileId } } } })` → `fileAsset.findMany` →
+    `supabaseAdmin.storage.from(bucket).createSignedUrl(objectKey, 7 days)`.
+  - `buildNotificationEmail({ notification, appBaseUrl, brand })`; `brandHeaderHtml(brand)`
+    renders `<img>` when `brand.logoUrl`, else the company name as a wordmark, else the
+    `Atlas ERP` wordmark. No env, no `<img>` at `localhost`/internal ever.
+  - `resolveApiBaseUrl()` is removed (was only used for the old logo path).
 
 ## A8. One-time cleanup script — `scripts/dedupe-push-subscriptions.mjs`
 
@@ -201,15 +204,9 @@ Execute directly on `main`.
 
 ## A10. `.env.example`
 
-- Under a "Notificaciones" block, add:
-  ```
-  # URL pública https del logo para los correos de notificación. Sin esto, el correo usa un wordmark de texto.
-  ATLAS_EMAIL_LOGO_URL=
-  # Minutos sin leer/actividad en una conversación antes de considerar "ausente" a un destinatario (correo de chat).
-  ATLAS_CHAT_EMAIL_AWAY_MINUTES=120
-  # Máximo un correo de chat por conversación y destinatario cada N horas.
-  ATLAS_CHAT_EMAIL_THROTTLE_HOURS=24
-  ```
+- No new env vars. (An earlier draft added `ATLAS_EMAIL_LOGO_URL` /
+  `ATLAS_CHAT_EMAIL_*` — dropped: the logo is the company `BrandingConfig` logo and the
+  windows are fixed constants.)
 
 ## Tests (Node built-in runner)
 
@@ -224,7 +221,7 @@ Execute directly on `main`.
   - Stuck `sending` row older than 5 min is re-queued and then processed.
   - Chat email: `buildNotificationEmail` output for a `metadata.kind:'chat_message'`
     notification contains sender name + snippet, no `Tipo:`/`Origen:`/`Prioridad:`, no
-    `localhost` in `html`, wordmark present when no `ATLAS_EMAIL_LOGO_URL`.
+    `localhost` in `html`, `Atlas ERP` wordmark present when `brand` is null.
   - Non-chat email: unmapped `eventType`/`sourceType` never appears raw (humanized).
 - `apps/api/src/routes/chat/__tests__/chat-service.test.js`
   - `resolveChatEmailRecipients`: away recipient outside throttle → included; recent reader

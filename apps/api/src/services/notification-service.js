@@ -12,9 +12,9 @@ const DEDUPE_WINDOW_MS = 5000;
 // Chat-message emails (`chat.mail:<conv>:<user>` dedupe keys) are throttled to at
 // most one per conversation per recipient within this window, and additionally
 // suppressed while a prior one is still unread — opening the conversation marks
-// it read (markReadBySource), which re-arms the next email.
-const CHAT_MAIL_THROTTLE_MS =
-  Number(process.env.ATLAS_CHAT_EMAIL_THROTTLE_HOURS ?? 24) * 60 * 60 * 1000;
+// it read (markReadBySource), which re-arms the next email. Product behavior, not
+// configuration; keep in sync with CHAT_EMAIL_THROTTLE_MS in chat-service.js.
+const CHAT_MAIL_THROTTLE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const PRIORITY_KIND_MAP = {
   low: "info",
