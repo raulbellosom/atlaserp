@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -99,15 +100,24 @@ export function MessageActionSheet({
     );
   }
 
-  // Desktop right-click: anchor a DropdownMenu at the cursor via a fixed 0-size trigger.
+  // Desktop right-click: anchor a DropdownMenu at the cursor via a fixed 0-size
+  // trigger. The trigger span is portaled to <body> so it escapes the chat's
+  // `zoom` (--chat-zoom font scale) and `backdrop-filter` (.chat-glass)
+  // subtree — inside either of those, `position: fixed` coordinates are
+  // remapped/scaled by Chromium, which is why the menu used to open offset
+  // from the actual click point. createPortal keeps the Radix Root context
+  // intact even though the DOM node lands elsewhere.
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <span
-          aria-hidden
-          style={{ position: "fixed", left: anchorPoint?.x ?? 0, top: anchorPoint?.y ?? 0, width: 0, height: 0 }}
-        />
-      </DropdownMenuTrigger>
+      {createPortal(
+        <DropdownMenuTrigger asChild>
+          <span
+            aria-hidden
+            style={{ position: "fixed", left: anchorPoint?.x ?? 0, top: anchorPoint?.y ?? 0, width: 0, height: 0 }}
+          />
+        </DropdownMenuTrigger>,
+        document.body,
+      )}
       <DropdownMenuContent align="start" style={{ zIndex: 10000 }} onCloseAutoFocus={(e) => e.preventDefault()}>
         {quickRow(true)}
         <DropdownMenuSeparator />

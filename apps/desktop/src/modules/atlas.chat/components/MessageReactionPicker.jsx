@@ -51,7 +51,10 @@ export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign 
           // reads as a different emoji set from what actually lands.
           emojiStyle={EmojiStyle.NATIVE}
           width="min(92vw, 300px)"
-          height={320}
+          // Responsive height so the panel never spills past the top/bottom of
+          // a short viewport (Radix shifts it on-screen horizontally, but a
+          // hard 320px could still overflow vertically on small windows).
+          height="min(60vh, 320px)"
           searchPlaceholder="Buscar emoji..."
           lazyLoadEmojis
           skinTonesDisabled
