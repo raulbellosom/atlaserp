@@ -77,8 +77,11 @@ function primeAudioElement(name) {
   element.muted = false;
   element.volume = 1;
   element.loop = false;
+  // Setting .src already schedules a load. Calling .load() explicitly and then
+  // .play() on the very next line makes iOS reject the play() promise with an
+  // AbortError ("interrupted by a call to load()"), so the silent unlock never
+  // "counts" and the real ringtone stays blocked. Just set src + play.
   element.src = SILENT_UNLOCK_WAV;
-  try { element.load?.(); } catch {}
   try { element.currentTime = 0; } catch {}
 
   function restoreTarget() {
@@ -145,6 +148,19 @@ export async function unlockCallSounds() {
 
   const elementResults = await Promise.all(elementAttempts);
   return contextReady || elementResults.some(Boolean);
+}
+
+// The "call ended" cue fires from several independent places almost at once
+// when a call tears down: the local hang-up handler, RoomEvent.Disconnected,
+// RoomEvent.ParticipantDisconnected and the CallsProvider "call.ended" path.
+// Collapse repeats inside a short window so hanging up plays the sound once,
+// not two or three times.
+let lastEndSoundAt = 0;
+export function playCallEndSound() {
+  const now = Date.now();
+  if (now - lastEndSoundAt < 1500) return () => {};
+  lastEndSoundAt = now;
+  return playCallSound("exit");
 }
 
 export function preloadCallSounds() {

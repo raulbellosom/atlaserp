@@ -3,7 +3,7 @@ import { Room, RoomEvent, Track, ConnectionState } from "livekit-client";
 import { toast } from "sonner";
 import { useIsMobile, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@atlas/ui";
 import { useChatMessages } from "../hooks/useChatMessages";
-import { playCallSound } from "./callSounds";
+import { playCallSound, playCallEndSound } from "./callSounds";
 import { nextCallView } from "./lib/callChat";
 import { CallChatPanel } from "./CallChatPanel";
 import { CallGuestRoster } from "./CallGuestRoster";
@@ -119,7 +119,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     const handleDisconnected = () => {
       setConnectionState("disconnected");
       setEngineReady(false);
-      playCallSound("exit");
+      playCallEndSound();
     };
     // The RTC engine (PeerConnection) — not signaling. Publishing a track or
     // data before this is Connected throws "engine not connected within
@@ -137,7 +137,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
       refresh();
     };
     const handleParticipantDisconnected = () => {
-      playCallSound("exit");
+      playCallEndSound();
       refresh();
     };
     const handleMediaDevicesChanged = () => {
@@ -385,7 +385,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   }
 
   function handleLeave() {
-    playCallSound("exit");
+    playCallEndSound();
     onLeave();
   }
 

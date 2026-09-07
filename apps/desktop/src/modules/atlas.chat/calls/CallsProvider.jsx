@@ -17,7 +17,7 @@ import {
   showSystemNotification,
 } from "../../../lib/systemNotifications";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
-import { playCallSound, unlockCallSounds } from "./callSounds";
+import { playCallSound, playCallEndSound, unlockCallSounds } from "./callSounds";
 import {
   claimCallForDevice,
   releaseCallForDevice,
@@ -78,7 +78,7 @@ export function CallsProvider({ children }) {
     activeRef.current = null;
     setIncomingCall(null);
     setActiveSession(null);
-    playCallSound("exit");
+    playCallEndSound();
     dismissSystemCallNotification(callId).catch(() => {});
     releaseCallForDevice(callId);
     toast.info("La llamada ha terminado.");
@@ -91,6 +91,7 @@ export function CallsProvider({ children }) {
     const soundToastId = `call-sound-blocked:${callId}`;
     let disposed = false;
     let stopSound = () => {};
+    let gestureRetryArmed = false;
 
     // Ring in ONE tab of this browser only.
     if (!acquireRingLock(callId)) return undefined;
@@ -100,6 +101,31 @@ export function CallsProvider({ children }) {
     };
     window.addEventListener("storage", onStorage);
 
+    // iOS PWAs block the ringtone until a real tap, and the toast's "Activar
+    // sonido" button is a tiny target. Retry from the FIRST tap anywhere in the
+    // app — synchronously, so the <audio>.play() counts as user-activated.
+    function retryOnGesture() {
+      document.removeEventListener("touchend", retryOnGesture, true);
+      document.removeEventListener("click", retryOnGesture, true);
+      gestureRetryArmed = false;
+      if (disposed || incomingRef.current?.id !== callId) return;
+      toast.dismiss(soundToastId);
+      startRingtone();
+      unlockCallSounds().catch(() => {});
+    }
+    function armGestureRetry() {
+      if (gestureRetryArmed) return;
+      gestureRetryArmed = true;
+      document.addEventListener("touchend", retryOnGesture, true);
+      document.addEventListener("click", retryOnGesture, true);
+    }
+    function disarmGestureRetry() {
+      if (!gestureRetryArmed) return;
+      document.removeEventListener("touchend", retryOnGesture, true);
+      document.removeEventListener("click", retryOnGesture, true);
+      gestureRetryArmed = false;
+    }
+
     function startRingtone() {
       stopSound();
       stopSound = playCallSound("ringtone", {
@@ -107,6 +133,7 @@ export function CallsProvider({ children }) {
         volume: 0.65,
         onBlocked: () => {
           if (disposed) return;
+          armGestureRetry();
           toast.warning("El telefono bloqueo el sonido de la llamada", {
             id: soundToastId,
             description: "Toca el boton para escuchar el tono.",
@@ -114,11 +141,15 @@ export function CallsProvider({ children }) {
             action: {
               label: "Activar sonido",
               onClick: () => {
-                unlockCallSounds().then((unlocked) => {
-                  if (!unlocked || disposed || incomingRef.current?.id !== callId) return;
-                  toast.dismiss(soundToastId);
-                  startRingtone();
-                });
+                if (disposed || incomingRef.current?.id !== callId) return;
+                // Restart the ringtone element synchronously inside this tap so
+                // iOS treats the <audio>.play() as user-activated — do NOT wait
+                // on unlockCallSounds()'s boolean (it can report false on iOS
+                // even when the element is now playable, which left the button
+                // doing nothing). Kick the AudioContext in parallel.
+                toast.dismiss(soundToastId);
+                startRingtone();
+                unlockCallSounds().catch(() => {});
               },
             },
           });
@@ -130,6 +161,7 @@ export function CallsProvider({ children }) {
     return () => {
       disposed = true;
       stopSound();
+      disarmGestureRetry();
       clearInterval(heartbeat);
       window.removeEventListener("storage", onStorage);
       releaseRingLock(callId);
