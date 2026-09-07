@@ -80,16 +80,19 @@ export function MessageActionSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [isMobile, open, onOpenChange]);
 
-  // The desktop/tablet menu opens at the finger while it's still pressed from
-  // the long-press. Ignore pointer input on the menu for a moment so the lift
-  // that ends the long-press can't immediately activate the item under it
-  // (which used to fire "Seleccionar" and drop the list into selection mode).
-  const [armed, setArmed] = useState(false);
+  // Mobile only: the popover opens while the finger is still down from the
+  // long-press, so ignore pointer input on it for a beat — otherwise the lift
+  // that ends the long-press activates whatever item is under it. On desktop
+  // the menu is opened by the RIGHT button; the left click that follows is a
+  // deliberate selection, so gating it just makes every action need two clicks.
+  const [armed, setArmed] = useState(!isMobile);
   useEffect(() => {
+    if (!isMobile) { setArmed(true); return undefined; }
     if (!open) { setArmed(false); return undefined; }
+    setArmed(false);
     const t = setTimeout(() => setArmed(true), 280);
     return () => clearTimeout(t);
-  }, [open]);
+  }, [open, isMobile]);
 
   function runAction(a) {
     onOpenChange(false);
@@ -261,7 +264,7 @@ export function MessageActionSheet({
   // from the actual click point. createPortal keeps the Radix Root context
   // intact even though the DOM node lands elsewhere.
   return (
-    <DropdownMenu open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
       {createPortal(
         <DropdownMenuTrigger asChild>
           <span
@@ -274,8 +277,10 @@ export function MessageActionSheet({
       <DropdownMenuContent
         align="start"
         style={{ zIndex: 10000 }}
+        // Opened programmatically at the cursor — don't let Radix pull focus
+        // into the menu on open, which otherwise swallows the first click.
+        onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
-        className={armed ? undefined : "pointer-events-none"}
       >
         {quickRow(true)}
         <DropdownMenuSeparator />

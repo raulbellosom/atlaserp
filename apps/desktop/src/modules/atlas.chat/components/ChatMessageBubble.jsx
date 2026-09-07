@@ -336,6 +336,7 @@ export function ChatMessageBubble({
     // which then also carries its copy/download/open items.
     if (!attEl && e.target?.closest?.("a,button,input,textarea,[role=button]")) return;
     e.preventDefault();
+    e.stopPropagation();
     suppressClickRef.current = true;
     const anchorEl = attEl ?? e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
     const r = anchorEl?.getBoundingClientRect?.();
