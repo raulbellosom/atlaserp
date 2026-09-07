@@ -25,6 +25,7 @@ import {
 } from "./callDeviceSession";
 import { useCallSynchronization } from "./useCallSynchronization";
 import { IncomingCallDialog } from "./IncomingCallDialog";
+import { acquireRingLock, refreshRingLock, releaseRingLock, ringLockIsMine } from "./callRingLock";
 
 const CallRoom = lazy(() =>
   import("./CallRoom").then((module) => ({ default: module.CallRoom })),
@@ -91,6 +92,14 @@ export function CallsProvider({ children }) {
     let disposed = false;
     let stopSound = () => {};
 
+    // Ring in ONE tab of this browser only.
+    if (!acquireRingLock(callId)) return undefined;
+    const heartbeat = setInterval(() => { if (!disposed) refreshRingLock(callId); }, 2000);
+    const onStorage = () => {
+      if (!disposed && !ringLockIsMine(callId)) stopSound();
+    };
+    window.addEventListener("storage", onStorage);
+
     function startRingtone() {
       stopSound();
       stopSound = playCallSound("ringtone", {
@@ -121,6 +130,9 @@ export function CallsProvider({ children }) {
     return () => {
       disposed = true;
       stopSound();
+      clearInterval(heartbeat);
+      window.removeEventListener("storage", onStorage);
+      releaseRingLock(callId);
       toast.dismiss(soundToastId);
     };
   }, [incomingCall?.id]);

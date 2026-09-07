@@ -138,6 +138,7 @@ export function CallRoomLayout({ view, actions, chat }) {
   const {
     session,
     connectionState,
+    engineReady = true,
     elapsed,
     outgoingToneActive,
     remoteParticipants,
@@ -359,12 +360,12 @@ export function CallRoomLayout({ view, actions, chat }) {
             Activar audio
           </Button>
         )}
-        <Button type="button" variant={micEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleMicrophone} title={micEnabled ? "Silenciar" : "Activar microfono"}>
+        <Button type="button" variant={micEnabled ? "secondary" : "destructive"} size="icon" disabled={!engineReady} className="h-11 w-11 rounded-full disabled:opacity-40" onClick={actions.toggleMicrophone} title={!engineReady ? "Conectando..." : micEnabled ? "Silenciar" : "Activar microfono"}>
           {micEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
         </Button>
         {/* Camera + screen-share are always available — a call created as voice
             can be upgraded to video mid-call (no kind gate). */}
-        <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleCamera} title={cameraEnabled ? "Apagar camara" : "Encender camara"}>
+        <Button type="button" variant={cameraEnabled ? "secondary" : "destructive"} size="icon" disabled={!engineReady} className="h-11 w-11 rounded-full disabled:opacity-40" onClick={actions.toggleCamera} title={!engineReady ? "Conectando..." : cameraEnabled ? "Apagar camara" : "Encender camara"}>
           {cameraEnabled ? <Camera className="h-5 w-5" /> : <CameraOff className="h-5 w-5" />}
         </Button>
         {cameraEnabled && canSwitchCamera && (
@@ -377,7 +378,7 @@ export function CallRoomLayout({ view, actions, chat }) {
             {torchEnabled ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
           </Button>
         )}
-        <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" className={`h-11 w-11 rounded-full ${screenShareSupported ? "" : "opacity-50"}`} onClick={actions.toggleScreen} aria-disabled={!screenShareSupported} title={screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}>
+        <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" disabled={!engineReady} className={`h-11 w-11 rounded-full disabled:opacity-40 ${screenShareSupported ? "" : "opacity-50"}`} onClick={actions.toggleScreen} aria-disabled={!screenShareSupported} title={!engineReady ? "Conectando..." : screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}>
           {screenShareSupported ? <MonitorUp className="h-5 w-5" /> : <ScreenShareOff className="h-5 w-5" />}
         </Button>
         {isDirectVideo && (

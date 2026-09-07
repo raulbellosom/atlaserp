@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { playCallSound } from "../modules/atlas.chat/calls/callSounds.js";
+import { notificationKey, claimNotification } from "../lib/notificationDedup.js";
 
 function resolveNotificationLink(href) {
   if (!href || typeof href !== "string") return null;
@@ -47,6 +48,12 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
           return;
         }
 
+        // Incoming calls are handled by IncomingCallDialog + ringtone — no toast.
+        if (message.eventType === "chat.call.incoming") {
+          invalidateNotifications();
+          return;
+        }
+
         const title = typeof message.title === "string" && message.title.trim()
           ? message.title
           : "Nueva notificacion";
@@ -54,6 +61,17 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
           ? message.body
           : "";
         const link = resolveNotificationLink(message.link);
+
+        // Collapse the web-push copy against the in-app (Supabase broadcast)
+        // one. For chat messages RealtimeProvider keys on sender+conversation,
+        // so match that shape here (title === sender, callId === conversation).
+        const dupKey = message.eventType === "chat.message.new" && message.callId
+          ? `c:chat.message.new|${title}|${message.callId}`
+          : notificationKey({ eventType: message.eventType, title, body });
+        if (!claimNotification(dupKey)) {
+          invalidateNotifications();
+          return;
+        }
 
         playCallSound("notification", { volume: 0.6 });
         toast(title, {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Room, RoomEvent, Track } from "livekit-client";
+import { Room, RoomEvent, Track, ConnectionState } from "livekit-client";
 import { toast } from "sonner";
 import { useIsMobile, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@atlas/ui";
 import { useChatMessages } from "../hooks/useChatMessages";
@@ -40,6 +40,10 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
+  // The RTC engine (not just signaling) — publishing tracks/data before this is
+  // true throws "engine not connected within timeout".
+  const [engineReady, setEngineReady] = useState(false);
+  const mediaInitRef = useRef(false);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(session.call.kind === "VIDEO");
   const [screenEnabled, setScreenEnabled] = useState(false);
@@ -74,6 +78,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const [aloneSecondsLeft, setAloneSecondsLeft] = useState(0);
 
   const publishData = useCallback((obj) => {
+    if (room.state !== ConnectionState.Connected) return;
     try {
       room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(obj)), { reliable: true });
     } catch { /* not connected yet */ }
@@ -113,7 +118,18 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     const handleReconnected = () => setConnectionState("connected");
     const handleDisconnected = () => {
       setConnectionState("disconnected");
+      setEngineReady(false);
       playCallSound("exit");
+    };
+    // The RTC engine (PeerConnection) — not signaling. Publishing a track or
+    // data before this is Connected throws "engine not connected within
+    // timeout". Every publish path is gated on `engineReady`.
+    const handleConnStateChanged = (state) => {
+      setEngineReady(state === ConnectionState.Connected);
+      if (state === ConnectionState.Connected) setConnectionState("connected");
+      else if (state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting) {
+        setConnectionState("reconnecting");
+      } else if (state === ConnectionState.Connecting) setConnectionState("connecting");
     };
     const handleParticipantConnected = () => {
       setHasRemoteJoined(true);
@@ -155,6 +171,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     room.on(RoomEvent.Reconnecting, handleReconnecting);
     room.on(RoomEvent.Reconnected, handleReconnected);
     room.on(RoomEvent.Disconnected, handleDisconnected);
+    room.on(RoomEvent.ConnectionStateChanged, handleConnStateChanged);
     room.on(RoomEvent.MediaDevicesChanged, handleMediaDevicesChanged);
     room.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
     room.on(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
@@ -167,25 +184,11 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
           setHasRemoteJoined(true);
           playCallSound("join");
         }
-        setConnectionState("connected");
-        try {
-          await room.localParticipant.setMicrophoneEnabled(true);
-        } catch (error) {
-          if (!cancelled) {
-            setMicEnabled(false);
-            toast.error(error?.message || "No se pudo activar el microfono.");
-          }
-        }
-        if (session.call.kind === "VIDEO") {
-          try {
-            await room.localParticipant.setCameraEnabled(true);
-            await refreshCameraCapabilities();
-          } catch (error) {
-            if (!cancelled) {
-              setCameraEnabled(false);
-              toast.error(error?.message || "No se pudo activar la camara.");
-            }
-          }
+        // room.connect() resolves once the RTC engine is up; mirror it in case
+        // ConnectionStateChanged fired before this handler was wired.
+        if (room.state === ConnectionState.Connected) {
+          setEngineReady(true);
+          setConnectionState("connected");
         }
         await room.startAudio().catch(() => {
           if (!cancelled) setNeedsAudio(true);
@@ -207,6 +210,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
       room.off(RoomEvent.Reconnecting, handleReconnecting);
       room.off(RoomEvent.Reconnected, handleReconnected);
       room.off(RoomEvent.Disconnected, handleDisconnected);
+      room.off(RoomEvent.ConnectionStateChanged, handleConnStateChanged);
       room.off(RoomEvent.MediaDevicesChanged, handleMediaDevicesChanged);
       room.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
       room.off(RoomEvent.LocalTrackUnpublished, handleLocalTrackUnpublished);
@@ -214,6 +218,42 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
       room.disconnect();
     };
   }, [room, session, refresh, refreshCameraCapabilities]);
+
+  // Publish the initial mic/camera tracks only once the RTC engine is Connected.
+  // Doing this inside connect() raced the engine and surfaced as "publishing
+  // rejected as engine not connected within timeout".
+  useEffect(() => {
+    if (!engineReady || mediaInitRef.current) return;
+    mediaInitRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+        if (!cancelled) setMicEnabled(true);
+      } catch (error) {
+        if (!cancelled) {
+          setMicEnabled(false);
+          toast.error(error?.message || "No se pudo activar el microfono.");
+        }
+      }
+      if (session.call.kind === "VIDEO") {
+        try {
+          await room.localParticipant.setCameraEnabled(true);
+          if (!cancelled) {
+            setCameraEnabled(true);
+            await refreshCameraCapabilities();
+          }
+        } catch (error) {
+          if (!cancelled) {
+            setCameraEnabled(false);
+            toast.error(error?.message || "No se pudo activar la camara.");
+          }
+        }
+      }
+      if (!cancelled) refresh();
+    })();
+    return () => { cancelled = true; };
+  }, [engineReady, room, session.call.kind, refresh, refreshCameraCapabilities]);
 
   useEffect(() => {
     const started = new Date(session.call.startedAt ?? session.call.createdAt ?? Date.now()).getTime();
@@ -253,7 +293,17 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     }
   }, [chatMsgCount, chatActive, chatData]);
 
+  // Block any publish action until the RTC engine is Connected — otherwise
+  // LiveKit throws "engine not connected within timeout" and the toast fires on
+  // every button press.
+  function engineNotReady() {
+    if (engineReady) return false;
+    toast.info("Conectando a la llamada…", { id: "call-connecting" });
+    return true;
+  }
+
   async function toggleMicrophone() {
+    if (engineNotReady()) return;
     try {
       const next = !micEnabled;
       await room.localParticipant.setMicrophoneEnabled(next);
@@ -265,6 +315,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   }
 
   async function toggleCamera() {
+    if (engineNotReady()) return;
     try {
       const next = !cameraEnabled;
       await room.localParticipant.setCameraEnabled(next);
@@ -312,6 +363,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   }
 
   async function toggleScreen() {
+    if (engineNotReady()) return;
     if (!screenShareSupported) {
       toast.info("Tu navegador no permite compartir pantalla durante una llamada. Prueba desde Chrome o Edge en una computadora.");
       return;
@@ -444,6 +496,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
       view={{
         session,
         connectionState,
+        engineReady,
         elapsed,
         outgoingToneActive: isInitiator
           && !hasRemoteJoined

@@ -7,6 +7,7 @@ import { isTauriRuntime, showSystemNotification } from '../lib/systemNotificatio
 import { toast } from 'sonner'
 import { playCallSound } from '../modules/atlas.chat/calls/callSounds'
 import { useChatFloatStore } from '../modules/atlas.chat/store/chatFloatStore'
+import { notificationKey, claimNotification } from '../lib/notificationDedup'
 
 const RealtimeContext = createContext(null)
 
@@ -41,30 +42,32 @@ export function RealtimeProvider({ children }) {
       .on('broadcast', { event: 'notification.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['notifications'] })
         dispatch('notification.new', payload)
-        if (payload?.title) {
-          const isIncomingCall = payload.eventType === 'chat.call.incoming'
-          const handleClick = () => {
-            if (!payload.link) return
-            const href = payload.link.startsWith('/m/') ? `/app${payload.link}` : payload.link
-            navigate(href)
-          }
-          if (!isIncomingCall) {
-            playCallSound('notification')
-            if (document.hidden || isTauriRuntime()) {
-              showSystemNotification({
-                title: payload.title,
-                body: payload.body ?? '',
-                tag: payload.eventType ?? 'atlas-notification',
-                data: { link: payload.link ?? null },
-              }).catch(() => {})
-            }
-          }
-          toast(payload.title, {
-            description: payload.body ?? undefined,
-            duration: 6000,
-            action: payload.link ? { label: 'Ver', onClick: handleClick } : undefined,
-          })
+        if (!payload?.title) return
+        const isIncomingCall = payload.eventType === 'chat.call.incoming'
+        // Incoming calls have their own surface (IncomingCallDialog + ringtone);
+        // a toast on top of it is noise.
+        if (isIncomingCall) return
+        // Collapse the in-app + web-push copies of the same alert.
+        if (!claimNotification(notificationKey(payload))) return
+        const handleClick = () => {
+          if (!payload.link) return
+          const href = payload.link.startsWith('/m/') ? `/app${payload.link}` : payload.link
+          navigate(href)
         }
+        playCallSound('notification')
+        if (document.hidden || isTauriRuntime()) {
+          showSystemNotification({
+            title: payload.title,
+            body: payload.body ?? '',
+            tag: payload.eventType ?? 'atlas-notification',
+            data: { link: payload.link ?? null },
+          }).catch(() => {})
+        }
+        toast(payload.title, {
+          description: payload.body ?? undefined,
+          duration: 6000,
+          action: payload.link ? { label: 'Ver', onClick: handleClick } : undefined,
+        })
       })
       .on('broadcast', { event: 'chat.message.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
@@ -77,7 +80,8 @@ export function RealtimeProvider({ children }) {
           const isOnRoute = convId && window.location.pathname.includes(`/atlas.chat/chat/inbox/${convId}`)
           const cachedConversations = queryClient.getQueryData(['chat-conversations'])?.data ?? []
           const isMuted = convId && cachedConversations.some((c) => c.id === convId && c.is_muted)
-          if (!isOpenAndVisible && !isOnRoute && !isMuted) {
+          const dupKey = convId ? `c:chat.message.new|${payload.senderName}|${convId}` : null
+          if (!isOpenAndVisible && !isOnRoute && !isMuted && claimNotification(dupKey)) {
             toast(payload.senderName, {
               description: 'Nuevo mensaje',
               duration: 5000,
