@@ -125,6 +125,40 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     e.target.value = "";
   }
 
+  // atlas.calls guest-link access mode. The CallLink row is unique + persistent
+  // per conversation, so requireLobby here IS the per-conversation default that
+  // the in-call toggle also writes. getLink only needs membership; updateLink
+  // needs channel.manage, so the control is gated on canManage.
+  const callLinkQuery = useQuery({
+    queryKey: ["chat-channel-call-link", conversationId],
+    queryFn: async () => {
+      const res = await atlas.calls.getLink(conversationId, token);
+      return res?.data?.link ?? res?.link ?? null;
+    },
+    enabled: Boolean(conversationId && token && canManage && conversation?.type !== "direct"),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const callLink = callLinkQuery.data ?? null;
+  // No link yet -> backend seeds requireLobby:true on first create, so the
+  // default shown is "with approval" (switch off).
+  const callAccessOpen = callLink ? !callLink.requireLobby : false;
+
+  const callAccessMutation = useMutation({
+    mutationFn: async (nextOpen) => {
+      if (!callLink) {
+        await atlas.calls.createLink(conversationId, token);
+      }
+      const res = await atlas.calls.updateLink(conversationId, { requireLobby: !nextOpen }, token);
+      return res?.data?.link ?? res?.link ?? null;
+    },
+    onSuccess: (link) => {
+      if (link) queryClient.setQueryData(["chat-channel-call-link", conversationId], link);
+      else queryClient.invalidateQueries({ queryKey: ["chat-channel-call-link", conversationId] });
+    },
+    onError: () => toast.error("No se pudo cambiar el acceso a las llamadas."),
+  });
+
   const hasAvatar = Boolean(conversation?.avatarUrl || conversation?.avatar_emoji);
 
   const { data: fullAvatarUrl } = useQuery({
@@ -274,6 +308,15 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
           checked={onlyAdminsCanWrite}
           onChange={handleToggleOnlyAdmins}
           disabled={isUpdatingRole}
+        />
+      )}
+      {canManage && conversation?.type !== "direct" && !callLinkQuery.isError && (
+        <SwitchField
+          label="Libre acceso a las llamadas"
+          description="Cualquiera con el enlace o el código entra directo. Si lo desactivas, tú admites a cada persona (PIN)."
+          checked={callAccessOpen}
+          onChange={(next) => callAccessMutation.mutate(next)}
+          disabled={callAccessMutation.isPending || callLinkQuery.isLoading}
         />
       )}
       {isChannel && (
