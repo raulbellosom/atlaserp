@@ -159,6 +159,7 @@ export function CallRoomLayout({ view, actions, chat }) {
     screenShareSupported,
     isDirectVideo,
     layoutMode,
+    invitePanel = null,
   } = view;
 
   const {
@@ -330,6 +331,12 @@ export function CallRoomLayout({ view, actions, chat }) {
         {remoteParticipants.map((participant) => (
           <RemoteAudio key={`audio-${participant.identity}`} participant={participant} />
         ))}
+
+        {invitePanel && !mobileChatOpen && !screenShareEntry && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-center p-4 sm:items-center">
+            <div className="pointer-events-auto w-full max-w-sm">{invitePanel}</div>
+          </div>
+        )}
       </main>
 
       {showRoster && (

@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { toast } from "sonner";
-import { useIsMobile } from "@atlas/ui";
+import { useIsMobile, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@atlas/ui";
 import { useChatMessages } from "../hooks/useChatMessages";
 import { playCallSound } from "./callSounds";
 import { nextCallView } from "./lib/callChat";
 import { CallChatPanel } from "./CallChatPanel";
 import { CallGuestRoster } from "./CallGuestRoster";
 import { CallShareDialog } from "./CallShareDialog";
+import { CallInvitePanel } from "./CallInvitePanel";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { useCallGuests } from "./hooks/useCallGuests";
 import { CallRoomLayout } from "./CallRoomLayout";
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
+// Meet-style: a meeting room where nobody ever joined auto-closes after this,
+// with a 60s "¿sigues aquí?" warning + an "extender" button that resets it.
+const ALONE_LIMIT_MS = 5 * 60_000;
 
 const CHAT_PANEL_PREF_KEY = "atlas.calls.chatPanel.collapsed";
 
@@ -66,6 +70,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const hasGuests = guestsApi.guests.some((g) => g.status === "ADMITTED" || g.status === "LOBBY");
   const [shareOpen, setShareOpen] = useState(false);
   const [liveMessages, setLiveMessages] = useState([]);
+  const [aloneDeadline, setAloneDeadline] = useState(() => Date.now() + ALONE_LIMIT_MS);
+  const [aloneSecondsLeft, setAloneSecondsLeft] = useState(0);
 
   const publishData = useCallback((obj) => {
     try {
@@ -359,6 +365,32 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
       : "grid-cols-2 auto-rows-[minmax(10rem,1fr)] overflow-y-auto";
   void renderVersion;
 
+  const isAlone = participants.length === 1 && !hasGuests;
+  // Only meeting-room calls (start ACTIVE, guest link exists) get the alone
+  // auto-close — a normal call already has the 36s unanswered timeout.
+  const aloneEligible = session.call.status === "ACTIVE" && isInitiator && !hasRemoteJoined && isAlone;
+
+  useEffect(() => {
+    if (hasRemoteJoined || hasGuests) setAloneDeadline(Date.now() + ALONE_LIMIT_MS);
+  }, [hasRemoteJoined, hasGuests]);
+
+  useEffect(() => {
+    if (!aloneEligible) { setAloneSecondsLeft(0); return undefined; }
+    const tick = () => {
+      const left = aloneDeadline - Date.now();
+      if (left <= 0) { handleLeave(); return; }
+      setAloneSecondsLeft(left <= 60_000 ? Math.ceil(left / 1000) : 0);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [aloneEligible, aloneDeadline]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const extendAlone = useCallback(() => {
+    setAloneDeadline(Date.now() + ALONE_LIMIT_MS);
+    setAloneSecondsLeft(0);
+  }, []);
+
   useEffect(() => {
     const corrected = nextCallView(mobileView, { hasScreenShare });
     if (corrected !== mobileView) setMobileView(corrected);
@@ -435,6 +467,9 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         screenShareSupported,
         isDirectVideo,
         layoutMode,
+        invitePanel: isInitiator && isAlone
+          ? <CallInvitePanel conversationId={conversationId} />
+          : null,
       }}
       actions={{
         activateAudio: () => room.startAudio().then(() => setNeedsAudio(false)),
@@ -466,6 +501,31 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     {isInitiator && (
       <CallShareDialog open={shareOpen} onOpenChange={setShareOpen} conversationId={conversationId} />
     )}
+    <AloneWarningDialog
+      open={aloneSecondsLeft > 0}
+      seconds={aloneSecondsLeft}
+      onStay={extendAlone}
+      onLeave={handleLeave}
+    />
     </>
+  );
+}
+
+function AloneWarningDialog({ open, seconds, onStay, onLeave }) {
+  return (
+    // Non-modal: don't lock the call controls while the "are you there" prompt
+    // is up, and any interaction outside counts as "still here".
+    <Dialog open={open} modal={false} onOpenChange={(o) => { if (!o) onStay(); }}>
+      <DialogContent className="sm:max-w-xs" onInteractOutside={onStay}>
+        <DialogHeader><DialogTitle>¿Sigues en la reunión?</DialogTitle></DialogHeader>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+          Nadie más se ha unido. La reunión se cerrará en {seconds} s.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={onLeave}>Salir</Button>
+          <Button onClick={onStay}>Seguir aquí</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
