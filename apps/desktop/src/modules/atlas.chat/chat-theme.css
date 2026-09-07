@@ -43,6 +43,20 @@
   border: 1px solid hsl(var(--border) / 0.5);
 }
 
+/* Touch: kill native text selection / callout on message rows so a long-press
+   opens our action popover instead of starting a selection the user then drags
+   across bubbles. Applied to the row AND every descendant so a child that
+   re-enables `user-select` can't override it. Pointer-fine devices (desktop)
+   keep text fully selectable. */
+@media (pointer: coarse) {
+  .chat-msg-row,
+  .chat-msg-row * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
 .chat-glass-theme .chat-font-display {
   font-family: var(--chat-font-display);
 }

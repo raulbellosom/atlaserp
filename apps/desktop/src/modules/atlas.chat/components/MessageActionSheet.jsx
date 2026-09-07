@@ -15,7 +15,9 @@ import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 export function MessageActionSheet({
   open,
   onOpenChange,
-  anchorPoint,        // {x,y} for desktop right-click; null on mobile long-press
+  anchorPoint,        // {x,y} for desktop right-click
+  anchorRect,         // the pressed message row's DOMRect — mobile popover anchor
+  isOwn = false,      // right-align the mobile popover for own messages
   actionProps,        // args for buildMessageActions (minus onReact)
   onQuickReact,       // (emoji) => void
   onOpenFullPicker,   // () => void
@@ -25,27 +27,44 @@ export function MessageActionSheet({
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
 
-  // Mobile popover placement — measured against the press point, clamped to
-  // the viewport, flipped above the point when it would overflow the bottom.
+  // Mobile popover placement — the reaction pill sits just above the pressed
+  // bubble, the action card just below it (flipped above when there's no room),
+  // both side-aligned to the bubble and clamped to the viewport.
+  const pillRef = useRef(null);
   const panelRef = useRef(null);
   const [pos, setPos] = useState(null);
   useLayoutEffect(() => {
     if (!isMobile || !open) { setPos(null); return; }
-    const el = panelRef.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
+    const panel = panelRef.current;
+    const pill = pillRef.current;
+    if (!panel || !pill) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const m = 8;
-    const ax = anchorPoint?.x ?? vw / 2;
-    const ay = anchorPoint?.y ?? vh / 2;
-    let left = ax - width / 2;
-    left = Math.max(m, Math.min(left, vw - width - m));
-    let top = ay + 10;
-    if (top + height > vh - m) top = ay - height - 10;
-    top = Math.max(m, Math.min(top, vh - height - m));
-    setPos({ left, top });
-  }, [isMobile, open, anchorPoint?.x, anchorPoint?.y]);
+    const gap = 8;
+    const pw = panel.getBoundingClientRect().width;
+    const ph = panel.getBoundingClientRect().height;
+    const pillW = pill.getBoundingClientRect().width;
+    const pillH = pill.getBoundingClientRect().height;
+
+    const rect = anchorRect ?? { top: vh / 2 - 20, bottom: vh / 2 + 20, left: m, right: vw - m };
+    // Horizontal: hug the bubble's side.
+    const clampX = (x, w) => Math.max(m, Math.min(x, vw - w - m));
+    const panelLeft = isOwn ? clampX(rect.right - pw, pw) : clampX(rect.left, pw);
+    const pillLeft = isOwn ? clampX(rect.right - pillW, pillW) : clampX(rect.left, pillW);
+
+    // Vertical: card below the bubble, or above if it would overflow.
+    const belowTop = rect.bottom + gap;
+    const flip = belowTop + ph > vh - m;
+    const panelTop = flip
+      ? Math.max(m + pillH + gap, rect.top - gap - ph)
+      : Math.min(belowTop, vh - ph - m);
+    const pillTop = flip
+      ? Math.max(m, panelTop - gap - pillH)
+      : Math.max(m, rect.top - gap - pillH);
+
+    setPos({ panelLeft, panelTop, pillLeft, pillTop });
+  }, [isMobile, open, anchorRect, isOwn]);
 
   useEffect(() => {
     if (!isMobile || !open) return undefined;
@@ -101,57 +120,92 @@ export function MessageActionSheet({
 
   if (isMobile) {
     if (!open) return null;
+    const surface =
+      "bg-[hsl(var(--popover,var(--card)))] text-[hsl(var(--popover-foreground,var(--foreground)))] border border-[hsl(var(--border))] shadow-2xl";
     return createPortal(
-      <div className="fixed inset-0 z-59" role="dialog" aria-label="Acciones del mensaje">
-        {/* Scrim — tap to dismiss; the pressed bubble is raised above it by
-            ChatMessageBubble while actionSheet.open. */}
+      <div className="fixed inset-0 z-200" role="dialog" aria-label="Acciones del mensaje">
+        {/* Dimmed, lightly-blurred scrim — tap anywhere to dismiss. */}
         <button
           type="button"
           aria-label="Cerrar"
           onClick={() => onOpenChange(false)}
-          className="absolute inset-0 bg-black/40"
+          className="absolute inset-0 bg-black/50 backdrop-blur-[3px] motion-safe:animate-in motion-safe:fade-in"
         />
+
+        {/* Quick-reaction pill, just above the pressed bubble */}
+        <div
+          ref={pillRef}
+          style={{
+            position: "fixed",
+            left: pos?.pillLeft ?? -9999,
+            top: pos?.pillTop ?? -9999,
+            visibility: pos ? "visible" : "hidden",
+          }}
+          className={[
+            "rounded-full px-1 flex items-center gap-0.5",
+            surface,
+            armed ? "" : "pointer-events-none",
+          ].join(" ")}
+        >
+          {QUICK_REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => { onOpenChange(false); onQuickReact?.(emoji); }}
+              className="h-10 w-9 text-xl flex items-center justify-center rounded-full active:scale-90 transition"
+            >
+              {emoji}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-label="Mas emojis"
+            onClick={() => { onOpenChange(false); onOpenFullPicker?.(); }}
+            className="h-10 w-9 flex items-center justify-center rounded-full text-[hsl(var(--muted-foreground))]"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Action card, just below (or above) the pressed bubble */}
         <div
           ref={panelRef}
           style={{
             position: "fixed",
-            left: pos?.left ?? -9999,
-            top: pos?.top ?? -9999,
+            left: pos?.panelLeft ?? -9999,
+            top: pos?.panelTop ?? -9999,
             visibility: pos ? "visible" : "hidden",
           }}
           className={[
-            "chat-glass-theme chat-glass w-64 max-w-[calc(100vw-16px)] rounded-2xl overflow-hidden shadow-xl",
+            "w-60 max-w-[calc(100vw-16px)] rounded-2xl overflow-hidden py-1",
+            surface,
             armed ? "" : "pointer-events-none",
           ].join(" ")}
         >
-          {quickRow(false)}
-          <div className="h-px bg-[hsl(var(--border))]" />
-          <div className="py-1">
-            {primary.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => runAction(a)}
-                className="w-full flex items-center px-4 py-3 text-sm text-left hover:bg-[hsl(var(--muted))]"
-              >
-                <a.icon className="h-4 w-4 mr-3" />{a.label}
-              </button>
-            ))}
-            {primary.length > 0 && danger.length > 0 && <div className="h-px bg-[hsl(var(--border))] my-1" />}
-            {danger.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                onClick={() => runAction(a)}
-                className={[
-                  "w-full flex items-center px-4 py-3 text-sm text-left hover:bg-[hsl(var(--muted))]",
-                  a.danger ? "text-red-500" : "",
-                ].join(" ")}
-              >
-                <a.icon className="h-4 w-4 mr-3" />{a.label}
-              </button>
-            ))}
-          </div>
+          {primary.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={() => runAction(a)}
+              className="w-full flex items-center px-4 py-3 text-sm text-left active:bg-[hsl(var(--muted))]"
+            >
+              <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
+            </button>
+          ))}
+          {primary.length > 0 && danger.length > 0 && <div className="h-px bg-[hsl(var(--border))] my-1" />}
+          {danger.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={() => runAction(a)}
+              className={[
+                "w-full flex items-center px-4 py-3 text-sm text-left active:bg-[hsl(var(--muted))]",
+                a.danger ? "text-red-500" : "",
+              ].join(" ")}
+            >
+              <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
+            </button>
+          ))}
         </div>
       </div>,
       document.body,

@@ -498,6 +498,17 @@ export const MessageComposer = forwardRef(function MessageComposer(
         body: trimmed || null,
         messageType: hasFiles && !trimmed ? "file" : "text",
         attachmentIds,
+        // Local previews so the optimistic bubble can show (and open) the
+        // image/file being sent while the server round-trips — swapped for the
+        // real signed-URL attachments on success. blob: URLs pass
+        // isSignedUrlUsable so useAttachmentUrl serves them directly.
+        optimisticAttachments: pendingFiles.map((f) => ({
+          id: `temp-att-${f.localId}`,
+          fileName: f.file?.name ?? "archivo",
+          mimeType: f.file?.type ?? "",
+          sizeBytes: f.file?.size ?? 0,
+          url: f.objectUrl ?? null,
+        })),
         // Only entityType/recordId — never the client-side echo `label`,
         // which the backend never reads and always re-derives the real
         // title/subtitle/url from the target module's own service.
@@ -505,10 +516,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
         replyToMessageId: replyingTo?.id ?? undefined,
       });
 
-      for (const file of pendingFiles) {
-        if (!file.objectUrl) continue;
-        URL.revokeObjectURL(file.objectUrl);
-        objectUrlsRef.current.delete(file.objectUrl);
+      // Delay the revoke so the optimistic bubble's blob preview outlives the
+      // temp -> real message swap (avoids a broken-image flicker).
+      const toRevoke = pendingFiles.map((f) => f.objectUrl).filter(Boolean);
+      if (toRevoke.length) {
+        setTimeout(() => {
+          for (const u of toRevoke) {
+            URL.revokeObjectURL(u);
+            objectUrlsRef.current.delete(u);
+          }
+        }, 4000);
       }
       setBody("");
       setPendingFiles([]);

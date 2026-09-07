@@ -207,6 +207,7 @@ export function useSendMessage(conversationId) {
       }
 
       const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const optimisticAttachments = (data.optimisticAttachments ?? []).filter((a) => a && (a.url || a.fileName));
       const optimistic = {
         id: tempId,
         conversation_id: conversationId,
@@ -214,7 +215,7 @@ export function useSendMessage(conversationId) {
         sender_type: "user",
         body: data.body ?? null,
         message_type: data.messageType ?? "text",
-        attachment_count: data.attachmentIds?.length ?? 0,
+        attachment_count: data.attachmentIds?.length ?? optimisticAttachments.length ?? 0,
         metadata: {},
         created_at: new Date().toISOString(),
         edited_at: null,
@@ -224,7 +225,9 @@ export function useSendMessage(conversationId) {
           displayName: userProfile?.displayName ?? null,
           avatarUrl: userProfile?.avatarUrl ?? null,
         },
-        attachments: null,
+        // Local blob previews so the pending bubble shows/opens what's being
+        // sent; replaced by real signed-URL attachments on refetch.
+        attachments: optimisticAttachments.length ? optimisticAttachments : null,
         reply_to: optimisticReplyTo,
         _pending: true,
       };

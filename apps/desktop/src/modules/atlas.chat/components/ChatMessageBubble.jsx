@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   CheckCheck, MoreHorizontal, Copy, Trash2, Forward, EyeOff, CheckSquare,
   Pin, PinOff, Smile, MessageSquare, CornerUpLeft,
@@ -241,7 +241,7 @@ export function ChatMessageBubble({
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
-  const [actionSheet, setActionSheet] = useState({ open: false, point: null });
+  const [actionSheet, setActionSheet] = useState({ open: false, point: null, rect: null });
   const lastTapRef = useRef(0);
   // Set the instant a long-press fires so the click/tap that lands when the
   // finger lifts is swallowed instead of activating whatever is under it
@@ -252,8 +252,20 @@ export function ChatMessageBubble({
   const isMobile = useIsMobile();
   // On touch, suppress the browser's native text selection / callout so a
   // long-press opens OUR menu instead of starting a text selection that the
-  // user then drags across several bubbles. Desktop keeps text selectable.
-  const touchNoSelect = coarse ? "select-none [-webkit-touch-callout:none]" : "";
+  // user then drags across several bubbles. `chat-msg-row` also gets a
+  // stronger CSS-level `user-select:none` (chat-theme.css, @media coarse) that
+  // beats any child re-enabling selection. Desktop keeps text selectable.
+  const touchNoSelect = coarse ? "select-none [-webkit-touch-callout:none] [-webkit-user-select:none]" : "";
+
+  // Clear the "swallow the next click" flag once the popover closes even if
+  // that click never came (e.g. the viewer tapped the scrim, which is a
+  // portal outside this row) — otherwise the next tap on an attachment/link
+  // gets eaten by handleRowClickCapture.
+  useEffect(() => {
+    if (actionSheet.open) return undefined;
+    const t = setTimeout(() => { suppressClickRef.current = false; }, 60);
+    return () => clearTimeout(t);
+  }, [actionSheet.open]);
 
   const isDeleted = Boolean(message.deleted_at);
   const isPending = String(message.id ?? "").startsWith("temp-");
@@ -269,9 +281,12 @@ export function ChatMessageBubble({
     // raises its bottom Sheet.
     onLongPress: (e) => {
       suppressClickRef.current = true;
+      const rowEl = e?.target?.closest?.("[data-msg-id]");
+      const r = rowEl?.getBoundingClientRect?.();
       setActionSheet({
         open: true,
         point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
+        rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null,
       });
     },
   });
@@ -305,7 +320,13 @@ export function ChatMessageBubble({
     if (gesturesDisabled) return;
     e.preventDefault();
     suppressClickRef.current = true;
-    setActionSheet({ open: true, point: { x: e.clientX, y: e.clientY } });
+    const rowEl = e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
+    const r = rowEl?.getBoundingClientRect?.();
+    setActionSheet({
+      open: true,
+      point: { x: e.clientX, y: e.clientY },
+      rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null,
+    });
   }
 
   // Capture-phase: eat the click that follows a long-press / contextmenu so it
@@ -451,7 +472,7 @@ export function ChatMessageBubble({
         onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
         {...rowGestureProps}
         className={[
-          "group/msg relative flex justify-end items-start gap-1 px-3 sm:px-4",
+          "group/msg chat-msg-row relative flex justify-end items-start gap-1 px-3 sm:px-4",
           touchNoSelect,
           rowPaddingY,
           isPending ? "opacity-60" : "",
@@ -460,13 +481,12 @@ export function ChatMessageBubble({
           isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
           highlightRow ? "border-l-2 border-primary pl-2" : "",
           highlightRow && !(selectionMode && isSelected) ? "bg-primary/5" : "",
-          actionSheet.open ? "z-60 scale-[1.02] transition-transform" : "",
         ].join(" ")}
       >
         <SwipeReplyHint translateX={translateX} isOwn />
         {selectionMode ? (
           <SelectionCircle isSelected={isSelected} />
-        ) : showActions && (
+        ) : showActions && !actionSheet.open && (
           <MessageActions
             isOwn
             hasBody={hasBody}
@@ -488,6 +508,8 @@ export function ChatMessageBubble({
           open={actionSheet.open}
           onOpenChange={(o) => setActionSheet((s) => ({ ...s, open: o }))}
           anchorPoint={actionSheet.point}
+          anchorRect={actionSheet.rect}
+          isOwn
           actionProps={{
             hasBody, isOwn: true, canPin, isPinned, canReply,
             onReply: onReply ? () => onReply(message) : undefined,
@@ -646,7 +668,7 @@ export function ChatMessageBubble({
       onKeyDown={selectionMode ? (e) => e.key === "Enter" && onSelect?.() : undefined}
       {...rowGestureProps}
       className={[
-        "group/msg relative flex items-start gap-1 px-3 sm:px-4",
+        "group/msg chat-msg-row relative flex items-start gap-1 px-3 sm:px-4",
         touchNoSelect,
         rowPaddingY,
         isPending ? "opacity-60" : "",
@@ -655,7 +677,6 @@ export function ChatMessageBubble({
         isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
         highlightRow ? "border-l-2 border-primary pl-2" : "",
         highlightRow && !(selectionMode && isSelected) ? "bg-primary/5" : "",
-        actionSheet.open ? "z-60 scale-[1.02] transition-transform" : "",
       ].join(" ")}
     >
       <SwipeReplyHint translateX={translateX} isOwn={false} />
@@ -664,6 +685,8 @@ export function ChatMessageBubble({
         open={actionSheet.open}
         onOpenChange={(o) => setActionSheet((s) => ({ ...s, open: o }))}
         anchorPoint={actionSheet.point}
+        anchorRect={actionSheet.rect}
+        isOwn={false}
         actionProps={{
           hasBody, isOwn: false, canPin, isPinned, canReply,
           onReply: onReply ? () => onReply(message) : undefined,
@@ -808,7 +831,7 @@ export function ChatMessageBubble({
         </div>
       </MessageReactionPicker>
 
-      {!selectionMode && showActions && (
+      {!selectionMode && showActions && !actionSheet.open && (
         <MessageActions
           isOwn={false}
           hasBody={hasBody}
