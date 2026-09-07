@@ -58,6 +58,20 @@ export function CallInvitePanel({ conversationId, onClose }) {
     }
   }
 
+  async function changeAccess(mode) {
+    const requireLobby = mode === "lobby";
+    if (!link || requireLobby === link.requireLobby) return;
+    const prev = link;
+    setLink({ ...link, requireLobby });
+    try {
+      const r = await atlas.calls.updateLink(conversationId, { requireLobby }, token);
+      setLink(unwrap(r)?.link ?? { ...prev, requireLobby });
+    } catch (e) {
+      setLink(prev);
+      toast.error(e?.message || "No se pudo cambiar el acceso.");
+    }
+  }
+
   return (
     <div className="w-full max-w-sm rounded-2xl bg-slate-900/90 p-5 text-slate-100 shadow-2xl ring-1 ring-white/10 backdrop-blur">
       <div className="mb-3 flex items-center gap-2 text-sm font-medium">
@@ -104,6 +118,37 @@ export function CallInvitePanel({ conversationId, onClose }) {
       ) : (
         <p className="mb-4 text-xs text-slate-400">Generando enlace de invitados…</p>
       )}
+
+      {link ? (
+        <div className="mb-4">
+          <span className="mb-1.5 block text-xs text-slate-400">Acceso</span>
+          <div className="flex gap-1 rounded-lg bg-white/5 p-1">
+            {[
+              { v: "lobby", label: "Con aprobación (PIN)" },
+              { v: "open", label: "Libre acceso" },
+            ].map((opt) => {
+              const active = (link.requireLobby ? "lobby" : "open") === opt.v;
+              return (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => changeAccess(opt.v)}
+                  className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                    active ? "bg-violet-600 text-white" : "text-slate-300 hover:bg-white/10"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">
+            {link.requireLobby
+              ? "Apruebas a cada persona antes de que entre."
+              : "Cualquiera con el enlace o el código entra directo."}
+          </p>
+        </div>
+      ) : null}
 
       <TagsField
         label="Invitar por correo"
