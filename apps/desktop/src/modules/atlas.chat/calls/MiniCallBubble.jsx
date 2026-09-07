@@ -40,6 +40,9 @@ export function MiniCallBubble({
 }) {
   const nodeRef = useRef(null);
   const dragRef = useRef(null);
+  // Set by endDrag before it clears dragRef, read by the restore button's
+  // onClick — a click that ends a drag must not restore the call.
+  const lastGestureWasDrag = useRef(false);
   const [pos, setPos] = useState(null); // { x, y } from viewport top-left; null = anchor bottom-right
 
   const focus =
@@ -75,6 +78,7 @@ export function MiniCallBubble({
     const node = nodeRef.current;
     if (!node) return;
     const rect = node.getBoundingClientRect();
+    lastGestureWasDrag.current = false;
     dragRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
@@ -82,8 +86,8 @@ export function MiniCallBubble({
       originX: pos ? pos.x : rect.left,
       originY: pos ? pos.y : rect.top,
       moved: false,
+      captured: false,
     };
-    node.setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e) => {
     const d = dragRef.current;
@@ -92,15 +96,22 @@ export function MiniCallBubble({
     const dy = e.clientY - d.startY;
     if (!d.moved && Math.hypot(dx, dy) > TAP_THRESHOLD_PX) d.moved = true;
     if (!d.moved) return;
+    // Capture only now that this is really a drag. Capturing on pointerdown
+    // retargets pointerup away from the restore <button> and breaks
+    // click-to-restore with a mouse.
+    if (!d.captured) {
+      nodeRef.current?.setPointerCapture?.(e.pointerId);
+      d.captured = true;
+    }
     setPos(clamp(d.originX + dx, d.originY + dy));
   };
   const endDrag = (e) => {
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
-    nodeRef.current?.releasePointerCapture?.(e.pointerId);
+    lastGestureWasDrag.current = d.moved;
+    if (d.captured) nodeRef.current?.releasePointerCapture?.(e.pointerId);
     dragRef.current = null;
   };
-  const wasDrag = () => Boolean(dragRef.current?.moved);
 
   const style = pos
     ? { left: `${pos.x}px`, top: `${pos.y}px` }
@@ -121,7 +132,8 @@ export function MiniCallBubble({
     >
       <button
         type="button"
-        onPointerUp={(e) => { if (!wasDrag()) onRestore?.(); endDrag(e); }}
+        onPointerUp={endDrag}
+        onClick={() => { if (!lastGestureWasDrag.current) onRestore?.(); }}
         title="Volver a la llamada"
         className="relative block aspect-video w-full bg-slate-950"
       >
