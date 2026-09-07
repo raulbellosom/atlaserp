@@ -381,6 +381,7 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
               onOpenThread={(messageId) => setThreadRootId(messageId)}
+              onJumpToThread={(threadRootId) => setThreadRootId(threadRootId)}
               onReplyToMessage={(msg) => setReplyingTo(msg)}
               onJumpToMessage={(msgId) => setJumpTarget({ id: msgId, nonce: Date.now() })}
               scrollToMessage={jumpTarget}

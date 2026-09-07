@@ -15,6 +15,28 @@ export function formatMessageTime(dateStr) {
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit" });
 }
 
+// "[7/9/26, 19:33]" prefix for the copy-selected transcript. Browser-local
+// zone via Intl (never toISOString, which is UTC — see @atlas/core/time).
+export function transcriptStamp(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const date = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "numeric", year: "2-digit" }).format(d);
+  const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return `${date}, ${time}`;
+}
+
+// WhatsApp-style plain-text transcript of the given messages, one line each:
+// "[stamp] Sender: body". Skips deleted / body-less messages; sorts ascending
+// by created_at. Returns "" when nothing is copyable.
+export function buildMessagesTranscript(messages) {
+  return (messages ?? [])
+    .filter((m) => m && m.body && !m.deleted_at)
+    .slice()
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    .map((m) => `[${transcriptStamp(m.created_at)}] ${m.sender?.displayName ?? "Usuario"}: ${m.body}`)
+    .join("\n");
+}
+
 export function formatDateSeparator(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);

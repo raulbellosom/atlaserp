@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, ConfirmDialog } from "@atlas/ui";
 import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
-  MoreVertical, Trash2, X as XIcon, Search, Share2, CheckSquare,
+  MoreVertical, Trash2, X as XIcon, Search, Forward, Copy, CheckSquare,
   ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
   Phone, Video, UserPlus,
 } from "lucide-react";
@@ -32,6 +32,7 @@ import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import {
   getConversationDisplayName, getConversationTitleLabel, buildAllAttachments,
+  buildMessagesTranscript,
 } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
@@ -56,7 +57,7 @@ function ChatHeader({
   searchMode, searchQuery, onSearchToggle, onSearchChange,
   searchMatchCount, searchCurrentIdx, searchBusy, searchError, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
-  onSelectionCancel, onDeleteForMe, onDeleteForAll, onForwardSelected,
+  onSelectionCancel, onDeleteForMe, onDeleteForAll, onForwardSelected, onCopySelected,
   onEnterSelection,
   onDeleteConversation,
   onArchive, isArchived,
@@ -109,8 +110,11 @@ function ChatHeader({
         </span>
         {selectionCount > 0 && (
           <>
+            <button type="button" onClick={onCopySelected} className={headerBtnCls} title="Copiar seleccionados">
+              <Copy className="h-4 w-4" />
+            </button>
             <button type="button" onClick={onForwardSelected} className={headerBtnCls} title="Reenviar seleccionados">
-              <Share2 className="h-4 w-4" />
+              <Forward className="h-4 w-4" />
             </button>
             <button type="button" onClick={onDeleteForMe} className={[headerBtnCls, "text-red-400 hover:text-red-500"].join(" ")} title="Eliminar para mi">
               <Trash2 className="h-4 w-4" />
@@ -428,7 +432,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const [hiddenMessageIds, setHiddenMessageIds] = useState(() =>
     conversationId ? loadHidden(conversationId) : new Set(),
   );
-  const [forwardMessage, setForwardMessage] = useState(null);
+  // { messageIds: string[] } while the forward modal is open, else null.
+  const [forwardTarget, setForwardTarget] = useState(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
   // Separate selection state for the standalone Files view (reached from the
@@ -690,12 +695,29 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   }, [messagesData, conversationId]);
 
   const handleForwardSelected = useCallback(() => {
-    // Build a synthetic "message" that contains all selected bodies concatenated
-    const msgs = (messagesData?.data ?? []).filter((m) => selectedMsgIds.has(m.id) && m.body && !m.deleted_at);
+    // Each selected message is forwarded as its own message (with its own
+    // attachments), in conversation order — the API clones attachments and
+    // tags metadata.forwardedFrom.
+    const ids = (messagesData?.data ?? [])
+      .filter((m) => selectedMsgIds.has(m.id) && !m.deleted_at && !String(m.id).startsWith("temp-"))
+      .map((m) => m.id);
+    if (!ids.length) return;
+    setForwardTarget({ messageIds: ids });
+    exitSelectionMode();
+  }, [messagesData, selectedMsgIds, exitSelectionMode]);
+
+  const handleCopySelected = useCallback(async () => {
+    const msgs = (messagesData?.data ?? []).filter(
+      (m) => selectedMsgIds.has(m.id) && m.body && !m.deleted_at,
+    );
     if (!msgs.length) return;
-    // Forward them as one combined message (join with newlines)
-    const combined = msgs.map((m) => m.body).join("\n");
-    setForwardMessage({ body: combined });
+    const transcript = buildMessagesTranscript(msgs);
+    try {
+      await navigator.clipboard.writeText(transcript);
+      toast.success(msgs.length === 1 ? "Mensaje copiado" : "Mensajes copiados");
+    } catch {
+      /* clipboard blocked — mirror the single-message copy's silent failure */
+    }
     exitSelectionMode();
   }, [messagesData, selectedMsgIds, exitSelectionMode]);
 
@@ -834,6 +856,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onDeleteForMe={handleDeleteSelectedForMe}
         onDeleteForAll={handleDeleteSelectedForAll}
         onForwardSelected={handleForwardSelected}
+        onCopySelected={handleCopySelected}
         onEnterSelection={() => enterSelectionMode(null)}
         onDeleteConversation={handleDeleteConversation}
         onOpenProfile={openProfile}
@@ -896,7 +919,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               onDeleteAttachment={handleDeleteAttachment}
               deletingAttachmentId={isDeletingAttachment ? deletingAttachmentId : null}
               onHideForMe={handleHideForMe}
-              onForward={setForwardMessage}
+              onForward={(m) => setForwardTarget({ messageIds: [m.id] })}
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
               onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
@@ -909,6 +932,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
                     : "No se pudo cargar el mensaje original.",
                 )
               }
+              onJumpToThread={(threadRootId) => {
+                setThreadPanelRootId(threadRootId);
+                toast.message("El mensaje esta en un hilo; abrimos el hilo.");
+              }}
               hiddenMessageIds={hiddenMessageIds}
               selectionMode={selectionMode}
               selectedMsgIds={selectedMsgIds}
@@ -982,9 +1009,14 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       />
 
       <ForwardMessageModal
-        open={Boolean(forwardMessage)}
-        onClose={() => setForwardMessage(null)}
-        message={forwardMessage}
+        open={Boolean(forwardTarget)}
+        onClose={() => setForwardTarget(null)}
+        messageIds={forwardTarget?.messageIds ?? []}
+        sourceMessages={
+          forwardTarget
+            ? (messages ?? []).filter((m) => forwardTarget.messageIds.includes(m.id))
+            : []
+        }
         conversations={conversations}
       />
 

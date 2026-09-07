@@ -59,6 +59,7 @@ export function ChatMessageList({
   onReplyToMessage,
   onJumpToMessage,
   onJumpFailed,
+  onJumpToThread,
   hiddenMessageIds,
   selectionMode,
   selectedMsgIds,
@@ -122,6 +123,9 @@ export function ChatMessageList({
   // unrelated re-render never re-scrolls you back to the same message.
   const jumpHandledRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  // While a jump is resolving, force its target row to render even if the
+  // viewer had hidden it for themselves — otherwise the jump can never find it.
+  const [revealMessageId, setRevealMessageId] = useState(null);
 
   // All attachments across all messages — used so clicking any file navigates the full set
   const allConversationAttachments = useMemo(() => {
@@ -364,7 +368,27 @@ export function ChatMessageList({
     // the view back to the bottom and the jump visibly "gives up" even
     // though it found nothing wrong.
     suppressAutoScrollRef.current = true;
-    const release = () => { suppressAutoScrollRef.current = false; };
+    // Reveal the target even if it was hidden-for-me, so the jump can land.
+    setRevealMessageId(target.id);
+    const release = () => {
+      suppressAutoScrollRef.current = false;
+      setRevealMessageId((cur) => (cur === target.id ? null : cur));
+    };
+
+    // Target isn't in the loaded page and there's nothing older to fetch — try
+    // routing to its thread (a thread reply never shows in the main list), else
+    // sit at the oldest loaded message so the view reflects how far back we got.
+    function giveUp() {
+      jumpHandledRef.current = key;
+      const msg = messages?.find((m) => m.id === target.id);
+      if (msg?.thread_root_id && onJumpToThread) {
+        onJumpToThread(msg.thread_root_id, target.id);
+      } else {
+        listRef.current?.scrollTo?.({ top: 0 });
+        onJumpFailed?.();
+      }
+      release();
+    }
 
     function flash(el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -378,14 +402,14 @@ export function ChatMessageList({
       if (cancelled) return;
       const el = listRef.current?.querySelector(`[data-msg-id="${target.id}"]`);
       if (el) { jumpHandledRef.current = key; flash(el); release(); return; }
-      if (attempts >= 20 || !hasMore) { jumpHandledRef.current = key; onJumpFailed?.(); release(); return; }
+      if (attempts >= 20 || !hasMore) { giveUp(); return; }
       attempts += 1;
       handleLoadMore();
       setTimeout(tryScroll, 450);
     }
     tryScroll();
     return () => { cancelled = true; release(); };
-  }, [scrollToMessage, hasMore, handleLoadMore, onJumpFailed]);
+  }, [scrollToMessage, hasMore, handleLoadMore, onJumpFailed, onJumpToThread, messages]);
 
   // Auto-load when user scrolls up to the sentinel near the top of the list
   useEffect(() => {
@@ -433,7 +457,7 @@ export function ChatMessageList({
   }
 
   const visibleMessages = hiddenMessageIds?.size
-    ? messages.filter((m) => !hiddenMessageIds.has(m.id))
+    ? messages.filter((m) => !hiddenMessageIds.has(m.id) || m.id === revealMessageId)
     : messages;
 
   const grouped = enrichWithGroupInfo(groupMessagesByDate(visibleMessages));

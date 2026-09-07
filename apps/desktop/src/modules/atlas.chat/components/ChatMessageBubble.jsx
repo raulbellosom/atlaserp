@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import {
-  CheckCheck, MoreHorizontal, Copy, Trash2, Share2, EyeOff, CheckSquare,
+  CheckCheck, MoreHorizontal, Copy, Trash2, Forward, EyeOff, CheckSquare,
   Pin, PinOff, Smile, MessageSquare, CornerUpLeft,
 } from "lucide-react";
 import {
@@ -375,6 +375,16 @@ export function ChatMessageBubble({
 
   const hasBody = Boolean(message.body) && !isDeleted;
   const showActions = !isDeleted && !isPending;
+  // "Reenviado" marker — WhatsApp/Telegram-style, shown for messages carrying
+  // metadata.forwardedFrom (set by the forward endpoint). Rendered above the
+  // bubble content in both the own and other branches.
+  const isForwarded = Boolean(message.metadata?.forwardedFrom) && !isDeleted;
+  const forwardedMark = isForwarded ? (
+    <span className="flex items-center gap-1 text-[11px] italic mb-0.5 px-1 text-[hsl(var(--muted-foreground))]">
+      <Forward className="h-3 w-3" />
+      Reenviado
+    </span>
+  ) : null;
   const entityRefs = message.metadata?.entityRefs ?? [];
   const firstRefIsFile = entityRefs[0]?.entityType === "file" && Boolean(entityRefs[0]?.mimeType);
   // Only EntityReferenceCard knows how to blend into a bubble (matching
@@ -450,6 +460,7 @@ export function ChatMessageBubble({
           isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
           highlightRow ? "border-l-2 border-primary pl-2" : "",
           highlightRow && !(selectionMode && isSelected) ? "bg-primary/5" : "",
+          actionSheet.open ? "z-60 scale-[1.02] transition-transform" : "",
         ].join(" ")}
       >
         <SwipeReplyHint translateX={translateX} isOwn />
@@ -492,6 +503,7 @@ export function ChatMessageBubble({
           anchorAlign="end"
         >
           <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
+            {forwardedMark}
             {/* Quote sits INSIDE the text bubble (below) when there's a body,
                 tinted to match it; only floats on its own when the reply has
                 no text bubble to nest into (attachment-only reply). */}
@@ -643,6 +655,7 @@ export function ChatMessageBubble({
         isCurrentMatch ? "bg-yellow-400/15" : isSearchMatch ? "bg-yellow-400/6" : "",
         highlightRow ? "border-l-2 border-primary pl-2" : "",
         highlightRow && !(selectionMode && isSelected) ? "bg-primary/5" : "",
+        actionSheet.open ? "z-60 scale-[1.02] transition-transform" : "",
       ].join(" ")}
     >
       <SwipeReplyHint translateX={translateX} isOwn={false} />
@@ -687,6 +700,8 @@ export function ChatMessageBubble({
               {senderName}
             </span>
           )}
+
+          {forwardedMark}
 
           {message.reply_to && !hasText && (
             <MessageQuote reply={message.reply_to} variant="inline" context="standalone" onJump={onJumpToMessage} />

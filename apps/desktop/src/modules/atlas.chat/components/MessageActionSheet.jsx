@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle,
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
   useIsMobile,
 } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 
-// Unified action surface. Mobile: bottom Sheet raised by long-press. Desktop:
-// DropdownMenu at the cursor, raised by right-click. Both render the same
-// quick-reaction row + buildMessageActions() list. The desktop hover menu
-// (MessageActions in ChatMessageBubble) is separate and unchanged.
+// Unified action surface. Mobile: an anchored popover over the pressed message
+// (iMessage/Telegram style) raised by long-press. Desktop: DropdownMenu at the
+// cursor, raised by right-click. Both render the same quick-reaction row +
+// buildMessageActions() list. The desktop hover menu (MessageActions in
+// ChatMessageBubble) is separate and unchanged.
 export function MessageActionSheet({
   open,
   onOpenChange,
@@ -24,6 +24,35 @@ export function MessageActionSheet({
   const actions = buildMessageActions({ ...actionProps, onReact: undefined });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
+
+  // Mobile popover placement — measured against the press point, clamped to
+  // the viewport, flipped above the point when it would overflow the bottom.
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState(null);
+  useLayoutEffect(() => {
+    if (!isMobile || !open) { setPos(null); return; }
+    const el = panelRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const m = 8;
+    const ax = anchorPoint?.x ?? vw / 2;
+    const ay = anchorPoint?.y ?? vh / 2;
+    let left = ax - width / 2;
+    left = Math.max(m, Math.min(left, vw - width - m));
+    let top = ay + 10;
+    if (top + height > vh - m) top = ay - height - 10;
+    top = Math.max(m, Math.min(top, vh - height - m));
+    setPos({ left, top });
+  }, [isMobile, open, anchorPoint?.x, anchorPoint?.y]);
+
+  useEffect(() => {
+    if (!isMobile || !open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onOpenChange(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isMobile, open, onOpenChange]);
 
   // The desktop/tablet menu opens at the finger while it's still pressed from
   // the long-press. Ignore pointer input on the menu for a moment so the lift
@@ -71,17 +100,33 @@ export function MessageActionSheet({
   );
 
   if (isMobile) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        {/* min-h-0 opts this transient long-press menu out of the shared
-            bottom-sheet's half-screen minimum — it should hug its short list. */}
-        <SheetContent side="bottom" className="chat-glass-theme chat-glass px-0 pb-0 min-h-0 rounded-t-2xl">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Acciones del mensaje</SheetTitle>
-          </SheetHeader>
+    if (!open) return null;
+    return createPortal(
+      <div className="fixed inset-0 z-59" role="dialog" aria-label="Acciones del mensaje">
+        {/* Scrim — tap to dismiss; the pressed bubble is raised above it by
+            ChatMessageBubble while actionSheet.open. */}
+        <button
+          type="button"
+          aria-label="Cerrar"
+          onClick={() => onOpenChange(false)}
+          className="absolute inset-0 bg-black/40"
+        />
+        <div
+          ref={panelRef}
+          style={{
+            position: "fixed",
+            left: pos?.left ?? -9999,
+            top: pos?.top ?? -9999,
+            visibility: pos ? "visible" : "hidden",
+          }}
+          className={[
+            "chat-glass-theme chat-glass w-64 max-w-[calc(100vw-16px)] rounded-2xl overflow-hidden shadow-xl",
+            armed ? "" : "pointer-events-none",
+          ].join(" ")}
+        >
           {quickRow(false)}
           <div className="h-px bg-[hsl(var(--border))]" />
-          <div className="py-1 pb-[env(safe-area-inset-bottom)]">
+          <div className="py-1">
             {primary.map((a) => (
               <button
                 key={a.key}
@@ -107,8 +152,9 @@ export function MessageActionSheet({
               </button>
             ))}
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
+      </div>,
+      document.body,
     );
   }
 
