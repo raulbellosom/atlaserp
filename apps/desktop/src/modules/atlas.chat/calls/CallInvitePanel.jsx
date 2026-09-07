@@ -4,6 +4,7 @@ import { Copy, Check, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
+import { summarizeInviteResult } from "./lib/inviteResult";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -43,15 +44,10 @@ export function CallInvitePanel({ conversationId }) {
     setSending(true);
     try {
       const res = unwrap(await atlas.calls.sendInvites(conversationId, emails, token));
-      const n = (res?.invited?.length ?? 0) + (res?.matchedUsers?.length ?? 0);
-      if (n) toast.success(`${n} invitación(es) enviadas.`);
-      if (res?.pendingManual?.length) {
-        toast.message(
-          res?.smtpConfigured === false
-            ? "El correo no está configurado — comparte el enlace."
-            : "Algunos correos no se pudieron enviar.",
-          res?.sendError ? { description: res.sendError } : undefined,
-        );
+      const { successCount, notice } = summarizeInviteResult(res);
+      if (successCount) toast.success(`${successCount} invitación(es) enviadas.`);
+      if (notice) {
+        toast.message(notice.title, notice.description ? { description: notice.description } : undefined);
       }
       setEmails([]);
     } catch (e) {

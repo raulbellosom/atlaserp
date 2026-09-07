@@ -114,6 +114,26 @@ describe("createCallLinksService.sendInvites", () => {
     const svc = createCallLinksService({ prisma, smtpService, callService: { assertCanManageCall: async () => {} }, env: { PUBLIC_APP_URL: "https://app.test" } });
     const out = await svc.sendInvites({ authUserId: "auth", conversationId: CONV, profileId: USER, emails: ["outsider@y.com"] });
     assert.equal(out.pendingManual.length, 1);
+    assert.equal(out.pendingManual[0].reason, "smtp_not_configured");
     assert.match(out.pendingManual[0].url, /^https:\/\/app\.test\/p\/call\/tok\?i=/);
+  });
+
+  it("marks pendingManual as smtp_error and surfaces the message when SMTP is saved but unusable", async () => {
+    const prisma = {
+      $queryRaw: async (s) => (String(Array.isArray(s) ? s.join("?") : s).includes("membership") ? [] : [{ id: "member" }]),
+      callLink: { findFirst: async () => ({ id: "l1", conversationId: CONV, token: "tok", code: "C", revokedAt: null }) },
+      callInvite: { create: async ({ data }) => ({ id: "inv", ...data }) },
+    };
+    const smtpService = {
+      getStatus: async () => ({ configured: false, reason: "undecryptable_password", message: "JWT_SECRET cambió; vuelve a guardar la contraseña." }),
+      isConfigured: async () => false,
+      sendEmail: async () => { throw new Error("should not send"); },
+    };
+    const svc = createCallLinksService({ prisma, smtpService, callService: { assertCanManageCall: async () => {} }, env: { PUBLIC_APP_URL: "https://app.test" } });
+    const out = await svc.sendInvites({ authUserId: "auth", conversationId: CONV, profileId: USER, emails: ["outsider@y.com"] });
+    assert.equal(out.smtpConfigured, false);
+    assert.equal(out.pendingManual.length, 1);
+    assert.equal(out.pendingManual[0].reason, "smtp_error");
+    assert.match(out.sendError, /JWT_SECRET/);
   });
 });

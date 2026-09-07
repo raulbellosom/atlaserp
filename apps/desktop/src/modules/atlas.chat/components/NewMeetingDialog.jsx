@@ -13,6 +13,7 @@ import { getConversationDisplayName } from "../lib/chatUtils";
 import { useCalls } from "../calls/CallsProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { startMeeting } from "../lib/startMeeting.js";
+import { summarizeInviteResult } from "../calls/lib/inviteResult";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -128,15 +129,10 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     if (!emails.length) return;
     try {
       const res = unwrap(await atlas.calls.sendInvites(targetId, emails, token));
-      const n = (res?.invited?.length ?? 0) + (res?.matchedUsers?.length ?? 0);
-      if (n) toast.success(`${n} invitación(es) enviadas.`);
-      if (res?.pendingManual?.length) {
-        toast.message(
-          res?.smtpConfigured === false
-            ? "El correo no está configurado — comparte el enlace manualmente."
-            : "Algunos correos no se pudieron enviar.",
-          res?.sendError ? { description: res.sendError } : undefined,
-        );
+      const { successCount, notice } = summarizeInviteResult(res);
+      if (successCount) toast.success(`${successCount} invitación(es) enviadas.`);
+      if (notice) {
+        toast.message(notice.title, notice.description ? { description: notice.description } : undefined);
       }
     } catch (e) {
       toast.error(e?.message || "No se pudieron enviar las invitaciones.");

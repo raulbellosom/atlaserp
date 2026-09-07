@@ -28,6 +28,10 @@ export function createSettingsRouter({ prisma, requirePermission }) {
         },
       })
       const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+      // Real status: attempts to decrypt the stored password, so a saved-but-
+      // undecryptable secret (JWT_SECRET rotated) reports configured:false with
+      // a reason instead of a misleading green state.
+      const status = await createSmtpService({ prisma }).getStatus()
       return c.json({
         data: {
           host:       cfg['smtp.host']       ?? '',
@@ -36,7 +40,9 @@ export function createSettingsRouter({ prisma, requirePermission }) {
           from_name:  cfg['smtp.from_name']  ?? '',
           from_email: cfg['smtp.from_email'] ?? '',
           tls:        cfg['smtp.tls'] === 'true',
-          configured: Boolean(cfg['smtp.host'] && cfg['smtp.user']),
+          configured: status.configured,
+          status_reason:  status.reason ?? null,
+          status_message: status.message ?? null,
         },
       })
     } catch (err) {

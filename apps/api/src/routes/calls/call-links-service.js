@@ -173,12 +173,33 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
     const matchedByEmail = new Map(companyRows.map((r) => [r.email, r.userId]));
     const matchedUsers = [...matchedByEmail.entries()].map(([email, userId]) => ({ email, userId }));
 
-    const smtpOk = smtpService ? await smtpService.isConfigured().catch(() => false) : false;
     const invited = [];
     const pendingManual = [];
     // First delivery failure message, surfaced to the UI so the host knows the
     // difference between "SMTP not set up" and "SMTP set up but rejecting".
     let sendError = null;
+
+    // Tell apart "no SMTP configured" from "SMTP configured but unusable"
+    // (e.g. the stored password can't be decrypted). getStatus() is optional on
+    // the injected service — fall back to the boolean isConfigured().
+    let smtpOk = false;
+    let smtpFallbackReason = "smtp_not_configured";
+    if (smtpService) {
+      try {
+        if (typeof smtpService.getStatus === "function") {
+          const status = await smtpService.getStatus();
+          smtpOk = Boolean(status?.configured);
+          if (!smtpOk && status?.reason && status.reason !== "not_configured") {
+            smtpFallbackReason = "smtp_error";
+            if (status.message) sendError = status.message;
+          }
+        } else {
+          smtpOk = await smtpService.isConfigured().catch(() => false);
+        }
+      } catch {
+        smtpOk = false;
+      }
+    }
 
     // For a friendlier email ("Raul te invitó en «#general»"). Best-effort.
     let inviterName = null;
@@ -226,7 +247,7 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
           pendingManual.push({ email, inviteId: invite.id, url, reason: "send_failed", detail });
         }
       } else {
-        pendingManual.push({ email, inviteId: invite.id, url, reason: "smtp_not_configured" });
+        pendingManual.push({ email, inviteId: invite.id, url, reason: smtpFallbackReason });
       }
     }
 

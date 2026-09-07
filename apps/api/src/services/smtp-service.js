@@ -4,6 +4,31 @@ import nodemailer from 'nodemailer'
 const ALGORITHM = 'aes-256-gcm'
 const SALT = 'atlas-smtp-v1'
 
+// Raised when a stored SMTP secret cannot be read back — almost always because
+// JWT_SECRET changed since it was saved (the AES key is derived from it), so the
+// GCM auth tag no longer validates. Callers should treat this as "not usable"
+// and surface the re-save instruction rather than a raw Node crypto message.
+export class SmtpConfigError extends Error {
+  constructor(message, reason = 'smtp_error') {
+    super(message)
+    this.name = 'SmtpConfigError'
+    this.reason = reason
+  }
+}
+
+const UNDECRYPTABLE_MESSAGE =
+  'No se pudo descifrar la contraseña SMTP. Es probable que JWT_SECRET haya cambiado '
+  + 'desde que se guardó; vuelve a introducirla y guardar en Ajustes -> SMTP.'
+
+function safeDecryptPassword(ciphertext) {
+  if (!ciphertext) return ''
+  try {
+    return decryptPassword(ciphertext)
+  } catch {
+    throw new SmtpConfigError(UNDECRYPTABLE_MESSAGE, 'undecryptable_password')
+  }
+}
+
 function deriveKey() {
   const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET is not set')
@@ -47,7 +72,7 @@ export function createSmtpService({ prisma }) {
       host:      cfg['smtp.host'],
       port:      Number(cfg['smtp.port'] ?? 587),
       user:      cfg['smtp.user'],
-      pass:      cfg['smtp.pass'] ? decryptPassword(cfg['smtp.pass']) : '',
+      pass:      safeDecryptPassword(cfg['smtp.pass']),
       fromName:  cfg['smtp.from_name'] ?? '',
       fromEmail: cfg['smtp.from_email'] ?? cfg['smtp.user'],
       tls:       cfg['smtp.tls'] === 'true',
@@ -75,11 +100,33 @@ export function createSmtpService({ prisma }) {
   }
 
   async function isConfigured() {
-    const config = await getConfig()
-    return Boolean(config)
+    try {
+      const config = await getConfig()
+      return Boolean(config)
+    } catch {
+      // A stored-but-undecryptable password is not "configured" for the
+      // purposes of every boolean caller. getStatus() exposes the real reason.
+      return false
+    }
   }
 
-  return { sendEmail, isConfigured, getConfig }
+  // Richer variant of isConfigured() for admin/diagnostic surfaces: tells apart
+  // "no SMTP saved" from "SMTP saved but the password can't be decrypted".
+  async function getStatus() {
+    try {
+      const config = await getConfig()
+      return config
+        ? { configured: true, reason: null }
+        : { configured: false, reason: 'not_configured' }
+    } catch (err) {
+      if (err instanceof SmtpConfigError) {
+        return { configured: false, reason: err.reason, message: err.message }
+      }
+      return { configured: false, reason: 'error', message: err?.message ?? String(err) }
+    }
+  }
+
+  return { sendEmail, isConfigured, getStatus, getConfig }
 }
 
 export function createWebsiteSmtpService({ prisma }) {
@@ -105,7 +152,7 @@ export function createWebsiteSmtpService({ prisma }) {
       host:      cfg[`${prefix}.host`],
       port:      Number(cfg[`${prefix}.port`] ?? 587),
       user:      cfg[`${prefix}.user`],
-      pass:      passRaw ? decryptPassword(passRaw) : '',
+      pass:      safeDecryptPassword(passRaw),
       fromName:  cfg[`${prefix}.from_name`] ?? '',
       fromEmail: cfg[`${prefix}.from_email`] ?? cfg[`${prefix}.user`],
       tls:       cfg[`${prefix}.tls`] === 'true',
@@ -134,8 +181,26 @@ export function createWebsiteSmtpService({ prisma }) {
   }
 
   async function isConfigured() {
-    const config = await getConfig()
-    return Boolean(config)
+    try {
+      const config = await getConfig()
+      return Boolean(config)
+    } catch {
+      return false
+    }
+  }
+
+  async function getStatus() {
+    try {
+      const config = await getConfig()
+      return config
+        ? { configured: true, reason: null }
+        : { configured: false, reason: 'not_configured' }
+    } catch (err) {
+      if (err instanceof SmtpConfigError) {
+        return { configured: false, reason: err.reason, message: err.message }
+      }
+      return { configured: false, reason: 'error', message: err?.message ?? String(err) }
+    }
   }
 
   async function getWebsiteOnlyConfig() {
@@ -156,5 +221,5 @@ export function createWebsiteSmtpService({ prisma }) {
     }
   }
 
-  return { sendEmail, isConfigured, getConfig, getWebsiteOnlyConfig }
+  return { sendEmail, isConfigured, getStatus, getConfig, getWebsiteOnlyConfig }
 }
