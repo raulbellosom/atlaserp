@@ -11,6 +11,7 @@ import {
   ExternalLink,
   FlipHorizontal2,
   FlipVertical2,
+  Link2,
   Loader2,
   Minus,
   Plus,
@@ -19,6 +20,13 @@ import {
   RotateCw,
   X,
 } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@atlas/ui";
 import { getFileKind, getKindLabel, formatBytes } from "../lib/file-kind";
 import { FileVisual } from "./FileVisual";
 import { PDFViewer } from "./PDFViewer";
@@ -588,6 +596,20 @@ export function AdvancedFileViewer({
     }
   }
 
+  // Signed URLs expire (~1h), so this is a "paste it somewhere in the next
+  // hour" convenience, not a permanent link — same tradeoff as the top bar's
+  // "abrir externo".
+  async function copyCurrentLink() {
+    if (!signedUrl) return;
+    try {
+      await navigator.clipboard.writeText(signedUrl);
+      toast.success("Enlace copiado al portapapeles");
+    } catch (err) {
+      console.warn("[files] copy link to clipboard failed", err);
+      toast.error("No se pudo copiar el enlace");
+    }
+  }
+
   const gestureActive = dragging || pinching;
 
   // scale() is the fit-relative effective scale, so the image renders at its
@@ -724,6 +746,11 @@ export function AdvancedFileViewer({
           </div>
 
           {/* ── CONTENT AREA ────────────────────────────── */}
+          {/* Right-click (desktop) / long-press (touch) anywhere over the file
+              surface opens the Atlas context menu instead of the browser's
+              native one. Item list adapts to the current file kind. */}
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
           <div className="relative flex-1 min-h-0 overflow-hidden">
             {/* Loading state */}
             {loading && (
@@ -986,6 +1013,81 @@ export function AdvancedFileViewer({
               </>
             )}
           </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent
+              style={{ zIndex: zIndex + 10 }}
+              className="w-56"
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              {kind === "image" && (
+                <ContextMenuItem onSelect={copyCurrentImage} disabled={!signedUrl}>
+                  <Copy />
+                  Copiar imagen
+                </ContextMenuItem>
+              )}
+              <ContextMenuItem onSelect={downloadCurrent} disabled={!signedUrl}>
+                <Download />
+                Descargar
+              </ContextMenuItem>
+              <ContextMenuItem onSelect={copyCurrentLink} disabled={!signedUrl}>
+                <Link2 />
+                Copiar enlace
+              </ContextMenuItem>
+              <ContextMenuItem
+                onSelect={() => signedUrl && window.open(signedUrl, "_blank")}
+                disabled={!signedUrl}
+              >
+                <ExternalLink />
+                Abrir en pestaña nueva
+              </ContextMenuItem>
+
+              {kind === "image" && (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem onSelect={() => setRotation((v) => v - 90)}>
+                    <RotateCcw />
+                    Rotar a la izquierda
+                  </ContextMenuItem>
+                  <ContextMenuItem onSelect={() => setRotation((v) => v + 90)}>
+                    <RotateCw />
+                    Rotar a la derecha
+                  </ContextMenuItem>
+                  <ContextMenuItem onSelect={() => setFlipX((v) => !v)}>
+                    <FlipHorizontal2 />
+                    Voltear horizontal
+                  </ContextMenuItem>
+                  <ContextMenuItem onSelect={() => setFlipY((v) => !v)}>
+                    <FlipVertical2 />
+                    Voltear vertical
+                  </ContextMenuItem>
+                  <ContextMenuItem onSelect={resetTransforms}>
+                    <RefreshCw />
+                    Restablecer vista
+                  </ContextMenuItem>
+                </>
+              )}
+
+              {(files?.length ?? 0) > 1 && (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    onSelect={() => canPrev && onIndexChange(activeIndex - 1)}
+                    disabled={!canPrev}
+                  >
+                    <ChevronLeft />
+                    Archivo anterior
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onSelect={() => canNext && onIndexChange(activeIndex + 1)}
+                    disabled={!canNext}
+                  >
+                    <ChevronRight />
+                    Archivo siguiente
+                  </ContextMenuItem>
+                </>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
 
           {/* ── BOTTOM TOOLBAR ───────────────────────────── */}
           {/* Always reserved at the same height once a file is loaded, so
