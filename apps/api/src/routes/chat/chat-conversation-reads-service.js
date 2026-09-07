@@ -113,7 +113,11 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
         ccm.archived_at IS NOT NULL AS is_archived,
         ccm.muted_at IS NOT NULL AS is_muted,
         ccm.pinned_at,
-        ccm.pinned_at IS NOT NULL AS is_pinned
+        ccm.pinned_at IS NOT NULL AS is_pinned,
+        -- legacy role enum for the caller's own membership (owner/admin/member);
+        -- coarse UI gate for "Eliminar canal" vs "Salir del canal" in the
+        -- conversation-list row menu without a per-row detail fetch.
+        ccm.role AS my_role
       FROM chat_conversations c
       INNER JOIN chat_conversation_members ccm
         ON ccm.conversation_id = c.id

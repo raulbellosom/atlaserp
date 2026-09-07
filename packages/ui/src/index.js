@@ -111,6 +111,24 @@ export {
   DropdownMenuRadioGroup,
 } from "./components/DropdownMenu.jsx";
 export {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuCheckboxItem,
+  ContextMenuRadioItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuGroup,
+  ContextMenuPortal,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuRadioGroup,
+} from "./components/ContextMenu.jsx";
+export { SwipeableRow } from "./components/SwipeableRow.jsx";
+export {
   Breadcrumb,
   BreadcrumbList,
   BreadcrumbItem,

@@ -1,4 +1,4 @@
-import { ArchiveRestore, AtSign } from "lucide-react";
+import { AtSign, Pin } from "lucide-react";
 import { renderMentionText } from "@atlas/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
@@ -45,7 +45,7 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
   );
 }
 
-export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false, onUnarchive }) {
+export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
   const otherMember = conversation.type === "direct"
     ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
@@ -85,7 +85,6 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         onClick={onClick}
         className={[
           "w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors",
-          onUnarchive ? "pr-11" : "",
           isActive
             ? "bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_0_16px_hsl(var(--primary)/0.18)] ring-1 ring-[hsl(var(--primary)/0.25)]"
             : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
@@ -94,7 +93,12 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
         <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm truncate chat-font-display font-semibold">{titleLabel}</span>
+            <span className="text-sm truncate chat-font-display font-semibold flex items-center gap-1 min-w-0">
+              {conversation.is_pinned && (
+                <Pin className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))] fill-current" />
+              )}
+              <span className="truncate">{titleLabel}</span>
+            </span>
             {lastMsg?.createdAt && (
               <span className="text-xs text-[hsl(var(--muted-foreground))] shrink-0">
                 {formatMessageTime(lastMsg.createdAt)}
@@ -124,23 +128,6 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
           </div>
         </div>
       </button>
-      {onUnarchive && (
-        // A separate sibling button, not nested inside the row's own <button>
-        // (invalid HTML, and click-through would fire onClick too) — this is
-        // the direct, always-visible unarchive action the sidebar was missing;
-        // previously the only way to unarchive was to reopen the chat first.
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onUnarchive(conversation);
-          }}
-          title="Desarchivar"
-          className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation"
-        >
-          <ArchiveRestore className="h-3.5 w-3.5" />
-        </button>
-      )}
     </div>
   );
 }

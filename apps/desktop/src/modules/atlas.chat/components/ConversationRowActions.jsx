@@ -1,0 +1,154 @@
+import { useState } from "react";
+import {
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
+  SwipeableRow, ConfirmDialog,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from "@atlas/ui";
+import { Archive, ArchiveRestore } from "lucide-react";
+import { buildConversationActions, fullSwipeAction } from "../lib/buildConversationActions.js";
+
+// Wraps a single conversation row with:
+//   - a right-click / long-press context menu (all actions)
+//   - touch swipe gestures (left = action tray, right = archive/unarchive)
+//   - a bottom Sheet fallback opened by long-press or the tray's "Más"
+//   - a ConfirmDialog for destructive actions (delete / leave)
+//
+// `onAction(action, conversation)` is the single dispatcher, owned by the list
+// (ChatSidebar / FloatingChatHub) so all rows share one set of mutation hooks.
+// `swipeOpenId` / `onSwipeOpen` keep only one row's tray open at a time.
+export function ConversationRowActions({
+  conversation,
+  currentUserId,
+  onAction,
+  swipeOpenId = null,
+  onSwipeOpen = null,
+  children,
+}) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null); // pending destructive descriptor
+
+  const actions = buildConversationActions(conversation, { currentUserId });
+  const nonDestructive = actions.filter((a) => !a.destructive);
+  const destructive = actions.filter((a) => a.destructive);
+
+  function run(descriptor) {
+    setSheetOpen(false);
+    if (descriptor.destructive) {
+      setConfirm(descriptor);
+      return;
+    }
+    onAction?.(descriptor.action, conversation);
+  }
+
+  const swipeActions = nonDestructive.slice(0, 2).map((a) => ({
+    key: a.key,
+    label: a.label,
+    icon: a.icon,
+    tone: a.tone,
+    onSelect: () => run(a),
+  }));
+  // third tray slot always opens the full sheet
+  swipeActions.push({
+    key: "more",
+    label: "Más",
+    icon: undefined,
+    tone: "default",
+    onSelect: () => setSheetOpen(true),
+  });
+
+  const swipingArchived = fullSwipeAction(conversation) === "unarchive";
+
+  return (
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div>
+            <SwipeableRow
+              rightActions={swipeActions}
+              onFullSwipeRight={() => onAction?.(fullSwipeAction(conversation), conversation)}
+              fullSwipeLabel={swipingArchived ? "Desarchivar" : "Archivar"}
+              fullSwipeIcon={swipingArchived ? ArchiveRestore : Archive}
+              fullSwipeTone="primary"
+              onLongPress={() => setSheetOpen(true)}
+              open={swipeOpenId === conversation.id}
+              onOpenChange={(o) => onSwipeOpen?.(o ? conversation.id : null)}
+            >
+              {children}
+            </SwipeableRow>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          {nonDestructive.map((a) => {
+            const Icon = a.icon;
+            return (
+              <ContextMenuItem key={a.key} onSelect={() => run(a)}>
+                {Icon && <Icon />}
+                {a.label}
+              </ContextMenuItem>
+            );
+          })}
+          {destructive.length > 0 && <ContextMenuSeparator />}
+          {destructive.map((a) => {
+            const Icon = a.icon;
+            return (
+              <ContextMenuItem
+                key={a.key}
+                onSelect={() => run(a)}
+                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+              >
+                {Icon && <Icon />}
+                {a.label}
+              </ContextMenuItem>
+            );
+          })}
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="gap-1 p-2 pb-4">
+          <SheetHeader className="px-3 pt-2 pb-1">
+            <SheetTitle className="text-sm truncate">
+              {conversation.title ?? "Conversación"}
+            </SheetTitle>
+          </SheetHeader>
+          {actions.map((a) => {
+            const Icon = a.icon;
+            return (
+              <button
+                key={a.key}
+                type="button"
+                onClick={() => run(a)}
+                className={[
+                  "flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm text-left transition-colors touch-manipulation",
+                  a.destructive
+                    ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                    : "hover:bg-[hsl(var(--muted))]",
+                ].join(" ")}
+              >
+                {Icon && <Icon className="h-4 w-4 shrink-0" />}
+                {a.label}
+              </button>
+            );
+          })}
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        onOpenChange={(o) => !o && setConfirm(null)}
+        title={confirm?.label ?? ""}
+        description={
+          confirm?.action === "leave"
+            ? "Dejarás de recibir mensajes de esta conversación."
+            : "Esta acción no se puede deshacer."
+        }
+        confirmLabel={confirm?.action === "leave" ? "Salir" : "Eliminar"}
+        onConfirm={() => {
+          const action = confirm?.action;
+          setConfirm(null);
+          if (action) onAction?.(action, conversation);
+        }}
+      />
+    </>
+  );
+}

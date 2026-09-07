@@ -4,8 +4,8 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@atlas/ui";
 import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video } from "lucide-react";
-import { toast } from "sonner";
 import { ChatConversationItem } from "./ChatConversationItem";
+import { ConversationRowActions } from "./ConversationRowActions";
 import { MessageSearchResults } from "./MessageSearchResults";
 import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
 import { CreateChatModal } from "./CreateChatModal";
@@ -15,12 +15,13 @@ import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import { NewMeetingDialog } from "./NewMeetingDialog";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
-import { useArchivedConversations, useUnarchiveConversation } from "../hooks/useChatConversations";
+import { useArchivedConversations, useConversationActionHandler } from "../hooks/useChatConversations";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated }) {
   const { userProfile } = useAuth();
   const { isUserOnline } = useGlobalPresence();
   const [search, setSearch] = useState("");
+  const [openRowId, setOpenRowId] = useState(null);
   const {
     hits: messageHits,
     isSearching: messageSearching,
@@ -37,23 +38,21 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
-  const { mutate: unarchiveMutate } = useUnarchiveConversation();
+  const handleConversationAction = useConversationActionHandler();
 
-  function handleUnarchive(conv) {
-    unarchiveMutate(conv.id, {
-      onSuccess: () => toast.success("Conversacion desarchivada."),
-      onError: () => toast.error("No se pudo desarchivar la conversacion."),
-    });
-  }
-
-  const filtered = (conversations ?? []).filter((c) => {
-    if (!search.trim()) return true;
-    const displayName =
-      c.title ??
-      (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.displayName ??
-      "";
-    return displayName.toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = (conversations ?? [])
+    .filter((c) => {
+      if (!search.trim()) return true;
+      const displayName =
+        c.title ??
+        (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.displayName ??
+        "";
+      return displayName.toLowerCase().includes(search.toLowerCase());
+    })
+    // Pinned conversations float to the top; the server already returns them
+    // first, this keeps the order stable during optimistic pin/unpin.
+    .slice()
+    .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
 
   const filteredArchived = archivedConversations.filter((c) => {
     if (!search.trim()) return true;
@@ -121,7 +120,10 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto p-2 space-y-0.5"
+        onScroll={() => openRowId && setOpenRowId(null)}
+      >
         {isLoading && (
           <div className="space-y-2 p-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -157,14 +159,22 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
             ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id)
             : null;
           return (
-            <ChatConversationItem
+            <ConversationRowActions
               key={conv.id}
               conversation={conv}
-              isActive={conv.id === activeId}
-              onClick={() => onSelect(conv)}
               currentUserId={userProfile?.id}
-              isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
-            />
+              onAction={handleConversationAction}
+              swipeOpenId={openRowId}
+              onSwipeOpen={setOpenRowId}
+            >
+              <ChatConversationItem
+                conversation={conv}
+                isActive={conv.id === activeId}
+                onClick={() => onSelect(conv)}
+                currentUserId={userProfile?.id}
+                isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
+              />
+            </ConversationRowActions>
           );
         })}
 
@@ -210,16 +220,24 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                   const otherMember = conv.type === "direct"
                     ? (conv.members ?? []).find((m) => m.userId !== userProfile?.id)
                     : null;
+                  const archivedConv = { ...conv, is_archived: true };
                   return (
-                    <ChatConversationItem
+                    <ConversationRowActions
                       key={conv.id}
-                      conversation={{ ...conv, is_archived: true }}
-                      isActive={conv.id === activeId}
-                      onClick={() => onSelect({ ...conv, is_archived: true })}
+                      conversation={archivedConv}
                       currentUserId={userProfile?.id}
-                      isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
-                      onUnarchive={handleUnarchive}
-                    />
+                      onAction={handleConversationAction}
+                      swipeOpenId={openRowId}
+                      onSwipeOpen={setOpenRowId}
+                    >
+                      <ChatConversationItem
+                        conversation={archivedConv}
+                        isActive={conv.id === activeId}
+                        onClick={() => onSelect(archivedConv)}
+                        currentUserId={userProfile?.id}
+                        isOnline={otherMember ? isUserOnline(otherMember.userId) : false}
+                      />
+                    </ConversationRowActions>
                   );
                 })}
               </div>

@@ -468,6 +468,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `ViewModeSwitch`, `getStoredViewMode` | Table/card toggle with localStorage persistence |
 | `MobileFiltersSheet` | Mobile filter slide-in panel |
 | `ListLayout` | Responsive list container |
+| `SwipeableRow` | WhatsApp/Telegram-style swipeable list row (touch only; inert on non-coarse pointers). `rightActions` (tray revealed on left-swipe), `onFullSwipeRight` + `fullSwipeLabel`/`fullSwipeIcon`/`fullSwipeTone` (right-swipe past threshold), `onLongPress`, controlled `open`/`onOpenChange`. Axis-locked so vertical list scroll is never hijacked. Pair with `ContextMenu` for the desktop equivalent. |
+| `ContextMenu`, `ContextMenuTrigger`, `ContextMenuContent`, `ContextMenuItem`, `ContextMenuCheckboxItem`, `ContextMenuRadioItem`, `ContextMenuLabel`, `ContextMenuSeparator`, `ContextMenuShortcut`, `ContextMenuGroup`, `ContextMenuPortal`, `ContextMenuSub`, `ContextMenuSubContent`, `ContextMenuSubTrigger`, `ContextMenuRadioGroup` | Right-click / long-press context menu (Radix-backed, same visual language as `DropdownMenu`). Anchored at the pointer instead of a trigger element. |
 
 ### Hooks
 

@@ -17,6 +17,8 @@ import { getConversationDisplayName, getConversationTitleLabel } from "../lib/ch
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { MiniChatWindow, AvatarCircle, getAvatarUrl, getAvatarEmoji } from "./MiniChatWindow";
+import { ConversationRowActions } from "./ConversationRowActions";
+import { useConversationActionHandler } from "../hooks/useChatConversations";
 
 const BS = 56;     // bubble size px
 const BM = 16;     // margin from edge px
@@ -113,6 +115,8 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [openRowId, setOpenRowId] = useState(null);
+  const handleConversationAction = useConversationActionHandler();
   const searchRef = useRef(null);
 
   const onlineList = useMemo(
@@ -333,27 +337,35 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
               : null;
             const online = otherMember ? isUserOnline(otherMember.userId) : false;
             return (
-              <button
+              <ConversationRowActions
                 key={conv.id}
-                type="button"
-                onClick={() => handleSelect(conv)}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors text-left touch-manipulation"
+                conversation={conv}
+                currentUserId={currentUserId}
+                onAction={handleConversationAction}
+                swipeOpenId={openRowId}
+                onSwipeOpen={setOpenRowId}
               >
-                <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conv.type} name={name} size="md" online={online} />
-                <div className="flex-1 min-w-0">
-                  <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{titleLabel}</p>
-                  {conv.last_message?.body && (
-                    <p className={["text-[10px] truncate", conv.unread_count > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
-                      {renderMentionText(conv.last_message.body)}
-                    </p>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(conv)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[hsl(var(--muted))] active:bg-[hsl(var(--muted))] transition-colors text-left touch-manipulation bg-[hsl(var(--background))]"
+                >
+                  <AvatarCircle avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conv.type} name={name} size="md" online={online} />
+                  <div className="flex-1 min-w-0">
+                    <p className={["text-xs truncate", conv.unread_count > 0 ? "font-semibold" : "font-medium"].join(" ")}>{titleLabel}</p>
+                    {conv.last_message?.body && (
+                      <p className={["text-[10px] truncate", conv.unread_count > 0 ? "text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
+                        {renderMentionText(conv.last_message.body)}
+                      </p>
+                    )}
+                  </div>
+                  {conv.unread_count > 0 && (
+                    <span className="h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0">
+                      {conv.unread_count > 99 ? "99+" : conv.unread_count}
+                    </span>
                   )}
-                </div>
-                {conv.unread_count > 0 && (
-                  <span className="h-4 min-w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shrink-0">
-                    {conv.unread_count > 99 ? "99+" : conv.unread_count}
-                  </span>
-                )}
-              </button>
+                </button>
+              </ConversationRowActions>
             );
           })}
 
