@@ -176,6 +176,9 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
     const smtpOk = smtpService ? await smtpService.isConfigured().catch(() => false) : false;
     const invited = [];
     const pendingManual = [];
+    // First delivery failure message, surfaced to the UI so the host knows the
+    // difference between "SMTP not set up" and "SMTP set up but rejecting".
+    let sendError = null;
 
     // For a friendlier email ("Raul te invitó en «#general»"). Best-effort.
     let inviterName = null;
@@ -216,16 +219,18 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
           });
           invited.push({ email, inviteId: invite.id });
         } catch (err) {
-          console.warn("[atlas.calls] invite email failed:", email, err?.message ?? err);
+          const detail = err?.message ?? String(err);
+          console.warn("[atlas.calls] invite email failed:", email, detail);
+          if (!sendError) sendError = detail;
           await prisma.callInvite.update({ where: { id: invite.id }, data: { sentAt: null } }).catch(() => {});
-          pendingManual.push({ email, inviteId: invite.id, url });
+          pendingManual.push({ email, inviteId: invite.id, url, reason: "send_failed", detail });
         }
       } else {
-        pendingManual.push({ email, inviteId: invite.id, url });
+        pendingManual.push({ email, inviteId: invite.id, url, reason: "smtp_not_configured" });
       }
     }
 
-    return { matchedUsers, invited, pendingManual, smtpConfigured: smtpOk };
+    return { matchedUsers, invited, pendingManual, smtpConfigured: smtpOk, sendError };
   }
 
   return {

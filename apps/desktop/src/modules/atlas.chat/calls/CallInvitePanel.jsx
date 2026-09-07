@@ -50,6 +50,7 @@ export function CallInvitePanel({ conversationId }) {
           res?.smtpConfigured === false
             ? "El correo no está configurado — comparte el enlace."
             : "Algunos correos no se pudieron enviar.",
+          res?.sendError ? { description: res.sendError } : undefined,
         );
       }
       setEmails([]);

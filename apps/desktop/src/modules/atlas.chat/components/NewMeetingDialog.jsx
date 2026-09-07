@@ -135,6 +135,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
           res?.smtpConfigured === false
             ? "El correo no está configurado — comparte el enlace manualmente."
             : "Algunos correos no se pudieron enviar.",
+          res?.sendError ? { description: res.sendError } : undefined,
         );
       }
     } catch (e) {

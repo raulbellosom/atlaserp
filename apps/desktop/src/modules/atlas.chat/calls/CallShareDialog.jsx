@@ -71,7 +71,14 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
       setEmails([]);
       const n = (r?.invited?.length ?? 0) + (r?.matchedUsers?.length ?? 0);
       if (n) toast.success(`${n} invitación(es) procesadas.`);
-      if (r?.pendingManual?.length) toast.message("Algunas quedaron pendientes de envío — copia el enlace.");
+      if (r?.pendingManual?.length) {
+        toast.message(
+          r?.smtpConfigured === false
+            ? "El correo no está configurado en Ajustes — copia el enlace."
+            : "Algunas quedaron pendientes de envío — copia el enlace.",
+          r?.sendError ? { description: r.sendError } : undefined,
+        );
+      }
     } catch (e) { toast.error(e?.message || "No se pudieron enviar."); }
   }
 
@@ -151,6 +158,15 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
               {inviteResult?.matchedUsers?.length > 0 && (
                 <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
                   {inviteResult.matchedUsers.length} ya tienen cuenta — agrégalos como miembros y llámalos normalmente.
+                </p>
+              )}
+              {inviteResult?.pendingManual?.length > 0 && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  {inviteResult.smtpConfigured === false
+                    ? "El servidor de correo (SMTP) no está configurado en Ajustes. Copia y comparte el enlace manualmente."
+                    : inviteResult.sendError
+                      ? `El correo está configurado pero el envío falló: ${inviteResult.sendError}`
+                      : "No se pudieron enviar algunos correos. Comparte el enlace manualmente."}
                 </p>
               )}
               {inviteResult?.pendingManual?.map((p) => (
