@@ -281,12 +281,16 @@ export function ChatMessageBubble({
     // raises its bottom Sheet.
     onLongPress: (e) => {
       suppressClickRef.current = true;
+      // Drop any text selection iOS may have started during the hold before
+      // our menu opens — otherwise the first tap on a menu item only clears
+      // the selection and a second tap is needed to actually act.
+      try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ }
       const rowEl = e?.target?.closest?.("[data-msg-id]");
       const r = rowEl?.getBoundingClientRect?.();
       setActionSheet({
         open: true,
         point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
-        rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null,
+        rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
       });
     },
   });
@@ -300,6 +304,7 @@ export function ChatMessageBubble({
   function handleRowPointerUp(e) {
     longPress.onPointerUp?.(e);
     swipeHandlers.onPointerUp?.(e);
+    if (coarse) { try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ } }
     // A long-press just opened the menu — don't also register this lift as a
     // tap (double-tap heart, etc.).
     if (suppressClickRef.current) return;
@@ -325,7 +330,7 @@ export function ChatMessageBubble({
     setActionSheet({
       open: true,
       point: { x: e.clientX, y: e.clientY },
-      rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right } : null,
+      rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
     });
   }
 
@@ -465,6 +470,7 @@ export function ChatMessageBubble({
     return (
       <div
         data-msg-id={message.id}
+        data-touch={coarse ? "1" : undefined}
         role={selectionMode ? "button" : undefined}
         aria-pressed={selectionMode ? isSelected : undefined}
         tabIndex={selectionMode ? 0 : undefined}
@@ -661,6 +667,7 @@ export function ChatMessageBubble({
   return (
     <div
       data-msg-id={message.id}
+      data-touch={coarse ? "1" : undefined}
       role={selectionMode ? "button" : undefined}
       aria-pressed={selectionMode ? isSelected : undefined}
       tabIndex={selectionMode ? 0 : undefined}

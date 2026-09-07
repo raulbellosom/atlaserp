@@ -45,16 +45,15 @@
 
 /* Touch: kill native text selection / callout on message rows so a long-press
    opens our action popover instead of starting a selection the user then drags
-   across bubbles. Applied to the row AND every descendant so a child that
-   re-enables `user-select` can't override it. Pointer-fine devices (desktop)
-   keep text fully selectable. */
-@media (pointer: coarse) {
-  .chat-msg-row,
-  .chat-msg-row * {
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-  }
+   across bubbles. `data-touch` is set by ChatMessageBubble only when the
+   primary pointer is coarse, so pointer-fine devices (desktop) keep text fully
+   selectable. `!important` + the descendant `*` beat any child rule that
+   re-enables selection (iOS is picky here). */
+.chat-msg-row[data-touch="1"],
+.chat-msg-row[data-touch="1"] * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
 }
 
 .chat-glass-theme .chat-font-display {

@@ -80,7 +80,7 @@ export function MessageActionSheet({
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!open) { setArmed(false); return undefined; }
-    const t = setTimeout(() => setArmed(true), 400);
+    const t = setTimeout(() => setArmed(true), 280);
     return () => clearTimeout(t);
   }, [open]);
 
@@ -122,15 +122,33 @@ export function MessageActionSheet({
     if (!open) return null;
     const surface =
       "bg-[hsl(var(--popover,var(--card)))] text-[hsl(var(--popover-foreground,var(--foreground)))] border border-[hsl(var(--border))] shadow-2xl";
+    const close = () => onOpenChange(false);
+    const scrim = "bg-black/55 backdrop-blur-[3px]";
+    // Dim + blur everything EXCEPT the pressed bubble — four strips leave a
+    // sharp "window" over its rect so you can still see which message this is
+    // (WhatsApp/Telegram style). Falls back to a full scrim if we have no rect.
+    const r = anchorRect;
     return createPortal(
       <div className="fixed inset-0 z-200" role="dialog" aria-label="Acciones del mensaje">
-        {/* Dimmed, lightly-blurred scrim — tap anywhere to dismiss. */}
-        <button
-          type="button"
-          aria-label="Cerrar"
-          onClick={() => onOpenChange(false)}
-          className="absolute inset-0 bg-black/50 backdrop-blur-[3px] motion-safe:animate-in motion-safe:fade-in"
-        />
+        {r ? (
+          <>
+            <button type="button" aria-label="Cerrar" onClick={close}
+              className={["absolute left-0 right-0 top-0", scrim].join(" ")}
+              style={{ height: Math.max(0, r.top) }} />
+            <button type="button" aria-label="Cerrar" onClick={close}
+              className={["absolute left-0 right-0 bottom-0", scrim].join(" ")}
+              style={{ top: r.bottom }} />
+            <button type="button" aria-label="Cerrar" onClick={close}
+              className={["absolute left-0", scrim].join(" ")}
+              style={{ top: r.top, height: Math.max(0, r.bottom - r.top), width: Math.max(0, r.left) }} />
+            <button type="button" aria-label="Cerrar" onClick={close}
+              className={["absolute right-0", scrim].join(" ")}
+              style={{ top: r.top, height: Math.max(0, r.bottom - r.top), left: r.right }} />
+          </>
+        ) : (
+          <button type="button" aria-label="Cerrar" onClick={close}
+            className={["absolute inset-0", scrim].join(" ")} />
+        )}
 
         {/* Quick-reaction pill, just above the pressed bubble */}
         <div
@@ -187,7 +205,7 @@ export function MessageActionSheet({
               key={a.key}
               type="button"
               onClick={() => runAction(a)}
-              className="w-full flex items-center px-4 py-3 text-sm text-left active:bg-[hsl(var(--muted))]"
+              className="w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))]"
             >
               <a.icon className="h-4 w-4 mr-3 shrink-0" />{a.label}
             </button>
@@ -199,7 +217,7 @@ export function MessageActionSheet({
               type="button"
               onClick={() => runAction(a)}
               className={[
-                "w-full flex items-center px-4 py-3 text-sm text-left active:bg-[hsl(var(--muted))]",
+                "w-full flex items-center px-4 py-2.5 text-[13px] text-left active:bg-[hsl(var(--muted))]",
                 a.danger ? "text-red-500" : "",
               ].join(" ")}
             >
