@@ -934,7 +934,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     };
   }
 
-  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [], replyToMessageId = null }) {
+  async function sendMessage({ conversationId, authUserId, body, messageType = "text", metadata = {}, attachmentIds = [], threadRootId = null, entityRefs = [], replyToMessageId = null, cloneAttachmentsFrom = null }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
@@ -1046,6 +1046,17 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }
     }
 
+    // `cloneAttachmentsFrom` (forwardMessages) re-parents a copy of another
+    // message's attachment rows onto this one — the count has to come from
+    // that source, not the (empty) attachmentIds a forward passes.
+    let attachmentCount = attachmentIds.length;
+    if (cloneAttachmentsFrom) {
+      const [countRow] = await prisma.$queryRaw`
+        SELECT COUNT(*)::int AS n FROM chat_attachments WHERE message_id = ${cloneAttachmentsFrom}
+      `;
+      attachmentCount = countRow?.n ?? 0;
+    }
+
     let msg;
     if (resolvedThreadRootId) {
       // Insert + root counter-increment must not diverge (reply inserted but
@@ -1054,7 +1065,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         const inserted = await tx.$queryRaw`
           INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, attachment_count, metadata, thread_root_id, reply_to_message_id)
           VALUES (
-            ${conversationId}, ${profileId}, 'user', ${body}, ${messageType}, ${attachmentIds.length},
+            ${conversationId}, ${profileId}, 'user', ${body}, ${messageType}, ${attachmentCount},
             ${JSON.stringify(finalMetadata)}::jsonb, ${resolvedThreadRootId}, ${resolvedReplyToId}
           )
           RETURNING *
@@ -1076,7 +1087,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           'user',
           ${body},
           ${messageType},
-          ${attachmentIds.length},
+          ${attachmentCount},
           ${JSON.stringify(finalMetadata)}::jsonb,
           ${resolvedReplyToId}
         )
@@ -1085,7 +1096,18 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       msg = msgRows[0];
     }
 
-    if (attachmentIds.length) {
+    if (cloneAttachmentsFrom) {
+      // Forward: copy the source message's attachment rows onto this one,
+      // reusing bucket/object_key (the storage object is never deleted, so
+      // sharing it across messages is safe) and re-owning them to the sender.
+      await prisma.$executeRaw`
+        INSERT INTO chat_attachments
+          (message_id, conversation_id, bucket, object_key, file_name, mime_type, size_bytes, width, height, uploaded_by_user_id)
+        SELECT ${msg.id}, ${conversationId}, bucket, object_key, file_name, mime_type, size_bytes, width, height, ${profileId}
+        FROM chat_attachments
+        WHERE message_id = ${cloneAttachmentsFrom}
+      `;
+    } else if (attachmentIds.length) {
       await prisma.$executeRaw`
         UPDATE chat_attachments
         SET message_id = ${msg.id}
@@ -1289,6 +1311,65 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return fullMsg ?? msg;
   }
 
+  // Re-send the given messages (body + a copy of their attachments) into each
+  // target conversation as fresh messages tagged metadata.forwardedFrom.
+  // Delegates each (target, source) pair to sendMessage so notifications,
+  // broadcast, last-message bump and the full-message shape all come for free.
+  async function forwardMessages({ authUserId, messageIds, targetConversationIds }) {
+    const profileId = await getUserProfileId(authUserId);
+
+    const wantedIds = [...new Set(messageIds)];
+    const sources = await prisma.$queryRaw`
+      SELECT m.id, m.conversation_id, m.body, m.message_type, m.created_at,
+             up.display_name AS sender_name
+      FROM chat_messages m
+      LEFT JOIN user_profile up ON up.id = m.sender_user_id
+      WHERE m.id = ANY(${wantedIds}::uuid[])
+        AND m.deleted_at IS NULL
+        AND m.message_type <> 'system'
+        AND m.sender_type <> 'system'
+    `;
+    if (sources.length !== wantedIds.length) {
+      throw new ChatServiceError("Mensaje no encontrado.", 404);
+    }
+
+    // Caller must belong to every source conversation (blocks forwarding a
+    // message whose id was simply guessed) and — enforced by sendMessage's
+    // own assertMember — to every target.
+    const sourceConvIds = [...new Set(sources.map((s) => s.conversation_id))];
+    for (const convId of sourceConvIds) {
+      await assertMember(convId, profileId);
+    }
+
+    const ordered = [...sources].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+
+    let forwarded = 0;
+    for (const targetId of targetConversationIds) {
+      for (const src of ordered) {
+        await sendMessage({
+          conversationId: targetId,
+          authUserId,
+          body: src.body ?? "",
+          messageType: src.message_type ?? "text",
+          metadata: {
+            forwardedFrom: {
+              conversationId: src.conversation_id,
+              messageId: src.id,
+              senderName: src.sender_name ?? null,
+              at: new Date(src.created_at).toISOString(),
+            },
+          },
+          cloneAttachmentsFrom: src.id,
+        });
+        forwarded += 1;
+      }
+    }
+
+    return { forwarded };
+  }
+
   async function editMessage({ messageId, authUserId, body }) {
     const profileId = await getUserProfileId(authUserId);
 
@@ -1465,6 +1546,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     removeMember,
     listMessages,
     sendMessage,
+    forwardMessages,
     editMessage,
     deleteMessage,
     deleteAttachment,

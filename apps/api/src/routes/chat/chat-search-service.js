@@ -124,6 +124,8 @@ export function createChatSearchService({ prisma }) {
         conv.type       AS conversation_type,
         conv.avatar_url AS conversation_avatar_url,
         conv.avatar_emoji AS conversation_avatar_emoji,
+        dm.display_name AS dm_name,
+        dm.avatar_url   AS dm_avatar_url,
         (${scoreExpr})  AS score
       FROM chat_messages m
       JOIN chat_conversation_members cm
@@ -136,6 +138,18 @@ export function createChatSearchService({ prisma }) {
                atlas_unaccent(lower(coalesce(display_name, ''))) AS name_norm
         FROM user_profile WHERE id = m.sender_user_id
       ) up ON true
+      -- Direct conversations carry no stored title/avatar — resolve the other
+      -- participant so search results show the person, not "Chat".
+      LEFT JOIN LATERAL (
+        SELECT p.display_name, p.avatar_url
+        FROM chat_conversation_members ocm
+        JOIN user_profile p ON p.id = ocm.user_id
+        WHERE ocm.conversation_id = m.conversation_id
+          AND ocm.user_id <> ${profileId}::uuid
+          AND ocm.left_at IS NULL
+        ORDER BY ocm.joined_at ASC
+        LIMIT 1
+      ) dm ON conv.type = 'direct'
       WHERE m.deleted_at IS NULL
         ${convFilter}
         AND (${whereTokens})
@@ -151,9 +165,9 @@ export function createChatSearchService({ prisma }) {
       conversationId: r.conversation_id,
       conversation: {
         id: r.conversation_id,
-        title: r.conversation_title,
+        title: r.conversation_title ?? r.dm_name ?? null,
         type: r.conversation_type,
-        avatarUrl: r.conversation_avatar_url ?? null,
+        avatarUrl: r.conversation_avatar_url ?? r.dm_avatar_url ?? null,
         avatarEmoji: r.conversation_avatar_emoji ?? null,
       },
       sender: { id: r.sender_user_id, displayName: r.sender_name ?? null },

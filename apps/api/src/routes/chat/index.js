@@ -25,6 +25,7 @@ import { createChatExternalInboxService } from "./chat-external-inbox-service.js
 import { createChatModerationService, ChatModerationServiceError } from "./chat-moderation-service.js";
 import { createModerationRoutes } from "./moderation-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
+import { createMessageForwardRoutes } from "./message-forward-routes.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
@@ -394,6 +395,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
   // Mute, block/unblock, groups-in-common, reports — see moderation-routes.js.
   internal.route("", createModerationRoutes({ requirePermission, moderationService }));
+  internal.route("", createMessageForwardRoutes({ requirePermission, chatService }));
 
   // ================================================================
   // CHANNELS & ROLES (Phase A foundation)

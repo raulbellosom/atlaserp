@@ -104,6 +104,23 @@ describe("searchMessages", () => {
     assert.equal(out.truncated, false);
   });
 
+  it("resolves the other participant for a direct conversation with no stored title", async () => {
+    const svc = createChatSearchService({
+      prisma: mockPrisma([
+        row({
+          conversation_type: "direct",
+          conversation_title: null,
+          conversation_avatar_url: null,
+          dm_name: "Luar Medbe",
+          dm_avatar_url: "https://cdn/luar.jpg",
+        }),
+      ]),
+    });
+    const out = await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "factura" });
+    assert.equal(out.data[0].conversation.title, "Luar Medbe");
+    assert.equal(out.data[0].conversation.avatarUrl, "https://cdn/luar.jpg");
+  });
+
   it("flags truncated when the DB returns limit+1 rows", async () => {
     const many = Array.from({ length: 4 }, (_, i) => row({ message_id: `m${i}`, score: 1 }));
     const svc = createChatSearchService({ prisma: mockPrisma(many) });

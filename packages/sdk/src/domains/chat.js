@@ -155,6 +155,15 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify(data),
       }),
 
+    // Re-send messages (body + a copy of their attachments) into each target
+    // conversation. `payload`: { messageIds: uuid[], targetConversationIds: uuid[] }.
+    forwardMessages: (payload, token) =>
+      request(`/chat/messages/forward`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify(payload),
+      }),
+
     deleteMessage: (messageId, token) =>
       request(`/chat/messages/${encodeURIComponent(messageId)}`, {
         method: "DELETE",

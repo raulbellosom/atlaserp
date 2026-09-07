@@ -24,6 +24,13 @@ export const chatEditMessageSchema = z.object({
   body: z.string().min(1).max(10000),
 });
 
+// POST /chat/messages/forward — re-send the given messages (body + attachments)
+// into each target conversation as fresh messages tagged metadata.forwardedFrom.
+export const chatForwardMessagesSchema = z.object({
+  messageIds: z.array(z.string().uuid()).min(1).max(30),
+  targetConversationIds: z.array(z.string().uuid()).min(1).max(20),
+});
+
 export const chatUpdateConversationSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   status: z.enum(["open", "pending", "closed", "archived"]).optional(),
