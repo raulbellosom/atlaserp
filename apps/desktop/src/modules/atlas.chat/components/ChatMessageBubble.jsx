@@ -323,6 +323,10 @@ export function ChatMessageBubble({
 
   function handleRowContextMenu(e) {
     if (gesturesDisabled) return;
+    // Images, files, links and entity cards carry their own right-click menu
+    // (AttachmentContextMenu) — Radix doesn't stop the event bubbling, so
+    // without this guard both that menu AND the message menu open stacked.
+    if (e.target?.closest?.("a,button,img,video,input,textarea,[role=button]")) return;
     e.preventDefault();
     suppressClickRef.current = true;
     const rowEl = e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
