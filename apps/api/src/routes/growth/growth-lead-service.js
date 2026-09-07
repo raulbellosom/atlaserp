@@ -161,7 +161,7 @@ export function createGrowthLeadService({
           body: lead.name || lead.email || "Lead web",
           link: `/app/m/atlas.growth/leads/${lead.id}`,
           recipients: { userIds: [lead.assigneeUserId] },
-          channels: ["in_app", "email"],
+          channels: ["in_app", "email", "web_push"],
           priority: lead.priority === "high" ? "high" : "medium",
           sourceType: "GrowthLead",
           sourceId: lead.id,

@@ -3366,7 +3366,7 @@ app.route("/pwa", pwaRouter);
 app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
 const callsSmtpService = createSmtpService({ prisma });
 app.route("/", createCallsRouter({ prisma, supabaseAdmin, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
-app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }));
+app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }));
 
 app.get("/public", (c) => {
   return c.json({

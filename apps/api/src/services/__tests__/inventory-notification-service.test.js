@@ -15,9 +15,9 @@ function buildPrisma(overrides = {}) {
       findFirst: async () => ({ id: ITEM_ID, name: 'Laptop Test' }),
       ...(overrides.invItem ?? {}),
     },
-    invComment: {
-      findFirst: async () => ({ id: COMMENT_ID, authorId: AUTHOR_ID, item: { id: ITEM_ID, name: 'Laptop Test' } }),
-      ...(overrides.invComment ?? {}),
+    entityComment: {
+      findFirst: async () => ({ id: COMMENT_ID, authorId: AUTHOR_ID, entityId: ITEM_ID }),
+      ...(overrides.entityComment ?? {}),
     },
     ...(overrides._root ?? {}),
   }
@@ -91,7 +91,7 @@ describe('notifyInvReaction', () => {
     const published = []
     const notifSvc = { publish: async (args) => { published.push(args); return {} } }
     const prisma = buildPrisma({
-      invComment: { findFirst: async () => ({ id: COMMENT_ID, authorId: ACTOR_ID, item: { id: ITEM_ID, name: 'Laptop Test' } }) },
+      entityComment: { findFirst: async () => ({ id: COMMENT_ID, authorId: ACTOR_ID, entityId: ITEM_ID }) },
     })
     const svc = createInventoryNotificationService({ prisma, notificationService: notifSvc })
 
@@ -102,7 +102,7 @@ describe('notifyInvReaction', () => {
 
   it('does not throw when comment is not found', async () => {
     const notifSvc = { publish: async () => { throw new Error('should not reach') } }
-    const prisma = buildPrisma({ invComment: { findFirst: async () => null } })
+    const prisma = buildPrisma({ entityComment: { findFirst: async () => null } })
     const svc = createInventoryNotificationService({ prisma, notificationService: notifSvc })
 
     await assert.doesNotReject(() =>

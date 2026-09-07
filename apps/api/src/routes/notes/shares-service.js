@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { createNotificationService } from '../../services/notification-service.js'
 
 export class SharesServiceError extends Error {
   constructor(message, status = 400) {
@@ -8,7 +9,8 @@ export class SharesServiceError extends Error {
   }
 }
 
-export function createSharesService({ prisma, broadcaster }) {
+export function createSharesService({ prisma, broadcaster, notificationService }) {
+  const notifications = notificationService ?? createNotificationService({ prisma, broadcaster })
   async function _verifyAccess(noteId, userId) {
     const rows = await prisma.$queryRaw`
       SELECT id FROM notes
@@ -174,6 +176,38 @@ export function createSharesService({ prisma, broadcaster }) {
       RETURNING *
     `
     const share = rows[0]
+    try {
+      // Use a company shared by both parties, not the actor's latest membership.
+      const [context] = await prisma.$queryRaw`
+        SELECT n.title, m_target.company_id
+        FROM notes n
+        JOIN membership m_owner ON m_owner.user_id = n.owner_user_id AND m_owner.enabled = true
+        JOIN membership m_target ON m_target.company_id = m_owner.company_id
+          AND m_target.user_id = ${targetUserId}::uuid AND m_target.enabled = true
+        WHERE n.id = ${noteId}
+        ORDER BY (m_target.company_id = n.company_id) DESC, m_target.created_at DESC
+        LIMIT 1
+      `
+      if (context?.company_id) {
+        await notifications.publish({
+          companyId: context.company_id,
+          actorId: userId,
+          input: {
+            eventType: 'notes.note.shared',
+            title: 'Compartieron una nota contigo',
+            body: `Ahora puedes ${permission === 'edit' ? 'editar' : 'leer'} "${context.title || 'Nota sin título'}"`.slice(0, 1000),
+            link: `/app/m/atlas.notes?note=${noteId}`,
+            recipients: { userIds: [targetUserId] },
+            channels: ['in_app', 'email', 'web_push'],
+            sourceType: 'Note',
+            sourceId: noteId,
+            metadata: { noteId, permission },
+          },
+        })
+      }
+    } catch (err) {
+      console.error('[notes.note.shared]', err?.message ?? err)
+    }
     if (broadcaster) {
       try {
         await broadcaster.broadcastToUser(targetUserId, 'notes.note.shared', {

@@ -46,6 +46,7 @@ function buildPrismaMock() {
           },
         },
         notificationDelivery: { createMany: async () => {} },
+        notificationPreference: { findFirst: async () => null },
       }),
     _published: published,
   };

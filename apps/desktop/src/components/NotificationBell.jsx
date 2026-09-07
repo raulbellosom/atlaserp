@@ -56,9 +56,20 @@ export function NotificationBell({
     refetchOnWindowFocus: true,
   });
 
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications', 'bell-unread'],
+    queryFn: () => atlas.notifications.list(token, { unreadOnly: true, limit: 10 }),
+    enabled: Boolean(token),
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
+
   const notifications = Array.isArray(data) ? data : (data?.data ?? []);
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const recent = notifications.slice(0, 10);
+  const unreadCount = unreadData?.unreadCount ?? data?.unreadCount ?? notifications.filter((n) => !n.read).length;
+  const unread = unreadData?.data ?? [];
+  const unreadIds = new Set(unread.map((n) => n.id));
+  const recent = [...unread, ...notifications.filter((n) => !unreadIds.has(n.id))].slice(0, 10);
 
   const markAllRead = useMutation({
     mutationFn: () => atlas.notifications.markAllRead(token),
@@ -83,8 +94,13 @@ export function NotificationBell({
         const updated = list.map((n) =>
           n.id === notification.id ? { ...n, read: true } : n
         );
-        return Array.isArray(old) ? updated : { ...old, data: updated };
+        return Array.isArray(old) ? updated : { ...old, data: updated, unreadCount: Math.max(0, (old?.unreadCount ?? unreadCount) - 1) };
       });
+      queryClient.setQueryData(['notifications', 'bell-unread'], (old) => old ? {
+        ...old,
+        data: (old.data ?? []).filter((n) => n.id !== notification.id),
+        unreadCount: Math.max(0, (old.unreadCount ?? unreadCount) - 1),
+      } : old);
       markOneRead.mutate(notification.id);
     }
     if (notification.link && typeof onNavigate === "function") {

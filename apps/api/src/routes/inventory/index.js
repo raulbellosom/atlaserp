@@ -205,7 +205,7 @@ export function createInventoryRouter({
         });
         const validatedMentionIds = members.map((m) => m.userId);
         if (validatedMentionIds.length > 0) {
-          inventoryNotifSvc.notifyInvComment({ companyId, actorId, itemId: id, mentionedUserIds: validatedMentionIds });
+          await inventoryNotifSvc.notifyInvComment({ companyId, actorId, itemId: id, commentId: comment.id, mentionedUserIds: validatedMentionIds });
         }
       }
       return c.json({ data: comment }, 201);
@@ -250,7 +250,7 @@ export function createInventoryRouter({
       const { emoji } = await c.req.json();
       const result = await commentsService.toggleReaction(cid, authUserId, emoji);
       if (!result.removed) {
-        inventoryNotifSvc.notifyInvReaction({ companyId, actorId, commentId: cid });
+        await inventoryNotifSvc.notifyInvReaction({ companyId, actorId, commentId: cid });
       }
       return c.json({ data: result });
     } catch (err) {

@@ -90,7 +90,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
     }
   }
 
-  async function notifyTaskComment({ companyId, authorId, taskId, mentionedUserIds = [] }) {
+  async function notifyTaskComment({ companyId, authorId, taskId, commentId, mentionedUserIds = [] }) {
     try {
       const task = await prisma.task.findFirst({
         where: { id: taskId },
@@ -100,7 +100,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
         },
       })
       if (!task) return
-      const assigneeIds = task.assignees.map((a) => a.userId)
+      const assigneeIds = [...new Set([task.assigneeId, ...task.assignees.map((a) => a.userId)].filter(Boolean))]
       const mentionSet = new Set(mentionedUserIds.filter((id) => id !== authorId))
 
       // Direct @mentions get a higher-priority mention notification
@@ -118,6 +118,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
             priority: 'medium',
             sourceType: 'Task',
             sourceId: taskId,
+            ...(commentId ? { dedupeKey: `projects.task.mention:${commentId}` } : {}),
             metadata: { projectId: task.projectId, taskId, taskNumber: task.taskNumber },
           },
         })
@@ -139,6 +140,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
             priority: 'low',
             sourceType: 'Task',
             sourceId: taskId,
+            ...(commentId ? { dedupeKey: `projects.task.comment:${commentId}` } : {}),
             metadata: { projectId: task.projectId, taskId, taskNumber: task.taskNumber },
           },
         })
@@ -150,38 +152,33 @@ export function createProjectsNotificationService({ prisma, notificationService 
 
   async function notifyTaskReaction({ companyId, actorId, commentId }) {
     try {
-      const comment = await prisma.taskComment.findFirst({
-        where: { id: commentId },
-        include: {
-          task: {
-            select: {
-              id: true,
-              title: true,
-              projectId: true,
-              project: { select: { name: true } },
-            },
-          },
-        },
+      const comment = await prisma.entityComment.findFirst({
+        where: { id: commentId, companyId, entityType: 'Task' },
       })
       if (!comment) return
       if (comment.authorId === actorId) return
+      const task = await prisma.task.findFirst({
+        where: { id: comment.entityId, project: { companyId } },
+        include: { project: { select: { name: true } } },
+      })
+      if (!task) return
       await notifSvc.publish({
         companyId,
         actorId: actorId ?? null,
         input: {
           eventType: 'projects.task.reaction',
           title: 'Reaccionaron a tu comentario',
-          body: `"${comment.task?.title ?? 'Tarea'}"${comment.task?.project?.name ? ` en ${comment.task.project.name}` : ''}`,
-          link: `/app/m/atlas.projects?open=task:${comment.task?.id ?? ''}`,
+          body: `"${task.title}"${task.project?.name ? ` en ${task.project.name}` : ''}`,
+          link: `/app/m/atlas.projects?open=task:${task.id}`,
           recipients: { userIds: [comment.authorId] },
-          channels: ['in_app'],
+          channels: ['in_app', 'email', 'web_push'],
           priority: 'low',
           sourceType: 'TaskComment',
           sourceId: commentId,
           metadata: {
             commentId,
-            taskId: comment.task?.id,
-            projectId: comment.task?.projectId,
+            taskId: task.id,
+            projectId: task.projectId,
           },
         },
       })
@@ -205,7 +202,7 @@ export function createProjectsNotificationService({ prisma, notificationService 
         prisma.taskStatus.findFirst({ where: { id: newStatusId }, select: { name: true } }),
       ])
       if (!task) return
-      const recipientIds = task.assignees.map((a) => a.userId).filter((id) => id !== actorId)
+      const recipientIds = [...new Set([task.assigneeId, ...task.assignees.map((a) => a.userId)].filter(Boolean))].filter((id) => id !== actorId)
       if (!recipientIds.length) return
       await notifSvc.publish({
         companyId,
@@ -258,6 +255,22 @@ export function createProjectsNotificationService({ prisma, notificationService 
         },
       },
     })
+
+    // Creation and bulk updates can set the primary assignee without a row in
+    // project_task_assignee. Those users must receive due-date reminders too.
+    const primaryTasks = await prisma.task.findMany({
+      where: {
+        assigneeId: { not: null },
+        dueDate: { gte: now, lte: in24h },
+        status: { isDone: false },
+        project: { status: { not: 'ARCHIVED' } },
+      },
+      include: { project: { select: { id: true, name: true, companyId: true } } },
+    })
+    const assignedPairs = new Set(assignments.map(({ task, userId }) => `${task.id}:${userId}`))
+    for (const task of primaryTasks) {
+      if (!assignedPairs.has(`${task.id}:${task.assigneeId}`)) assignments.push({ task, userId: task.assigneeId })
+    }
 
     let published = 0
     for (const assignment of assignments) {

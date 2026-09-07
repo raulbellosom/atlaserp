@@ -5,6 +5,8 @@ import {
   webPushSubscriptionSchema,
 } from "@atlas/validators";
 
+import { getDefaultNotificationPreference } from '@atlas/core';
+
 const DEDUPE_WINDOW_MS = 5000;
 
 const PRIORITY_KIND_MAP = {
@@ -40,6 +42,7 @@ function buildListWhere({ userId, companyId, query }) {
   const where = {
     userId,
     ...buildCompanyScopeClause(companyId),
+    AND: [{ OR: [{ deliveries: { some: { channel: "in_app" } } }, { deliveries: { none: {} } }] }],
   };
 
   if (query.unreadOnly === true) {
@@ -64,14 +67,13 @@ function buildListWhere({ userId, companyId, query }) {
         { body: { contains: term, mode: "insensitive" } },
         { eventType: { contains: term, mode: "insensitive" } },
       ];
-      where.AND = [buildCompanyScopeClause(companyId)];
+      where.AND.push(buildCompanyScopeClause(companyId));
     }
   }
   return where;
 }
 
 export function createNotificationService({ prisma, broadcaster = null }) {
-  const pushEnabledByDefault = new Set(["chat.call.incoming"]);
   async function resolveCompanyContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
@@ -120,13 +122,17 @@ export function createNotificationService({ prisma, broadcaster = null }) {
       options.skip = 1;
     }
 
-    const rows = await prisma.notification.findMany(options);
+    const [rows, unreadCount] = await Promise.all([
+      prisma.notification.findMany(options),
+      prisma.notification.count({ where: buildListWhere({ userId: profileId, companyId, query: { unreadOnly: true } }) }),
+    ]);
     const hasNext = rows.length > parsed.limit;
     const items = hasNext ? rows.slice(0, parsed.limit) : rows;
-    const nextCursor = hasNext ? rows[parsed.limit]?.id ?? null : null;
+    const nextCursor = hasNext ? items.at(-1)?.id ?? null : null;
 
     return {
       data: items.map(toNotificationView),
+      unreadCount,
       pageInfo: { nextCursor },
     };
   }
@@ -236,6 +242,7 @@ export function createNotificationService({ prisma, broadcaster = null }) {
 
     const result = await prisma.$transaction(async (tx) => {
       const created = [];
+      const inAppRecipientIds = [];
       let deduped = 0;
 
       for (const userId of recipientUserIds) {
@@ -246,6 +253,23 @@ export function createNotificationService({ prisma, broadcaster = null }) {
           deduped += 1;
           continue;
         }
+
+        // Saved choices always override defaults, including explicit opt-outs.
+        const pref = await tx.notificationPreference.findFirst({
+          where: { userId, eventType: parsed.eventType },
+          select: { inAppEnabled: true, emailEnabled: true, pushEnabled: true, muteUntil: true },
+        });
+        const effective = { ...getDefaultNotificationPreference(parsed.eventType), ...pref };
+        const muted = pref?.muteUntil && new Date(pref.muteUntil) > new Date();
+        const allowedChannels = parsed.channels.filter((ch) => {
+          if (muted) return false;
+          if (ch === 'in_app') return effective.inAppEnabled !== false;
+          if (ch === 'email') return effective.emailEnabled === true;
+          if (ch === 'web_push') return effective.pushEnabled === true;
+          return true;
+        });
+
+        if (!allowedChannels.length) continue;
 
         const notification = await tx.notification.create({
           data: {
@@ -266,38 +290,25 @@ export function createNotificationService({ prisma, broadcaster = null }) {
           },
         });
 
-        // Filter delivery channels by user's saved preferences for this eventType.
-        // Incoming calls are time-sensitive and enable push by default. Other
-        // event types keep the conservative opt-in default used by Settings.
-        const pref = await tx.notificationPreference.findFirst({
-          where: { userId, eventType: parsed.eventType },
-          select: { inAppEnabled: true, emailEnabled: true, pushEnabled: true },
-        });
-        const allowedChannels = parsed.channels.filter((ch) => {
-          if (ch === 'in_app')  return pref ? pref.inAppEnabled  !== false : true;
-          if (ch === 'email')   return pref ? pref.emailEnabled  === true  : false;
-          if (ch === 'web_push') return pref
-            ? pref.pushEnabled === true
-            : pushEnabledByDefault.has(parsed.eventType);
-          return true;
-        });
-
         if (allowedChannels.length > 0) {
           await tx.notificationDelivery.createMany({
             data: allowedChannels.map((channel) => ({
               notificationId: notification.id,
               channel,
-              status: "queued",
+              status: channel === 'in_app' ? 'sent' : 'queued',
+              sentAt: channel === 'in_app' ? new Date() : null,
               attempts: 0,
             })),
             skipDuplicates: true,
           });
         }
 
+        if (allowedChannels.includes('in_app')) inAppRecipientIds.push(userId);
+
         created.push(notification);
       }
 
-      return { created, deduped };
+      return { created, deduped, inAppRecipientIds };
     });
 
     const publishResult = {
@@ -307,9 +318,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
       actorId,
     };
 
-    if (broadcaster && result.created.length > 0) {
-      const recipientIds = result.created.map((n) => n.userId);
-      broadcaster.broadcastToUsers(recipientIds, "notification.new", {
+    if (broadcaster && result.inAppRecipientIds.length > 0) {
+      await broadcaster.broadcastToUsers(result.inAppRecipientIds, "notification.new", {
         eventType: parsed.eventType,
         title: parsed.title,
         body: parsed.body ?? null,

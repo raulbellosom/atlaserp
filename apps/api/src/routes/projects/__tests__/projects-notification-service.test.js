@@ -49,6 +49,7 @@ function buildPrismaMock() {
           },
         },
         notificationDelivery: { createMany: async () => {} },
+        notificationPreference: { findFirst: async () => null },
       }),
     _published: published,
   };
@@ -100,4 +101,46 @@ describe("createProjectsNotificationService", () => {
     const link = prisma._published[0]?.link;
     assert.ok(link?.includes(`?open=project:${PROJECT_ID}`), `got: ${link}`);
   });
+});
+
+
+describe('projects notification regressions', () => {
+  it('keeps separate comments and sends a mention instead of a duplicate comment alert', async () => {
+    const prisma = buildPrismaMock();
+    const svc = createProjectsNotificationService({ prisma });
+    for (const commentId of ['comment-a', 'comment-b']) {
+      await svc.notifyTaskComment({ companyId: COMPANY_ID, authorId: ACTOR_ID, taskId: TASK_ID, commentId, mentionedUserIds: [USER_A] });
+    }
+    assert.equal(prisma._published.length, 2);
+    assert.ok(prisma._published.every(n => n.eventType === 'projects.task.mention'));
+    assert.notEqual(prisma._published[0].dedupeKey, prisma._published[1].dedupeKey);
+  });
+  it('reads reactions from generic comments and resolves the task', async () => {
+    const prisma = buildPrismaMock();
+    prisma.entityComment = { findFirst: async ({ where }) => {
+      assert.equal(where.entityType, 'Task');
+      assert.equal(where.companyId, COMPANY_ID);
+      return { entityId: TASK_ID, authorId: USER_A };
+    } };
+    await createProjectsNotificationService({ prisma }).notifyTaskReaction({ companyId: COMPANY_ID, actorId: ACTOR_ID, commentId: 'comment-a' });
+    assert.equal(prisma._published.length, 1);
+    assert.equal(prisma._published[0].userId, USER_A);
+    assert.equal(prisma._published[0].link, `/app/m/atlas.projects?open=task:${TASK_ID}`);
+  });
+});
+
+
+it('reminds primary assignees even without a multi-assignee row, once per day', async () => {
+  const published = [];
+  const keys = new Set();
+  const prisma = {
+    projectTaskAssignee: { findMany: async () => [] },
+    task: { findMany: async () => [{ id: TASK_ID, assigneeId: USER_A, title: 'Vence hoy', projectId: PROJECT_ID, project: { companyId: COMPANY_ID } }] },
+    notification: { findFirst: async ({ where }) => keys.has(where.dedupeKey) ? { id: 'existing' } : null },
+  };
+  const svc = createProjectsNotificationService({ prisma, notificationService: { publish: async args => { published.push(args); keys.add(args.input.dedupeKey); return { created: 1 }; } } });
+  await svc.processTasksDueSoon();
+  await svc.processTasksDueSoon();
+  assert.equal(published.length, 1);
+  assert.deepEqual(published[0].input.recipients.userIds, [USER_A]);
 });

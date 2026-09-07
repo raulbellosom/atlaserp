@@ -3,7 +3,7 @@ import { createNotificationService } from './notification-service.js'
 export function createInventoryNotificationService({ prisma, notificationService }) {
   const notifSvc = notificationService ?? createNotificationService({ prisma })
 
-  async function notifyInvComment({ companyId, actorId, itemId, mentionedUserIds = [] }) {
+  async function notifyInvComment({ companyId, actorId, itemId, commentId, mentionedUserIds = [] }) {
     const recipients = mentionedUserIds.filter((id) => id !== actorId)
     if (recipients.length === 0) return
     try {
@@ -25,6 +25,7 @@ export function createInventoryNotificationService({ prisma, notificationService
           priority: 'medium',
           sourceType: 'InvItem',
           sourceId: itemId,
+          ...(commentId ? { dedupeKey: `inventory.item.mention:${commentId}` } : {}),
           metadata: { itemId },
         },
       })
@@ -35,13 +36,13 @@ export function createInventoryNotificationService({ prisma, notificationService
 
   async function notifyInvReaction({ companyId, actorId, commentId }) {
     try {
-      const comment = await prisma.invComment.findFirst({
-        where: { id: commentId },
-        include: { item: { select: { id: true, name: true } } },
+      const comment = await prisma.entityComment.findFirst({
+        where: { id: commentId, companyId, entityType: 'InvItem' },
       })
       if (!comment) return
       if (comment.authorId === actorId) return
-      const item = comment.item
+      const item = await prisma.invItem.findFirst({ where: { id: comment.entityId, companyId }, select: { id: true, name: true } })
+      if (!item) return
       await notifSvc.publish({
         companyId,
         actorId: actorId ?? null,
@@ -51,7 +52,7 @@ export function createInventoryNotificationService({ prisma, notificationService
           body: `En el elemento "${item?.name ?? 'Inventario'}"`,
           link: `/app/m/atlas.inventory/inventory/${item?.id ?? ''}`,
           recipients: { userIds: [comment.authorId] },
-          channels: ['in_app'],
+          channels: ['in_app', 'email', 'web_push'],
           priority: 'low',
           sourceType: 'InvComment',
           sourceId: commentId,

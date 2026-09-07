@@ -5,12 +5,12 @@ import { createTagsService } from './tags-service.js'
 import { createSharesService } from './shares-service.js'
 import { createYDocService } from './ydoc-service.js'
 
-export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster }) {
+export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }) {
   const app = new Hono()
   const notes = createNotesService({ prisma, broadcaster })
   const folders = createFoldersService({ prisma })
   const tags = createTagsService({ prisma })
-  const shares = createSharesService({ prisma, broadcaster })
+  const shares = createSharesService({ prisma, broadcaster, notificationService })
   const ydoc = createYDocService({ prisma })
 
   // ----------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { createNotificationDeliveryWorker } from "../notification-delivery-worker.js";
 import { createNotificationService } from "../notification-service.js";
 
 const AUTH_USER_ID = "auth-user-1";
@@ -83,6 +84,7 @@ function buildPrismaMock() {
       },
     },
     notification: {
+      count: async ({ where }) => notifications.filter(row => matchWhere(row, where)).length,
       findMany: async ({ where, take }) => {
         const rows = notifications
           .filter((row) => matchWhere(row, where))
@@ -306,4 +308,81 @@ describe("notification-service", () => {
     });
     assert.equal(unread.data.length, 0);
   });
+});
+
+
+describe('important notification channels', () => {
+  const input = (eventType) => ({ eventType, title: 'Aviso', recipients: { userIds: [RECIPIENT_A] }, channels: ['in_app', 'email', 'web_push'] });
+  for (const eventType of ['projects.member.added', 'projects.task.assigned', 'projects.task.mention', 'chat.member.added', 'chat.mention.new', 'notes.note.shared', 'inventory.item.mention']) {
+    it(`${eventType} persists in-app and queues email and push by default`, async () => {
+      const prisma = buildPrismaMock();
+      const broadcasts = [];
+      const service = createNotificationService({ prisma, broadcaster: { broadcastToUsers: async (...args) => broadcasts.push(args) } });
+      const result = await service.publish({ companyId: COMPANY_ID, input: input(eventType) });
+      assert.equal(result.created, 1);
+      assert.deepEqual(prisma._deliveries.map(d => [d.channel, d.status]), [['in_app', 'sent'], ['email', 'queued'], ['web_push', 'queued']]);
+      assert.deepEqual(broadcasts[0][0], [RECIPIENT_A]);
+    });
+  }
+  it('keeps explicit email and push opt-outs', async () => {
+    const prisma = buildPrismaMock();
+    prisma.notificationPreference.findFirst = async () => ({ inAppEnabled: true, emailEnabled: false, pushEnabled: false });
+    await createNotificationService({ prisma }).publish({ companyId: COMPANY_ID, input: input('projects.member.added') });
+    assert.deepEqual(prisma._deliveries.map(d => d.channel), ['in_app']);
+  });
+  it('does not persist or broadcast while muted, or when every channel is disabled', async () => {
+    for (const pref of [{ muteUntil: new Date(Date.now() + 60000) }, { inAppEnabled: false, emailEnabled: false, pushEnabled: false }]) {
+      const prisma = buildPrismaMock();
+      prisma.notificationPreference.findFirst = async () => pref;
+      const service = createNotificationService({ prisma, broadcaster: { broadcastToUsers: async () => assert.fail('must not broadcast') } });
+      const result = await service.publish({ companyId: COMPANY_ID, input: input('notes.note.shared') });
+      assert.equal(result.created, 0);
+      assert.equal(prisma._notifications.length, 0);
+      assert.equal(prisma._deliveries.length, 0);
+    }
+  });
+  it('does not broadcast an email-only notification and scopes the inbox to in-app deliveries or legacy records', async () => {
+    const prisma = buildPrismaMock();
+    prisma.notificationPreference.findFirst = async () => ({ inAppEnabled: false, emailEnabled: true, pushEnabled: false });
+    const service = createNotificationService({ prisma, broadcaster: { broadcastToUsers: async () => assert.fail('must not broadcast') } });
+    await service.publish({ companyId: COMPANY_ID, input: input('notes.note.shared') });
+    assert.deepEqual(prisma._deliveries.map(d => d.channel), ['email']);
+    prisma.notification.findMany = async ({ where }) => {
+      assert.deepEqual(where.AND[0], { OR: [{ deliveries: { some: { channel: 'in_app' } } }, { deliveries: { none: {} } }] });
+      return [];
+    };
+    await service.list({ authUserId: AUTH_USER_ID, query: {} });
+  });
+  it('uses the last returned item as the next page cursor', async () => {
+    const prisma = buildPrismaMock();
+    prisma.notification.findMany = async () => [3, 2, 1].map(n => ({ id: makeUuidFromInt(n) }));
+    const result = await createNotificationService({ prisma }).list({ authUserId: AUTH_USER_ID, query: { limit: 2 } });
+    assert.equal(result.pageInfo.nextCursor, result.data.at(-1).id);
+  });
+  it('delivers queued email and push from a published event through the worker', async () => {
+    const prisma = buildPrismaMock();
+    await createNotificationService({ prisma }).publish({ companyId: COMPANY_ID, input: { ...input('notes.note.shared'), link: '/app/m/atlas.notes?note=demo' } });
+    prisma.notificationDelivery.findMany = async ({ where }) => prisma._deliveries.filter(d => d.channel === where.channel && d.status === 'queued').map(d => ({ ...d, id: d.channel, notification: { ...prisma._notifications[0], user: { email: 'recipient@example.test' } } }));
+    prisma.notificationDelivery.update = async ({ where, data }) => Object.assign(prisma._deliveries.find(d => d.channel === where.id), data);
+    prisma.pushSubscription.findMany = async () => [{ id: 'sub', endpoint: 'https://push.example.test', p256dh: 'key', auth: 'auth' }];
+    const emails = [], pushes = [];
+    const worker = createNotificationDeliveryWorker({ prisma, smtpService: { sendEmail: async mail => emails.push(mail) }, webPushService: { buildPushPayload: ({ notification }) => notification, sendToSubscription: async payload => { pushes.push(payload); return { ok: true }; } } });
+    assert.equal((await worker.processPendingNotificationDeliveries({ channel: 'email' })).sent, 1);
+    assert.equal((await worker.processPendingNotificationDeliveries({ channel: 'web_push' })).sent, 1);
+    assert.equal(emails[0].to, 'recipient@example.test');
+    assert.equal(pushes[0].payload.link, '/app/m/atlas.notes?note=demo');
+    assert.ok(prisma._deliveries.every(d => d.status === 'sent'));
+  });
+});
+
+
+it('reports unread notifications beyond the current page', async () => {
+  const prisma = buildPrismaMock();
+  const service = createNotificationService({ prisma });
+  for (let i = 0; i < 25; i++) {
+    await service.publish({ companyId: COMPANY_ID, input: { eventType: 'system.alert', title: `Aviso ${i}`, sourceId: String(i), recipients: { userIds: [PROFILE_ID] } } });
+  }
+  const result = await service.list({ authUserId: AUTH_USER_ID, query: { limit: 10 } });
+  assert.equal(result.data.length, 10);
+  assert.equal(result.unreadCount, 25);
 });

@@ -141,6 +141,7 @@ export function createBudgetsService({ prisma, notificationService = null }) {
           actorId: r.owner_id,
           input: {
             eventType: `pfm.budget.${level}`,
+            channels: ["in_app", "email", "web_push"],
             title:
               level === "overage"
                 ? `Rebasaste tu presupuesto de ${name}`

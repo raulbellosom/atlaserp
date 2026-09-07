@@ -760,7 +760,7 @@ export function createStorefrontCaptureService({
               body: notification.title,
               link: `/app/m/atlas.growth/leads/${notification.leadId}`,
               recipients: { userIds: [notification.userId] },
-              channels: ["in_app", "email"],
+              channels: ["in_app", "email", "web_push"],
               priority:
                 notification.priority === "high" ? "high" : "medium",
               sourceType: "GrowthLead",

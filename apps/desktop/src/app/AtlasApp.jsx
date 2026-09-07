@@ -257,7 +257,9 @@ export function AtlasApp() {
             <main className="flex-1 min-h-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
               <Outlet />
             </main>
-            <BrandFooter className="hidden lg:flex" />
+            {!(moduleKeyFromPath === "atlas.chat" && isFullscreen) && (
+              <BrandFooter className="hidden lg:flex" />
+            )}
           </div>
         </div>
       </div>

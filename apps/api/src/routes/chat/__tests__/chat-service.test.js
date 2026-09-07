@@ -1983,3 +1983,40 @@ describe("chat-service — sendMessage replyToMessageId", () => {
     assert.equal(out.reply_to.id, MSG_A);
   });
 });
+
+
+describe('chat membership notifications', () => {
+  it('notifies a newly added channel member through all channels before returning', async () => {
+    const published = [];
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }], [{ id: 'membership' }], [{ display_name: 'Invitado' }],
+      [{ id: CONV_ID, company_id: MOCK_COMPANY_ID, type: 'channel', title: 'Equipo' }],
+    ], [1, 1, 1]);
+    const svc = createChatService({ prisma, notificationService: { publish: async args => published.push(args) } });
+    const result = await svc.addMembers({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, userIds: [OTHER_PROFILE_ID, OTHER_PROFILE_ID] });
+    assert.deepEqual(result.added, [OTHER_PROFILE_ID]);
+    assert.equal(published.length, 1);
+    assert.equal(published[0].companyId, MOCK_COMPANY_ID);
+    assert.deepEqual(published[0].input.recipients.userIds, [OTHER_PROFILE_ID]);
+    assert.deepEqual(published[0].input.channels, ['in_app', 'email', 'web_push']);
+    assert.equal(published[0].input.link, `/app/m/atlas.chat/chat/inbox/${CONV_ID}`);
+  });
+  it('does not notify or write a system message for an existing active member', async () => {
+    const prisma = buildPrismaMock([[{ id: PROFILE_ID }], [{ id: 'membership' }]], [0]);
+    const svc = createChatService({ prisma, notificationService: { publish: async () => assert.fail('must not publish') } });
+    const result = await svc.addMembers({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, userIds: [OTHER_PROFILE_ID] });
+    assert.deepEqual(result.added, []);
+    assert.equal(prisma._executeRawCallCount, 1);
+  });
+});
+
+
+it('creating a channel notifies initial members but not its creator', async () => {
+  const conv = { id: CONV_ID, company_id: MOCK_COMPANY_ID, type: 'channel', title: 'General' };
+  const prisma = buildPrismaMock([[{ id: PROFILE_ID }], [conv], [{ id: 'member-row' }], [{ ...conv, members: null }]]);
+  const published = [];
+  const svc = createChatService({ prisma, notificationService: { publish: async args => published.push(args) } });
+  await svc.createConversation({ authUserId: AUTH_USER_ID, type: 'channel', title: 'General', memberUserIds: [OTHER_PROFILE_ID] });
+  assert.equal(published.length, 1);
+  assert.deepEqual(published[0].input.recipients.userIds, [OTHER_PROFILE_ID]);
+});

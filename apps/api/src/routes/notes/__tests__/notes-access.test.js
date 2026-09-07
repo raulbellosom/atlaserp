@@ -212,3 +212,29 @@ describe("tags-service — setNoteTags ownership", () => {
     );
   });
 });
+
+
+describe('shared note notifications', () => {
+  it('publishes all three channels using the shared company and note deep link', async () => {
+    const published = [];
+    const prisma = fakePrisma([
+      ['from notes where id', [{ id: NOTE }]],
+      ['from membership m_owner', [{ allowed: 1 }]],
+      ['insert into note_shares', [{ id: 'share' }]],
+      ['select n.title, m_target.company_id', [{ title: 'Plan', company_id: 'shared-company' }]],
+    ]);
+    const svc = createSharesService({ prisma, notificationService: { publish: async args => published.push(args) } });
+    const result = await svc.shareNote(NOTE, OWNER, { targetUserId: OTHER, permission: 'edit' });
+    assert.equal(result.id, 'share');
+    assert.equal(published.length, 1);
+    assert.equal(published[0].companyId, 'shared-company');
+    assert.deepEqual(published[0].input.recipients.userIds, [OTHER]);
+    assert.deepEqual(published[0].input.channels, ['in_app', 'email', 'web_push']);
+    assert.equal(published[0].input.link, `/app/m/atlas.notes?note=${NOTE}`);
+  });
+  it('never publishes for a rejected share', async () => {
+    const prisma = fakePrisma([['from notes where id', [{ id: NOTE }]]]);
+    const svc = createSharesService({ prisma, notificationService: { publish: async () => assert.fail('must not publish') } });
+    await assert.rejects(svc.shareNote(NOTE, OWNER, { targetUserId: OTHER, permission: 'edit' }), { status: 403 });
+  });
+});

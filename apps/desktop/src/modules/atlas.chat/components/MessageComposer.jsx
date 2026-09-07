@@ -582,21 +582,24 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const btnSize = compact ? "h-6 w-6" : "h-8 w-8";
 
   return (
+    <div className={[
+      "w-full min-w-0 shrink-0 bg-[hsl(var(--surface-2))]",
+      // Device geometry must stay outside chat-scale-target: zooming text
+      // must not enlarge the space reserved for the iOS home indicator.
+      edgeInset ? "safe-bottom" : "",
+    ].join(" ")}>
     <div
       className={[
-        "chat-scale-target relative w-full min-w-0 max-w-full shrink-0 overflow-x-hidden border-t border-[hsl(var(--border))] transition-colors",
+        "chat-scale-target relative w-auto min-w-0 max-w-full shrink-0 overflow-x-hidden border-t border-[hsl(var(--border))] transition-colors",
         // Horizontal padding + top padding only here — padding-bottom is set
         // exactly once, on its own line below, so a plain `pb-*` and an
         // `env()` calc never both compile to `padding-bottom` at equal
         // specificity (whichever lands later in the sheet would silently win).
         compact ? "px-2 pt-1.5" : "px-3 pt-2 sm:px-4 sm:pt-3",
-        // When `edgeInset` (the composer owns the screen's bottom edge) the bar
-        // sits FLUSH with the bottom — only the device's own safe-area inset is
-        // added, never extra breathing room, so there's no strip of background
-        // below the input on tablet/PWA. Non-edge callers (ThreadPanel sheet,
-        // mini window) keep a normal pad and must not add a second inset.
+        // The unscaled wrapper owns the device inset. Embedded composers
+        // (threads and mini windows) retain their ordinary bottom padding.
         edgeInset
-          ? "pb-[env(safe-area-inset-bottom,0px)]"
+          ? "pb-0"
           : (compact ? "pb-1.5" : "pb-2 sm:pb-3"),
         // A single background class (never both at once). surface-2 (not raw
         // --background) so the bar reads as a distinct composer surface and,
@@ -913,6 +916,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           Intro para enviar · Shift+Intro para nueva linea
         </p>
       )}
+    </div>
     </div>
   );
 });

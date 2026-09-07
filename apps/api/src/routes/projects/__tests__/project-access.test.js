@@ -107,3 +107,36 @@ describe("requireProjectAccess", () => {
     assert.equal(res.status, 200);
   });
 });
+
+
+describe('project routes publish notifications after successful mutations', () => {
+  it('adding a member waits for the notification publisher', async () => {
+    const publications = [];
+    const prisma = {
+      project: { findFirst: async () => ({ id: 'project', companyId: COMPANY, ownerId: PROFILE, name: 'Equipo' }) },
+      membership: { findFirst: async () => ({ id: 'membership' }) },
+      projectMember: { create: async ({ data }) => data },
+    };
+    const router = createProjectsRouter({ prisma, requirePermission, notificationService: { publish: async args => { await new Promise(resolve => setImmediate(resolve)); publications.push(args); } } });
+    const res = await router.request('/projects/project/members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: USER }) });
+    assert.equal(res.status, 201);
+    assert.equal(publications.length, 1);
+    assert.equal(publications[0].input.eventType, 'projects.member.added');
+    assert.deepEqual(publications[0].input.recipients.userIds, [USER]);
+  });
+  it('moving a task between columns notifies its assignee', async () => {
+    const publications = [];
+    let task = { id: 'task', projectId: 'project', statusId: 'old', assigneeId: USER, title: 'Tarea', assignees: [], project: { name: 'Equipo' } };
+    const prisma = {
+      project: { findFirst: async () => ({ id: 'project', companyId: COMPANY, ownerId: PROFILE }) },
+      task: { findFirst: async () => ({ ...task }), updateMany: async () => ({ count: 0 }), update: async ({ data }) => (task = { ...task, ...data }) },
+      taskStatus: { findFirst: async ({ where }) => ({ name: where.id }) },
+    };
+    const router = createProjectsRouter({ prisma, requirePermission, notificationService: { publish: async args => publications.push(args) } });
+    const res = await router.request('/projects/project/tasks/task/move', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statusId: 'new', position: 0 }) });
+    assert.equal(res.status, 200);
+    assert.equal(publications.length, 1);
+    assert.equal(publications[0].input.eventType, 'projects.task.status_changed');
+    assert.deepEqual(publications[0].input.recipients.userIds, [USER]);
+  });
+});

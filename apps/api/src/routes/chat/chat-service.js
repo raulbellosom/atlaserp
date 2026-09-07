@@ -65,6 +65,31 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     return resolveUserProfileId(prisma, authUserId);
   }
 
+  async function notifyMembersAdded(conversation, actorId, userIds) {
+    const recipients = [...new Set(userIds)].filter((id) => id !== actorId);
+    if (!notificationService || !conversation?.company_id || !recipients.length ||
+        !['channel', 'group'].includes(conversation.type)) return;
+    try {
+      await notificationService.publish({
+        companyId: conversation.company_id,
+        actorId,
+        input: {
+          eventType: 'chat.member.added',
+          title: conversation.type === 'channel' ? 'Te agregaron a un canal' : 'Te agregaron a un grupo',
+          body: `Ahora eres miembro de "${conversation.title || 'Chat'}"`.slice(0, 1000),
+          link: `/app/m/atlas.chat/chat/inbox/${conversation.id}`,
+          recipients: { userIds: recipients },
+          channels: ['in_app', 'email', 'web_push'],
+          sourceType: 'chat_conversation',
+          sourceId: conversation.id,
+          metadata: { conversationId: conversation.id },
+        },
+      });
+    } catch (err) {
+      console.error('[chat.member.added]', err?.message ?? err);
+    }
+  }
+
   async function assertMember(conversationId, userProfileId) {
     const rows = await prisma.$queryRaw`
       SELECT id FROM chat_conversation_members
@@ -379,6 +404,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       }).catch(() => {});
     }
 
+    await notifyMembersAdded(conv, creatorProfileId, allMembers);
     return newConv;
   }
 
@@ -509,11 +535,14 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
     const results = [];
     for (const uid of validUserIds) {
-      await prisma.$executeRaw`
+      const inserted = await prisma.$executeRaw`
         INSERT INTO chat_conversation_members (conversation_id, user_id, role)
         VALUES (${conversationId}, ${uid}, ${role})
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (conversation_id, user_id) DO UPDATE
+          SET left_at = NULL, role = EXCLUDED.role, role_id = NULL
+          WHERE chat_conversation_members.left_at IS NOT NULL
       `;
+      if (inserted === 0) continue;
 
       await prisma.$executeRaw`
         UPDATE chat_conversation_members
@@ -532,6 +561,19 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         `;
       }
       results.push(uid);
+    }
+    if (results.length && notificationService) {
+      try {
+        const [conversation] = await prisma.$queryRaw`
+          SELECT id, company_id, type, title FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+        `;
+        await notifyMembersAdded(conversation, profileId, results);
+      } catch (err) {
+        console.error('[chat.member.added]', err?.message ?? err);
+      }
+    }
+    if (results.length && broadcaster) {
+      await broadcaster.broadcastToUsers(results, 'chat.conversation.new', { conversationId }).catch(() => {});
     }
     return { added: results };
   }
@@ -1059,9 +1101,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                   eventType: "chat.thread.reply",
                   title: "Nueva respuesta en un hilo",
                   body: preview,
-                  link: `/app/m/atlas.chat/chat/inbox`,
+                  link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
                   recipients: { userIds: threadRecipientIds },
-                  channels: ["in_app", "web_push"],
+                  channels: ["in_app", "email", "web_push"],
                   priority: "medium",
                   sourceType: "chat_conversation",
                   sourceId: conversationId,
@@ -1077,9 +1119,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 eventType: "chat.message.new",
                 title: "Nuevo mensaje de chat",
                 body: preview,
-                link: `/app/m/atlas.chat/chat/inbox`,
+                link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: recipientIds },
-                channels: ["in_app", "web_push"],
+                channels: ["in_app", "email", "web_push"],
                 priority: "medium",
                 sourceType: "chat_conversation",
                 sourceId: conversationId,
@@ -1096,9 +1138,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 eventType: "chat.mention.new",
                 title: "Te mencionaron en un chat",
                 body: preview,
-                link: `/app/m/atlas.chat/chat/inbox`,
+                link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: mentionResult.notifyUserIds },
-                channels: ["in_app", "web_push"],
+                channels: ["in_app", "email", "web_push"],
                 priority: "high",
                 sourceType: "chat_conversation",
                 sourceId: conversationId,
@@ -1106,7 +1148,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
               },
             });
           }
-        } catch {}
+        } catch (err) {
+          console.error("[chat.notification]", err?.message ?? err);
+        }
       });
     }
 

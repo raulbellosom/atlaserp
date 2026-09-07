@@ -47,6 +47,17 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   const notifSvc = createProjectsNotificationService({ prisma, notificationService })
   const commentsSvc = createCommentsService({ prisma })
 
+  async function notifyTaskChanges(c, previous, patch) {
+    if (!previous) return
+    const context = { companyId: getCompanyId(c), actorId: getUserId(c), taskId: previous.id }
+    if (patch.statusId && patch.statusId !== previous.statusId) {
+      await notifSvc.notifyTaskStatusChanged({ ...context, oldStatusId: previous.statusId, newStatusId: patch.statusId })
+    }
+    if (patch.assigneeId !== undefined && patch.assigneeId !== previous.assigneeId) {
+      await notifSvc.notifyTaskAssigned({ ...context, assignedUserId: patch.assigneeId })
+    }
+  }
+
   // Per-project authorization. Runs AFTER requirePermission(...) (which populates
   // userContext + companyId). Verifies the caller belongs to THIS project and
   // that the project is in the caller's company — the company-wide RBAC grant is
@@ -167,7 +178,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       const member = await projectsSvc.addMember(projectId, getUserId(c), body)
       const project = await prisma.project.findFirst({ where: { id: projectId } })
       if (project?.calendarId) await bridge.grantMemberCalendarAccess(project.calendarId, body.userId)
-      notifSvc.notifyMemberAdded({ companyId: getCompanyId(c), actorId: getUserId(c), projectId, addedUserId: body.userId })
+      await notifSvc.notifyMemberAdded({ companyId: getCompanyId(c), actorId: getUserId(c), projectId, addedUserId: body.userId })
       return c.json(member, 201)
     } catch (err) { return handleError(c, err, 'Error al agregar miembro.') }
   })
@@ -246,6 +257,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const body = await c.req.json()
       const task = await tasksSvc.createTask(c.req.param('id'), getUserId(c), body)
+      await notifSvc.notifyTaskAssigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: task.id, assignedUserId: task.assigneeId })
       if (task.dueDate) {
         const project = await prisma.project.findFirst({ where: { id: task.projectId } })
         await bridge.syncTaskEvent(task, project?.calendarId)
@@ -259,7 +271,11 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
   app.patch('/projects/:id/tasks/bulk', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
       const { taskIds, patch } = await c.req.json()
+      const before = await prisma.task.findMany({ where: { projectId: c.req.param('id'), id: { in: taskIds ?? [] } }, select: { id: true, statusId: true, assigneeId: true } })
       const result = await tasksSvc.bulkUpdateTasks(c.req.param('id'), taskIds, patch ?? {})
+      for (const previous of before) {
+        await notifyTaskChanges(c, previous, patch ?? {})
+      }
       broadcastTaskEvent(c.req.param('id'), null, 'bulk_updated')
       return c.json(result)
     } catch (err) { return handleError(c, err, 'Error al actualizar tareas en masa.') }
@@ -285,18 +301,16 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const taskId = c.req.param('tid')
       const body = await c.req.json()
-      let oldStatusId = null
-      if (body.statusId) {
-        const current = await prisma.task.findFirst({ where: { id: taskId }, select: { statusId: true } })
-        oldStatusId = current?.statusId ?? null
-      }
+      const previous = await prisma.task.findFirst({ where: { id: taskId }, select: { id: true, statusId: true, assigneeId: true } })
+      const oldStatusId = previous?.statusId ?? null
       const task = await tasksSvc.updateTask(taskId, body)
+      await notifyTaskChanges(c, previous, { assigneeId: body.assigneeId })
       if (body.dueDate !== undefined) {
         const project = await prisma.project.findFirst({ where: { id: task.projectId } })
         await bridge.syncTaskEvent(task, project?.calendarId)
       }
       if (body.statusId && oldStatusId && oldStatusId !== body.statusId) {
-        notifSvc.notifyTaskStatusChanged({
+        await notifSvc.notifyTaskStatusChanged({
           companyId: getCompanyId(c),
           actorId: getUserId(c),
           taskId,
@@ -333,7 +347,10 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
 
   app.patch('/projects/:id/tasks/:tid/move', requirePermission('projects.task.update'), requireProjectAccess('MEMBER'), async (c) => {
     try {
-      const task = await tasksSvc.moveTask(c.req.param('tid'), await c.req.json())
+      const patch = await c.req.json()
+      const previous = await prisma.task.findFirst({ where: { id: c.req.param('tid') }, select: { id: true, statusId: true, assigneeId: true } })
+      const task = await tasksSvc.moveTask(c.req.param('tid'), patch)
+      await notifyTaskChanges(c, previous, patch)
       broadcastTaskEvent(c.req.param('id'), c.req.param('tid'), 'moved')
       return c.json(task)
     } catch (err) { return handleError(c, err, 'Error al mover tarea.') }
@@ -351,7 +368,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
     try {
       const { userId } = await c.req.json()
       const row = await tasksSvc.addAssignee(c.req.param('tid'), userId)
-      notifSvc.notifyTaskAssigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: c.req.param('tid'), assignedUserId: userId })
+      await notifSvc.notifyTaskAssigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: c.req.param('tid'), assignedUserId: userId })
       const assigneeName = [row.user?.firstName, row.user?.lastName].filter(Boolean).join(' ') || row.user?.email || 'Usuario'
       publishActivityFromContext(prisma, c, {
         type: 'projects.task.assigned',
@@ -371,7 +388,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
         select: { firstName: true, lastName: true, email: true },
       })
       await tasksSvc.removeAssignee(c.req.param('tid'), removedUserId)
-      notifSvc.notifyTaskUnassigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: c.req.param('tid'), removedUserId })
+      await notifSvc.notifyTaskUnassigned({ companyId: getCompanyId(c), actorId: getUserId(c), taskId: c.req.param('tid'), removedUserId })
       const removedName = [removedUser?.firstName, removedUser?.lastName].filter(Boolean).join(' ') || removedUser?.email || 'Usuario'
       publishActivityFromContext(prisma, c, {
         type: 'projects.task.unassigned',
@@ -406,11 +423,12 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
         })
         mentionedIds = members.map((m) => m.userId)
       }
-      notifSvc.notifyTaskComment({
+      await notifSvc.notifyTaskComment({
         companyId,
         authorId: getUserId(c),
         taskId: c.req.param('tid'),
         mentionedUserIds: mentionedIds,
+        commentId: comment.id,
       })
       return c.json(comment, 201)
     } catch (err) { return handleError(c, err, 'Error al crear comentario.') }
@@ -437,7 +455,7 @@ export function createProjectsRouter({ prisma, requirePermission, notificationSe
       const commentId = c.req.param('cid')
       const result = await commentsSvc.toggleReaction(commentId, c.get('authUserId'), emoji)
       if (!result.removed) {
-        notifSvc.notifyTaskReaction({
+        await notifSvc.notifyTaskReaction({
           companyId: getCompanyId(c),
           actorId: getUserId(c),
           commentId,
