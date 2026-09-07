@@ -1,11 +1,16 @@
 import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Loader2, Download, Play, Pause, Mic, AlertCircle,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File, Trash2, Smile,
+  Copy, Link2, ExternalLink,
 } from "lucide-react";
-import { ConfirmDialog, useCoarsePointer } from "@atlas/ui";
+import {
+  ConfirmDialog, useCoarsePointer,
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
+} from "@atlas/ui";
 import { formatFileSize, isImageMime } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -72,6 +77,93 @@ function useAttachmentUrl(att) {
     retry: 2,
     enabled: Boolean(session?.access_token),
   });
+}
+
+// ── Right-click quick actions for a media tile ────────────────────────────────
+// Wraps any attachment tile (image / video / generic file) so a right-click or
+// long-press offers "copiar imagen / copiar enlace / descargar / abrir" —
+// matching what people expect from images and PDFs elsewhere.
+async function copyImageToClipboard(url) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  let out = blob;
+  // Most browsers only accept image/png on the clipboard — re-encode anything
+  // else (jpeg/webp) through a canvas first.
+  if (blob.type !== "image/png" && typeof createImageBitmap === "function") {
+    const bmp = await createImageBitmap(blob);
+    const canvas = document.createElement("canvas");
+    canvas.width = bmp.width;
+    canvas.height = bmp.height;
+    canvas.getContext("2d").drawImage(bmp, 0, 0);
+    out = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    bmp.close?.();
+  }
+  if (!out || !navigator.clipboard?.write) throw new Error("clipboard-unavailable");
+  await navigator.clipboard.write([new window.ClipboardItem({ [out.type || "image/png"]: out })]);
+}
+
+function downloadAttachment(url, fileName) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName ?? "archivo";
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.click();
+}
+
+function AttachmentContextMenu({ att, url, children }) {
+  const isImage = isImageMime(att?.mimeType);
+
+  async function handleCopyImage() {
+    if (!url) return;
+    try {
+      await copyImageToClipboard(url);
+      toast.success("Imagen copiada");
+    } catch {
+      try {
+        await navigator.clipboard?.writeText(url);
+        toast.message("No se pudo copiar la imagen — se copió el enlace");
+      } catch {
+        toast.error("No se pudo copiar");
+      }
+    }
+  }
+
+  async function handleCopyLink() {
+    if (!url) return;
+    try {
+      await navigator.clipboard?.writeText(url);
+      toast.success("Enlace copiado");
+    } catch {
+      toast.error("No se pudo copiar el enlace");
+    }
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
+        {isImage && (
+          <ContextMenuItem disabled={!url} onSelect={handleCopyImage}>
+            <Copy /> Copiar imagen
+          </ContextMenuItem>
+        )}
+        <ContextMenuItem disabled={!url} onSelect={handleCopyLink}>
+          <Link2 /> Copiar enlace
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem disabled={!url} onSelect={() => url && downloadAttachment(url, att?.fileName)}>
+          <Download /> Descargar
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!url}
+          onSelect={() => url && window.open(url, "_blank", "noopener,noreferrer")}
+        >
+          <ExternalLink /> Abrir en pestaña nueva
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 // ── Per-tile action icons (react + delete) ─────────────────────────────────
@@ -182,6 +274,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
   const [failedUrl, setFailedUrl] = useState(null);
 
   return (
+    <AttachmentContextMenu att={att} url={url}>
     <div className="relative group block rounded-xl overflow-hidden" style={{ minHeight: 80 }}>
       <button
         type="button"
@@ -225,6 +318,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
         attachmentId={att.id}
       />
     </div>
+    </AttachmentContextMenu>
   );
 }
 
@@ -237,6 +331,7 @@ function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
   const videoSrc = url ? `${url}#t=0.001` : null;
 
   return (
+    <AttachmentContextMenu att={att} url={url}>
     <div
       className="relative group block rounded-xl overflow-hidden bg-black/25 mt-1.5"
       style={{ width: 220, height: 140, maxWidth: "100%" }}
@@ -297,6 +392,7 @@ function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
         attachmentId={att.id}
       />
     </div>
+    </AttachmentContextMenu>
   );
 }
 
@@ -543,6 +639,7 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
   }
 
   return (
+    <AttachmentContextMenu att={att} url={url}>
     <div
       className={[
         "flex items-center gap-2.5 mt-1.5 px-3 py-2 rounded-xl max-w-55",
@@ -570,6 +667,7 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
         <Download className="h-4 w-4" />
       </button>
     </div>
+    </AttachmentContextMenu>
   );
 }
 
@@ -579,6 +677,7 @@ function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0,
   const [failedUrl, setFailedUrl] = useState(null);
 
   return (
+    <AttachmentContextMenu att={att} url={url}>
     <div className="absolute inset-0 w-full h-full group">
       <button
         type="button"
@@ -630,6 +729,7 @@ function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0,
         </>
       )}
     </div>
+    </AttachmentContextMenu>
   );
 }
 

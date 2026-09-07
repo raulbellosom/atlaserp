@@ -111,10 +111,15 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
                   {copied === "url" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>
+              <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                Con este enlace no hace falta ningún código: se abre directo en la sala de espera.
+              </p>
             </div>
 
             <div>
-              <span className="mb-1 block text-xs font-medium text-[hsl(var(--muted-foreground))]">Código</span>
+              <span className="mb-1 block text-xs font-medium text-[hsl(var(--muted-foreground))]">
+                Código (alternativa al enlace)
+              </span>
               <div className="flex gap-2">
                 <input readOnly value={link.code} className="w-40 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-3 py-2 font-mono text-lg tracking-widest" />
                 <Button variant="secondary" size="icon" onClick={() => copy(link.code, "code")} title="Copiar código">
@@ -124,6 +129,9 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+                Para quien prefiera escribirlo: entra a {link.url.replace(/\/p\/call\/.*$/, "/p/call")} y teclea este código.
+              </p>
             </div>
 
             <CheckboxField
