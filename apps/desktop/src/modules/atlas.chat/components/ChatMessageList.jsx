@@ -457,9 +457,13 @@ export function ChatMessageList({
     );
   }
 
+  // Deleted messages disappear entirely (Telegram-style) — no permanent
+  // "Mensaje eliminado" tombstone. Replies to a since-deleted message still
+  // resolve via `reply_to` from the API, which keeps its own deleted marker.
+  const notDeleted = (messages ?? []).filter((m) => !m.deleted_at);
   const visibleMessages = hiddenMessageIds?.size
-    ? messages.filter((m) => !hiddenMessageIds.has(m.id) || m.id === revealMessageId)
-    : messages;
+    ? notDeleted.filter((m) => !hiddenMessageIds.has(m.id) || m.id === revealMessageId)
+    : notDeleted;
 
   const grouped = enrichWithGroupInfo(groupMessagesByDate(visibleMessages));
 

@@ -55,7 +55,8 @@ export function ThreadPanel({ open, onOpenChange, rootMessageId, conversationId,
   useEffect(() => { setReplyingTo(null); }, [rootMessageId, open]);
 
   const root = data?.data?.root;
-  const replies = data?.data?.replies ?? [];
+  // Deleted replies disappear entirely (no "Mensaje eliminado" tombstone).
+  const replies = (data?.data?.replies ?? []).filter((r) => !r.deleted_at);
 
   // Every file shared in this thread (root + replies) so the in-panel viewer
   // can page through all of them, same as the main chat window.
