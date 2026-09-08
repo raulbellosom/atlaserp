@@ -883,6 +883,8 @@ export default function FilesScreen() {
         activeIndex={explorer.activeIndex}
         onIndexChange={explorer.setActiveIndex}
         onResolveSignedUrl={resolveSignedUrl}
+        onOpenInOffice={(f) => office?.enabled && office.open(f.id)}
+        canOpenInOffice={(f) => f?.enabled !== false}
       />
 
       <FileDetailPanel
