@@ -372,6 +372,38 @@ async function main() {
   } catch {
     // Table doesn't exist yet or migration not run — skip silently
   }
+
+  // ------------------------------------------------------------------
+  // MeridIAn bot profile — one per company, linked via membership. Idempotent.
+  // ------------------------------------------------------------------
+  try {
+    const allCompanies = await prisma.company.findMany({ select: { id: true } })
+    let botsEnsured = 0
+    for (const company of allCompanies) {
+      const existing = await prisma.$queryRaw`
+        SELECT up.id FROM user_profile up
+        JOIN membership mm ON mm.user_id = up.id AND mm.company_id = ${company.id}::uuid AND mm.enabled = true
+        WHERE up.is_bot = true LIMIT 1
+      `
+      if (existing.length) continue
+      const email = `meridian+${company.id}@bots.atlas.local`
+      const inserted = await prisma.$queryRaw`
+        INSERT INTO user_profile (id, auth_user_id, display_name, first_name, last_name, email, is_bot, enabled, updated_at)
+        VALUES (uuidv7(), gen_random_uuid(), 'MeridIAn', 'MeridIAn', '', ${email}, true, true, NOW())
+        ON CONFLICT (email) DO UPDATE SET is_bot = true
+        RETURNING id
+      `
+      await prisma.$executeRaw`
+        INSERT INTO membership (id, company_id, user_id, enabled, updated_at)
+        VALUES (uuidv7(), ${company.id}::uuid, ${inserted[0].id}::uuid, true, NOW())
+        ON CONFLICT DO NOTHING
+      `
+      botsEnsured += 1
+    }
+    console.log(`MeridIAn bot profile ensured for ${allCompanies.length} company(s) (${botsEnsured} created)`)
+  } catch {
+    // Table doesn't exist yet or migration not run — skip silently
+  }
 }
 
 main().finally(() => prisma.$disconnect())
