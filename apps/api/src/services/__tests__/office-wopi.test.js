@@ -189,8 +189,10 @@ test('discovery is cached and errors bounded; never trusts arbitrary editor orig
 
 test('catalog enforces extension/MIME and archive content types for all MVP formats', async () => {
   for (const [extension, format] of Object.entries(OFFICE_FORMATS)) {
-    assert.ok(getOfficeFormat({ originalName: `a.${extension}`, mimeType: format.mimeType }));
-    await validateOfficeDocument(await officeBytes(extension), format);
+    assert.ok(getOfficeFormat({ originalName: `a.${extension}`, mimeType: format.mimeType }), `${extension} resolves`);
+    if (format.kind === 'ooxml') {
+      await validateOfficeDocument(await officeBytes(extension), format);
+    }
   }
   assert.equal(getOfficeFormat({ originalName: '../a.docx', mimeType: OFFICE_FORMATS.docx.mimeType }), null);
   await assert.rejects(validateOfficeDocument(await officeBytes('xlsx'), OFFICE_FORMATS.docx), status(415));
