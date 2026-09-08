@@ -52,7 +52,10 @@ export function useGuestChat(sdk) {
   const [isClosed, setIsClosed] = useState(false)
   const [startError, setStartError] = useState(null)
   const [resumeError, setResumeError] = useState(null)
+  const [operatorTyping, setOperatorTyping] = useState(false)
+  const [operatorLastReadAt, setOperatorLastReadAt] = useState(null)
   const unsubscribeRef = useRef(null)
+  const typingClearRef = useRef(null)
 
   // Load availability + restore session on mount
   useEffect(() => {
@@ -77,8 +80,9 @@ export function useGuestChat(sdk) {
           setScreen('chat')
           return sdk.guestChat.listMessages(stored.token)
         })
-        .then((msgs) => {
-          if (Array.isArray(msgs)) setMessages(msgs)
+        .then((res) => {
+          if (res?.messages) setMessages(res.messages)
+          if (res?.operatorLastReadAt) setOperatorLastReadAt(res.operatorLastReadAt)
         })
         .catch(() => clearStoredSession())
     }
@@ -88,9 +92,12 @@ export function useGuestChat(sdk) {
   useEffect(() => {
     if (!session?.conversationId) return
 
-    const unsub = sdk.guestChat.subscribeToReplies(
-      session.conversationId,
-      (payload) => {
+    const unsub = sdk.guestChat.subscribeToReplies(session.conversationId, {
+      onMessage: (payload) => {
+        if (payload?.deleted) {
+          setMessages((prev) => prev.filter((m) => m.id !== payload.messageId))
+          return
+        }
         setMessages((prev) => {
           const isDuplicate = prev.some((m) => m.id === payload.messageId)
           if (isDuplicate) return prev
@@ -104,8 +111,16 @@ export function useGuestChat(sdk) {
           }]
         })
       },
-      () => { setIsClosed(true) },
-    )
+      onTyping: () => {
+        setOperatorTyping(true)
+        clearTimeout(typingClearRef.current)
+        typingClearRef.current = setTimeout(() => setOperatorTyping(false), 4000)
+      },
+      onRead: (payload) => {
+        setOperatorLastReadAt(payload?.at ?? new Date().toISOString())
+      },
+      onClose: () => { setIsClosed(true) },
+    })
 
     unsubscribeRef.current = unsub
     return () => {
@@ -145,8 +160,9 @@ export function useGuestChat(sdk) {
       storeTrackingCode(res.trackingCode)
       setTrackingCode(res.trackingCode ?? code)
       setSession({ token: res.token, conversationId: res.conversationId, email })
-      const msgs = await sdk.guestChat.listMessages(res.token)
-      if (Array.isArray(msgs)) setMessages(msgs)
+      const msgRes = await sdk.guestChat.listMessages(res.token)
+      if (msgRes?.messages) setMessages(msgRes.messages)
+      if (msgRes?.operatorLastReadAt) setOperatorLastReadAt(msgRes.operatorLastReadAt)
       setScreen('chat')
       return res
     } catch (err) {
@@ -162,8 +178,10 @@ export function useGuestChat(sdk) {
     if (!session?.token || screen !== 'chat') return
     const id = setInterval(async () => {
       try {
-        const msgs = await sdk.guestChat.listMessages(session.token)
+        const res = await sdk.guestChat.listMessages(session.token)
+        const msgs = res?.messages
         if (!Array.isArray(msgs)) return
+        if (res.operatorLastReadAt) setOperatorLastReadAt(res.operatorLastReadAt)
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id))
           const newOnes = msgs.filter((m) => !existingIds.has(m.id))
@@ -231,7 +249,17 @@ export function useGuestChat(sdk) {
     setTrackingCode(null)
     setMessages([])
     setIsClosed(false)
+    setOperatorTyping(false)
+    setOperatorLastReadAt(null)
     setScreen('welcome')
+  }, [sdk, session])
+
+  const sendTyping = useCallback(() => {
+    if (session?.token) sdk.guestChat.sendTyping(session.token).catch(() => {})
+  }, [sdk, session])
+
+  const markRead = useCallback(() => {
+    if (session?.token) sdk.guestChat.markRead(session.token).catch(() => {})
   }, [sdk, session])
 
   return {
@@ -243,12 +271,16 @@ export function useGuestChat(sdk) {
     messages,
     isSending,
     isClosed,
+    operatorTyping,
+    operatorLastReadAt,
     startError,
     resumeError,
     startSession,
     resumeByCode,
     sendMessage,
     sendFile,
+    sendTyping,
+    markRead,
     closeSession,
   }
 }

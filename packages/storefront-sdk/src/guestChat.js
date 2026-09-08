@@ -37,10 +37,10 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     const params = new URLSearchParams({ limit: String(limit) })
     if (before) params.set('before', before)
     const res = await request('GET', `/public/chat/session/${token}/messages?${params}`)
-    const msgs = res.data
-    if (!Array.isArray(msgs)) return []
+    const raw = res.data
+    const arr = Array.isArray(raw) ? raw : []
     // Normalize to snake_case so the shape matches realtime broadcast payloads.
-    return msgs.map((m) => ({
+    const messages = arr.map((m) => ({
       id: m.id,
       body: m.body,
       sender_type: m.senderType ?? m.sender_type,
@@ -51,6 +51,20 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
       metadata: m.metadata ?? null,
       attachments: m.attachments ?? null,
     }))
+    return { messages, operatorLastReadAt: res.operatorLastReadAt ?? null }
+  }
+
+  async function sendTyping(token) {
+    return request('POST', `/public/chat/session/${token}/typing`)
+  }
+
+  async function markRead(token) {
+    return request('POST', `/public/chat/session/${token}/read`)
+  }
+
+  async function getAttachmentUrl(token, attachmentId) {
+    const res = await request('GET', `/public/chat/session/${token}/attachments/${attachmentId}/url`)
+    return res?.data?.url ?? null
   }
 
   async function closeSession(token) {
@@ -62,7 +76,11 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     return res.data
   }
 
-  function subscribeToReplies(conversationId, onMessage, onClose) {
+  // Accepts either an options object { onMessage, onTyping, onRead, onClose } or,
+  // for back-compat, a bare onMessage function plus a legacy onClose arg.
+  function subscribeToReplies(conversationId, arg2, legacyOnClose) {
+    const opts = typeof arg2 === 'function' ? { onMessage: arg2, onClose: legacyOnClose } : (arg2 || {})
+    const { onMessage, onTyping, onRead, onClose } = opts
     let channel = null
     let cancelled = false
 
@@ -78,10 +96,16 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
       channel = client
         .channel(`chat:conv:${conversationId}`)
         .on('broadcast', { event: 'new_operator_message' }, ({ payload }) => {
-          onMessage(payload)
+          onMessage?.(payload)
+        })
+        .on('broadcast', { event: 'operator_typing' }, ({ payload }) => {
+          onTyping?.(payload)
+        })
+        .on('broadcast', { event: 'operator_read' }, ({ payload }) => {
+          onRead?.(payload)
         })
         .on('broadcast', { event: 'conversation_closed' }, () => {
-          if (onClose) onClose()
+          onClose?.()
         })
         .subscribe()
     }
@@ -129,5 +153,8 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     presignAttachment,
     sendFileMessage,
     resumeByCode,
+    sendTyping,
+    markRead,
+    getAttachmentUrl,
   }
 }

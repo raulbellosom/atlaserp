@@ -314,6 +314,19 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         body: JSON.stringify(data),
       }),
 
+    sendExternalTyping: (conversationId, token) =>
+      request(`/chat/external/${encodeURIComponent(conversationId)}/typing`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({}),
+      }),
+
+    deleteExternalMessage: (conversationId, messageId, token) =>
+      request(
+        `/chat/external/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+        { method: "DELETE", headers: withAuthHeaders(token) },
+      ),
+
     assignOperator: (conversationId, data, token) =>
       request(`/chat/external/${encodeURIComponent(conversationId)}/assign`, {
         method: "POST",
