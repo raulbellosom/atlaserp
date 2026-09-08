@@ -69,6 +69,7 @@ function assistantMsg(content, tool_calls) {
 
 function serviceForLoop({ fetchImpl, env = { GROQ_API_KEY: "k" }, listMessages, chatSearchService = {}, visionService = {} } = {}) {
   const inserted = [];
+  const runs = [];
   const prisma = {
     membership: { findFirst: async () => ({ companyId: "co1" }) },
     $queryRaw: async (strings) => {
@@ -78,7 +79,7 @@ function serviceForLoop({ fetchImpl, env = { GROQ_API_KEY: "k" }, listMessages, 
       return [];
     },
     $executeRaw: async () => 0,
-    chatMeridianRun: { create: async () => ({}) },
+    chatMeridianRun: { create: async ({ data } = {}) => { runs.push(data ?? {}); return {}; } },
   };
   const svc = createMeridianService({
     prisma, env, fetchImpl,
@@ -87,7 +88,7 @@ function serviceForLoop({ fetchImpl, env = { GROQ_API_KEY: "k" }, listMessages, 
     insertAssistantMessage: async ({ body }) => { inserted.push(body); return { id: "botmsg1", created_at: new Date() }; },
     broadcaster: { broadcastToChannel: async () => {} },
   });
-  return { svc, inserted, prisma };
+  return { svc, inserted, prisma, runs };
 }
 
 test("handleUserMessage: plain question -> one Groq call -> one assistant message inserted", async () => {
@@ -109,6 +110,13 @@ test("handleUserMessage: 6-iteration cap -> graceful message", async () => {
   const { svc, inserted } = serviceForLoop({ fetchImpl: groqStub(Array(10).fill(assistantMsg("", tc))) });
   await svc.handleUserMessage({ companyId: "co1", conversationId: "mconv1", actorProfileId: "prof1", actorAuthUserId: "auth1", triggerMessageId: "um1" });
   assert.match(inserted[0], /no pude terminar|mas concreto/i);
+});
+
+test("handleUserMessage: empty Groq answer -> error reply + audited", async () => {
+  const { svc, inserted, runs } = serviceForLoop({ fetchImpl: groqStub([assistantMsg("   ")]) });
+  await svc.handleUserMessage({ companyId: "co1", conversationId: "mconv1", actorProfileId: "prof1", actorAuthUserId: "auth1", triggerMessageId: "um1" });
+  assert.match(inserted[0], /No pude responder ahora mismo/i);
+  assert.equal(runs[0].error, "respuesta vacia de Groq");
 });
 
 test("handleUserMessage: rate limit -> canned busy reply, no Groq call", async () => {

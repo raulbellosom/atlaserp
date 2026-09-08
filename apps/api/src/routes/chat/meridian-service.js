@@ -242,7 +242,15 @@ export function createMeridianService({
         const msg = await callGroq(llmMessages);
         const toolCalls = msg?.tool_calls ?? [];
         if (!toolCalls.length) {
-          finalText = String(msg?.content ?? "").trim() || "(no tengo una respuesta ahora mismo)";
+          const answer = String(msg?.content ?? "").trim();
+          if (answer) {
+            finalText = answer;
+          } else {
+            // A non-tool response with no content is a failed turn, not an
+            // answer — surface it and record it in the audit row.
+            finalText = "No pude responder ahora mismo, intentalo de nuevo en un momento.";
+            toolLog.push({ error: "respuesta vacia de Groq" });
+          }
           break;
         }
         llmMessages.push({ role: "assistant", content: msg.content ?? "", tool_calls: toolCalls });
