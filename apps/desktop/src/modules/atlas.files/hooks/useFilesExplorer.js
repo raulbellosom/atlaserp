@@ -66,7 +66,7 @@ export function useFilesExplorer(files = [], { server = false } = {}) {
       }
 
       if (filters.kind) {
-        if (getFileKind(file.mimeType) !== filters.kind) return false;
+        if (getFileKind(file) !== filters.kind) return false;
       }
 
       if (filters.moduleKey && file.moduleKey !== filters.moduleKey) {
