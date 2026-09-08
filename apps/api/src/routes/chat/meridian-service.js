@@ -47,9 +47,20 @@ const CHANNEL_COOLDOWN_MS = 15_000;
 // Literal "@meridIAn" token where a mention could sit. Case/accent-insensitive.
 // Does NOT match an email local-part ("x@meridian.com") or "@meridiano".
 const MERIDIAN_MENTION_RE = /(^|[\s([{<"'])@merid[ií]an\b/i;
+// Sentinel id the composer inserts for the "@MeridIAn" autocomplete candidate,
+// serialized by MentionTextarea as @[<id>:MeridIAn]. MUST stay byte-identical
+// to MERIDIAN_MENTION_ID in apps/desktop/src/modules/atlas.chat/lib/meridian.js.
+const MERIDIAN_MENTION_ID = "00000000-0000-0000-0000-00000000b07a";
+// Turn any @[uuid:Name] token into a readable "@Name" for the classifier + LLM.
+const MENTION_TOKEN_RE = /@\[[0-9a-fA-F-]{36}:([^\]]+)\]/g;
 
 export function matchMeridianMention(body) {
-  return MERIDIAN_MENTION_RE.test(String(body ?? ""));
+  const s = String(body ?? "");
+  return MERIDIAN_MENTION_RE.test(s) || s.includes(`@[${MERIDIAN_MENTION_ID}:`);
+}
+
+export function stripMentionTokens(body) {
+  return String(body ?? "").replace(MENTION_TOKEN_RE, "@$1");
 }
 const ROUTER_SYSTEM = [
   "Eres un clasificador. Clasifica la ULTIMA pregunta del usuario en exactamente una de estas tres palabras:",
@@ -675,9 +686,15 @@ export function createMeridianService({
       }
     }
     const ctx = { conversationId, actorProfileId, actorAuthUserId };
+    const q = String(userText || "").replace(/@merid[ií]an/gi, "").trim();
     const llmMessages = [
       { role: "system", content: channelSystemPrompt() },
-      { role: "user", content: "(Te acaban de mencionar en el canal. Usa get_channel_messages si necesitas el contexto y responde a la ultima mencion.)" },
+      {
+        role: "user",
+        content: q
+          ? `Te mencionaron en la conversacion con: "${q}". Usa get_channel_messages si necesitas el contexto del hilo; si no, responde directamente.`
+          : "(Te mencionaron sin una pregunta clara. Di brevemente que puedes hacer.)",
+      },
     ];
     const toolLog = [];
     for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
@@ -717,11 +734,14 @@ export function createMeridianService({
     if (!checkRate(actorProfileId)) return;             // silent — no "saturado" bubble in a public channel
     if (!checkChannelCooldown(conversationId)) return;  // silent
     const started = Date.now();
+    // The body may carry @[uuid:Name] mention tokens (incl. @[<sentinel>:MeridIAn]) —
+    // give the classifier and the model a readable "@Name" instead.
+    const cleanText = stripMentionTokens(mentionText);
     let route = "chat";
     let routerMs = 0;
     let routerError = null;
     try {
-      const c = await classifyTurn({ conversationId, userText: String(mentionText ?? "") });
+      const c = await classifyTurn({ conversationId, userText: cleanText });
       route = c.route;
       routerMs = c.ms;
       routerError = c.routerError ?? null;
@@ -731,7 +751,7 @@ export function createMeridianService({
 
     let out;
     try {
-      out = await runChannelTurn({ conversationId, actorProfileId, actorAuthUserId, route, userText: String(mentionText ?? "") });
+      out = await runChannelTurn({ conversationId, actorProfileId, actorAuthUserId, route, userText: cleanText });
     } catch (err) {
       out = { text: "No pude responder ahora mismo, intentalo de nuevo en un momento.", error: String(err?.message ?? err).slice(0, 200) };
     }

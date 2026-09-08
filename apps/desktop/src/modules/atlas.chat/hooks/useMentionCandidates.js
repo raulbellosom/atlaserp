@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useChatConversationDetail } from "./useChatConversationDetail";
 import { useChannelRoles } from "./useChannelRoles";
+import { useMeridianStatus } from "./useMeridian";
+import { MERIDIAN_MENTION_ID, MERIDIAN_NAME } from "../lib/meridian";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 
 // Fixed sentinel UUIDs — must stay byte-identical to
@@ -18,11 +20,24 @@ export const HERE_MENTION_ID = "00000000-0000-0000-0000-000000000001";
 export function useMentionCandidates(conversationId, currentUserId) {
   const { data: convData } = useChatConversationDetail(conversationId);
   const { data: rolesData } = useChannelRoles(conversationId);
+  const { data: meridianStatus } = useMeridianStatus();
 
   return useMemo(() => {
     const members = convData?.data?.members ?? [];
     const roles = rolesData?.data ?? [];
+    const convType = convData?.data?.type ?? null;
     const ownMember = findOwnMember(members, currentUserId);
+
+    // MeridIAn as a mention candidate — everywhere except its own dedicated
+    // chat and external_support, and only when the assistant is available to
+    // this user (configured + chat.meridian.use). Inserted as an @[id:name]
+    // token that the API resolves via matchMeridianMention.
+    const meridianCandidate =
+      meridianStatus?.available === true &&
+      convType !== "meridian" &&
+      convType !== "external_support"
+        ? [{ id: MERIDIAN_MENTION_ID, displayName: MERIDIAN_NAME }]
+        : [];
 
     // Excludes guest members (userId is NULL for a chat_conversation_members row
     // backed by guest_session_id, e.g. an external_support visitor) — they have
@@ -45,6 +60,6 @@ export function useMentionCandidates(conversationId, currentUserId) {
       sentinelCandidates.push({ id: HERE_MENTION_ID, displayName: "here" });
     }
 
-    return [...memberCandidates, ...roleCandidates, ...sentinelCandidates];
-  }, [convData, rolesData, currentUserId]);
+    return [...meridianCandidate, ...memberCandidates, ...roleCandidates, ...sentinelCandidates];
+  }, [convData, rolesData, currentUserId, meridianStatus?.available]);
 }

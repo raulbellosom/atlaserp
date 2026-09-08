@@ -1,7 +1,7 @@
 // apps/api/src/routes/chat/__tests__/meridian-mention.test.js
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createMeridianService, matchMeridianMention } from "../meridian-service.js";
+import { createMeridianService, matchMeridianMention, stripMentionTokens } from "../meridian-service.js";
 
 test("matchMeridianMention: hits real mentions, not emails or lookalikes", () => {
   for (const s of ["@meridIAn hola", "@meridian resume", "hola @MeridIAn?", "(@meridian) ayuda", "linea 1\n@meridian y esto"]) {
@@ -10,6 +10,20 @@ test("matchMeridianMention: hits real mentions, not emails or lookalikes", () =>
   for (const s of ["escribe a x@meridian.com", "meridian sin arroba", "@meridiano", "correo@meridianbank.mx", ""]) {
     assert.equal(matchMeridianMention(s), false, s);
   }
+});
+
+test("matchMeridianMention: detects the composer's @[sentinel:MeridIAn] token", () => {
+  assert.equal(matchMeridianMention("@[00000000-0000-0000-0000-00000000b07a:MeridIAn] que hora es"), true);
+  // a real user's @[uuid:Name] token must NOT trigger it
+  assert.equal(matchMeridianMention("@[019e7008-684d-711c-9b13-872f854651f0:Ana] hola"), false);
+});
+
+test("stripMentionTokens: @[uuid:Name] -> @Name (incl. the MeridIAn sentinel)", () => {
+  assert.equal(
+    stripMentionTokens("@[00000000-0000-0000-0000-00000000b07a:MeridIAn] resume @[019e7008-684d-711c-9b13-872f854651f0:Ana] pls"),
+    "@MeridIAn resume @Ana pls",
+  );
+  assert.equal(stripMentionTokens("sin tokens"), "sin tokens");
 });
 
 // Groq stub: classifier -> routeWord; anything else -> next `answers` entry.

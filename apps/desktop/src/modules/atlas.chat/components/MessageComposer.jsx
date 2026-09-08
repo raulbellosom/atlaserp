@@ -15,6 +15,7 @@ import {
 import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
+import { MERIDIAN_MENTION_ID } from "../lib/meridian";
 import { formatFileSize } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
@@ -251,10 +252,13 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const { userProfile } = useAuth();
   const currentUserId = userProfile?.id;
   const mentionCandidates = useMentionCandidates(conversationId, currentUserId);
-  // @-mentions only make sense where there's a group of people to address —
-  // in a one-on-one conversation there's nobody else to pick from, so the
-  // autocomplete is disabled entirely rather than just being "redundant".
-  const mentionMembers = conversationType === "direct" ? [] : mentionCandidates;
+  // @-mentions of people only make sense where there's a group to address — in
+  // a 1:1 there's nobody else to pick from. But @MeridIAn is still useful in a
+  // DM (ask the assistant a question you both see), so keep just that one.
+  const mentionMembers =
+    conversationType === "direct"
+      ? mentionCandidates.filter((m) => m.id === MERIDIAN_MENTION_ID)
+      : mentionCandidates;
 
   const fileInputRef = useRef(null);
   const typingTimeout = useRef(null);
