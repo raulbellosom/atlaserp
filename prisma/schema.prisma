@@ -3391,3 +3391,31 @@ model ChatMeridianRun {
   @@index([conversationId])
   @@map("chat_meridian_run")
 }
+
+/// MeridIAn assistant panel (Spec 2): one private thread per (owner, host
+/// conversation). Written with $queryRaw like the rest of atlas.chat.
+model ChatMeridianThread {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  companyId          String?  @map("company_id") @db.Uuid
+  ownerProfileId     String   @map("owner_profile_id") @db.Uuid
+  hostConversationId String   @map("host_conversation_id") @db.Uuid
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  messages           ChatMeridianMessage[]
+
+  @@index([ownerProfileId, hostConversationId])
+  @@map("chat_meridian_thread")
+}
+
+model ChatMeridianMessage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  threadId  String   @map("thread_id") @db.Uuid
+  role      String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  thread    ChatMeridianThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("chat_meridian_message")
+}
