@@ -627,6 +627,48 @@ describe("chat-service — sendMessage mentions", () => {
     assert.equal(publishedEvents.some((e) => e.input.eventType === "chat.mention.new"), false);
     assert.equal(publishedEvents.filter((e) => e.input.eventType === "chat.message.new").length, 1);
   });
+
+  it("strips @[uuid:Name] mention tokens from every notification preview and snippet", async () => {
+    const publishedEvents = [];
+    const notificationService = { publish: async (args) => { publishedEvents.push(args); } };
+    const mentionsService = {
+      resolveMentions: async () => ({ userIds: [MENTIONED_USER_ID], roleIds: [], everyone: false, here: false, notifyUserIds: [MENTIONED_USER_ID] }),
+    };
+    const permissionsService = { getMemberRole: async () => null, assertChannelPermission: async () => ({}) };
+
+    // Two tokens: a normal mention and the all-zero MeridIAn sentinel id — the
+    // latter is exactly what surfaced as "[0000..." in a PWA push.
+    const body = `oye @[${MENTIONED_USER_ID}:Ana] avisale a @[00000000-0000-0000-0000-00000000b07a:MeridIAn] porfa`;
+    const prisma = buildPrismaMock([
+      [{ id: "sender-profile" }],
+      [{ id: "m1" }],
+      [{ type: "channel" }],
+      [{ id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", created_at: new Date(), metadata: {} }],
+      [{
+        id: "msg1", conversation_id: "conv1", sender_user_id: "sender-profile", sender_guest_id: null,
+        sender_type: "user", body, message_type: "text", attachment_count: 0,
+        metadata: {}, created_at: new Date(), edited_at: null, deleted_at: null,
+        sender: { id: null, displayName: "Carla", avatarFileId: null }, attachments: null,
+      }],
+      [{ user_id: MENTIONED_USER_ID }, { user_id: "other-user" }],
+      [{ id: "other-user" }], // resolveChatEmailRecipients -> one away recipient, so an email event fires too
+    ]);
+    prisma.membership.findFirst = async () => ({ companyId: "company-1" });
+
+    const service = createChatService({ prisma, supabaseAdmin: {}, notificationService, mentionsService, permissionsService, broadcaster: null });
+    await service.sendMessage({ conversationId: "conv1", authUserId: "auth-1", body });
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.ok(publishedEvents.length > 0, "expected at least one notification");
+    const rawToken = /@\[[0-9a-fA-F-]{36}:/;
+    for (const ev of publishedEvents) {
+      assert.ok(!rawToken.test(ev.input.body ?? ""), `raw mention token leaked into ${ev.input.eventType} body: ${ev.input.body}`);
+      assert.ok(!rawToken.test(ev.input.metadata?.snippet ?? ""), `raw mention token leaked into ${ev.input.eventType} snippet`);
+    }
+    const mentionEvent = publishedEvents.find((e) => e.input.eventType === "chat.mention.new");
+    assert.match(mentionEvent.input.body, /@Ana/);
+    assert.match(mentionEvent.input.body, /@MeridIAn/);
+  });
 });
 
 describe("chat-service — sendMessage entity references (Phase F)", () => {

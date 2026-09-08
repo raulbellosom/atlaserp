@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
+import { stripMentionTokens } from "../../lib/mention-utils.js";
 
 export class GuestChatServiceError extends Error {
   constructor(message, status = 400) {
@@ -399,7 +400,8 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     if (notificationService && companyId) {
       setImmediate(async () => {
         try {
-          const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
+          const previewSource = stripMentionTokens(body);
+          const preview = previewSource.length > 80 ? `${previewSource.slice(0, 80)}...` : previewSource;
           if (assignedUserId) {
             await notificationService.publish({
               companyId,

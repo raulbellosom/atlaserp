@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { signedUrlWithVariant } from "../../lib/image-variants.js";
-import { parseMentionIds } from "../../lib/mention-utils.js";
+import { parseMentionIds, stripMentionTokens } from "../../lib/mention-utils.js";
 import { ChatServiceError } from "./chat-service-error.js";
 import { createChatConversationReadsService } from "./chat-conversation-reads-service.js";
 import { createChatAttachmentsService } from "./chat-attachments-service.js";
@@ -1157,8 +1157,12 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           const recipientIds = otherMembers
             .map((m) => m.user_id.toString())
             .filter((id) => !mentionedSet.has(id));
-          const preview = body.length > 80 ? `${body.slice(0, 80)}...` : body;
-          const emailPreview = body.length > 280 ? `${body.slice(0, 280)}…` : body;
+          // Notification previews render as plain text — turn the stored
+          // @[uuid:Name] mention tokens into "@Name" so a raw UUID (e.g. the
+          // all-zero MeridIAn sentinel) never surfaces in a push/email.
+          const previewSource = stripMentionTokens(body);
+          const preview = previewSource.length > 80 ? `${previewSource.slice(0, 80)}...` : previewSource;
+          const emailPreview = previewSource.length > 280 ? `${previewSource.slice(0, 280)}…` : previewSource;
           const senderName = fullMsg?.sender?.displayName ?? "Alguien";
           const isNamedRoom =
             (conversationType === "channel" || conversationType === "group") &&
