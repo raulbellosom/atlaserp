@@ -8,13 +8,15 @@ import { officeEnv } from "./office-fixture.js";
 import { filesWorkspaceFixture } from "./files-workspace-fixture.js";
 
 test("blank document templates are valid OOXML packages for all three editors", async () => {
-  for (const [extension, format] of Object.entries(OFFICE_FORMATS))
+  for (const [extension, format] of Object.entries(OFFICE_FORMATS)) {
+    if (format.kind !== "ooxml") continue;
     await validateOfficeDocument(
       await readFile(
         new URL(`../files/templates/blank.${extension}`, import.meta.url),
       ),
       { ...format, extension },
     );
+  }
 });
 
 test(

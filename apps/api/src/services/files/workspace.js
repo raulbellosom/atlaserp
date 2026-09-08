@@ -88,6 +88,7 @@ export function createFilesWorkspace({
     requireCapability(context, "files.assets.update");
     if (
       !Object.hasOwn(OFFICE_FORMATS, format) ||
+      OFFICE_FORMATS[format].kind !== "ooxml" ||
       typeof name !== "string" ||
       !name.trim() ||
       name.length > 180 ||
