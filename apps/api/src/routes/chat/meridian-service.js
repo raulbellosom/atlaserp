@@ -37,6 +37,8 @@ const WEB_TIMEOUT_MS = 40_000;
 // A live question is almost always self-contained — keep only a little context.
 const WEB_HISTORY_LIMIT = 4;
 const WEB_MSG_MAX_CHARS = 600;
+const TAVILY_URL = "https://api.tavily.com/search";
+const TAVILY_TIMEOUT_MS = 20_000;
 const LIVE_RATE_MAX = 10;
 const LIVE_RATE_WINDOW_MS = 300_000;
 const ROUTES = ["chat", "general", "live"];
@@ -155,7 +157,13 @@ export function createMeridianService({
   const model = env.CHAT_MERIDIAN_MODEL || DEFAULT_MERIDIAN_MODEL;
   const webModel = env.CHAT_MERIDIAN_WEB_MODEL || DEFAULT_WEB_MODEL;
   const routerModel = env.CHAT_MERIDIAN_ROUTER_MODEL || DEFAULT_ROUTER_MODEL;
-  const webEnabled = String(env.CHAT_MERIDIAN_WEB ?? "true").toLowerCase() !== "false" && Boolean(env.GROQ_API_KEY);
+  const tavilyKey = env.TAVILY_API_KEY || "";
+  const webKillSwitch = String(env.CHAT_MERIDIAN_WEB ?? "true").toLowerCase() === "false";
+  // Prefer Tavily (works on the free tier); fall back to a Groq compound model
+  // only if one is explicitly configured. `null` => no web path, `live` turns
+  // degrade to "no internet".
+  const webProvider = webKillSwitch ? null : (tavilyKey ? "tavily" : (env.CHAT_MERIDIAN_WEB_MODEL ? "compound" : null));
+  const webEnabled = webProvider !== null && Boolean(env.GROQ_API_KEY);
   const baseUrl = (env.GROQ_BASE_URL || "https://api.groq.com").replace(/\/$/, "");
 
   const runners = buildToolRunners({
@@ -415,18 +423,66 @@ export function createMeridianService({
     }));
   }
 
-  // One compound call. Its content IS the answer (compound iterates its own
-  // web-search / code tools internally — no 6-iteration loop here).
-  async function callWeb(conversationId) {
+  // Tavily web search (free tier). Returns { answer, results:[{title,url,content}] }.
+  async function tavilySearch(query) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TAVILY_TIMEOUT_MS);
+    try {
+      const res = await fetchFn(TAVILY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: tavilyKey,
+          query: String(query).slice(0, 400),
+          max_results: 5,
+          include_answer: "advanced",
+          search_depth: "basic",
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const d = await res.text().catch(() => "");
+        throw new Error(`Tavily ${res.status}: ${d.slice(0, 160)}`);
+      }
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Resolve a `live` question. Tavily: search, then one gpt-oss call to phrase
+  // the answer in Spanish with the source domain. Compound: a single call to
+  // the compound model, which runs its own web tools.
+  async function callWeb({ conversationId, query }) {
+    if (webProvider === "tavily") {
+      const data = await tavilySearch(query || "");
+      const results = Array.isArray(data?.results) ? data.results.slice(0, 5) : [];
+      const evidence = [
+        data?.answer ? `Resumen de la busqueda: ${data.answer}` : "",
+        ...results.map((r, i) => `[${i + 1}] ${r.title ?? ""} (${r.url ?? ""})\n${String(r.content ?? "").slice(0, 500)}`),
+      ].filter(Boolean).join("\n\n");
+      if (!evidence.trim()) return "";
+      const msg = await callGroqRaw({
+        model,
+        maxTokens: 700,
+        timeoutMs: GROQ_TIMEOUT_MS,
+        messages: [
+          { role: "system", content: liveSystemPrompt() },
+          { role: "user", content: `Pregunta del usuario: ${query || "(sin texto)"}\n\nResultados de una busqueda web (${toLocalIso()}):\n${evidence}\n\nResponde a la pregunta con estos resultados. Cita el dominio de la fuente entre parentesis y di la fecha si aparece. Si los resultados no responden, dilo.` },
+        ],
+      });
+      return String(msg?.content ?? "").trim();
+    }
+    // compound
     const messages = [
       { role: "system", content: liveSystemPrompt() },
       ...(await loadWebHistory(conversationId)),
     ];
-    const msg = await callGroqRaw({ model: webModel, messages, maxTokens: 1000, timeoutMs: WEB_TIMEOUT_MS });
-    return String(msg?.content ?? "").trim();
+    const m = await callGroqRaw({ model: webModel, messages, maxTokens: 1000, timeoutMs: WEB_TIMEOUT_MS });
+    return String(m?.content ?? "").trim();
   }
 
-  async function runTurn({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId, route = "chat", routerMs = null, routerError = null }) {
+  async function runTurn({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId, route = "chat", routerMs = null, routerError = null, userText = "" }) {
     const startedAt = Date.now();
     const toolLog = [];
     if (routerError) toolLog.push({ routerError });
@@ -445,7 +501,7 @@ export function createMeridianService({
         runError = "live-rate-limited";
       } else {
         try {
-          finalText = (await callWeb(conversationId)) || "Busque pero no encontre un dato confiable ahora mismo.";
+          finalText = (await callWeb({ conversationId, query: userText })) || "Busque pero no encontre un dato confiable ahora mismo.";
         } catch (err) {
           const detail = String(err?.message ?? err);
           // The Groq compound (web-search) model is gated by plan/account and
@@ -554,11 +610,12 @@ export function createMeridianService({
     let route = "chat";
     let routerMs = 0;
     let routerError = null;
+    let userText = "";
     try {
       const [trigger] = triggerMessageId
         ? await prisma.$queryRaw`SELECT body FROM chat_messages WHERE id = ${triggerMessageId}::uuid LIMIT 1`
         : [];
-      const userText = String(trigger?.body ?? "").trim();
+      userText = String(trigger?.body ?? "").trim();
       if (userText) {
         const c = await classifyTurn({ conversationId, userText });
         route = c.route;
@@ -580,7 +637,7 @@ export function createMeridianService({
     const keepAlive = setInterval(() => { emitTyping(conversationId, true); }, 3_000);
     try {
       await emitTyping(conversationId, true);
-      await runTurn({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId, route, routerMs, routerError });
+      await runTurn({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId, route, routerMs, routerError, userText });
     } finally {
       clearInterval(keepAlive);
       inFlight.delete(conversationId);
@@ -589,12 +646,12 @@ export function createMeridianService({
   }
 
   // -- Spec 3: @meridIAn channel mention -----------------------------
-  async function runChannelTurn({ conversationId, actorProfileId, actorAuthUserId, route }) {
+  async function runChannelTurn({ conversationId, actorProfileId, actorAuthUserId, route, userText = "" }) {
     if (route === "live") {
       if (!webEnabled) return { text: "No tengo acceso a datos en vivo ni a internet.", error: "web-disabled" };
       if (!checkLiveRate(actorProfileId)) return { text: "Estoy limitando las busquedas en internet; intenta en unos minutos.", error: "live-rate-limited" };
       try {
-        return { text: (await callWeb(conversationId)) || "Busque pero no encontre un dato confiable ahora mismo." };
+        return { text: (await callWeb({ conversationId, query: userText })) || "Busque pero no encontre un dato confiable ahora mismo." };
       } catch (err) {
         const d = String(err?.message ?? err);
         return {
@@ -662,7 +719,7 @@ export function createMeridianService({
 
     let out;
     try {
-      out = await runChannelTurn({ conversationId, actorProfileId, actorAuthUserId, route });
+      out = await runChannelTurn({ conversationId, actorProfileId, actorAuthUserId, route, userText: String(mentionText ?? "") });
     } catch (err) {
       out = { text: "No pude responder ahora mismo, intentalo de nuevo en un momento.", error: String(err?.message ?? err).slice(0, 200) };
     }
@@ -766,7 +823,7 @@ export function createMeridianService({
       else if (!checkLiveRate(ownerProfileId)) { finalText = "Estoy limitando las busquedas en internet; intenta en unos minutos."; runError = "live-rate-limited"; }
       else {
         try {
-          finalText = (await callWeb(hostConversationId)) || "Busque pero no encontre un dato confiable ahora mismo.";
+          finalText = (await callWeb({ conversationId: hostConversationId, query: String(content ?? "") })) || "Busque pero no encontre un dato confiable ahora mismo.";
         } catch (err) {
           const d = String(err?.message ?? err);
           finalText = /413|request_too_large|not.*(enabled|available)/i.test(d)

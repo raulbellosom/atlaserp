@@ -76,18 +76,37 @@ test("route chat: runs the tool loop, run.route === 'chat'", async () => {
   assert.equal(runs.at(-1).route, "chat");
 });
 
-test("route live + web enabled: calls the compound model WITHOUT tools", async () => {
-  let sawWebBody = null;
-  const fetchImpl = groqRouter({
-    routeWord: "live", answers: ["El dolar esta en 18.20 MXN (2026-09-07, banxico.org.mx)."],
-    onBody: (b) => { if (String(b.model).includes("compound")) sawWebBody = b; },
-  });
-  const { svc, inserted, runs } = svcForRoute({ fetchImpl });
+test("route live + TAVILY_API_KEY: searches Tavily then synthesizes an answer (no chat tools)", async () => {
+  let tavilyQuery = null;
+  let synthTools = "unset";
+  const fetchImpl = async (url, opts) => {
+    if (String(url).includes("api.tavily.com")) {
+      tavilyQuery = JSON.parse(opts.body).query;
+      return { ok: true, status: 200, text: async () => "", json: async () => ({
+        answer: "USD/MXN ~18.20",
+        results: [{ title: "Banxico", url: "https://www.banxico.org.mx/x", content: "18.20 MXN por dolar" }],
+      }) };
+    }
+    const body = JSON.parse(opts.body);
+    const isClassifier = !body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador");
+    if (!isClassifier) synthTools = body.tools;
+    return { ok: true, status: 200, text: async () => "", json: async () => ({
+      choices: [{ message: { content: isClassifier ? "live" : "El dolar esta ~18.20 MXN (banxico.org.mx)." } }],
+    }) };
+  };
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl, env: { GROQ_API_KEY: "k", TAVILY_API_KEY: "tvly" } });
   await call(svc);
+  assert.equal(tavilyQuery, "una pregunta"); // svcForRoute's trigger-body stub
   assert.match(inserted[0], /dolar/i);
   assert.equal(runs.at(-1).route, "live");
-  assert.ok(sawWebBody, "compound model was called");
-  assert.equal(sawWebBody.tools, undefined, "no chat tools sent to compound");
+  assert.equal(synthTools, undefined, "no chat tools in the synthesis call");
+});
+
+test("route live with no web provider configured -> canned 'no internet', error web-disabled", async () => {
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl: groqRouter({ routeWord: "live" }) });
+  await call(svc);
+  assert.match(inserted[0], /no tengo acceso|datos en vivo|internet/i);
+  assert.equal(runs.at(-1).error, "web-disabled");
 });
 
 test("route live + web disabled: canned reply, compound NOT called", async () => {
@@ -133,19 +152,20 @@ test("classifier circuit breaker: after 3 failed turns the 4th skips the classif
   assert.equal(classifierCalls, afterThree, "classifier not invoked on the 4th turn once the breaker is open");
 });
 
-test("live sub-limit: 11th live turn in the window is canned, compound not called", async () => {
-  let compoundCalls = 0;
-  const fetchImpl = async (_u, opts) => {
-    const body = JSON.parse(opts.body);
-    if (!body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador")) {
-      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "live" } }] }), text: async () => "" };
+test("live sub-limit: 11th live turn is canned; Tavily not hit an 11th time", async () => {
+  let tavilyCalls = 0;
+  const fetchImpl = async (url, opts) => {
+    if (String(url).includes("api.tavily.com")) {
+      tavilyCalls++;
+      return { ok: true, status: 200, text: async () => "", json: async () => ({ answer: "x", results: [] }) };
     }
-    if (String(body.model).includes("compound")) compoundCalls++;
-    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "dato" } }] }), text: async () => "" };
+    const body = JSON.parse(opts.body);
+    const isClassifier = !body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador");
+    return { ok: true, status: 200, text: async () => "", json: async () => ({ choices: [{ message: { content: isClassifier ? "live" : "dato" } }] }) };
   };
-  const { svc, inserted, runs } = svcForRoute({ fetchImpl });
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl, env: { GROQ_API_KEY: "k", TAVILY_API_KEY: "tvly" } });
   for (let i = 0; i < 11; i++) await call(svc);
-  assert.equal(compoundCalls, 10);
+  assert.equal(tavilyCalls, 10);
   assert.match(inserted.at(-1), /limitando|unos minutos/i);
   assert.equal(runs.at(-1).error, "live-rate-limited");
 });
