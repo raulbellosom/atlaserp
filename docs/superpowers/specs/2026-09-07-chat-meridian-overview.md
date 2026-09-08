@@ -63,7 +63,8 @@ tablas nuevas `chat_meridian_thread` / `chat_meridian_message` (estilo PFM). Un 
 | **2** | `2026-09-07-chat-meridian-spec-2-panel-design.md` — **shipped 2026-09-07 (falta solo QA navegador)** | Panel privado por usuario (`MeridianPanel` `Sheet`), hilos `chat_meridian_thread/message`, contexto = conversación anfitriona + `focusMessageId`, `surface='panel'`. `handlePanelMessage` + 3 endpoints + SDK + hooks + botón en el header + acción "Preguntar a MeridIAn" por mensaje. API live-verificada; `pnpm build` (incl. Tauri) verde | Spec 1 + Spec 4 |
 | **3** | `2026-09-07-chat-meridian-spec-3-mention-design.md` — **shipped 2026-09-07** | Mención `@meridIAn` en canales/grupos: respuesta pública desde el contexto del canal, detección por token literal (el bot no es miembro), cooldown por canal, `chat_meridian_run.surface='mention'` | Spec 1 + Spec 4 |
 | **4** | `2026-09-07-chat-meridian-spec-4-web-and-routing-design.md` — **routing shipped 2026-09-07; web BLOQUEADA** (Groq compound 413/plan-gated) | Conocimiento general (parchado), routing chat/general/live con clasificador corto. Web vía compound cableada pero la cuenta Groq no la tiene habilitada | Spec 1 |
-| *(v2)* | Alcance ERP | herramientas de lectura multi-módulo (Fase A: `search_atlas` sobre `GET /search`; Fase B: por módulo) | Spec 1 |
+| **ERP A** | **shipped 2026-09-07** (`3298ddac`) | `search_atlas` — contactos / usuarios / empleados vía `SEARCH_PROVIDERS`, gated por permiso de cada proveedor | Spec 1 |
+| **ERP B** | `2026-09-07-chat-meridian-spec-5-erp-fase-b-design.md` — **shipped 2026-09-07** (`0d73f148`) | `search_inventory` / `list_bank_accounts` / `list_my_calendar` / `list_my_tasks`, cada uno gated por el permiso de lectura del módulo. Cap de iteraciones 6→8. Live-verificado | Spec 1 + ERP A |
 
 Cada spec produce su propio plan y su propia implementación, en ese orden. Se
 "brainstormea" y se implementa **Spec 1** primero.
