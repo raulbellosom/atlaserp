@@ -5,13 +5,60 @@ import { TOOL_DEFS, buildToolRunners } from "../meridian-tools.js";
 
 const ctx = { companyId: "co1", actorAuthUserId: "auth1", actorProfileId: "prof1", conversationId: "conv1" };
 
-test("TOOL_DEFS lists the read tools with JSON schemas", () => {
+test("TOOL_DEFS lists every read tool with JSON schemas", () => {
   const names = TOOL_DEFS.map((t) => t.function.name).sort();
   assert.deepEqual(names, [
     "describe_image", "get_conversation_messages", "get_recent_messages",
-    "list_conversation_files", "search_atlas", "search_my_conversations",
+    "list_bank_accounts", "list_conversation_files", "list_my_calendar",
+    "list_my_tasks", "search_atlas", "search_inventory", "search_my_conversations",
   ]);
   for (const t of TOOL_DEFS) assert.equal(t.type, "function");
+});
+
+test("search_inventory: gated by inventory.item.read; maps rows to the safe shape", async () => {
+  const withPerm = async () => ({ profile: { id: "p1" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set(["inventory.item.read"]) });
+  const inventoryService = {
+    listItems: async ({ companyId, search, limit }) => {
+      assert.equal(companyId, "co1"); assert.equal(search, "laptop"); assert.equal(limit, 8);
+      return { data: [{ name: "Laptop Dell", assetTag: "IT-001", serialNumber: "SN9", status: "IN_USE", category: { name: "Computo" } }], total: 1 };
+    },
+  };
+  const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext: withPerm, inventoryService });
+  const out = await runners.search_inventory({ query: "laptop" }, { actorAuthUserId: "a", companyId: "co1" });
+  assert.equal(out.items[0].nombre, "Laptop Dell");
+  assert.equal(out.items[0].categoria, "Computo");
+  assert.equal(out.total, 1);
+
+  const noPerm = async () => ({ profile: { id: "p1" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set() });
+  const r2 = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext: noPerm, inventoryService });
+  const denied = await r2.search_inventory({ query: "x" }, { actorAuthUserId: "a", companyId: "co1" });
+  assert.match(denied.error, /acceso/i);
+});
+
+test("list_my_tasks: iterates the caller's first 8 projects, filters by assignee", async () => {
+  const withPerm = async () => ({ profile: { id: "me" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set(["projects.task.read"]) });
+  const projects = Array.from({ length: 10 }, (_, i) => ({ id: `pr${i}`, name: `Proyecto ${i}` }));
+  let scanned = 0;
+  const projectsService = { listProjects: async (companyId, userId) => { assert.equal(userId, "me"); return projects; } };
+  const tasksService = {
+    listTasks: async (projectId, { assigneeId }) => {
+      scanned += 1;
+      assert.equal(assigneeId, "me");
+      return projectId === "pr0" ? [{ title: "Hacer X", status: { name: "En curso" }, priority: "HIGH", dueDate: "2026-09-10" }] : [];
+    },
+  };
+  const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext: withPerm, projectsService, tasksService });
+  const out = await runners.list_my_tasks({}, { actorAuthUserId: "a", companyId: "co1" });
+  assert.equal(scanned, 8, "only the first 8 projects scanned");
+  assert.equal(out.tareas[0].titulo, "Hacer X");
+  assert.equal(out.tareas[0].proyecto, "Proyecto 0");
+  assert.match(out.note, /8 proyectos/);
+});
+
+test("a missing ERP service dep -> friendly error, no throw", async () => {
+  const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext: async () => ({ profile: { id: "p" }, memberships: [{ companyId: "c" }], isAdmin: true, permissionSet: new Set() }) });
+  const out = await runners.list_bank_accounts({}, { actorAuthUserId: "a", companyId: "c" });
+  assert.match(out.error, /no esta disponible/i);
 });
 
 test("search_atlas: runs only the providers the caller is allowed, returns grouped hits", async () => {

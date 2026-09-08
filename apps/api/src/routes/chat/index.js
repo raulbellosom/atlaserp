@@ -44,6 +44,7 @@ import { createHrService } from "../../services/hr-service.js";
 import { createLedgerService } from "../ledger/ledger-service.js";
 import { createChatChannelLinksService } from "./chat-channel-links-service.js";
 import { createProjectsService } from "../projects/projects-service.js";
+import { createInventoryService } from "../../services/inventory-service.js";
 import { createTasksService } from "../projects/tasks-service.js";
 import { createCalendarEventService } from "../calendar/calendar-event-service.js";
 
@@ -63,15 +64,21 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const permissionsService = createChatPermissionsService({ prisma });
   const mentionsService = createChatMentionsService({ prisma });
   const channelLinksService = createChatChannelLinksService({ prisma });
+  // Built once and shared by entity-reference resolution and MeridIAn's ERP tools.
+  const ledgerService = createLedgerService({ prisma });
+  const projectsService = createProjectsService({ prisma });
+  const tasksService = createTasksService({ prisma });
+  const calendarEventService = createCalendarEventService({ prisma });
+  const inventoryService = createInventoryService({ prisma });
   const entityReferencesService = createChatEntityReferencesService({
     prisma,
     contactsService: createContactsService({ prisma }),
     filesService: createFilesService({ prisma, supabaseAdmin }),
     hrService: createHrService({ prisma }),
-    ledgerService: createLedgerService({ prisma }),
-    projectsService: createProjectsService({ prisma }),
-    tasksService: createTasksService({ prisma }),
-    calendarEventService: createCalendarEventService({ prisma }),
+    ledgerService,
+    projectsService,
+    tasksService,
+    calendarEventService,
   });
   const chatService = createChatService({ prisma, supabaseAdmin, notificationService, broadcaster, permissionsService, mentionsService, entityReferencesService, channelLinksService });
   const chatExternalInboxService = createChatExternalInboxService({ prisma, broadcaster });
@@ -143,6 +150,11 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     signAttachmentUrl,
     insertAssistantMessage: insertMeridianReply,
     resolveUserContext,
+    inventoryService,
+    ledgerService,
+    calendarEventService,
+    projectsService,
+    tasksService,
   });
 
   // ================================================================

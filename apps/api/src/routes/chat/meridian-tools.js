@@ -102,6 +102,50 @@ export const TOOL_DEFS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "search_inventory",
+      description: "Busca activos/equipos del inventario de la empresa por nombre, etiqueta o numero de serie. Ej: 'cuantas laptops hay', 'donde esta el activo ABC-123'.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Texto a buscar (nombre, etiqueta, serie)." },
+          status: { type: "string", description: "Filtro opcional de estado del activo." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_bank_accounts",
+      description: "Lista las cuentas bancarias de la empresa que el usuario puede ver, con su saldo actual. Ej: 'cuanto tenemos en el banco', 'saldo de BBVA'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_calendar",
+      description: "Lista los proximos eventos de la agenda del propio usuario. Ej: 'que tengo esta semana', 'mi agenda de manana'.",
+      parameters: {
+        type: "object",
+        properties: { days: { type: "integer", description: "Cuantos dias hacia adelante (max 30, por defecto 7)." } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_tasks",
+      description: "Lista las tareas asignadas al propio usuario en sus proyectos, ordenadas por fecha de vencimiento. Ej: 'que tareas tengo pendientes'.",
+      parameters: {
+        type: "object",
+        properties: { status: { type: "string", description: "Filtro opcional por id de estado." } },
+      },
+    },
+  },
 ];
 
 function trimMessage(m) {
@@ -116,7 +160,25 @@ function trimMessage(m) {
   };
 }
 
-export function buildToolRunners({ prisma, listMessages, chatSearchService, visionService, signAttachmentUrl, resolveUserContext }) {
+export function buildToolRunners({
+  prisma, listMessages, chatSearchService, visionService, signAttachmentUrl, resolveUserContext,
+  inventoryService, ledgerService, calendarEventService, projectsService, tasksService,
+}) {
+  // Resolve the caller's RBAC context and assert a module read permission.
+  // Returns { uctx, companyId } on success or { error } for the runner to return.
+  async function erpContext(ctx, permissionKey) {
+    if (typeof resolveUserContext !== "function") return { error: "Esa consulta no esta disponible aqui." };
+    let uctx;
+    try { uctx = await resolveUserContext(ctx.actorAuthUserId); } catch { uctx = null; }
+    if (!uctx?.profile) return { error: "No pude verificar tus permisos." };
+    const companyId = uctx.memberships?.[0]?.companyId ?? ctx.companyId ?? null;
+    if (!companyId) return { error: "Sin empresa activa." };
+    if (!uctx.isAdmin && !uctx.permissionSet?.has(permissionKey)) {
+      return { error: "No tienes acceso a esa informacion." };
+    }
+    return { uctx, companyId, userId: uctx.profile.id };
+  }
+
   async function get_recent_messages(args, ctx) {
     const limit = Math.min(Math.max(parseInt(args?.limit, 10) || 30, 1), RECENT_MAX);
     try {
@@ -249,9 +311,112 @@ export function buildToolRunners({ prisma, listMessages, chatSearchService, visi
     return groups.length ? { groups } : { note: "Sin resultados en contactos, usuarios ni empleados." };
   }
 
+  async function search_inventory(args, ctx) {
+    if (!inventoryService?.listItems) return { error: "El modulo de inventario no esta disponible." };
+    const c = await erpContext(ctx, "inventory.item.read");
+    if (c.error) return c;
+    try {
+      const res = await inventoryService.listItems({
+        companyId: c.companyId,
+        search: String(args?.query ?? "").trim() || undefined,
+        status: args?.status || undefined,
+        limit: 8,
+      });
+      const rows = res?.data ?? res ?? [];
+      return {
+        items: rows.slice(0, 8).map((it) => ({
+          nombre: it.name ?? null,
+          etiqueta: it.assetTag ?? null,
+          serie: it.serialNumber ?? null,
+          estado: it.status ?? null,
+          categoria: it.category?.name ?? it.categoryName ?? null,
+          ubicacion: it.location?.name ?? it.locationName ?? null,
+          asignadoA: it.assignedTo?.displayName ?? it.assignedToName ?? null,
+        })),
+        total: res?.total ?? rows.length,
+      };
+    } catch (err) {
+      return { error: `No pude consultar inventario: ${String(err?.message ?? err).slice(0, 140)}` };
+    }
+  }
+
+  async function list_bank_accounts(_args, ctx) {
+    if (!ledgerService?.listAccounts) return { error: "El modulo de bancos no esta disponible." };
+    const c = await erpContext(ctx, "ledger.accounts.read");
+    if (c.error) return c;
+    try {
+      const res = await ledgerService.listAccounts({ companyId: c.companyId, actorId: c.userId });
+      const rows = res?.data ?? res ?? [];
+      return {
+        cuentas: rows.map((a) => ({
+          nombre: a.name ?? null,
+          banco: a.bank_name ?? a.bankName ?? null,
+          moneda: a.currency ?? null,
+          saldo: a.current_balance != null ? Number(a.current_balance) : (a.currentBalance ?? null),
+        })),
+      };
+    } catch (err) {
+      return { error: `No pude consultar los bancos: ${String(err?.message ?? err).slice(0, 140)}` };
+    }
+  }
+
+  async function list_my_calendar(args, ctx) {
+    if (!calendarEventService?.listEvents) return { error: "El modulo de calendario no esta disponible." };
+    const c = await erpContext(ctx, "calendar.events.read");
+    if (c.error) return c;
+    const days = Math.min(Math.max(parseInt(args?.days, 10) || 7, 1), 30);
+    const start = new Date();
+    const end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
+    try {
+      const events = await calendarEventService.listEvents({ userId: c.userId, start, end });
+      return {
+        eventos: (events ?? []).slice(0, 25).map((e) => ({
+          titulo: e.title ?? null,
+          inicio: e.startAt instanceof Date ? e.startAt.toISOString() : String(e.startAt ?? ""),
+          fin: e.endAt instanceof Date ? e.endAt.toISOString() : String(e.endAt ?? ""),
+          calendario: e.calendar?.name ?? null,
+        })),
+      };
+    } catch (err) {
+      return { error: `No pude consultar tu agenda: ${String(err?.message ?? err).slice(0, 140)}` };
+    }
+  }
+
+  async function list_my_tasks(args, ctx) {
+    if (!projectsService?.listProjects || !tasksService?.listTasks) return { error: "El modulo de proyectos no esta disponible." };
+    const c = await erpContext(ctx, "projects.task.read");
+    if (c.error) return c;
+    try {
+      const projects = (await projectsService.listProjects(c.companyId, c.userId)) ?? [];
+      const scanned = projects.slice(0, 8);
+      const perProject = await Promise.all(
+        scanned.map(async (p) => {
+          const tasks = (await tasksService.listTasks(p.id, { assigneeId: c.userId, statusId: args?.status || undefined }).catch(() => [])) ?? [];
+          return tasks.map((t) => ({
+            titulo: t.title ?? null,
+            proyecto: p.name ?? null,
+            estado: t.status?.name ?? null,
+            prioridad: t.priority ?? null,
+            // eslint-disable-next-line no-restricted-syntax -- task.dueDate is a @db.Date (date-only); format the calendar date as UTC
+            vence: t.dueDate ? (t.dueDate instanceof Date ? t.dueDate.toISOString().slice(0, 10) : String(t.dueDate).slice(0, 10)) : null,
+          }));
+        }),
+      );
+      const tareas = perProject.flat()
+        .sort((a, b) => String(a.vence ?? "9999").localeCompare(String(b.vence ?? "9999")))
+        .slice(0, 20);
+      const out = { tareas };
+      if (projects.length > 8) out.note = "Solo revise tus primeros 8 proyectos.";
+      return out;
+    } catch (err) {
+      return { error: `No pude consultar tus tareas: ${String(err?.message ?? err).slice(0, 140)}` };
+    }
+  }
+
   return {
     get_recent_messages, get_conversation_messages, search_my_conversations,
     list_conversation_files, describe_image, search_atlas,
+    search_inventory, list_bank_accounts, list_my_calendar, list_my_tasks,
   };
 }
 
