@@ -8,6 +8,8 @@ import {
   ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
   Phone, Video, UserPlus,
 } from "lucide-react";
+import { useConversationFiles } from "../hooks/useConversationFiles";
+import { ErrorState } from "@atlas/ui";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
@@ -464,7 +466,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   // chatUtils.js. Opening ANY file inline resolves to its position in THIS
   // list, not a per-message one, so the viewer can page through the whole
   // chat's media.
-  const allAttachments = useMemo(() => buildAllAttachments(messagesData?.data ?? []), [messagesData]);
+  const filesHistory = useConversationFiles(conversationId, filesView);
+  const allAttachments = useMemo(() => buildAllAttachments(filesView ? (filesHistory.data ?? []) : (messagesData?.data ?? [])), [messagesData, filesView, filesHistory.data]);
 
   const markReadRef = useRef(markReadMutate);
   markReadRef.current = markReadMutate;
@@ -539,7 +542,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   // multi-download permission prompt on a burst of simultaneous downloads.
   function handleFilesBulkDownload() {
     const targets = [];
-    for (const msg of messagesData?.data ?? []) {
+    for (const msg of filesHistory.data ?? []) {
       for (const att of msg.attachments ?? []) {
         if (filesSelectedIds.has(att.id)) targets.push(att);
       }
@@ -877,9 +880,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {filesView ? (
             <div className="flex-1 min-h-0 flex flex-col">
+              {filesHistory.isError && <ErrorState title="No se pudieron cargar los archivos" onRetry={filesHistory.refetch} />}
               <ChatFilesGallery
-                messages={messages}
-                isLoading={isLoading}
+                messages={filesHistory.data ?? []}
+                isLoading={filesHistory.isLoading}
                 onAttachmentClick={handleAttachmentClick}
                 selectionMode={filesSelectionMode}
                 selectedIds={filesSelectedIds}

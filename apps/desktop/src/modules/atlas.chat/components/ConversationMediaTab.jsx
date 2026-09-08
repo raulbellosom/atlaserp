@@ -2,7 +2,9 @@
 import { useState, useMemo } from "react";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
-import { isMediaMime } from "../lib/chatUtils";
+import { useConversationFiles } from "../hooks/useConversationFiles";
+import { ErrorState } from "@atlas/ui";
+import { isAudioAttachment, isMediaMime } from "../lib/chatUtils";
 
 const PREVIEW_LIMIT = 6;
 
@@ -13,7 +15,10 @@ const PREVIEW_LIMIT = 6;
 // and subscribeToMessages() defensively tears down any existing channel
 // with the same topic before subscribing — silently killing the main
 // message list's live updates the moment this tab mounts.
-export function ConversationMediaTab({ messages, isLoading, preview = false, onShowAll }) {
+export function ConversationMediaTab({ conversationId, messages: loadedMessages, isLoading: loadingMessages, preview = false, onShowAll }) {
+  const history = useConversationFiles(conversationId);
+  const messages = history.data ?? loadedMessages;
+  const isLoading = history.isLoading || loadingMessages;
   const [viewer, setViewer] = useState({ open: false, attachments: [], activeIndex: 0 });
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -29,7 +34,7 @@ export function ConversationMediaTab({ messages, isLoading, preview = false, onS
     for (const msg of messages) {
       for (const att of (msg.attachments ?? [])) result.push(att);
       for (const ref of (msg.metadata?.entityRefs ?? [])) {
-        if (ref.entityType !== "file" || !ref.mimeType) continue;
+        if (ref.entityType !== "file") continue;
         result.push({ id: ref.recordId, mimeType: ref.mimeType, fileName: ref.title, url: null });
       }
     }
@@ -46,13 +51,15 @@ export function ConversationMediaTab({ messages, isLoading, preview = false, onS
   // only ever appeared once non-media files like PDFs pushed that bucket
   // over the limit — a chat with 8 videos and no docs never showed it.
   const hasMoreToShow = useMemo(() => {
+    let audios = 0;
     let media = 0;
     let otherFiles = 0;
     for (const att of allAttachments) {
-      if (isMediaMime(att.mimeType)) media += 1;
+      if (isAudioAttachment(att)) audios += 1;
+      else if (isMediaMime(att.mimeType)) media += 1;
       else otherFiles += 1;
     }
-    return media > PREVIEW_LIMIT || otherFiles > PREVIEW_LIMIT;
+    return audios > PREVIEW_LIMIT || media > PREVIEW_LIMIT || otherFiles > PREVIEW_LIMIT;
   }, [allAttachments]);
 
   function toggleSelect(id) {
@@ -91,6 +98,7 @@ export function ConversationMediaTab({ messages, isLoading, preview = false, onS
 
   return (
     <div className="flex flex-col">
+      {history.isError && <ErrorState title="No se pudo completar el historial de archivos" onRetry={history.refetch} />}
       <ChatFilesGallery
         messages={messages ?? []}
         isLoading={isLoading}

@@ -8,28 +8,13 @@ import {
   Copy, Link2, ExternalLink,
 } from "lucide-react";
 import { ConfirmDialog, useCoarsePointer } from "@atlas/ui";
-import { formatFileSize, isImageMime } from "../lib/chatUtils";
+import { formatFileSize, isImageMime, isAudioAttachment } from "../lib/chatUtils";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { isSignedUrlUsable } from "../lib/signedUrl";
 
 function isVideoMime(m) { return String(m ?? "").startsWith("video/"); }
-function isAudioMime(m) { return String(m ?? "").startsWith("audio/"); }
-
-// In-app voice notes are always named "nota_de_voz_*". Some mobile browsers
-// (and the odd proxy) hand back a Blob whose type is empty or gets remapped
-// to video/webm on upload, so an audio attachment must be recognised by
-// name/extension too — trusting mime alone made the voice note render as a
-// black video tile (or nothing at all) on those devices.
-const AUDIO_EXT_RE = /\.(m4a|mp3|mpeg|ogg|oga|opus|wav|aac|weba)$/i;
-function isVoiceNoteName(name) { return /^nota_de_voz/i.test(String(name ?? "")); }
-function isAudioAttachment(att) {
-  if (isAudioMime(att.mimeType)) return true;
-  if (isVoiceNoteName(att.fileName)) return true;
-  return AUDIO_EXT_RE.test(String(att.fileName ?? "")) && !isVideoMime(att.mimeType);
-}
-
 function getFileTypeInfo(mimeType = "") {
   const m = String(mimeType).toLowerCase();
   if (m === "application/pdf") return { Icon: FileType2, colorClass: "text-red-400" };
@@ -47,18 +32,15 @@ function getFileTypeInfo(mimeType = "") {
   return { Icon: File, colorClass: "text-[hsl(var(--muted-foreground))]" };
 }
 
-// Hook: resolve the signed URL for an attachment.
-// The API now embeds `url` directly in the attachment object from listMessages,
-// so we skip the network call entirely when it's already present. Safe to call
-// with a null/empty att (e.g. MessageActionSheet calls it unconditionally) —
-// the query just stays disabled.
+// Embedded URLs provide an immediate preview; refetch always asks the API for
+// a current URL, including after a failed playback or restoring persisted cache.
 export function useAttachmentUrl(att) {
   const { session } = useAuth();
   const embeddedUrl = isSignedUrlUsable(att?.url) ? att.url : null;
   return useQuery({
     queryKey: ["chat-attachment-url", att?.id],
     queryFn: async () => {
-      if (isSignedUrlUsable(att?.url)) return att.url;
+      if (att?.url?.startsWith("blob:")) return att.url;
       try {
         const res = await atlas.chat.getAttachmentSignedUrl(att.id, session?.access_token);
         return res?.data?.url ?? null;
@@ -69,10 +51,9 @@ export function useAttachmentUrl(att) {
     },
     // Seed the cache with the embedded URL so it resolves synchronously
     initialData: embeddedUrl ?? undefined,
-    // The API may reuse a signed URL for up to 55 minutes. Keeping this query
-    // stale for only five minutes ensures a restored offline cache never marks
-    // an already-expired Storage URL as fresh for another hour.
-    staleTime: 5 * 60 * 1000,
+    // Validate persisted cache on mount and keep long-lived conversations fresh.
+    staleTime: 0,
+    refetchInterval: 4 * 60 * 1000,
     retry: 2,
     enabled: Boolean(att?.id && session?.access_token),
   });
@@ -399,8 +380,8 @@ function seedBars(seed, count) {
 // total length when idle. Deliberately no playback-speed pill and no second
 // timer (the old card stacked "0:00" + "—:——" + "x1", which read as three
 // competing counters).
-function AudioCard({ att, isOwn }) {
-  const { data: url, isLoading } = useAttachmentUrl(att);
+export function AudioCard({ att, isOwn }) {
+  const { data: url, isLoading, refetch, isFetching } = useAttachmentUrl(att);
   const audioRef = useRef(null);
   const durationFoundRef = useRef(false);
   const seekingForDurationRef = useRef(false);
@@ -445,9 +426,14 @@ function AudioCard({ att, isOwn }) {
 
   function togglePlay() {
     const audio = audioRef.current;
-    if (!audio || !url) return;
+    if (loadError || !url || !isSignedUrlUsable(url)) {
+      setLoadError(false);
+      refetch().then(() => audioRef.current?.load());
+      return;
+    }
+    if (!audio) return;
     if (playing) audio.pause();
-    else audio.play().catch(() => {});
+    else audio.play().catch(() => setLoadError(true));
   }
 
   function handleSeek(e) {
@@ -471,23 +457,9 @@ function AudioCard({ att, isOwn }) {
   const barRest   = isOwn ? "rgba(255,255,255,0.30)" : "hsl(var(--border))";
   const metaColor = isOwn ? "rgba(255,255,255,0.70)" : "hsl(var(--muted-foreground))";
 
-  // No signed URL could be resolved at all (getAttachmentSignedUrl itself
-  // failed, e.g. auth/network) — there's nothing to mount an <audio> against.
-  if (!isLoading && !url) {
-    return (
-      <div className="mt-2 flex items-center gap-2 text-xs opacity-50" style={{ width: 240 }}>
-        <FileAudio className="h-4 w-4 shrink-0" />
-        <span className="truncate">{att.fileName}</span>
-      </div>
-    );
-  }
-
-  // The signed URL DID resolve but the browser couldn't decode/play it (bad
-  // codec, or the underlying Storage object is empty/corrupt). Keep the same
-  // player chrome visible — this is the "el reproductor desaparece" complaint
-  // — just disabled, with a small "abrir archivo" escape hatch instead of
-  // silently swallowing the whole component.
-  const playDisabled = isLoading || !url || loadError;
+  // Keep the player visible and retryable even when URL resolution fails.
+  const unavailable = loadError || (!isLoading && !url);
+  const playDisabled = isLoading || isFetching;
 
   return (
     <div className="mt-2 flex items-center gap-2.5" style={{ width: 244, maxWidth: "100%" }}>
@@ -496,7 +468,12 @@ function AudioCard({ att, isOwn }) {
           ref={audioRef}
           src={url}
           preload="metadata"
-          onLoadedMetadata={(e) => probeDuration(e.currentTarget)}
+          onLoadStart={() => {
+            setPlaying(false);
+            setCurrentTime(0);
+            setStarted(false);
+          }}
+          onLoadedMetadata={(e) => { setLoadError(false); probeDuration(e.currentTarget); }}
           onCanPlay={(e) => probeDuration(e.currentTarget)}
           onSeeked={handleSeeked}
           onDurationChange={(e) => {
@@ -524,7 +501,7 @@ function AudioCard({ att, isOwn }) {
           }}
           onError={(e) => {
             console.warn("[chat] audio load failed", {
-              id: att.id, url, mimeType: att.mimeType,
+              id: att.id, mimeType: att.mimeType,
               code: e.currentTarget?.error?.code, message: e.currentTarget?.error?.message,
             });
             setLoadError(true);
@@ -539,11 +516,11 @@ function AudioCard({ att, isOwn }) {
         disabled={playDisabled}
         className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center touch-manipulation active:scale-95 transition-transform disabled:opacity-70 disabled:active:scale-100"
         style={{ backgroundColor: playBg, color: playColor }}
-        aria-label={isLoading ? "Cargando..." : loadError ? "Audio no disponible" : playing ? "Pausar" : "Reproducir"}
+        aria-label={isLoading ? "Cargando..." : loadError || !url ? "Reintentar audio" : playing ? "Pausar" : "Reproducir"}
       >
         {isLoading
           ? <Loader2 className="h-4 w-4 animate-spin" />
-          : loadError
+          : unavailable
           ? <AlertCircle className="h-4 w-4" />
           : playing
           ? <Pause className="h-4.5 w-4.5 fill-current" />
@@ -574,12 +551,12 @@ function AudioCard({ att, isOwn }) {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {loadError ? (
+          {unavailable ? (
             <>
               <span className="text-[10px] leading-none" style={{ color: metaColor }}>
-                Audio no disponible
+                Audio no disponible. Toca para reintentar
               </span>
-              <a
+              {url && <a
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -587,7 +564,7 @@ function AudioCard({ att, isOwn }) {
                 style={{ color: metaColor }}
               >
                 Abrir archivo
-              </a>
+              </a>}
             </>
           ) : (
             <>

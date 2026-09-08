@@ -1,6 +1,8 @@
 import { useCallback, useRef } from "react";
 import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
 import { atlas } from "../../../lib/atlas";
+import { isAudioAttachment } from "../lib/chatUtils";
+import { isSignedUrlUsable } from "../lib/signedUrl";
 import { useAuth } from "../../../auth/AuthProvider";
 
 // Doubles as the whole conversation's media viewer (opened from any message
@@ -25,7 +27,7 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
   const resolveSignedUrl = useCallback(
     async (file) => {
       const cached = fullUrlCacheRef.current.get(file.id);
-      if (cached) return cached;
+      if (isSignedUrlUsable(cached)) return cached;
       // The embedded URL from listMessages is the small `card` variant (see
       // Plan A) — the viewer always needs the full-resolution image, so it
       // fetches it explicitly rather than reusing that URL.
@@ -49,7 +51,7 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
   // filmstrip thumbnail falls back to a generic file-type icon).
   const files = (attachments ?? []).map((att) => ({
     id: att.id,
-    mimeType: att.mimeType,
+    mimeType: isAudioAttachment(att) ? "audio/" + (att.mimeType?.split("/")[1] || "mpeg") : att.mimeType,
     originalName: att.fileName,
     sizeBytes: att.sizeBytes,
     isEntityRef: att.isEntityRef ?? false,

@@ -290,7 +290,7 @@ export function ConversationProfilePanel({
           )}
           <div data-section="media">
             <SectionHeader icon={FolderOpen} label="Multimedia" />
-            <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
+            <ConversationMediaTab conversationId={conversationId} messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
           </div>
           <div data-section="common">
             <SectionHeader icon={Users} label="En comun" />
@@ -348,7 +348,7 @@ export function ConversationProfilePanel({
           <SectionHeader icon={CalendarDays} label="Eventos" />
           <ChannelEventsTab conversationId={conversationId} />
           <SectionHeader icon={FolderOpen} label="Multimedia" />
-          <ConversationMediaTab messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
+          <ConversationMediaTab conversationId={conversationId} messages={messages} isLoading={isLoadingMessages} preview onShowAll={onShowAllFiles} />
           <SectionHeader icon={Bell} label="Notificaciones" />
           <NotificationsTab conversationId={conversationId} isMuted={isMuted} />
           {canManageChannel && (

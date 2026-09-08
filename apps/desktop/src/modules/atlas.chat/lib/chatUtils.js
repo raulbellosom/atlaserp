@@ -94,6 +94,13 @@ export function isVideoMime(mimeType) {
 // "Media" = anything the Fotos y videos grid shows as a visual tile (images
 // and videos). Everything else (PDFs, docs, audio, archives...) goes in the
 // plain Archivos list below it.
+export function isAudioAttachment(att) {
+  const mime = String(att?.mimeType ?? "").toLowerCase();
+  const name = String(att?.fileName ?? att?.originalName ?? "");
+  return mime.startsWith("audio/") || /^nota_de_voz/i.test(name)
+    || (/\.(m4a|mp3|mpeg|ogg|oga|opus|wav|aac|weba|flac)$/i.test(name) && !mime.startsWith("video/"));
+}
+
 export function isMediaMime(mimeType) {
   return isImageMime(mimeType) || isVideoMime(mimeType);
 }
@@ -113,7 +120,7 @@ export function buildAllAttachments(messages) {
       result.push({ ...att, createdAt: msg.created_at, isEntityRef: false });
     }
     for (const ref of (msg.metadata?.entityRefs ?? [])) {
-      if (ref.entityType !== "file" || !ref.mimeType) continue;
+      if (ref.entityType !== "file") continue;
       result.push({
         id: ref.recordId,
         mimeType: ref.mimeType,

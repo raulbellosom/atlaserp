@@ -4,8 +4,9 @@ import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIconBase, FileImage, Loader2, Link2, Download, Play,
 } from "lucide-react";
-import { isImageMime, isVideoMime, isMediaMime, formatFileSize, formatMessageTime, downloadViaBlob } from "../lib/chatUtils";
+import { isAudioAttachment, isVideoMime, isMediaMime, formatFileSize, formatMessageTime, downloadViaBlob } from "../lib/chatUtils";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
+import { AudioCard, useAttachmentUrl } from "./MessageAttachments";
 import { EntityFileViewer } from "./EntityFileViewer";
 
 // Stable fallback so a caller passing selectionMode without selectedIds gets
@@ -31,7 +32,8 @@ export function FileTypeIcon({ mimeType }) {
 
 function MediaImageThumb({ att }) {
   const { data: lazyUrl, isLoading } = useFileRefSignedUrl(att.id, "card", att.isEntityRef);
-  const url = att.isEntityRef ? lazyUrl : att.url;
+  const { data: attachmentUrl } = useAttachmentUrl(att.isEntityRef ? null : att);
+  const url = att.isEntityRef ? lazyUrl : attachmentUrl;
 
   if (att.isEntityRef && isLoading) {
     return (
@@ -54,7 +56,8 @@ function MediaImageThumb({ att }) {
 // list below instead of the "Fotos y videos" tiles).
 function MediaVideoThumb({ att }) {
   const { data: lazyUrl, isLoading } = useFileRefSignedUrl(att.id, "card", att.isEntityRef);
-  const url = att.isEntityRef ? lazyUrl : att.url;
+  const { data: attachmentUrl } = useAttachmentUrl(att.isEntityRef ? null : att);
+  const url = att.isEntityRef ? lazyUrl : attachmentUrl;
 
   if (att.isEntityRef && isLoading) {
     return (
@@ -226,7 +229,7 @@ export function ChatFilesGallery({
         result.push({ ...att, createdAt: msg.created_at, msgAttachments: msg.attachments, isEntityRef: false });
       }
       for (const ref of (msg.metadata?.entityRefs ?? [])) {
-        if (ref.entityType !== "file" || !ref.mimeType) continue;
+        if (ref.entityType !== "file") continue;
         result.push({
           id: ref.recordId,
           mimeType: ref.mimeType,
@@ -245,11 +248,13 @@ export function ChatFilesGallery({
   // isImageMime was checked here before, so every video silently fell into
   // otherFiles and rendered as a plain file row instead of a tile.
   const media = useMemo(() => {
-    const all = allAttachments.filter((a) => isMediaMime(a.mimeType));
+    const all = allAttachments.filter((a) => isMediaMime(a.mimeType) && !isAudioAttachment(a));
     return previewLimit ? all.slice(0, previewLimit) : all;
   }, [allAttachments, previewLimit]);
+  const audios = allAttachments.filter(isAudioAttachment);
+  const shownAudios = previewLimit ? audios.slice(0, previewLimit) : audios;
   const otherFiles = useMemo(() => {
-    const all = allAttachments.filter((a) => !isMediaMime(a.mimeType));
+    const all = allAttachments.filter((a) => !isMediaMime(a.mimeType) && !isAudioAttachment(a));
     return previewLimit ? all.slice(0, previewLimit) : all;
   }, [allAttachments, previewLimit]);
 
@@ -341,6 +346,19 @@ export function ChatFilesGallery({
         </div>
       )}
 
+      {shownAudios.length > 0 && (
+        <section aria-label="Audios">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">Audios</p>
+          <div className="space-y-3">
+            {shownAudios.map((att) => (
+              <div key={att.id}>
+                <ArchivoRow att={att} onAttachmentClick={onAttachmentClick} />
+                {!att.isEntityRef && <AudioCard att={att} isOwn={false} />}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {otherFiles.length > 0 && (
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
