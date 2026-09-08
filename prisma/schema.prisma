@@ -3384,6 +3384,7 @@ model ChatMeridianRun {
   error            String?
   route            String?
   routerMs         Int?     @map("router_ms")
+  surface          String   @default("direct")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([companyId, createdAt])
