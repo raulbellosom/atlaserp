@@ -83,7 +83,8 @@ Plans: `docs/superpowers/plans/CHAT_IMPLEMENTATION_PLAN.md`, `2026-06-28-chat-im
 
 - [x] Chat tables + evolution migrations (`20260625000000_add_chat_tables` → `20260629130000_chat_archive`: attachments, tracking code, expiry email flag, archive, available_for_chat)
 - [x] Internal chat: `ChatScreen`, conversations, members, typing, presence (Supabase Realtime)
-- [x] External guest chat: `ExternalInboxScreen`, `ExternalChatWidget`, storefront-sdk guest flow (v0.5.2)
+- [x] External guest chat: `ExternalInboxScreen`, storefront-sdk `ChatWidget` guest flow (v0.5.2)
+- [x] External chat feature parity (spec/plan `2026-09-08-external-chat-feature-parity*`): operator `ExternalInboxScreen` now renders the full `ChatWindow` via `variant="external"` (history pagination, reply, in-conversation search, delete/forward/select, attachment viewer, files view, "el visitante está escribiendo", "Visto por el visitante"); dead in-app `ExternalChatWidget` removed; guest-attachment `message_id` link bug fixed; new endpoints — public attachment signed-URL, guest+operator typing, guest read receipt, operator message delete; migration `20260908100000_chat_guest_last_read` applied; storefront `ChatWidget` gained inline image/file previews + operator-typing + "Visto". Verified: 2026-09-08 (`node --test apps/api/src/routes/chat/__tests__/*.test.js` → 290 pass; new suites `guest-attachment-link`/`external-chat-realtime`/`guestChat`/`useExternalChatData` green; `pnpm build` full Tauri bundle clean; `pnpm lint` clean. Pre-existing unrelated failure: `packages/storefront-sdk/src/__tests__/react-exports.test.js` needs a JSX loader Node lacks — red before this work. No browser/on-device QA performed.)
 - [x] Message templates: `ChatTemplatesScreen`; forward message modal
 - [x] Unified realtime layer (2026-06-28 plans A/B)
 - [ ] Message search
