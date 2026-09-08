@@ -1,16 +1,27 @@
-export function getFileKind(mimeType = "") {
-  const value = String(mimeType || "").toLowerCase();
-  if (value.startsWith("image/")) return "image";
-  if (value.startsWith("video/")) return "video";
-  if (value.startsWith("audio/")) return "audio";
-  if (value === "application/pdf") return "pdf";
-  if (value.includes('presentation') || value.includes('powerpoint')) return 'presentation';
-  if (value.includes("spreadsheet") || value.includes("excel") || value.includes("csv")) {
-    return "sheet";
+import { fileKindOf, fileKindLabel, fileKindAccent } from "@atlas/core";
+
+// Facade over @atlas/core so existing imports in this module keep working.
+// getFileKind now takes the whole file (name + mime) so the extension
+// fallback in fileKindOf applies — pass the file object, not file.mimeType.
+export function getFileKind(file) {
+  if (typeof file === "string") return fileKindOf({ mimeType: file });
+  return fileKindOf(file ?? {});
+}
+
+export function getKindLabel(kind) {
+  return fileKindLabel(kind);
+}
+
+function prefersDark() {
+  if (typeof document !== "undefined" && document.documentElement.classList.contains("dark")) return true;
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
-  if (value.includes("word") || value.includes("document")) return "doc";
-  if (value.startsWith("text/") || value.includes("json")) return "text";
-  return "generic";
+  return false;
+}
+
+export function getKindAccent(kind) {
+  return fileKindAccent(kind, { dark: prefersDark() });
 }
 
 export function formatBytes(bytes = 0) {
@@ -29,16 +40,4 @@ export function formatDate(value) {
   } catch {
     return String(value ?? "—");
   }
-}
-
-export function getKindLabel(kind) {
-  if (kind === "image") return "Imagen";
-  if (kind === "video") return "Video";
-  if (kind === "audio") return "Audio";
-  if (kind === "pdf") return "PDF";
-  if (kind === 'presentation') return 'Presentación';
-  if (kind === "sheet") return "Hoja de calculo";
-  if (kind === "doc") return "Documento";
-  if (kind === "text") return "Texto";
-  return "Archivo";
 }
