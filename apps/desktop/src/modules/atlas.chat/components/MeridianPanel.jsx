@@ -9,6 +9,7 @@ import { useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPrefer
 import { useMeridianStatus } from "../hooks/useMeridian";
 import { useMeridianPanelThread, useSendMeridianPanel, useClearMeridianPanel } from "../hooks/useMeridianPanel";
 import { MERIDIAN_NAME } from "../lib/meridian";
+import { AssistantMarkdown } from "./AssistantMarkdown";
 import "../chat-theme.css";
 
 const FOCUS_PROMPT = "¿Qué me puedes decir de este mensaje?";
@@ -31,13 +32,13 @@ function Bubble({ role, content }) {
       {!isUser && <BotAvatar />}
       <div
         className={[
-          "max-w-[80%] whitespace-pre-wrap wrap-break-word rounded-2xl px-3 py-2 text-sm",
+          "max-w-[80%] wrap-break-word rounded-2xl px-3 py-2 text-sm",
           isUser
-            ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
+            ? "whitespace-pre-wrap bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"
             : "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
         ].join(" ")}
       >
-        {content}
+        {isUser ? content : <AssistantMarkdown text={content} />}
       </div>
     </div>
   );

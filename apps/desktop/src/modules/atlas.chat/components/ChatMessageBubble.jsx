@@ -19,6 +19,7 @@ import { MessageQuote } from "./MessageQuote";
 import { CallLogCard } from "./CallLogCard";
 import { getCallMeta } from "./callLogMeta";
 import { MessageActionSheet } from "./MessageActionSheet";
+import { AssistantMarkdown } from "./AssistantMarkdown";
 import { buildMessageActions } from "../lib/messageActions";
 
 // Block native text selection app-wide the instant a touch lands on a message
@@ -645,6 +646,8 @@ export function ChatMessageBubble({
                     )}
                     {isDeleted ? (
                       <span>Mensaje eliminado</span>
+                    ) : isAssistant ? (
+                      <AssistantMarkdown text={message.body} />
                     ) : (
                       <p className="text-left whitespace-pre-wrap wrap-break-word">
                         <HighlightedText text={message.body} query={searchQuery} />
@@ -840,6 +843,8 @@ export function ChatMessageBubble({
                   )}
                   {isDeleted ? (
                     <span>Mensaje eliminado</span>
+                  ) : isAssistant ? (
+                    <AssistantMarkdown text={message.body} />
                   ) : (
                     <p className="text-left whitespace-pre-wrap wrap-break-word">
                       <HighlightedText text={message.body} query={searchQuery} />
