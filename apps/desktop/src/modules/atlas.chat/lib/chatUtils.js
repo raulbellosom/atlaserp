@@ -162,31 +162,3 @@ export async function downloadViaBlob(url, filename) {
     URL.revokeObjectURL(blobUrl);
   }
 }
-
-const GUEST_TOKEN_KEY = "atlas_chat_guest_token";
-const GUEST_SESSION_KEY = "atlas_chat_guest_session";
-
-export function saveGuestSession(token, sessionData) {
-  try {
-    localStorage.setItem(GUEST_TOKEN_KEY, token);
-    localStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(sessionData));
-  } catch {}
-}
-
-export function loadGuestSession() {
-  try {
-    const token = localStorage.getItem(GUEST_TOKEN_KEY);
-    const raw = localStorage.getItem(GUEST_SESSION_KEY);
-    if (!token) return null;
-    return { token, session: raw ? JSON.parse(raw) : null };
-  } catch {
-    return null;
-  }
-}
-
-export function clearGuestSession() {
-  try {
-    localStorage.removeItem(GUEST_TOKEN_KEY);
-    localStorage.removeItem(GUEST_SESSION_KEY);
-  } catch {}
-}
