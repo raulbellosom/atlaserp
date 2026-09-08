@@ -159,7 +159,7 @@ const STORAGE_BUCKET_NAME = "atlas-files";
 const STOREFRONT_BUCKET_NAME = "atlas-storefront";
 const WEBSITE_BUCKET_NAME = "atlas-website";
 const filesService = createFilesService({ prisma, supabaseAdmin });
-const officeService = createOfficeService({ prisma, supabaseAdmin });
+const officeService = createOfficeService({ prisma, supabaseAdmin, broadcaster });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
@@ -3030,7 +3030,7 @@ app.route("/pwa", pwaRouter);
 //    concrete path prefix — `internal.use("*", ...)` + `app.route("/chat", internal)`,
 //    `meridian.use("/chat/meridian/*", ...)`, etc. Regression on 2026-09-08 (MeridIAn
 //    guard mounted at root, commit 59a439a6); see meridian-mount-scope.test.js.
-app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster, resolveUserContext: getUserContextByAuthId }));
+app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster, resolveUserContext: getUserContextByAuthId, officeService }));
 const callsSmtpService = createSmtpService({ prisma });
 app.route("/", createCallsRouter({ prisma, supabaseAdmin, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
 app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }));

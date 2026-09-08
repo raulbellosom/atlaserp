@@ -29,6 +29,7 @@ import { createChatModerationService, ChatModerationServiceError } from "./chat-
 import { createModerationRoutes } from "./moderation-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
+import { createChatOfficeRoutes } from "./chat-office-routes.js";
 import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
@@ -59,7 +60,7 @@ function handleError(c, err, fallback) {
 
 const uuidParamSchema = z.string().uuid();
 
-export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null, resolveUserContext = null }) {
+export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null, resolveUserContext = null, officeService = null }) {
   const app = new Hono();
   const permissionsService = createChatPermissionsService({ prisma });
   const mentionsService = createChatMentionsService({ prisma });
@@ -521,6 +522,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // Mute, block/unblock, groups-in-common, reports — see moderation-routes.js.
   internal.route("", createModerationRoutes({ requirePermission, moderationService }));
   internal.route("", createMessageForwardRoutes({ requirePermission, chatService }));
+  if (officeService) internal.route("", createChatOfficeRoutes({ officeService }));
 
   // ================================================================
   // CHANNELS & ROLES (Phase A foundation)

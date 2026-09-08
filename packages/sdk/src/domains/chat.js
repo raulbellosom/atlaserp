@@ -241,6 +241,15 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    // Mint a WOPI/Office editor session for a chat attachment.
+    createAttachmentOfficeSession: (attachmentId, mode = "auto", token) =>
+      request(`/chat/attachments/${encodeURIComponent(attachmentId)}/office/session`, {
+        method: "POST",
+        headers: withAuthHeaders(token),
+        body: JSON.stringify({ mode }),
+        onlineOnly: true,
+      }),
+
     // ----------------------------------------------------------------
     // Conversation profile / moderation (internal)
     // ----------------------------------------------------------------
