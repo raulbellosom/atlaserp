@@ -337,6 +337,26 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     `;
     const msg = msgRows[0];
 
+    // Link a guest-presigned attachment (created by /attachments/presign) to
+    // this message. Scoped to the conversation and to rows not yet linked so a
+    // stale or foreign attachmentId is a no-op.
+    if (metadata?.attachmentId) {
+      const linked = await prisma.$executeRaw`
+        UPDATE chat_attachments
+        SET message_id = ${msg.id}
+        WHERE id = ${metadata.attachmentId}::uuid
+          AND conversation_id = ${conversationId}::uuid
+          AND message_id IS NULL
+      `;
+      if (linked > 0) {
+        await prisma.$executeRaw`
+          UPDATE chat_messages
+          SET attachment_count = attachment_count + ${linked}
+          WHERE id = ${msg.id}
+        `;
+      }
+    }
+
     // Update conversation + bump idle expiry on the session
     await Promise.all([
       prisma.$executeRaw`
