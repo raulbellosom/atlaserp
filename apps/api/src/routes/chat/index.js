@@ -1113,6 +1113,11 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     requirePermission,
     meridianService,
     resolveProfileId: (authUserId) => resolveUserProfileId(prisma, authUserId),
+    // listMessages membership-checks the caller and throws if they're not in.
+    assertConversationMember: async (authUserId, conversationId) => {
+      try { await chatService.listMessages({ conversationId, authUserId, limit: 1 }); return true; }
+      catch { return false; }
+    },
   }));
 
   // Mount sub-routers

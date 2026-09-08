@@ -417,6 +417,17 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
     meridian: {
       ensure: (token) => request("/chat/meridian", { headers: withAuthHeaders(token) }),
       status: (token) => request("/chat/meridian/status", { headers: withAuthHeaders(token) }),
+      // Spec 2 — private assistant panel scoped to one conversation.
+      panel: (conversationId, token) =>
+        request(`/chat/meridian/panel/${encodeURIComponent(conversationId)}`, { headers: withAuthHeaders(token) }),
+      panelSend: (conversationId, data, token) =>
+        request(`/chat/meridian/panel/${encodeURIComponent(conversationId)}/messages`, {
+          method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data),
+        }),
+      panelClear: (conversationId, token) =>
+        request(`/chat/meridian/panel/${encodeURIComponent(conversationId)}`, {
+          method: "DELETE", headers: withAuthHeaders(token),
+        }),
     },
   };
 }
