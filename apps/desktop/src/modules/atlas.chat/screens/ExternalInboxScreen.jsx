@@ -1,11 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Button, EmptyState, Skeleton, Badge, renderMentionText } from "@atlas/ui";
-import { MessageSquare, Search, ExternalLink, Clock, UserCheck, ChevronDown, ArrowLeft } from "lucide-react";
-import { ChatMessageList } from "../components/ChatMessageList";
-import { MessageComposer } from "../components/MessageComposer";
-import { ChatTemplatePopover } from "../components/ChatTemplatePopover";
-import { useExternalInbox, useExternalMessages, useSendExternalMessage } from "../hooks/useExternalInbox";
-import { useToggleReaction } from "../hooks/useChatMessages";
+import { useState, useEffect, useRef } from "react";
+import { EmptyState, Skeleton, Badge, renderMentionText } from "@atlas/ui";
+import { MessageSquare, Search, ExternalLink, Clock, UserCheck, ChevronDown } from "lucide-react";
+import { ChatWindow } from "../components/ChatWindow";
+import { useExternalInbox } from "../hooks/useExternalInbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -33,22 +30,6 @@ function formatRelative(date) {
 function formatExact(date) {
   if (!date) return "";
   return new Date(date).toLocaleString("es-MX", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
-}
-
-function playNotificationBeep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.type = "sine";
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.25);
-  } catch { /* non-fatal */ }
 }
 
 // ------------------------------------------------------------------
@@ -306,6 +287,16 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
           </Badge>
         </div>
 
+        {/* Guest read receipt */}
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-[hsl(var(--muted-foreground))] font-medium mb-1">Lectura del visitante</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            {conversation.guest_last_read_at
+              ? `Visto ${formatRelative(conversation.guest_last_read_at)}`
+              : "Aun no leido"}
+          </p>
+        </div>
+
         {/* Operator reassignment */}
         {conversation.status !== "closed" && (
           <div>
@@ -319,136 +310,6 @@ function VisitorInfoPanel({ conversation, onReassigned }) {
         )}
       </div>
     </aside>
-  );
-}
-
-// ------------------------------------------------------------------
-// Chat pane (center column)
-// ------------------------------------------------------------------
-
-function ExternalChatPane({ conversation, onBack }) {
-  const { session, userProfile } = useAuth();
-  const token = session?.access_token;
-  const queryClient = useQueryClient();
-  const composerRef = useRef(null);
-  const prevCountRef = useRef(0);
-  const [hiddenMsgIds, setHiddenMsgIds] = useState(() => new Set());
-
-  const { data: messagesData, isLoading } = useExternalMessages(conversation?.id);
-  const { mutateAsync: sendMsg } = useSendExternalMessage(conversation?.id);
-  const { mutate: toggleReactionMutate } = useToggleReaction(conversation?.id);
-
-  // Mark as read when conversation is opened or new messages arrive
-  useEffect(() => {
-    if (!conversation?.id || !token) return;
-    atlas.chat.markExternalRead(conversation.id, token).catch(() => {});
-    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"], exact: false });
-    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox-bubble"] });
-  }, [conversation?.id, token, queryClient]);
-
-  // Track message count to play sound when inbox is in background
-  useEffect(() => {
-    const count = messagesData?.data?.length ?? 0;
-    if (count > prevCountRef.current && prevCountRef.current > 0 && document.visibilityState === "hidden") {
-      playNotificationBeep();
-    }
-    prevCountRef.current = count;
-  }, [messagesData?.data?.length]);
-
-  async function handleClose() {
-    if (!conversation?.id) return;
-    await atlas.chat.closeExternal(conversation.id, token);
-    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
-  }
-
-  if (!conversation) {
-    return (
-      <div className="flex-1 hidden md:flex items-center justify-center text-[hsl(var(--muted-foreground))]">
-        <div className="text-center space-y-3">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
-            <MessageSquare className="h-7 w-7 text-[hsl(var(--primary)/0.4)]" />
-          </div>
-          <p className="text-sm">Selecciona una conversacion</p>
-        </div>
-      </div>
-    );
-  }
-
-  const guestName = conversation.guest_name ?? conversation.guest_email ?? "Visitante";
-
-  return (
-    <div className="flex flex-col flex-1 min-h-0 min-w-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-3 sm:px-4 py-3 shrink-0">
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            className="md:hidden text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors shrink-0 touch-manipulation"
-            aria-label="Volver"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-        )}
-        <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-xs font-semibold text-violet-600 dark:text-violet-300 uppercase shrink-0">
-          {guestName[0]}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{guestName}</p>
-          {conversation.guest_page_url && (
-            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
-              {conversation.guest_page_url.replace(/^https?:\/\//, "")}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge variant={conversation.status === "closed" ? "secondary" : conversation.status === "pending" ? "warning" : "success"}>
-            {conversation.status}
-          </Badge>
-          {conversation.status !== "closed" && (
-            <Button size="sm" variant="outline" onClick={handleClose}>
-              Cerrar
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <ChatMessageList
-        key={conversation.id}
-        messages={messagesData?.data ?? []}
-        isLoading={isLoading}
-        currentUserId={userProfile?.id}
-        typingUsers={[]}
-        onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
-        hiddenMessageIds={hiddenMsgIds}
-        conversationType={conversation?.type ?? "external_support"}
-        onToggleReaction={(messageId, emoji) => toggleReactionMutate({ messageId, emoji })}
-      />
-
-      {conversation.status !== "closed" && (
-        <div className="shrink-0">
-          {/* Template button row above composer */}
-          <div className="flex items-center gap-2 px-3 pt-2">
-            <ChatTemplatePopover
-              onSelect={(body) => composerRef.current?.setBody?.(body)}
-              vars={{
-                nombre_agente: userProfile?.displayName ?? userProfile?.email ?? "Agente",
-                nombre_cliente: conversation?.guest_name ?? conversation?.guest_email ?? "Cliente",
-                email_cliente: conversation?.guest_email ?? "",
-              }}
-            />
-            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Plantillas</span>
-          </div>
-          <MessageComposer
-            ref={composerRef}
-            onSend={(data) => sendMsg(data)}
-            placeholder="Responder al visitante..."
-            conversationId={conversation.id}
-            conversationType="external_support"
-          />
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -606,10 +467,23 @@ export function ExternalInboxScreen() {
           "flex flex-1 min-w-0 min-h-0",
           mobileView === "list" ? "hidden md:flex" : "flex",
         ].join(" ")}>
-          <ExternalChatPane
-            conversation={selected}
-            onBack={handleBack}
-          />
+          {selected ? (
+            <ChatWindow
+              key={selected.id}
+              conversation={selected}
+              variant="external"
+              onClose={handleBack}
+            />
+          ) : (
+            <div className="flex-1 hidden md:flex items-center justify-center text-[hsl(var(--muted-foreground))]">
+              <div className="text-center space-y-3">
+                <div className="mx-auto h-14 w-14 rounded-2xl bg-[hsl(var(--muted))] flex items-center justify-center">
+                  <MessageSquare className="h-7 w-7 text-[hsl(var(--primary)/0.4)]" />
+                </div>
+                <p className="text-sm">Selecciona una conversacion</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: visitor info — desktop only (lg+) */}
