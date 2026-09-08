@@ -1,4 +1,4 @@
-import { AtSign, Pin } from "lucide-react";
+import { AtSign, Pin, Sparkles } from "lucide-react";
 import { renderMentionText } from "@atlas/ui";
 import { formatMessageTime } from "../lib/chatUtils";
 import { ConversationTypeBadge } from "./ConversationTypeBadge";
@@ -13,8 +13,23 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = false }) {
+function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = false, isBot = false }) {
   const sizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+  if (isBot) {
+    return (
+      <div className="relative shrink-0">
+        <div
+          className={`${sizeClass} rounded-full flex items-center justify-center`}
+          style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
+        >
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <span className="absolute -bottom-0.5 -right-0.5 rounded-full bg-[hsl(var(--background))] px-1 text-[9px] font-bold leading-tight text-[hsl(var(--primary))] ring-1 ring-[hsl(var(--primary)/0.4)]">
+          IA
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="relative shrink-0">
       {avatarUrl ? (
@@ -46,14 +61,16 @@ function Avatar({ name, avatarUrl, avatarEmoji, type, size = "md", online = fals
 }
 
 export function ChatConversationItem({ conversation, isActive, onClick, currentUserId, isOnline = false }) {
+  const isMeridian = conversation.type === "meridian";
   const otherMember = conversation.type === "direct"
     ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
 
-  const displayName =
-    conversation.title ??
-    otherMember?.displayName ??
-    (conversation.type === "group" ? "Grupo" : "Conversacion directa");
+  const displayName = isMeridian
+    ? "MeridIAn"
+    : (conversation.title ??
+      otherMember?.displayName ??
+      (conversation.type === "group" ? "Grupo" : "Conversacion directa"));
   // Prefixed only for the visible label — Avatar below still gets the raw
   // displayName so its initials fallback shows the channel's real first
   // letter, not "#".
@@ -90,7 +107,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
             : "hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]",
         ].join(" ")}
       >
-        <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} />
+        <Avatar name={displayName} avatarUrl={avatarUrl} avatarEmoji={avatarEmoji} type={conversation.type} online={isOnline} isBot={isMeridian} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm truncate chat-font-display font-semibold flex items-center gap-1 min-w-0">
