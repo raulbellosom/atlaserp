@@ -31,6 +31,8 @@ import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
+import { useMeridianStatus } from "../hooks/useMeridian";
+import { MERIDIAN_SUBTITLE, mapTypingNames } from "../lib/meridian";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import {
   getConversationDisplayName, getConversationTitleLabel, buildAllAttachments,
@@ -66,6 +68,7 @@ function ChatHeader({
   onOpenProfile,
   onOpenPinned,
   callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onOpenGuestLink,
+  isMeridian = false,
   embedded = null, onCollapse = null,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
@@ -236,7 +239,9 @@ function ChatHeader({
           <button type="button" onClick={() => onOpenProfile(null)} className="block max-w-full text-left" title="Ver perfil">
             <p className="chat-font-display text-sm font-semibold truncate">{titleLabel}</p>
           </button>
-          {conversation?.type === "direct" ? (
+          {isMeridian ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{MERIDIAN_SUBTITLE}</p>
+          ) : conversation?.type === "direct" ? (
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               {directOnline ? (
                 <span className="text-green-500">En linea</span>
@@ -256,7 +261,7 @@ function ChatHeader({
           ) : null}
         </div>
 
-        {!embedded && callsEnabled && conversation?.type !== "external_support" && (
+        {!embedded && callsEnabled && !isMeridian && conversation?.type !== "external_support" && (
           <>
             <Button
               type="button"
@@ -334,15 +339,17 @@ function ChatHeader({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => onOpenProfile(isChannelOrGroup ? "members" : null)}>
-              <Users className="h-3.5 w-3.5 mr-2" />
-              {isChannelOrGroup ? "Ver miembros" : "Ver perfil"}
-            </DropdownMenuItem>
+            {!isMeridian && (
+              <DropdownMenuItem onSelect={() => onOpenProfile(isChannelOrGroup ? "members" : null)}>
+                <Users className="h-3.5 w-3.5 mr-2" />
+                {isChannelOrGroup ? "Ver miembros" : "Ver perfil"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onSelect={onEnterSelection}>
               <CheckSquare className="h-3.5 w-3.5 mr-2" />
               Seleccionar mensajes
             </DropdownMenuItem>
-            {!embedded && onArchive && (
+            {!isMeridian && !embedded && onArchive && (
               <DropdownMenuItem onSelect={onArchive}>
                 {isArchived
                   ? <><ArchiveRestore className="h-3.5 w-3.5 mr-2" />Desarchivar</>
@@ -350,7 +357,7 @@ function ChatHeader({
                 }
               </DropdownMenuItem>
             )}
-            {!embedded && (
+            {!isMeridian && !embedded && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setConfirmDelete(true)} className="text-red-500 focus:text-red-500">
@@ -421,6 +428,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   // have no roles, so roleHasPermission would just resolve false for them —
   // guard by type instead of relying on that, same as the backend's own gate).
   const isChannelOrGroupType = conversation?.type === "channel" || conversation?.type === "group";
+  const isMeridian = conversation?.type === "meridian";
+  const { data: meridianStatus } = useMeridianStatus();
+  const meridianAvailable = !isMeridian || meridianStatus?.available !== false;
   const ownMemberForComposer = findOwnMember(detailMembers ?? conversation?.members ?? [], userProfile?.id);
   const canSendMessages = !isChannelOrGroupType || roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_SEND);
   // Pinned messages also drive the anchored strip above the message list (not
@@ -864,6 +874,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onDeleteConversation={handleDeleteConversation}
         onOpenProfile={openProfile}
         onOpenPinned={() => setShowPinned(true)}
+        isMeridian={isMeridian}
         callsEnabled={callsEnabled}
         callPending={callPending}
         onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
@@ -912,7 +923,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               messages={messages}
               isLoading={isLoading}
               currentUserId={userProfile?.id}
-              typingUsers={typingUsersList}
+              typingUsers={mapTypingNames(typingUsersList)}
               onAttachmentClick={handleAttachmentClick}
               members={detailMembers ?? conversation.members}
               conversationType={conversation?.type}
@@ -969,14 +980,22 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           ref={composerRef}
           onSend={handleSend}
           onTyping={sendTyping}
-          placeholder={canSendMessages ? "Escribe un mensaje..." : "Solo un administrador puede escribir en este canal"}
+          placeholder={
+            isMeridian && !meridianAvailable
+              ? "MeridIAn no está configurado en este entorno"
+              : isMeridian
+                ? "Escribe a MeridIAn..."
+                : canSendMessages
+                  ? "Escribe un mensaje..."
+                  : "Solo un administrador puede escribir en este canal"
+          }
           conversationId={conversationId}
           conversationType={conversation?.type}
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
           dropZoneDisabled
           edgeInset
-          disabled={!canSendMessages}
+          disabled={!canSendMessages || !meridianAvailable}
         />
       )}
       </div>
