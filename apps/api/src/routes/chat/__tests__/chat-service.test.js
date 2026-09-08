@@ -28,10 +28,33 @@ beforeEach(() => {
 function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
   let qIdx = 0;
   let eIdx = 0;
+  // Every guarded conversation mutation now issues a bare
+  // `SELECT type FROM chat_conversations WHERE id = ? LIMIT 1` probe
+  // (assertNotMeridian) — byte-identical to the permission-check type probe
+  // some of these fixtures already queue a `[{ type: "channel" }]` row for.
+  // Answer both from the SAME queued row (consumed once, then cached), and
+  // when no type row is queued at all, synthesize a non-meridian answer
+  // without disturbing the fixed-sequence queue.
+  let convTypeAnswer;
+  const isConvTypeProbe = (strings) =>
+    /SELECT\s+type\s+FROM\s+chat_conversations/i.test(
+      Array.isArray(strings) ? strings.join("?") : String(strings ?? ""),
+    );
+  const looksLikeTypeRow = (v) =>
+    Array.isArray(v) &&
+    (v.length === 0 ||
+      (v[0] && typeof v[0] === "object" && Object.prototype.hasOwnProperty.call(v[0], "type")));
   const client = {
     _transactionCallCount: 0,
     _executeRawCallCount: 0,
-    $queryRaw: async () => {
+    $queryRaw: async (strings) => {
+      if (isConvTypeProbe(strings)) {
+        if (convTypeAnswer !== undefined) return convTypeAnswer;
+        convTypeAnswer = looksLikeTypeRow(queryRawResults[qIdx])
+          ? queryRawResults[qIdx++]
+          : [{ type: "__nonmeridian__" }];
+        return convTypeAnswer;
+      }
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
     },

@@ -36,9 +36,30 @@ function sqlText(strings, values) {
 function buildPrisma(queryRawResults = []) {
   let qIdx = 0;
   const executes = [];
+  // archiveConversation/hideConversation now run a bare
+  // `SELECT type FROM chat_conversations WHERE id = ? LIMIT 1` guard probe
+  // (assertNotMeridian) — identical to the type lookup hideConversation
+  // already does. Answer both from the same queued row (consumed once, then
+  // cached); synthesize a non-meridian answer when none is queued.
+  let convTypeAnswer;
+  const isConvTypeProbe = (strings) =>
+    /SELECT\s+type\s+FROM\s+chat_conversations/i.test(
+      Array.isArray(strings) ? strings.join("?") : String(strings ?? ""),
+    );
+  const looksLikeTypeRow = (v) =>
+    Array.isArray(v) &&
+    (v.length === 0 ||
+      (v[0] && typeof v[0] === "object" && Object.prototype.hasOwnProperty.call(v[0], "type")));
   return {
     executes,
-    $queryRaw: async () => {
+    $queryRaw: async (strings) => {
+      if (isConvTypeProbe(strings)) {
+        if (convTypeAnswer !== undefined) return convTypeAnswer;
+        convTypeAnswer = looksLikeTypeRow(queryRawResults[qIdx])
+          ? queryRawResults[qIdx++]
+          : [{ type: "__nonmeridian__" }];
+        return convTypeAnswer;
+      }
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
     },

@@ -26,8 +26,29 @@ const COMPANY_B = "01900000-0000-7000-8000-000000000cb";
 function buildPrisma(queryRawResults = []) {
   let qIdx = 0;
   const membershipByUser = { [PROFILE_ID]: COMPANY_A, [FOREIGN_PROFILE_ID]: COMPANY_B };
+  // addMembers now runs a bare `SELECT type FROM chat_conversations WHERE
+  // id = ? LIMIT 1` guard probe (assertNotMeridian) right after assertMember,
+  // before filterCompanyPeers. Answer it from a queued type row (consumed once,
+  // then cached) or synthesize a non-meridian answer without disturbing the
+  // fixed-sequence queue.
+  let convTypeAnswer;
+  const isConvTypeProbe = (strings) =>
+    /SELECT\s+type\s+FROM\s+chat_conversations/i.test(
+      Array.isArray(strings) ? strings.join("?") : String(strings ?? ""),
+    );
+  const looksLikeTypeRow = (v) =>
+    Array.isArray(v) &&
+    (v.length === 0 ||
+      (v[0] && typeof v[0] === "object" && Object.prototype.hasOwnProperty.call(v[0], "type")));
   return {
-    $queryRaw: async () => {
+    $queryRaw: async (strings) => {
+      if (isConvTypeProbe(strings)) {
+        if (convTypeAnswer !== undefined) return convTypeAnswer;
+        convTypeAnswer = looksLikeTypeRow(queryRawResults[qIdx])
+          ? queryRawResults[qIdx++]
+          : [{ type: "__nonmeridian__" }];
+        return convTypeAnswer;
+      }
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
     },
