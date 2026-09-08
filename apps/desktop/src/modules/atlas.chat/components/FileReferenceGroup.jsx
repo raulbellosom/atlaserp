@@ -16,10 +16,62 @@
 // its own file rather than added to ChatMessageBubble.jsx, which is already
 // over this project's 1000-line soft limit.
 import { useState } from "react";
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  useOfficeActions,
+} from "@atlas/ui";
 import { Loader2, Download } from "lucide-react";
 import { formatFileSize, isImageMime, downloadViaBlob } from "../lib/chatUtils";
 import { FileTypeIcon } from "./ChatFilesGallery";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
+import { buildFileAssetOfficeActions } from "../lib/officeFileActions";
+
+// Right-click / long-press menu shared by both the image tiles and the file
+// rows of a file-reference group. Entity references are real atlas.files
+// records, so "Abrir en editor de Office" reuses the existing office.open()
+// route; "Abrir en pestaña nueva" / "Descargar" resolve a `full` signed URL
+// lazily (never on mount — see useFileRefSignedUrl's enabled:false).
+function FileRefContextMenu({ fileRef, children }) {
+  const office = useOfficeActions();
+  const { refetch } = useFileRefSignedUrl(fileRef.recordId, "full", false);
+  const items = buildFileAssetOfficeActions({
+    office,
+    fileAssetId: fileRef.recordId,
+    file: { title: fileRef.title, mimeType: fileRef.mimeType },
+    signedUrl: null,
+    onResolveUrl: async () => (await refetch())?.data ?? null,
+  });
+  async function download() {
+    const url = (await refetch())?.data ?? null;
+    if (url) {
+      await downloadViaBlob(url, fileRef.title).catch(() =>
+        window.open(url, "_blank", "noopener,noreferrer"),
+      );
+    }
+  }
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        {items.map((a) => (
+          <ContextMenuItem key={a.key} disabled={a.disabled} onSelect={() => a.onSelect()}>
+            {a.icon && <a.icon className="h-4 w-4 mr-2" />}
+            {a.label}
+          </ContextMenuItem>
+        ))}
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={download}>
+          <Download className="h-4 w-4 mr-2" />
+          Descargar
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
 
 // Shape ChatAttachmentViewer.jsx (the conversation-wide media viewer) reads
 // off each entry — `isEntityRef: true` routes it through the generic files
@@ -31,24 +83,26 @@ function toViewerFile(ref) {
 function GridImageTile({ fileRef, onOpen, overflowCount = 0 }) {
   const { data: url, isLoading } = useFileRefSignedUrl(fileRef.recordId, "card", true);
   return (
-    <button type="button" onClick={onOpen} className="relative w-full h-full overflow-hidden bg-[hsl(var(--muted))]">
-      {isLoading ? (
-        <div className="w-full h-full flex items-center justify-center">
-          <Loader2 className="h-4 w-4 animate-spin opacity-40" />
-        </div>
-      ) : url ? (
-        <img src={url} alt={fileRef.title} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <FileTypeIcon mimeType={fileRef.mimeType} />
-        </div>
-      )}
-      {overflowCount > 0 && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-          <span className="text-white text-sm font-semibold">+{overflowCount}</span>
-        </div>
-      )}
-    </button>
+    <FileRefContextMenu fileRef={fileRef}>
+      <button type="button" onClick={onOpen} className="relative w-full h-full overflow-hidden bg-[hsl(var(--muted))]">
+        {isLoading ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin opacity-40" />
+          </div>
+        ) : url ? (
+          <img src={url} alt={fileRef.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <FileTypeIcon mimeType={fileRef.mimeType} />
+          </div>
+        )}
+        {overflowCount > 0 && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="text-white text-sm font-semibold">+{overflowCount}</span>
+          </div>
+        )}
+      </button>
+    </FileRefContextMenu>
   );
 }
 
@@ -145,29 +199,31 @@ function FileRow({ fileRef, isOwn, onOpen }) {
   }
 
   return (
-    <div
-      className={[
-        "flex items-center gap-1 mt-1.5 rounded-xl max-w-55",
-        isOwn ? "bg-white/15" : "bg-[hsl(var(--border))]",
-      ].join(" ")}
-    >
-      <button type="button" onClick={onOpen} className="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2 text-left">
-        <FileTypeIcon mimeType={fileRef.mimeType} />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium truncate">{fileRef.title}</p>
-          <p className="text-xs opacity-50">{fileRef.sizeBytes ? formatFileSize(fileRef.sizeBytes) : ""}</p>
-        </div>
-      </button>
-      <button
-        type="button"
-        onClick={handleDownloadClick}
-        disabled={downloading}
-        title="Descargar"
-        className="shrink-0 h-8 w-8 mr-1 rounded-full flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30"
+    <FileRefContextMenu fileRef={fileRef}>
+      <div
+        className={[
+          "flex items-center gap-1 mt-1.5 rounded-xl max-w-55",
+          isOwn ? "bg-white/15" : "bg-[hsl(var(--border))]",
+        ].join(" ")}
       >
-        {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      </button>
-    </div>
+        <button type="button" onClick={onOpen} className="flex items-center gap-2.5 flex-1 min-w-0 px-3 py-2 text-left">
+          <FileTypeIcon mimeType={fileRef.mimeType} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium truncate">{fileRef.title}</p>
+            <p className="text-xs opacity-50">{fileRef.sizeBytes ? formatFileSize(fileRef.sizeBytes) : ""}</p>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={handleDownloadClick}
+          disabled={downloading}
+          title="Descargar"
+          className="shrink-0 h-8 w-8 mr-1 rounded-full flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity disabled:opacity-30"
+        >
+          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        </button>
+      </div>
+    </FileRefContextMenu>
   );
 }
 
