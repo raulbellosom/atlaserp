@@ -513,6 +513,7 @@ export function createMeridianService({
 
   return {
     isConfigured,
+    isWebEnabled: () => webEnabled,
     getOrCreateMeridianProfile,
     ensureMeridianConversation,
     handleUserMessage,

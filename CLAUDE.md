@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # First-time setup
 cp .env.example .env
 # Fill in SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL, JWT_SECRET
-# GROQ_API_KEY is optional (atlas.pfm receipt OCR + the atlas.pfm assistant sidebar + the atlas.chat MeridIAn assistant); without it receipt OCR degrades to manual entry, the PFM assistant sidebar is disabled, and MeridIAn is disabled (its conversation still lists; the composer shows "no configurado"). PFM_ASSISTANT_MODEL / CHAT_MERIDIAN_MODEL optionally override the assistant models.
+# GROQ_API_KEY is optional (atlas.pfm receipt OCR + the atlas.pfm assistant sidebar + the atlas.chat MeridIAn assistant); without it receipt OCR degrades to manual entry, the PFM assistant sidebar is disabled, and MeridIAn is disabled (its conversation still lists; the composer shows "no configurado"). With the key, MeridIAn also answers general-knowledge questions and — unless CHAT_MERIDIAN_WEB=false — live/internet questions (e.g. "cuánto está el dólar hoy") via Groq compound models; a short per-turn classifier picks chat/general/live. PFM_ASSISTANT_MODEL / CHAT_MERIDIAN_MODEL / CHAT_MERIDIAN_WEB_MODEL / CHAT_MERIDIAN_ROUTER_MODEL optionally override the models.
 # Get connection strings from https://studio.supabase.racoondevs.com
 
 pnpm install          # install all dependencies

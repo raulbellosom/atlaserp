@@ -20,7 +20,10 @@ export function createMeridianRoutes({ requirePermission, meridianService, resol
   });
 
   r.get("/chat/meridian/status", requirePermission("chat.meridian.use"), async (c) => {
-    return c.json({ data: { available: Boolean(meridianService.isConfigured()) } });
+    return c.json({ data: {
+      available: Boolean(meridianService.isConfigured()),
+      web: Boolean(meridianService.isWebEnabled?.()),
+    } });
   });
 
   return r;
