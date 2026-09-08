@@ -1122,11 +1122,14 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // MeridIAn (AI assistant) routes carry their own "/chat/..." paths, so they
   // mount at the app root behind authMiddleware (not under the "/chat"-prefixed
   // `internal` sub-app, which would double the prefix).
+  // ⚠️ DO NOT widen this to `meridian.use("*", ...)` WITHOUT ASKING RAUL FIRST.
   // Scope the auth guard to the MeridIAn route surface only. A bare
-  // `meridian.use("*", ...)` here would — because this router is mounted at the
-  // app root (`app.route("", meridian)`) and registered early in index.js —
-  // intercept EVERY unmatched request (including nginx's `/public/site/*`
-  // marketing-site proxy) and 401 it before the public handlers can run.
+  // `meridian.use("*", ...)` here — because this sub-app is mounted at the app
+  // root (`app.route("", meridian)`) and createChatRouter is registered early in
+  // apps/api/src/index.js (before `/public/site/*` and the dist-serve SPA
+  // fallback) — intercepts EVERY unmatched anonymous request with a 401 and
+  // takes down the public marketing website. Happened on 2026-09-08 (commit
+  // 59a439a6); guarded by meridian-mount-scope.test.js.
   const meridian = new Hono();
   meridian.use("/chat/meridian", authMiddleware);
   meridian.use("/chat/meridian/*", authMiddleware);

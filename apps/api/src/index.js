@@ -3016,6 +3016,20 @@ app.route("/pwa", pwaRouter);
 // They MUST be registered before mountWithAuth() calls — the secured sub-apps created by
 // mountWithAuth intercept every request via secured.use("*", authMiddleware), which returns
 // 401 before the chat/notes public routes (e.g. POST /public/chat/session) can be reached.
+//
+// ⚠️ LOAD-BEARING — DO NOT CHANGE THIS ORDERING OR THE AUTH SCOPING BELOW WITHOUT
+//    ASKING THE REPO OWNER (Raul) DIRECTLY FIRST.
+//    These routers are mounted at "/" and are registered BEFORE the public website
+//    handlers (`/public/site/*`, `/public/blueprints`, `/public/modules`, the
+//    atlas-sdk, the ERP badge) and BEFORE the dist-serve SPA-fallback middleware.
+//    Any `use("*", authMiddleware)` installed at the ROOT of one of these sub-apps
+//    (i.e. `sub.use("*", authMiddleware)` + `app.route("", sub)`) will therefore
+//    swallow EVERY unmatched anonymous request with a 401 and take down the public
+//    marketing website (nginx proxies `/` -> `/public/site/` and needs a 404 to
+//    fall back to the SPA). Every auth guard in these routers MUST be scoped to a
+//    concrete path prefix — `internal.use("*", ...)` + `app.route("/chat", internal)`,
+//    `meridian.use("/chat/meridian/*", ...)`, etc. Regression on 2026-09-08 (MeridIAn
+//    guard mounted at root, commit 59a439a6); see meridian-mount-scope.test.js.
 app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster, resolveUserContext: getUserContextByAuthId }));
 const callsSmtpService = createSmtpService({ prisma });
 app.route("/", createCallsRouter({ prisma, supabaseAdmin, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
