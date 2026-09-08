@@ -150,7 +150,7 @@ export function AdvancedFileViewer({
   const lastTapRef = useRef(0);
 
   const file = files?.[activeIndex] ?? null;
-  const kind = useMemo(() => getFileKind(file?.mimeType), [file?.mimeType]);
+  const kind = useMemo(() => getFileKind(file), [file]);
   const canPrev = activeIndex > 0;
   const canNext = activeIndex >= 0 && activeIndex < files.length - 1;
 
@@ -223,7 +223,7 @@ export function AdvancedFileViewer({
     const end = Math.min(files.length - 1, activeIndex + THUMB_WINDOW);
     for (let i = start; i <= end; i++) {
       const f = files[i];
-      if (!f || getFileKind(f.mimeType) !== "video") continue;
+      if (!f || getFileKind(f) !== "video") continue;
       if (videoThumbUrls[f.id] || videoThumbFetching.current.has(f.id)) continue;
       videoThumbFetching.current.add(f.id);
       onResolveSignedUrl(f)
@@ -942,7 +942,7 @@ export function AdvancedFileViewer({
                   >
                     <div className="flex items-center gap-2 overflow-x-auto px-0.5 py-0.5">
                       {files.map((f, i) => {
-                        const fKind = getFileKind(f.mimeType);
+                        const fKind = getFileKind(f);
                         const videoThumbUrl =
                           fKind === "video" ? videoThumbUrls[f.id] : null;
                         return (
