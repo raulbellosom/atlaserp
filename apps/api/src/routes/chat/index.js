@@ -98,6 +98,9 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       LIMIT 1
     `;
     const botId = botRow?.bot_id ?? null;
+    if (!botId) {
+      console.warn("[atlas.chat] MeridIAn reply: no bot member found for conversation", conversationId);
+    }
     const [msg] = await prisma.$queryRaw`
       INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type)
       VALUES (${conversationId}::uuid, ${botId}, 'assistant', ${String(body).slice(0, 4000)}, 'text')

@@ -262,14 +262,20 @@ export function createMeridianService({
       toolLog.push({ error: String(err?.message ?? err).slice(0, 200) });
     }
 
-    await insertAssistantMessage({ conversationId, body: finalText });
+    let replyInsertError = null;
+    try {
+      await insertAssistantMessage({ conversationId, body: finalText });
+    } catch (err) {
+      replyInsertError = String(err?.message ?? err).slice(0, 200);
+      console.error("[atlas.chat] meridian reply insert failed", err);
+    }
     try {
       await prisma.chatMeridianRun.create({
         data: {
           companyId: companyId ?? null, conversationId, actorProfileId,
           triggerMessageId: triggerMessageId ?? null, model,
           toolCalls: toolLog, iterations, latencyMs: Date.now() - startedAt,
-          error: toolLog.find((x) => x.error)?.error ?? null,
+          error: replyInsertError ?? toolLog.find((x) => x.error)?.error ?? null,
         },
       });
     } catch { /* audit is best-effort */ }
