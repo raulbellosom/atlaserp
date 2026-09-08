@@ -889,6 +889,8 @@ app.get("/instance/status", async (c) => {
     if (brandingConfig?.logoFileId) {
       const fileAsset = await prisma.fileAsset.findUnique({
         where: { id: brandingConfig.logoFileId },
+        // Instance boot only needs the storage pointer, not the document schema.
+        select: { bucket: true, objectKey: true },
       });
       if (fileAsset) {
         const { data: signedData } = await supabaseAdmin.storage
