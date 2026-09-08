@@ -1395,6 +1395,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "chat",
     order: 40,
   },
+  "chat.meridian.use": {
+    displayNameEs: "Usar MeridIAn (IA del chat)",
+    descriptionEs: "Permite conversar con el asistente de IA MeridIAn dentro del chat.",
+    groupKey: "chat",
+    order: 50,
+  },
   // -----------------------------------------------------------------------
   // atlas.inventory
   // -----------------------------------------------------------------------
