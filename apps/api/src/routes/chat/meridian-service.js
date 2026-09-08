@@ -26,20 +26,27 @@ const BOT_EMAIL_DOMAIN = "bots.atlas.local";
 // Spec 4 — per-turn model routing.
 const ROUTER_TIMEOUT_MS = 3_000;
 const ROUTER_HISTORY_LIMIT = 4;
-const ROUTER_MAX_TOKENS = 6;
+// gpt-oss is a reasoning model: with reasoning_format hidden the hidden chain
+// still counts against max_tokens, so a tiny cap leaves `content` empty and
+// every turn falls to the default. 120 is plenty for reasoning + one word and
+// still costs a fraction of a cent.
+const ROUTER_MAX_TOKENS = 120;
 const ROUTER_BREAKER_MAX = 3;
 const WEB_TIMEOUT_MS = 40_000;
-const WEB_HISTORY_LIMIT = 10;
+// Compound models have a modest context window and reject big payloads (413).
+// A live question is almost always self-contained — keep only a little context.
+const WEB_HISTORY_LIMIT = 4;
+const WEB_MSG_MAX_CHARS = 600;
 const LIVE_RATE_MAX = 10;
 const LIVE_RATE_WINDOW_MS = 300_000;
 const ROUTES = ["chat", "general", "live"];
 const ROUTER_SYSTEM = [
-  "Clasifica la ULTIMA pregunta del usuario en una sola palabra:",
-  "chat = se responde con los mensajes, archivos o conversaciones del usuario en Atlas ERP.",
-  "live = necesita datos actuales de internet: precios, tipo de cambio, noticias, clima, deportes, 'hoy', 'ahora', 'ultima version'.",
-  "general = conocimiento general que un asistente ya sabe sin buscar: definiciones, conceptos, redaccion, traduccion, codigo.",
-  "Responde SOLO esa palabra, sin puntuacion.",
-].join(" ");
+  "Eres un clasificador. Clasifica la ULTIMA pregunta del usuario en exactamente una de estas tres palabras:",
+  "chat  -> se responde leyendo los mensajes, archivos o conversaciones del propio usuario en Atlas ERP (ej: 'resume mis ultimos mensajes', 'que dijo Juan ayer', 'que archivos compartimos').",
+  "live  -> necesita un dato actual de internet: precio, tipo de cambio, cotizacion, noticia, clima, resultado, version reciente, cualquier cosa con 'hoy'/'ahora'/'actual' (ej: 'cuanto esta el dolar hoy', 'precio del bitcoin', 'que paso en...').",
+  "general -> conocimiento que un asistente ya sabe sin buscar ni leer el chat: definiciones, conceptos, explicaciones, redaccion, traduccion, codigo (ej: 'que significa limerencia', 'traduce esto', 'explicame recursion').",
+  "Responde UNICAMENTE con chat, live o general. Sin punto, sin explicacion.",
+].join("\n");
 
 function chatSystemPrompt() {
   const date = toLocalIso();
@@ -340,7 +347,7 @@ export function createMeridianService({
     rows.reverse();
     return rows.map((m) => ({
       role: m.sender_type === "assistant" ? "assistant" : "user",
-      content: m.body || "",
+      content: String(m.body || "").slice(0, WEB_MSG_MAX_CHARS),
     }));
   }
 
@@ -374,10 +381,16 @@ export function createMeridianService({
         runError = "live-rate-limited";
       } else {
         try {
-          finalText = (await callWeb(conversationId)) || "No encontre un dato confiable ahora mismo.";
+          finalText = (await callWeb(conversationId)) || "Busque pero no encontre un dato confiable ahora mismo.";
         } catch (err) {
-          finalText = "No pude buscar eso ahora mismo, intentalo de nuevo en un momento.";
-          runError = String(err?.message ?? err).slice(0, 200);
+          const detail = String(err?.message ?? err);
+          // The Groq compound (web-search) model is gated by plan/account and
+          // returns 413 when it is not enabled — surface that as "no puedo
+          // buscar", not a transient error.
+          finalText = /413|request_too_large|not.*(enabled|available)/i.test(detail)
+            ? "Ahora mismo no puedo consultar internet en este entorno."
+            : "No pude buscar eso ahora mismo, intentalo de nuevo en un momento.";
+          runError = detail.slice(0, 200);
         }
       }
     } else {
