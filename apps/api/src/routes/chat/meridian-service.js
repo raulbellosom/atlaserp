@@ -61,6 +61,8 @@ export function createMeridianService({
     signAttachmentUrl: signAttachmentUrl ?? (async () => { throw new Error("firma de adjuntos no disponible"); }),
   });
 
+  // Per-process state: a multi-instance deployment gets N x the rate limit and
+  // no global serialization of concurrent turns. Acceptable for v1.
   const buckets = new Map();       // actorProfileId -> number[]
   const inFlight = new Set();       // conversationId currently being processed
 
@@ -71,6 +73,9 @@ export function createMeridianService({
   function checkRate(actorProfileId) {
     const now = Date.now();
     const arr = (buckets.get(actorProfileId) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+    // Reap a bucket once its window has fully drained instead of leaving one
+    // empty array per past actor in the Map.
+    if (arr.length === 0) buckets.delete(actorProfileId);
     if (arr.length >= RATE_MAX) return false;
     arr.push(now);
     buckets.set(actorProfileId, arr);
