@@ -352,12 +352,14 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
             triggerMessageId: result?.id ?? null,
           }).catch((e) => console.error("[atlas.chat] meridian turn", e?.message ?? e));
         } else if (
-          (conv?.type === "channel" || conv?.type === "group") &&
+          (conv?.type === "channel" || conv?.type === "group" || conv?.type === "direct") &&
           result?.sender_type !== "assistant" &&
           meridianService.matchMeridianMention(data.body)
         ) {
-          // @meridIAn in a channel: reply publicly, but only if the sender may
-          // use MeridIAn. userContext is already loaded by requirePermission.
+          // @meridIAn in a channel/group/DM: reply visibly, but only if the
+          // sender may use MeridIAn. userContext is already loaded by
+          // requirePermission. (The `meridian` and `external_support` types are
+          // handled above / excluded on purpose.)
           const uctx = c.get("userContext");
           const allowed = Boolean(uctx?.isAdmin || uctx?.permissionSet?.has("chat.meridian.use"));
           if (allowed) {
