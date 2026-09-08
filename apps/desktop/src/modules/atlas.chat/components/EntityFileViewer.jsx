@@ -8,13 +8,17 @@
 // entity references the same rich image/PDF/video/audio viewer real
 // attachments already get, instead of a plain download link.
 import { useCallback, useRef } from "react";
+import { useOfficeActions } from "@atlas/ui";
 import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
-export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, onIndexChange }) {
+export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, onIndexChange, onOpenInOffice = null, canOpenInOffice = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
+  const office = useOfficeActions();
+  const resolvedOnOpenInOffice =
+    onOpenInOffice ?? ((f) => office?.enabled && office.open(f.id));
   const fullUrlCacheRef = useRef(new Map());
 
   const resolveSignedUrl = useCallback(
@@ -42,6 +46,8 @@ export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, o
       activeIndex={activeIndex}
       onIndexChange={onIndexChange}
       onResolveSignedUrl={resolveSignedUrl}
+      onOpenInOffice={resolvedOnOpenInOffice}
+      canOpenInOffice={canOpenInOffice}
       zIndex={10000}
     />
   );

@@ -1,4 +1,5 @@
 import { useCallback, useRef } from "react";
+import { useOfficeActions } from "@atlas/ui";
 import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
 import { atlas } from "../../../lib/atlas";
 import { isAudioAttachment } from "../lib/chatUtils";
@@ -19,6 +20,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIndex, onIndexChange }) {
   const { session } = useAuth();
   const token = session?.access_token;
+  const office = useOfficeActions();
   // Per-viewer-session cache so re-visiting an already-viewed attachment
   // (e.g. navigating A -> B -> A in a multi-image message) doesn't re-fetch
   // the full-res signed URL over the network every time.
@@ -66,6 +68,12 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
       activeIndex={activeIndex ?? 0}
       onIndexChange={onIndexChange}
       onResolveSignedUrl={resolveSignedUrl}
+      onOpenInOffice={(f) => {
+        // B1: only entity references are FileAsset-backed. Real chat
+        // attachments get their own path in Plan B2.
+        if (f?.isEntityRef && office?.enabled) office.open(f.id);
+      }}
+      canOpenInOffice={(f) => Boolean(f?.isEntityRef)}
       zIndex={10000}
     />
   );
