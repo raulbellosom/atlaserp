@@ -215,6 +215,54 @@ export function buildToolRunners({ prisma, listMessages, chatSearchService, visi
   };
 }
 
+// ---------------------------------------------------------------------------
+// Spec 3 — the single tool for a `@meridIAn` channel mention. No assertMember:
+// the mention came from a channel member and the reply is public in that same
+// channel, so reading its recent history exposes nothing the members don't see.
+// ---------------------------------------------------------------------------
+export const CHANNEL_TOOL_DEFS = [{
+  type: "function",
+  function: {
+    name: "get_channel_messages",
+    description: "Devuelve los mensajes recientes de ESTE canal (donde te mencionaron). Es tu unica fuente de contexto ademas de tu conocimiento general.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 40, description: "Cuantos traer (max 40, por defecto 25)." },
+      },
+    },
+  },
+}];
+
+export function buildChannelToolRunners({ prisma }) {
+  async function get_channel_messages(args, ctx) {
+    const limit = Math.min(Math.max(parseInt(args?.limit, 10) || 25, 1), 40);
+    const rows = await prisma.$queryRaw`
+      SELECT m.sender_type, m.body, m.message_type, m.created_at, m.attachment_count,
+             up.display_name AS sender_name
+      FROM chat_messages m
+      LEFT JOIN user_profile up ON up.id = m.sender_user_id
+      WHERE m.conversation_id = ${ctx.conversationId}::uuid
+        AND m.deleted_at IS NULL
+        AND m.thread_root_id IS NULL
+      ORDER BY m.created_at DESC
+      LIMIT ${limit}
+    `;
+    rows.reverse();
+    return {
+      messages: rows.map((m) => ({
+        senderName: m.sender_name ?? (m.sender_type === "assistant" ? "MeridIAn" : m.sender_type === "system" ? "sistema" : "desconocido"),
+        senderType: m.sender_type,
+        body: String(m.body ?? "").slice(0, 2000),
+        messageType: m.message_type,
+        sentAt: m.created_at instanceof Date ? m.created_at.toISOString() : String(m.created_at),
+        attachmentCount: m.attachment_count ?? 0,
+      })),
+    };
+  }
+  return { get_channel_messages };
+}
+
 // Download an attachment's bytes via a service-role signed URL and return
 // base64. `signAttachmentUrl` is injected by meridian-service (Task 6), so this
 // module never imports supabase and the non-image tests never reach here.
