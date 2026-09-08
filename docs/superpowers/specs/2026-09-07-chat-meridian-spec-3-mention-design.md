@@ -18,8 +18,10 @@ Ejemplos:
 
 ### No-objetivos (v1)
 
-- No en conversaciones `direct` ni `external_support` ni `meridian` (el chat
-  directo ya es toda la superficie ahí).
+- No en `external_support` (invitados) ni en la conversación `meridian` (esa va
+  por `handleUserMessage`). **Actualización 2026-09-07:** sí se habilitó en
+  `direct` (DM 1-a-1) además de canales/grupos — un usuario esperaba poder
+  `@meridIAn` en un DM.
 - No búsqueda entre conversaciones (`search_my_conversations`): en un canal
   "mis conversaciones" no tiene un dueño único. Solo contexto del canal.
 - No `describe_image` en v1 (se puede añadir después; el canal ya tiene los
