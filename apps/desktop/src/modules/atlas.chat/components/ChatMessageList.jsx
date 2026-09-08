@@ -57,6 +57,7 @@ export function ChatMessageList({
   onToggleReaction,
   onOpenThread,
   onReplyToMessage,
+  onAskMeridian,
   onJumpToMessage,
   onJumpFailed,
   onJumpToThread,
@@ -570,6 +571,7 @@ export function ChatMessageList({
               deletingAttachmentId={deletingAttachmentId}
               onOpenThreadForMessage={onOpenThread}
               onReply={!isDeleted && !isPending && onReplyToMessage ? onReplyToMessage : undefined}
+              onAskMeridian={!isDeleted && !isPending && onAskMeridian ? onAskMeridian : undefined}
               onJumpToMessage={onJumpToMessage}
               selectionMode={selectionMode}
               isSelected={selectedMsgIds?.has(item.id) ?? false}

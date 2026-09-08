@@ -6,7 +6,7 @@ import {
   ArrowLeft, Users, FolderOpen, MessageSquare,
   MoreVertical, Trash2, X as XIcon, Search, Forward, Copy, CheckSquare,
   ChevronUp, ChevronDown, ChevronRight, Archive, ArchiveRestore, Pin,
-  Phone, Video, UserPlus,
+  Phone, Video, UserPlus, Sparkles,
 } from "lucide-react";
 import { useConversationFiles } from "../hooks/useConversationFiles";
 import { ErrorState } from "@atlas/ui";
@@ -14,6 +14,7 @@ import { ChatFilesGallery } from "./ChatFilesGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { MeridianIntro } from "./MeridianIntro";
+import { MeridianPanel } from "./MeridianPanel";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
@@ -70,6 +71,7 @@ function ChatHeader({
   onOpenPinned,
   callsEnabled, callPending, onStartAudioCall, onStartVideoCall, onOpenGuestLink,
   isMeridian = false,
+  onOpenMeridian, meridianDisabled = false,
   embedded = null, onCollapse = null,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
@@ -301,6 +303,19 @@ function ChatHeader({
           </>
         )}
 
+        {/* MeridIAn assistant panel */}
+        {!isMeridian && onOpenMeridian && conversation?.type !== "external_support" && (
+          <button
+            type="button"
+            onClick={onOpenMeridian}
+            disabled={meridianDisabled}
+            className={[headerBtnCls, meridianDisabled ? "opacity-40 cursor-not-allowed" : ""].join(" ")}
+            title={meridianDisabled ? "MeridIAn no esta configurado" : "Preguntar a MeridIAn sobre esta conversacion"}
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
+        )}
+
         {/* Search */}
         <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Buscar mensajes">
           <Search className="h-4 w-4" />
@@ -460,6 +475,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const [membersView, setMembersView] = useState(false);
   const [profileInitialTab, setProfileInitialTab] = useState(null);
   const [showPinned, setShowPinned] = useState(false);
+  const [meridianPanelOpen, setMeridianPanelOpen] = useState(false);
+  const [meridianFocus, setMeridianFocus] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [jumpTarget, setJumpTarget] = useState(null);
   const [threadPanelRootId, setThreadPanelRootId] = useState(null);
@@ -876,6 +893,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onOpenProfile={openProfile}
         onOpenPinned={() => setShowPinned(true)}
         isMeridian={isMeridian}
+        onOpenMeridian={() => { setMeridianFocus(null); setMeridianPanelOpen(true); }}
+        meridianDisabled={meridianStatus?.available === false}
         callsEnabled={callsEnabled}
         callPending={callPending}
         onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
@@ -944,6 +963,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
               onOpenThread={(messageId) => setThreadPanelRootId(messageId)}
               onReplyToMessage={(msg) => setReplyingTo(msg)}
+              onAskMeridian={
+                isMeridian || conversation?.type === "external_support" || meridianStatus?.available === false
+                  ? undefined
+                  : (msg) => { setMeridianFocus(msg); setMeridianPanelOpen(true); }
+              }
               onJumpToMessage={(id) => setJumpTarget({ id, nonce: Date.now() })}
               onJumpFailed={() =>
                 toast.message(
@@ -1073,6 +1097,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         members={detailMembers ?? conversation.members}
         onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}
       />
+
+      {!isMeridian && conversation?.type !== "external_support" && (
+        <MeridianPanel
+          open={meridianPanelOpen}
+          onOpenChange={(o) => { setMeridianPanelOpen(o); if (!o) setMeridianFocus(null); }}
+          conversationId={conversationId}
+          focusMessage={meridianFocus}
+        />
+      )}
     </div>
   );
 }

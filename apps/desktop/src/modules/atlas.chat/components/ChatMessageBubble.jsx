@@ -104,12 +104,12 @@ function SwipeReplyHint({ translateX, isOwn }) {
 // shared with MessageActionSheet (mobile long-press / desktop right-click).
 function MessageActions({
   isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
-  canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply,
+  canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply, onAskMeridian,
 }) {
   const actions = buildMessageActions({
     hasBody, isOwn, canPin, isPinned, canReply,
     onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
-    onDelete, onHideForMe,
+    onDelete, onHideForMe, onAskMeridian,
   });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
@@ -257,6 +257,7 @@ export function ChatMessageBubble({
   isThreadReplyView = false,
   onOpenThreadForMessage,
   onReply,
+  onAskMeridian,
   onJumpToMessage,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
@@ -581,6 +582,7 @@ export function ChatMessageBubble({
             canReply={canReply}
             onOpenThread={onOpenThread}
             onReply={onReply ? () => onReply(message) : undefined}
+            onAskMeridian={onAskMeridian ? () => onAskMeridian(message) : undefined}
           />
         )}
         <MessageActionSheet
@@ -594,6 +596,7 @@ export function ChatMessageBubble({
             hasBody, isOwn: true, canPin, isPinned, canReply,
             onReply: onReply ? () => onReply(message) : undefined,
             onCopy, onForward, onEnterSelection, onPin, onOpenThread, onDelete, onHideForMe,
+            onAskMeridian: onAskMeridian ? () => onAskMeridian(message) : undefined,
           }}
           onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
           onOpenFullPicker={() => setReactionPickerOpen(true)}
@@ -773,6 +776,7 @@ export function ChatMessageBubble({
           hasBody, isOwn: false, canPin, isPinned, canReply,
           onReply: onReply ? () => onReply(message) : undefined,
           onCopy, onForward, onEnterSelection, onPin, onOpenThread, onDelete, onHideForMe,
+          onAskMeridian: onAskMeridian ? () => onAskMeridian(message) : undefined,
         }}
         onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
         onOpenFullPicker={() => setReactionPickerOpen(true)}
@@ -936,6 +940,7 @@ export function ChatMessageBubble({
           canReply={canReply}
           onOpenThread={onOpenThread}
           onReply={onReply ? () => onReply(message) : undefined}
+          onAskMeridian={onAskMeridian ? () => onAskMeridian(message) : undefined}
         />
       )}
     </div>
