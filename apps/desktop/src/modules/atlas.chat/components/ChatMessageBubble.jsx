@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   CheckCheck, MoreHorizontal, Copy, Trash2, Forward, EyeOff, CheckSquare,
-  Pin, PinOff, Smile, MessageSquare, CornerUpLeft,
+  Pin, PinOff, Smile, MessageSquare, CornerUpLeft, Sparkles,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -459,9 +459,11 @@ export function ChatMessageBubble({
   }
 
   const attachments = message.attachments ?? [];
-  const senderName =
-    message.sender?.displayName ??
-    (message.sender_type === "guest" ? "Visitante" : "Usuario");
+  const isAssistant = message.sender_type === "assistant";
+  const senderName = isAssistant
+    ? "MeridIAn"
+    : (message.sender?.displayName ??
+      (message.sender_type === "guest" ? "Visitante" : "Usuario"));
 
   const radius = bubbleRadius(isOwn, isFirst, isLast);
   const rowPaddingY = isFirst ? "mt-2" : "mt-0.5";
@@ -777,7 +779,14 @@ export function ChatMessageBubble({
       />
       {/* Avatar — invisible on non-last to keep column alignment */}
       <div className={["shrink-0", isLast ? "visible" : "invisible"].join(" ")}>
-        {message.sender?.avatarUrl && !avatarErr ? (
+        {isAssistant ? (
+          <div
+            className="h-7 w-7 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+          </div>
+        ) : message.sender?.avatarUrl && !avatarErr ? (
           <img
             src={message.sender.avatarUrl}
             alt={senderName}
