@@ -32,7 +32,18 @@ export function createOfficeRouter({ officeService, authMiddleware, requirePermi
     }
     return c.json({ data: await officeService.createSession({ authUserId: c.get('authUserId'), fileId: c.req.param('id'), mode: body.mode ?? 'auto', origin: c.req.header('Origin') }) });
   });
-  const request = c => ({ fileId: c.req.param('id'), token: c.req.query('access_token') ?? c.req.header('Authorization')?.replace(/^Bearer /i, '') });
+  // `:id` is either a bare FileAsset UUID or `chat:<uuid>` / `chat-<uuid>` for a
+  // chat_attachment. Demultiplex here so the token's `source` claim can be
+  // cross-checked in the service.
+  const request = c => {
+    const raw = c.req.param('id');
+    const m = /^chat[:-]([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(raw);
+    return {
+      fileId: m ? m[1] : raw,
+      source: m ? 'chat_attachment' : 'file_asset',
+      token: c.req.query('access_token') ?? c.req.header('Authorization')?.replace(/^Bearer /i, ''),
+    };
+  };
   router.get('/wopi/files/:id', async c => c.json(await officeService.checkFileInfo(request(c))));
   router.get('/wopi/files/:id/contents', async c => {
     const file = await officeService.getFile(request(c));

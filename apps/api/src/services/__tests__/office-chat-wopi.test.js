@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Hono } from 'hono';
 import { OFFICE_FORMATS } from '@atlas/core';
 import { createOfficeService } from '../office/service.js';
+import { createOfficeRouter } from '../../routes/office.js';
 import { officeEnv, officeBytes } from './office-fixture.js';
 
 const ids = {
@@ -99,6 +101,19 @@ test('chat attachment: putFile requires the WOPI lock', async () => {
     service.putFile({ fileId: ids.att, token: s.accessToken, source: 'chat_attachment', bytes: await officeBytes('xlsx', 'x'), lock: 'LK1' }),
     status(409),
   );
+});
+
+test('WOPI route resolves /wopi/files/chat:<uuid> to the chat backend', async () => {
+  const { service } = chatFixture();
+  const s = await service.createSession({ authUserId: ids.auth, fileId: ids.att, mode: 'edit', source: 'chat_attachment' });
+  const app = new Hono();
+  app.route('/', createOfficeRouter({ officeService: service, authMiddleware: async (_, next) => next(), requirePermission: () => async (_, next) => next() }));
+  const ok = await app.request(`/wopi/files/chat:${ids.att}?access_token=${encodeURIComponent(s.accessToken)}`);
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).BaseFileName, 'plan.xlsx');
+  // Same token, no chat: prefix → treated as file_asset → source mismatch → 401.
+  const mismatch = await app.request(`/wopi/files/${ids.att}?access_token=${encodeURIComponent(s.accessToken)}`);
+  assert.equal(mismatch.status, 401);
 });
 
 test('chat attachment: putFile writes a version row, bumps the revision and broadcasts', async () => {
