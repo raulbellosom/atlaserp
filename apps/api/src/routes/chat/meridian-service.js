@@ -123,11 +123,26 @@ export function createMeridianService({
     if (existing.length) return { conversationId: existing[0].id, created: false };
 
     const botId = await getOrCreateMeridianProfile({ companyId: resolvedCompanyId });
+    // GET /chat/conversations and GET /chat/meridian both call this on first
+    // load; the partial unique index chat_conversations_one_meridian_per_user_idx
+    // turns the loser of that race into a no-op insert instead of a duplicate.
     const convRows = await prisma.$queryRaw`
       INSERT INTO chat_conversations (type, title, created_by_user_id, company_id, is_public)
       VALUES ('meridian', 'MeridIAn', ${actorProfileId}::uuid, ${resolvedCompanyId}, false)
+      ON CONFLICT ("created_by_user_id") WHERE type = 'meridian' AND deleted_at IS NULL DO NOTHING
       RETURNING id
     `;
+    if (!convRows.length) {
+      const raced = await prisma.$queryRaw`
+        SELECT c.id
+        FROM chat_conversations c
+        WHERE c.type = 'meridian'
+          AND c.deleted_at IS NULL
+          AND EXISTS (SELECT 1 FROM chat_conversation_members m WHERE m.conversation_id = c.id AND m.user_id = ${actorProfileId}::uuid AND m.left_at IS NULL)
+        LIMIT 1
+      `;
+      return { conversationId: raced[0]?.id, created: false };
+    }
     const conversationId = convRows[0].id;
     await prisma.$executeRaw`
       INSERT INTO chat_conversation_members (conversation_id, user_id, role, pinned_at)
