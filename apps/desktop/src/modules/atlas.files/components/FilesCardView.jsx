@@ -1,4 +1,4 @@
-import { Badge, Button, Card } from "@atlas/ui";
+import { Badge, Button, Card, TypeBadge } from "@atlas/ui";
 import {
   Download,
   Eye,
@@ -8,7 +8,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { FileVisual } from "./FileVisual";
-import { formatBytes, formatDate } from "../lib/file-kind";
+import {
+  formatBytes,
+  formatDate,
+  getFileKind,
+  getKindLabel,
+  getKindAccent,
+} from "../lib/file-kind";
 
 export function FilesCardView({
   files,
@@ -50,9 +56,16 @@ export function FilesCardView({
               >
                 {file.originalName}
               </p>
-              <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
-                {file.mimeType}
-              </p>
+              <div className="mt-0.5">
+                {(() => {
+                  const kind = getFileKind(file);
+                  return (
+                    <TypeBadge accent={getKindAccent(kind)}>
+                      {getKindLabel(kind)}
+                    </TypeBadge>
+                  );
+                })()}
+              </div>
               <p className="text-xs text-[hsl(var(--muted-foreground))] mt-1">
                 {formatBytes(file.sizeBytes)} · {formatDate(file.createdAt)}
               </p>

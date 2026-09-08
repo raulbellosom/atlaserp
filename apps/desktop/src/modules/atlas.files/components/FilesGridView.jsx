@@ -1,7 +1,7 @@
-import { Button } from "@atlas/ui";
+import { Button, TypeBadge } from "@atlas/ui";
 import { Download, Eye, Trash2 } from "lucide-react";
 import { FileVisual } from "./FileVisual";
-import { getFileKind, getKindLabel } from "../lib/file-kind";
+import { getFileKind, getKindLabel, getKindAccent } from "../lib/file-kind";
 
 export function FilesGridView({
   files,
@@ -67,9 +67,16 @@ export function FilesGridView({
             >
               {file.originalName}
             </p>
-            <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
-              {getKindLabel(getFileKind(file.mimeType))}
-            </p>
+            <div className="mt-0.5">
+              {(() => {
+                const kind = getFileKind(file);
+                return (
+                  <TypeBadge accent={getKindAccent(kind)}>
+                    {getKindLabel(kind)}
+                  </TypeBadge>
+                );
+              })()}
+            </div>
           </div>
           <div className="mt-2 flex items-center gap-1">
             <Button
