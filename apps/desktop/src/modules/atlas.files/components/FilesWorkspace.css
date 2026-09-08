@@ -114,7 +114,9 @@
   .files-workspace-table th:nth-child(4),
   .files-workspace-table td:nth-child(4),
   .files-workspace-table th:nth-child(5),
-  .files-workspace-table td:nth-child(5) {
+  .files-workspace-table td:nth-child(5),
+  .files-workspace-table th:nth-child(6),
+  .files-workspace-table td:nth-child(6) {
     display: none;
   }
   .files-workspace-table table {

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DataTable, Checkbox, Button, ActionMenu, Badge } from "@atlas/ui";
+import { DataTable, Checkbox, Button, ActionMenu, Badge, TypeBadge } from "@atlas/ui";
 import {
   Download,
   Link2,
@@ -17,6 +17,7 @@ import {
   formatDate,
   getFileKind,
   getKindLabel,
+  getKindAccent,
 } from "../lib/file-kind";
 
 export function FilesWorkspaceTable({
@@ -85,11 +86,22 @@ export function FilesWorkspaceTable({
                     {f.originalName}
                   </Button>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    {getKindLabel(getFileKind(f.mimeType))} ·{" "}
                     {formatBytes(f.sizeBytes)}
                   </p>
                 </div>
               </div>
+            );
+          },
+        },
+        {
+          id: "kind",
+          header: "Tipo",
+          cell: ({ row }) => {
+            const kind = getFileKind(row.original);
+            return (
+              <TypeBadge accent={getKindAccent(kind)}>
+                {getKindLabel(kind)}
+              </TypeBadge>
             );
           },
         },
