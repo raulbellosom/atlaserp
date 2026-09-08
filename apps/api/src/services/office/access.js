@@ -62,7 +62,67 @@ export function createOfficeAccess({ prisma }) {
     const format = getOfficeFormat(file);
     if (!format || file.bucket !== 'atlas-files' || file.visibility === 'PUBLIC') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
     if (file.sizeBytes > 10 * 1024 * 1024) throw new OfficeError('El archivo supera 10 MB.', 413, 'file_too_large');
-    return { file, profile, companyId, format };
+    return { source: 'file_asset', file, profile, companyId, format };
   }
-  return { authorize };
+
+  // Chat attachments live in raw-SQL tables (chat_attachments), not Prisma
+  // models. Access is gated by active conversation membership; editing also
+  // requires a non-guest role and an original NOT uploaded by a guest. The
+  // returned `file` is normalised to the same camelCase shape the FileAsset
+  // path yields, so the WOPI service can treat both origins uniformly.
+  async function authorizeChatAttachment({ authUserId, attachmentId, mode = 'view' }, db = prisma) {
+    if (!OFFICE_FILE_ID.test(attachmentId ?? '')) throw new OfficeError('Identificador de archivo inválido.', 400, 'invalid_file_id');
+    const profile = await db.userProfile.findUnique({ where: { authUserId } });
+    if (!profile?.enabled) throw new OfficeError('No tienes acceso al documento.', 403, 'forbidden');
+
+    const rows = await db.$queryRaw`
+      SELECT a.id, a.conversation_id, a.bucket, a.object_key, a.file_name, a.mime_type,
+             a.size_bytes, a.uploaded_by_guest_id, a.content_revision, a.checksum,
+             a.office_lock, a.office_lock_expires_at, a.updated_at,
+             c.company_id AS company_id
+      FROM chat_attachments a
+      JOIN chat_conversations c ON c.id = a.conversation_id
+      WHERE a.id = ${attachmentId}::uuid
+      LIMIT 1
+    `;
+    const att = rows[0];
+    if (!att) throw new OfficeError('Archivo no encontrado.', 404, 'file_not_found');
+    const companyId = att.company_id;
+    if (!companyId) throw new OfficeError('No tienes acceso al documento.', 403, 'forbidden');
+
+    const memberRows = await db.$queryRaw`
+      SELECT role FROM chat_conversation_members
+      WHERE conversation_id = ${att.conversation_id}::uuid
+        AND user_id = ${profile.id}::uuid
+        AND left_at IS NULL
+      LIMIT 1
+    `;
+    const role = memberRows[0]?.role;
+    if (!role) throw new OfficeError('No perteneces a esta conversación.', 403, 'forbidden');
+    if (mode === 'edit') {
+      if (!['owner', 'admin', 'member'].includes(role)) throw new OfficeError('Solo lectura en esta conversación.', 403, 'read_only');
+      if (att.uploaded_by_guest_id) throw new OfficeError('Este archivo lo subió un invitado; solo lectura.', 403, 'unsupported_scope');
+    }
+
+    const file = {
+      id: att.id,
+      originalName: att.file_name,
+      mimeType: att.mime_type,
+      bucket: att.bucket,
+      objectKey: att.object_key,
+      sizeBytes: Number(att.size_bytes),
+      contentRevision: att.content_revision,
+      checksum: att.checksum,
+      officeLock: att.office_lock,
+      officeLockExpiresAt: att.office_lock_expires_at,
+      updatedAt: att.updated_at,
+      conversationId: att.conversation_id,
+    };
+    const format = getOfficeFormat({ originalName: file.originalName, mimeType: file.mimeType });
+    if (!format || file.bucket !== 'atlas-chat') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
+    if (file.sizeBytes > 10 * 1024 * 1024) throw new OfficeError('El archivo supera 10 MB.', 413, 'file_too_large');
+    return { source: 'chat_attachment', file, profile, companyId, format, conversationId: file.conversationId };
+  }
+
+  return { authorize, authorizeChatAttachment };
 }
