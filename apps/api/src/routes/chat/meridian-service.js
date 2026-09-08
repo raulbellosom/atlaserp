@@ -502,7 +502,9 @@ export function createMeridianService({
     let runModel = model;
 
     if (route === "live") {
-      runModel = webModel;
+      // Tavily does the search, then the base model phrases the answer; compound
+      // does everything itself. Record the model that actually ran the LLM.
+      runModel = webProvider === "tavily" ? model : webModel;
       if (!webEnabled) {
         finalText = "No tengo acceso a datos en vivo ni a internet.";
         runError = "web-disabled";
