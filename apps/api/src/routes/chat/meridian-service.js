@@ -179,18 +179,23 @@ export function createMeridianService({
     return json;
   }
 
-  async function callGroq(messages) {
+  // One place for the Groq HTTP call: retry once on 429/5xx or a network error,
+  // abort after timeoutMs. Returns the assistant `message` object or throws.
+  // Shared by the chat loop (callGroq), the turn classifier, and the web turn.
+  async function callGroqRaw({ model: m, messages, tools, toolChoice, maxTokens = 1000, timeoutMs = GROQ_TIMEOUT_MS }) {
     const body = {
-      model, temperature: 0.2, max_tokens: 1000,
-      tools: TOOL_DEFS, tool_choice: "auto",
-      ...(isReasoningModel(model) ? { reasoning_format: "hidden" } : {}),
+      model: m,
+      temperature: 0.2,
+      max_tokens: maxTokens,
+      ...(tools ? { tools, tool_choice: toolChoice ?? "auto" } : {}),
+      ...(isReasoningModel(m) ? { reasoning_format: "hidden" } : {}),
       messages,
     };
     let lastErr;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, 1200));
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       let res;
       try {
         res = await fetchFn(`${baseUrl}/openai/v1/chat/completions`, {
@@ -206,6 +211,10 @@ export function createMeridianService({
       return payload?.choices?.[0]?.message ?? null;
     }
     throw lastErr ?? new Error("Groq sin respuesta");
+  }
+
+  async function callGroq(messages) {
+    return callGroqRaw({ model, messages, tools: TOOL_DEFS, toolChoice: "auto", maxTokens: 1000, timeoutMs: GROQ_TIMEOUT_MS });
   }
 
   async function loadHistory(conversationId) {
