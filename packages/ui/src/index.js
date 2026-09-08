@@ -12,6 +12,7 @@ export {
   CardFooter,
 } from "./components/Card.jsx";
 export { Badge, badgeVariants } from "./components/Badge.jsx";
+export { TypeBadge } from "./components/TypeBadge.jsx";
 export { Separator } from "./components/Separator.jsx";
 export { Skeleton } from "./components/Skeleton.jsx";
 export { ProgressBar } from "./components/ProgressBar.jsx";

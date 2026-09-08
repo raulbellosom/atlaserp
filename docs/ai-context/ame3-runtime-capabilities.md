@@ -346,6 +346,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Button`, `buttonVariants` | Action button with size/variant props |
 | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` | Content card container |
 | `Badge`, `badgeVariants` | Status and label badge |
+| `TypeBadge` | Accent-coloured pill (`accent` hex, e.g. file/asset type). Background/border derived via `color-mix` for light+dark. |
 | `Separator` | Horizontal or vertical divider |
 | `Skeleton` | Loading placeholder |
 | `ProgressBar` | Determinate (`value` 0-100) or indeterminate (`value={null}`) progress bar for long-running background operations |
