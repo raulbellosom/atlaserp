@@ -231,6 +231,14 @@ export function createMeridianService({
 
       for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
         iterations = iter + 1;
+        if (iter === MAX_TOOL_ITERATIONS - 1) {
+          // Final permitted iteration: another Groq round here could only ask
+          // for tools whose output no later iteration could act on. Stop now
+          // instead of paying for a discarded round (Groq call + possibly an
+          // expensive describe_image / vision tool run).
+          finalText = "No pude terminar de revisarlo (demasiados pasos). Intenta con algo mas concreto.";
+          break;
+        }
         const msg = await callGroq(llmMessages);
         const toolCalls = msg?.tool_calls ?? [];
         if (!toolCalls.length) {
@@ -252,9 +260,6 @@ export function createMeridianService({
           }
           toolLog.push({ name, ms: Date.now() - t0, ok: !result?.error });
           llmMessages.push({ role: "tool", tool_call_id: call.id, content: clampToolResult(result) });
-        }
-        if (iter === MAX_TOOL_ITERATIONS - 1) {
-          finalText = "No pude terminar de revisarlo (demasiados pasos). Intenta con algo mas concreto.";
         }
       }
     } catch (err) {
