@@ -89,7 +89,9 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     if (error || !data?.signedUrl) throw new Error("no se pudo firmar el adjunto");
     return data.signedUrl;
   }
-  async function insertMeridianReply({ conversationId, body }) {
+  async function insertMeridianReply({ conversationId, body, replyToMessageId = null }) {
+    // The bot is a member of the `meridian` direct chat, but NOT of channels it
+    // is only @mentioned in — fall back to the company's bot profile there.
     const [botRow] = await prisma.$queryRaw`
       SELECT m.user_id AS bot_id
       FROM chat_conversation_members m
@@ -97,13 +99,24 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       WHERE m.conversation_id = ${conversationId}::uuid AND up.is_bot = true
       LIMIT 1
     `;
-    const botId = botRow?.bot_id ?? null;
+    let botId = botRow?.bot_id ?? null;
     if (!botId) {
-      console.warn("[atlas.chat] MeridIAn reply: no bot member found for conversation", conversationId);
+      const [row] = await prisma.$queryRaw`
+        SELECT up.id AS bot_id
+        FROM chat_conversations c
+        JOIN membership mm ON mm.company_id = c.company_id AND mm.enabled = true
+        JOIN user_profile up ON up.id = mm.user_id AND up.is_bot = true
+        WHERE c.id = ${conversationId}::uuid
+        LIMIT 1
+      `;
+      botId = row?.bot_id ?? null;
+    }
+    if (!botId) {
+      console.warn("[atlas.chat] MeridIAn reply: no bot profile found for conversation", conversationId);
     }
     const [msg] = await prisma.$queryRaw`
-      INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type)
-      VALUES (${conversationId}::uuid, ${botId}, 'assistant', ${String(body).slice(0, 4000)}, 'text')
+      INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, reply_to_message_id)
+      VALUES (${conversationId}::uuid, ${botId}, 'assistant', ${String(body).slice(0, 4000)}, 'text', ${replyToMessageId})
       RETURNING id, created_at
     `;
     await prisma.$executeRaw`
@@ -325,6 +338,26 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
             actorAuthUserId: authUserId,
             triggerMessageId: result?.id ?? null,
           }).catch((e) => console.error("[atlas.chat] meridian turn", e?.message ?? e));
+        } else if (
+          (conv?.type === "channel" || conv?.type === "group") &&
+          result?.sender_type !== "assistant" &&
+          meridianService.matchMeridianMention(data.body)
+        ) {
+          // @meridIAn in a channel: reply publicly, but only if the sender may
+          // use MeridIAn. userContext is already loaded by requirePermission.
+          const uctx = c.get("userContext");
+          const allowed = Boolean(uctx?.isAdmin || uctx?.permissionSet?.has("chat.meridian.use"));
+          if (allowed) {
+            const actorProfileId = await resolveUserProfileId(prisma, authUserId);
+            meridianService.handleChannelMention({
+              companyId: conv.company_id ?? c.get("companyId") ?? null,
+              conversationId,
+              actorProfileId,
+              actorAuthUserId: authUserId,
+              triggerMessageId: result?.id ?? null,
+              mentionText: data.body,
+            }).catch((e) => console.error("[atlas.chat] meridian mention", e?.message ?? e));
+          }
         }
       } catch (e) {
         console.error("[atlas.chat] meridian dispatch", e?.message ?? e);
