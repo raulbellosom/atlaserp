@@ -2,6 +2,8 @@
 // every message read (listMessages / getMessageFull / listThreadReplies).
 // The caller supplies a flat row already joined to the original message's
 // sender name, first attachment mime, and an entity-ref flag.
+import { stripMentionTokens } from "../../lib/mention-utils.js";
+
 const MAX_PREVIEW = 120;
 
 export function buildReplyPreview(row) {
@@ -21,7 +23,7 @@ export function buildReplyPreview(row) {
     };
   }
 
-  const body = typeof row.body === "string" ? row.body.trim() : "";
+  const body = typeof row.body === "string" ? stripMentionTokens(row.body).trim() : "";
   let bodyPreview = null;
   if (body) {
     const collapsed = body.replace(/\s+/g, " ");

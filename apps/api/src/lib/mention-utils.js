@@ -6,3 +6,11 @@ export function parseMentionIds(body) {
   while ((m = regex.exec(body)) !== null) ids.push(m[1])
   return [...new Set(ids)]
 }
+
+// Turn the stored @[uuid:Display Name] mention tokens into a readable "@Display
+// Name" — for previews, search snippets, LLM input, anything that shows the
+// body as text rather than rendering mention chips.
+const MENTION_TOKEN_RE = /@\[[0-9a-fA-F-]{36}:([^\]]+)\]/g
+export function stripMentionTokens(body) {
+  return String(body ?? '').replace(MENTION_TOKEN_RE, '@$1')
+}

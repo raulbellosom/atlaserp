@@ -10,6 +10,7 @@
 import crypto from "node:crypto";
 import { toLocalIso, toLocalMonth } from "@atlas/core";
 import { isReasoningModel } from "../../services/groq-model-helpers.js";
+import { stripMentionTokens } from "../../lib/mention-utils.js";
 import { ChatServiceError } from "./chat-service-error.js";
 import { TOOL_DEFS, buildToolRunners, CHANNEL_TOOL_DEFS, buildChannelToolRunners } from "./meridian-tools.js";
 
@@ -51,17 +52,13 @@ const MERIDIAN_MENTION_RE = /(^|[\s([{<"'])@merid[ií]an\b/i;
 // serialized by MentionTextarea as @[<id>:MeridIAn]. MUST stay byte-identical
 // to MERIDIAN_MENTION_ID in apps/desktop/src/modules/atlas.chat/lib/meridian.js.
 const MERIDIAN_MENTION_ID = "00000000-0000-0000-0000-00000000b07a";
-// Turn any @[uuid:Name] token into a readable "@Name" for the classifier + LLM.
-const MENTION_TOKEN_RE = /@\[[0-9a-fA-F-]{36}:([^\]]+)\]/g;
 
 export function matchMeridianMention(body) {
   const s = String(body ?? "");
   return MERIDIAN_MENTION_RE.test(s) || s.includes(`@[${MERIDIAN_MENTION_ID}:`);
 }
 
-export function stripMentionTokens(body) {
-  return String(body ?? "").replace(MENTION_TOKEN_RE, "@$1");
-}
+export { stripMentionTokens };
 const ROUTER_SYSTEM = [
   "Eres un clasificador. Clasifica la ULTIMA pregunta del usuario en exactamente una de estas tres palabras:",
   "chat  -> se responde leyendo los mensajes, archivos o conversaciones del propio usuario en Atlas ERP (ej: 'resume mis ultimos mensajes', 'que dijo Juan ayer', 'que archivos compartimos').",
