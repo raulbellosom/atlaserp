@@ -7,6 +7,9 @@
 // through chatSearchService, already scoped to the caller's conversations.
 // describe_image verifies the attachment belongs to a conversation the caller
 // is a live member of before sending any bytes to the vision model.
+// search_atlas (ERP reach, Fase A) reuses the global-search providers, gated
+// per provider by the caller's own permissions.
+import { SEARCH_PROVIDERS } from "../../services/search-providers.js";
 
 const RECENT_MAX = 50;
 const SEARCH_MAX = 30;
@@ -87,6 +90,18 @@ export const TOOL_DEFS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "search_atlas",
+      description: "Busca registros del ERP por nombre, correo o telefono: contactos (clientes/proveedores), usuarios del sistema y empleados. Usalo cuando el usuario pregunta por una persona o empresa que podria estar en Atlas ('tienes el correo de Juan Perez', 'que datos hay de la empresa X'). Solo devuelve lo que el usuario ya tiene permiso de ver.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "Nombre, correo, telefono o codigo a buscar." } },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 function trimMessage(m) {
@@ -101,7 +116,7 @@ function trimMessage(m) {
   };
 }
 
-export function buildToolRunners({ prisma, listMessages, chatSearchService, visionService, signAttachmentUrl }) {
+export function buildToolRunners({ prisma, listMessages, chatSearchService, visionService, signAttachmentUrl, resolveUserContext }) {
   async function get_recent_messages(args, ctx) {
     const limit = Math.min(Math.max(parseInt(args?.limit, 10) || 30, 1), RECENT_MAX);
     try {
@@ -209,9 +224,34 @@ export function buildToolRunners({ prisma, listMessages, chatSearchService, visi
     }
   }
 
+  async function search_atlas(args, ctx) {
+    const q = String(args?.query ?? "").trim();
+    if (q.length < 2) return { error: "Da al menos 2 caracteres para buscar." };
+    if (typeof resolveUserContext !== "function") return { error: "La busqueda de registros no esta disponible aqui." };
+    let uctx;
+    try { uctx = await resolveUserContext(ctx.actorAuthUserId); } catch { uctx = null; }
+    if (!uctx?.profile) return { error: "No pude verificar tus permisos." };
+    const companyId = uctx.memberships?.[0]?.companyId ?? ctx.companyId ?? null;
+    if (!companyId) return { error: "Sin empresa activa." };
+    const allowed = SEARCH_PROVIDERS.filter((p) => uctx.isAdmin || uctx.permissionSet?.has(p.permission));
+    if (!allowed.length) return { error: "No tienes permiso para buscar registros del ERP." };
+    const settled = await Promise.allSettled(
+      allowed.map((p) => p.run({ prisma, companyId, actorId: uctx.profile.id, q, limit: 5 })),
+    );
+    const groups = [];
+    settled.forEach((r, i) => {
+      if (r.status !== "fulfilled" || !Array.isArray(r.value) || !r.value.length) return;
+      groups.push({
+        tipo: allowed[i].label,
+        resultados: r.value.map((it) => ({ nombre: it.title, detalle: it.subtitle ?? null })),
+      });
+    });
+    return groups.length ? { groups } : { note: "Sin resultados en contactos, usuarios ni empleados." };
+  }
+
   return {
     get_recent_messages, get_conversation_messages, search_my_conversations,
-    list_conversation_files, describe_image,
+    list_conversation_files, describe_image, search_atlas,
   };
 }
 

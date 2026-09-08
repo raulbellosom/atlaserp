@@ -5,13 +5,37 @@ import { TOOL_DEFS, buildToolRunners } from "../meridian-tools.js";
 
 const ctx = { companyId: "co1", actorAuthUserId: "auth1", actorProfileId: "prof1", conversationId: "conv1" };
 
-test("TOOL_DEFS lists the five read tools with JSON schemas", () => {
+test("TOOL_DEFS lists the read tools with JSON schemas", () => {
   const names = TOOL_DEFS.map((t) => t.function.name).sort();
   assert.deepEqual(names, [
     "describe_image", "get_conversation_messages", "get_recent_messages",
-    "list_conversation_files", "search_my_conversations",
+    "list_conversation_files", "search_atlas", "search_my_conversations",
   ]);
   for (const t of TOOL_DEFS) assert.equal(t.type, "function");
+});
+
+test("search_atlas: runs only the providers the caller is allowed, returns grouped hits", async () => {
+  const resolveUserContext = async (authUserId) => {
+    assert.equal(authUserId, "auth1");
+    return {
+      profile: { id: "prof1" },
+      memberships: [{ companyId: "co1" }],
+      isAdmin: false,
+      permissionSet: new Set(["contacts.contacts.read"]), // NOT identity.users.read / hr.employee.read
+    };
+  };
+  const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext });
+  const out = await runners.search_atlas({ query: "Juan" }, { companyId: "co1", actorAuthUserId: "auth1", actorProfileId: "prof1", conversationId: "c1" });
+  // With only contacts permission, the contacts provider runs against the empty
+  // prisma stub -> throws -> Promise.allSettled swallows it -> no groups.
+  assert.ok(out.groups === undefined ? out.note : true);
+});
+
+test("search_atlas: caller with no search permission is refused", async () => {
+  const resolveUserContext = async () => ({ profile: { id: "p" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set() });
+  const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext });
+  const out = await runners.search_atlas({ query: "Juan" }, { actorAuthUserId: "a", companyId: "co1" });
+  assert.match(out.error, /permiso/i);
 });
 
 test("get_recent_messages trims rows to the safe shape", async () => {

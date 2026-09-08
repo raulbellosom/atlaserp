@@ -58,7 +58,7 @@ function handleError(c, err, fallback) {
 
 const uuidParamSchema = z.string().uuid();
 
-export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null }) {
+export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService = null, broadcaster = null, resolveUserContext = null }) {
   const app = new Hono();
   const permissionsService = createChatPermissionsService({ prisma });
   const mentionsService = createChatMentionsService({ prisma });
@@ -142,6 +142,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     broadcaster,
     signAttachmentUrl,
     insertAssistantMessage: insertMeridianReply,
+    resolveUserContext,
   });
 
   // ================================================================

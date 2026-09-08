@@ -3014,7 +3014,7 @@ app.route("/pwa", pwaRouter);
 // They MUST be registered before mountWithAuth() calls — the secured sub-apps created by
 // mountWithAuth intercept every request via secured.use("*", authMiddleware), which returns
 // 401 before the chat/notes public routes (e.g. POST /public/chat/session) can be reached.
-app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster }));
+app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster, resolveUserContext: getUserContextByAuthId }));
 const callsSmtpService = createSmtpService({ prisma });
 app.route("/", createCallsRouter({ prisma, supabaseAdmin, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
 app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }));
