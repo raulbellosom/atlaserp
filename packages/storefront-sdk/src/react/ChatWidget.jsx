@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { useGuestChat } from './useGuestChat.js'
 
 const DEFAULT_ACCENT = '#c7f049'
@@ -65,19 +65,47 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
     messages,
     isSending,
     isClosed,
+    operatorTyping,
+    operatorLastReadAt,
     startError,
     resumeError,
     startSession,
     resumeByCode,
     sendMessage,
     sendFile,
+    sendTyping,
+    markRead,
     closeSession,
   } = useGuestChat(sdk)
 
   const [resumeCodeInput, setResumeCodeInput] = useState('')
   const [resumeEmailInput, setResumeEmailInput] = useState('')
   const [isResuming, setIsResuming] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState(null)
   const fileInputRef = useRef(null)
+  const attUrlCacheRef = useRef(new Map())
+  const typingSentAtRef = useRef(0)
+  const [, forceRerender] = useReducer((n) => n + 1, 0)
+
+  // Resolve (and cache) a short-lived signed URL for an attachment. Returns null
+  // while in flight; re-renders when it lands. On <img> error the entry is
+  // dropped so the next render retries once (signed URLs expire after 300s).
+  const resolveAttUrl = useCallback((attId) => {
+    if (!attId || !session?.token) return null
+    const cached = attUrlCacheRef.current.get(attId)
+    if (cached) return cached
+    if (cached === '') return null // in flight
+    attUrlCacheRef.current.set(attId, '')
+    sdk.guestChat.getAttachmentUrl(session.token, attId)
+      .then((url) => { if (url) { attUrlCacheRef.current.set(attId, url); forceRerender() } })
+      .catch(() => { attUrlCacheRef.current.delete(attId) })
+    return null
+  }, [sdk, session])
+
+  const dropAttUrl = useCallback((attId) => {
+    attUrlCacheRef.current.delete(attId)
+    forceRerender()
+  }, [])
 
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0]
@@ -99,6 +127,15 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, open, screen])
+
+  // Mark the conversation read whenever the panel is open on the chat screen
+  // (re-fires as new operator messages land while it stays open).
+  useEffect(() => {
+    if (open && screen === 'chat') {
+      const t = setTimeout(() => markRead(), 800)
+      return () => clearTimeout(t)
+    }
+  }, [open, screen, messages.length, markRead])
 
   // Sound on new operator message when widget is not open
   useEffect(() => {
@@ -570,6 +607,12 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
       items.push({ type: 'msg', msg, key: msg.id })
     }
 
+    const lastGuestMsg = [...messages].reverse().find((m) => m.sender_type === 'guest')
+    const seen = Boolean(
+      lastGuestMsg && operatorLastReadAt &&
+      new Date(operatorLastReadAt) >= new Date(lastGuestMsg.created_at),
+    )
+
     return (
       <>
         {trackingCode && (
@@ -608,16 +651,28 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             const isGuest = msg.sender_type === 'guest'
             const time = fmtTime(msg.created_at)
 
+            const attachments = Array.isArray(msg.attachments) ? msg.attachments : []
+            const hasAtt = attachments.length > 0
+            const isLastGuest = msg.id === lastGuestMsg?.id
+            const isTemp = String(msg.id).startsWith('temp-')
+
             if (isGuest) {
-              const isFile = msg.message_type === 'file'
               return (
-                <div key={msg.id} style={{ alignSelf: 'flex-end', maxWidth: '80%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <div style={styles.msgBubbleGuest}>
-                    {isFile
-                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ClipIcon color="#0f0f13" />{msg.body}</span>
-                      : msg.body}
-                  </div>
+                <div key={msg.id} style={{ alignSelf: 'flex-end', maxWidth: '80%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  {hasAtt
+                    ? attachments.map((att) => (
+                        <Attachment key={att.id} att={att} url={resolveAttUrl(att.id)}
+                          onImageClick={setLightboxUrl} onError={() => dropAttUrl(att.id)} accent="#0f0f13" />
+                      ))
+                    : (
+                      <div style={styles.msgBubbleGuest}>{msg.body}</div>
+                    )}
                   {time && <div style={s(styles.msgTimestamp, { color: '#666' })}>{time}</div>}
+                  {isLastGuest && !isTemp && (
+                    <div style={s(styles.msgTimestamp, { color: seen ? '#86efac' : '#666' })}>
+                      {seen ? 'Visto' : 'Enviado'}
+                    </div>
+                  )}
                 </div>
               )
             }
@@ -626,7 +681,6 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             const senderName = msg.senderName ?? msg.sender_name ?? 'Agente'
             const avatarUrl = msg.senderAvatarUrl ?? msg.sender_avatar_url ?? null
             const initial = senderName[0]?.toUpperCase() ?? 'A'
-            const isFileOp = msg.message_type === 'file'
 
             return (
               <div key={msg.id} style={styles.operatorRow}>
@@ -636,18 +690,31 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
                     : initial
                   }
                 </div>
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div style={styles.operatorMeta}>{senderName}</div>
-                  <div style={styles.msgBubbleOperator}>
-                    {isFileOp
-                      ? <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><ClipIcon color="#ddd" />{msg.body}</span>
-                      : msg.body}
-                  </div>
+                  {hasAtt
+                    ? attachments.map((att) => (
+                        <Attachment key={att.id} att={att} url={resolveAttUrl(att.id)}
+                          onImageClick={setLightboxUrl} onError={() => dropAttUrl(att.id)} accent="#ddd" />
+                      ))
+                    : (
+                      <div style={styles.msgBubbleOperator}>{msg.body}</div>
+                    )}
                   {time && <div style={styles.msgTimestamp}>{time}</div>}
                 </div>
               </div>
             )
           })}
+          {operatorTyping && (
+            <div style={styles.operatorRow}>
+              <div style={styles.operatorAvatar}>·</div>
+              <div style={s(styles.msgBubbleOperator, { display: 'flex', gap: 3, alignItems: 'center' })}>
+                {[0, 1, 2].map((i) => (
+                  <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: '#888', display: 'inline-block', animation: `atlasblink 1s ${i * 0.15}s infinite` }} />
+                ))}
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -706,6 +773,11 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
               const el = e.target;
               el.style.height = '36px';
               el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+              const now = Date.now();
+              if (now - typingSentAtRef.current > 3000) {
+                typingSentAtRef.current = now;
+                sendTyping();
+              }
             }}
             onKeyDown={handleKeyDown}
             rows={1}
@@ -774,7 +846,74 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           aria-hidden="true"
         />
       )}
+
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <img src={lightboxUrl} alt="" style={{ maxWidth: '92%', maxHeight: '92%', borderRadius: 8 }} />
+        </div>
+      )}
+
+      <style>{`@keyframes atlasspin { to { transform: rotate(360deg) } } @keyframes atlasblink { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }`}</style>
     </>
+  )
+}
+
+// ── Attachment rendering ─────────────────────────────────────────────────────
+
+function fmtSize(bytes) {
+  const n = Number(bytes)
+  if (!n || Number.isNaN(n)) return ''
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function Spinner() {
+  return (
+    <span style={{ width: 16, height: 16, border: '2px solid #555', borderTopColor: '#aaa', borderRadius: '50%', display: 'inline-block', animation: 'atlasspin 0.8s linear infinite' }} />
+  )
+}
+
+function Attachment({ att, url, onImageClick, onError, accent = '#ddd' }) {
+  const mime = String(att?.mimeType ?? att?.mime_type ?? '')
+  const name = att?.fileName ?? att?.file_name ?? 'archivo'
+  const isImage = mime.startsWith('image/')
+
+  if (isImage) {
+    if (!url) {
+      return (
+        <div style={{ width: 160, height: 120, background: '#2a2a38', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Spinner />
+        </div>
+      )
+    }
+    return (
+      <img
+        src={url}
+        alt={name}
+        onClick={() => onImageClick?.(url)}
+        onError={onError}
+        style={{ maxWidth: 180, maxHeight: 180, borderRadius: 8, cursor: 'pointer', objectFit: 'cover', display: 'block' }}
+      />
+    )
+  }
+
+  return (
+    <a
+      href={url ?? undefined}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#2a2a38', borderRadius: 8, padding: '8px 10px', textDecoration: 'none', color: accent, fontSize: 12, maxWidth: 200 }}
+    >
+      <ClipIcon color={accent} />
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+      {fmtSize(att?.sizeBytes ?? att?.size_bytes) && (
+        <span style={{ color: '#666', flexShrink: 0 }}>{fmtSize(att?.sizeBytes ?? att?.size_bytes)}</span>
+      )}
+    </a>
   )
 }
 
