@@ -13,6 +13,7 @@ import { ErrorState } from "@atlas/ui";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
+import { MeridianIntro } from "./MeridianIntro";
 import { MessageComposer } from "./MessageComposer";
 import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
 import { ForwardMessageModal } from "./ForwardMessageModal";
@@ -918,6 +919,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               )}
             </div>
           ) : (
+            <>
+            {isMeridian && !isLoading && (messages?.length ?? 0) <= 1 && (
+              <MeridianIntro onPickPrompt={(text) => composerRef.current?.prefill?.(text)} />
+            )}
             <ChatMessageList
               key={conversationId}
               messages={messages}
@@ -967,6 +972,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               onUnpinMessage={(id) => pinMutate({ messageId: id, pinned: false })}
               canUnpinMessages={canPinMessages}
             />
+            </>
           )}
       </div>
 

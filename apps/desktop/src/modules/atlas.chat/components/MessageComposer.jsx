@@ -282,6 +282,12 @@ export const MessageComposer = forwardRef(function MessageComposer(
   useImperativeHandle(ref, () => ({
     addFiles: (files) => addFilesToQueue(files),
     setBody: (text) => setBody(text),
+    // Fill the composer with a suggested prompt (only if empty) and focus it,
+    // so the user can edit or send. Used by the MeridIAn intro chips.
+    prefill: (text) => {
+      setBody((prev) => (prev?.trim() ? prev : String(text ?? "")));
+      requestAnimationFrame(() => mentionTaRef.current?.focus?.());
+    },
   }));
 
   // Runs on every render where conversationId just changed, while `body`
