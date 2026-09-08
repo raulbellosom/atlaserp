@@ -862,6 +862,32 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // POST /chat/external/:conversationId/typing — fire-and-forget
+  internal.post("/external/:conversationId/typing", requirePermission("chat.support.manage"), async (c) => {
+    try {
+      await chatExternalInboxService.broadcastOperatorTyping({ conversationId: c.req.param("conversationId") });
+      return c.body(null, 204);
+    } catch (err) {
+      return handleError(c, err, "Error notificando escritura.");
+    }
+  });
+
+  // DELETE /chat/external/:conversationId/messages/:messageId
+  internal.delete("/external/:conversationId/messages/:messageId", requirePermission("chat.support.manage"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("conversationId");
+      const messageId = c.req.param("messageId");
+      const result = await chatService.deleteMessage({ messageId, authUserId });
+      broadcaster?.broadcastToChannel(`chat:conv:${conversationId}`, "new_operator_message", {
+        conversationId, messageId, deleted: true,
+      });
+      return c.json(result);
+    } catch (err) {
+      return handleError(c, err, "Error eliminando mensaje.");
+    }
+  });
+
   // ================================================================
   // PUBLIC GUEST CHAT — no auth, token-based
   // ================================================================
@@ -911,6 +937,26 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
       return handleError(c, err, "Error enviando mensaje.");
+    }
+  });
+
+  // POST /public/chat/session/:token/typing — fire-and-forget
+  pub.post("/session/:token/typing", async (c) => {
+    try {
+      await guestService.broadcastGuestTyping({ rawToken: c.req.param("token") });
+      return c.body(null, 204);
+    } catch (err) {
+      return handleError(c, err, "Error notificando escritura.");
+    }
+  });
+
+  // POST /public/chat/session/:token/read
+  pub.post("/session/:token/read", async (c) => {
+    try {
+      await guestService.markGuestRead({ rawToken: c.req.param("token") });
+      return c.body(null, 204);
+    } catch (err) {
+      return handleError(c, err, "Error marcando como leido.");
     }
   });
 

@@ -462,8 +462,16 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       ORDER BY c.created_at DESC
       LIMIT 1
     `;
-    if (!convRows.length) return { data: [] };
+    if (!convRows.length) return { data: [], operatorLastReadAt: null };
     const conversationId = convRows[0].id;
+
+    // Latest moment any operator viewed the conversation — drives the guest
+    // widget's "Visto" marker and survives widget reloads.
+    const readRows = await prisma.$queryRaw`
+      SELECT MAX(last_read_at) AS operator_last_read_at
+      FROM chat_conversation_members
+      WHERE conversation_id = ${conversationId} AND user_id IS NOT NULL AND left_at IS NULL
+    `;
 
     const rows = await prisma.$queryRaw`
       SELECT
@@ -500,7 +508,11 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       LIMIT ${limit}
     `;
 
-    return { data: rows.reverse(), conversationId };
+    return {
+      data: rows.reverse(),
+      conversationId,
+      operatorLastReadAt: readRows[0]?.operator_last_read_at ?? null,
+    };
   }
 
   async function getGuestAttachmentUrl({ rawToken, attachmentId }) {
@@ -530,6 +542,48 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     return { url: data.signedUrl, expiresIn: 300 };
   }
 
+  async function broadcastGuestTyping({ rawToken }) {
+    const session = await resolveGuestSession(rawToken);
+    const convRows = await prisma.$queryRaw`
+      SELECT c.id FROM chat_conversations c
+      INNER JOIN chat_conversation_members ccm
+        ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
+      WHERE c.deleted_at IS NULL AND c.status != 'closed'
+      ORDER BY c.created_at DESC
+      LIMIT 1
+    `;
+    if (!convRows.length) return { ok: true };
+    broadcaster?.broadcastToChannel(`chat:conv:${convRows[0].id}`, "guest_typing", {
+      conversationId: convRows[0].id,
+      at: new Date().toISOString(),
+    });
+    return { ok: true };
+  }
+
+  async function markGuestRead({ rawToken }) {
+    const session = await resolveGuestSession(rawToken);
+    const convRows = await prisma.$queryRaw`
+      SELECT c.id FROM chat_conversations c
+      INNER JOIN chat_conversation_members ccm
+        ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
+      WHERE c.deleted_at IS NULL
+      ORDER BY c.created_at DESC
+      LIMIT 1
+    `;
+    await prisma.$executeRaw`
+      UPDATE chat_guest_sessions
+      SET guest_last_read_at = NOW(), last_seen_at = NOW()
+      WHERE id = ${session.id}
+    `;
+    if (convRows.length) {
+      broadcaster?.broadcastToChannel(`chat:conv:${convRows[0].id}`, "guest_read", {
+        conversationId: convRows[0].id,
+        at: new Date().toISOString(),
+      });
+    }
+    return { ok: true };
+  }
+
   async function closeGuestSession({ rawToken }) {
     const session = await resolveGuestSession(rawToken);
     await prisma.$executeRaw`
@@ -552,6 +606,8 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     sendGuestMessage,
     listGuestMessages,
     getGuestAttachmentUrl,
+    broadcastGuestTyping,
+    markGuestRead,
     closeGuestSession,
   };
 }

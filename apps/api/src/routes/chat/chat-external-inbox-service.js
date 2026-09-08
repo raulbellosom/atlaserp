@@ -30,6 +30,7 @@ export function createChatExternalInboxService({ prisma, broadcaster = null }) {
         gs.page_url AS guest_page_url,
         gs.idle_expires_at,
         gs.absolute_expires_at,
+        gs.guest_last_read_at,
         (
           SELECT COUNT(*)::int FROM chat_messages m
           WHERE m.conversation_id = c.id AND m.deleted_at IS NULL
@@ -79,6 +80,18 @@ export function createChatExternalInboxService({ prisma, broadcaster = null }) {
       SET last_read_at = NOW()
       WHERE conversation_id = ${conversationId} AND user_id = ${profileId} AND left_at IS NULL
     `;
+    broadcaster?.broadcastToChannel(`chat:conv:${conversationId}`, "operator_read", {
+      conversationId,
+      at: new Date().toISOString(),
+    });
+    return { ok: true };
+  }
+
+  async function broadcastOperatorTyping({ conversationId }) {
+    broadcaster?.broadcastToChannel(`chat:conv:${conversationId}`, "operator_typing", {
+      conversationId,
+      at: new Date().toISOString(),
+    });
     return { ok: true };
   }
 
@@ -114,7 +127,13 @@ export function createChatExternalInboxService({ prisma, broadcaster = null }) {
     return { ok: true };
   }
 
-  return { listExternalInbox, markExternalRead, assignOperator, closeExternalConversation };
+  return {
+    listExternalInbox,
+    markExternalRead,
+    assignOperator,
+    closeExternalConversation,
+    broadcastOperatorTyping,
+  };
 }
 
 export { ChatServiceError };
