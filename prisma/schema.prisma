@@ -485,6 +485,10 @@ model FileAsset {
   mimeType String @map("mime_type")
   sizeBytes Int @map("size_bytes")
   checksum      String?
+  contentRevision Int @default(1) @map("content_revision")
+  officeLock String? @map("office_lock")
+  officeLockExpiresAt DateTime? @map("office_lock_expires_at")
+  versions FileAssetVersion[]
   visibility    FileVisibility @default(PRIVATE)
   moduleKey String? @map("module_key")
   entityType String? @map("entity_type")
@@ -501,6 +505,23 @@ model FileAsset {
 
   @@index([moduleKey, entityType, entityId])
   @@map("file_asset")
+}
+
+model FileAssetVersion {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  fileId String @db.Uuid @map("file_id")
+  revision Int
+  bucket String
+  objectKey String @map("object_key")
+  originalName String @map("original_name")
+  mimeType String @map("mime_type")
+  sizeBytes Int @map("size_bytes")
+  checksum String?
+  createdAt DateTime @default(now()) @map("created_at")
+  file FileAsset @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@unique([fileId, revision])
+  @@map("file_asset_version")
 }
 
 model AuditLog {
@@ -3361,6 +3382,8 @@ model ChatMeridianRun {
   iterations       Int?     @db.SmallInt
   latencyMs        Int?     @map("latency_ms")
   error            String?
+  route            String?
+  routerMs         Int?     @map("router_ms")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([companyId, createdAt])
