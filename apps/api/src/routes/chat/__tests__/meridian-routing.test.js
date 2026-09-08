@@ -1,0 +1,173 @@
+// apps/api/src/routes/chat/__tests__/meridian-routing.test.js
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createMeridianService } from "../meridian-service.js";
+
+// A Groq stub that answers by inspecting the request body:
+//  - classifier calls (max_tokens 6, no tools) -> return `routeWord`
+//  - everything else -> shift from `answers`
+function groqRouter({ routeWord = "general", answers = [], onBody } = {}) {
+  let i = 0;
+  return async (_url, opts) => {
+    const body = JSON.parse(opts.body);
+    onBody?.(body);
+    const isClassifier = body.max_tokens === 6 && !body.tools;
+    const content = isClassifier ? routeWord : (answers[i++] ?? "(sin mas)");
+    return {
+      ok: true, status: 200,
+      json: async () => ({ model: body.model, choices: [{ message: { content } }] }),
+      text: async () => "",
+    };
+  };
+}
+
+function svcForRoute({ fetchImpl, env = { GROQ_API_KEY: "k" }, listMessages, historyRows } = {}) {
+  const inserted = [];
+  const runs = [];
+  const prisma = {
+    membership: { findFirst: async () => ({ companyId: "co1" }) },
+    $queryRaw: async (strings) => {
+      const sql = strings.join("?");
+      // the just-sent user message the classifier reads
+      if (/SELECT\s+body\s+FROM chat_messages WHERE id/i.test(sql)) return [{ body: "una pregunta" }];
+      if (/FROM chat_messages/i.test(sql)) return historyRows ?? [];   // loadHistory / router history / web history
+      if (/FROM chat_conversations/i.test(sql)) return [{ id: "mconv1", type: "meridian", company_id: "co1" }];
+      return [];
+    },
+    $executeRaw: async () => 0,
+    chatMeridianRun: { create: async ({ data }) => { runs.push(data); return {}; } },
+  };
+  const svc = createMeridianService({
+    prisma, env, fetchImpl,
+    listMessages: listMessages ?? (async () => ({ data: [{ id: "m1", sender_type: "user", body: "hola", message_type: "text", created_at: new Date(), attachments: [], attachment_count: 0, sender: { displayName: "Ana" } }] })),
+    chatSearchService: {}, visionService: {},
+    insertAssistantMessage: async ({ body }) => { inserted.push(body); return { id: "b1", created_at: new Date() }; },
+    broadcaster: { broadcastToChannel: async () => {} },
+  });
+  return { svc, inserted, runs };
+}
+
+const call = (svc) => svc.handleUserMessage({ companyId: "co1", conversationId: "mconv1", actorProfileId: "p1", actorAuthUserId: "a1", triggerMessageId: "u1" });
+
+test("route general: uses the chat model, answers, run.route === 'general'", async () => {
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl: groqRouter({ routeWord: "general", answers: ["La limerencia es..."] }) });
+  await call(svc);
+  assert.deepEqual(inserted, ["La limerencia es..."]);
+  assert.equal(runs.at(-1).route, "general");
+  assert.ok(runs.at(-1).routerMs >= 0);
+});
+
+test("route chat: runs the tool loop, run.route === 'chat'", async () => {
+  const tc = [{ id: "c1", type: "function", function: { name: "get_recent_messages", arguments: "{}" } }];
+  const fetchImpl = async (_u, opts) => {
+    const body = JSON.parse(opts.body);
+    if (body.max_tokens === 6 && !body.tools) {
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "chat" } }] }), text: async () => "" };
+    }
+    // first loop call -> tool call; second -> final
+    const hasToolMsg = body.messages.some((m) => m.role === "tool");
+    const content = hasToolMsg ? "Resumen listo." : "";
+    const msg = hasToolMsg ? { content } : { content: "", tool_calls: tc };
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: msg }] }), text: async () => "" };
+  };
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl });
+  await call(svc);
+  assert.deepEqual(inserted, ["Resumen listo."]);
+  assert.equal(runs.at(-1).route, "chat");
+});
+
+test("route live + web enabled: calls the compound model WITHOUT tools", async () => {
+  let sawWebBody = null;
+  const fetchImpl = groqRouter({
+    routeWord: "live", answers: ["El dolar esta en 18.20 MXN (2026-09-07, banxico.org.mx)."],
+    onBody: (b) => { if (String(b.model).includes("compound")) sawWebBody = b; },
+  });
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl });
+  await call(svc);
+  assert.match(inserted[0], /dolar/i);
+  assert.equal(runs.at(-1).route, "live");
+  assert.ok(sawWebBody, "compound model was called");
+  assert.equal(sawWebBody.tools, undefined, "no chat tools sent to compound");
+});
+
+test("route live + web disabled: canned reply, compound NOT called", async () => {
+  let compoundCalled = false;
+  const fetchImpl = groqRouter({ routeWord: "live", onBody: (b) => { if (String(b.model).includes("compound")) compoundCalled = true; } });
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl, env: { GROQ_API_KEY: "k", CHAT_MERIDIAN_WEB: "false" } });
+  await call(svc);
+  assert.equal(compoundCalled, false);
+  assert.match(inserted[0], /no tengo acceso|datos en vivo|internet/i);
+  assert.equal(runs.at(-1).error, "web-disabled");
+});
+
+test("classifier returns junk -> route general", async () => {
+  const { svc, runs } = svcForRoute({ fetchImpl: groqRouter({ routeWord: "banana", answers: ["ok"] }) });
+  await call(svc);
+  assert.equal(runs.at(-1).route, "general");
+});
+
+test("classifier fetch fails -> route chat (fallback)", async () => {
+  const fetchImpl = async (_u, opts) => {
+    const body = JSON.parse(opts.body);
+    if (body.max_tokens === 6 && !body.tools) throw new Error("router down");
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "respondido por chat" } }] }), text: async () => "" };
+  };
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl });
+  await call(svc);
+  assert.equal(runs.at(-1).route, "chat");
+  assert.ok(runs.at(-1).toolCalls.some((x) => x.routerError), "routerError recorded in the audit toolLog");
+  assert.deepEqual(inserted, ["respondido por chat"]);
+});
+
+test("classifier circuit breaker: after 3 failed turns the 4th skips the classifier call", async () => {
+  let classifierCalls = 0;
+  const fetchImpl = async (_u, opts) => {
+    const body = JSON.parse(opts.body);
+    if (body.max_tokens === 6 && !body.tools) { classifierCalls++; throw new Error("down"); }
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "x" } }] }), text: async () => "" };
+  };
+  const { svc } = svcForRoute({ fetchImpl });
+  await call(svc); await call(svc); await call(svc);
+  const afterThree = classifierCalls;
+  await call(svc);
+  assert.equal(classifierCalls, afterThree, "classifier not invoked on the 4th turn once the breaker is open");
+});
+
+test("live sub-limit: 11th live turn in the window is canned, compound not called", async () => {
+  let compoundCalls = 0;
+  const fetchImpl = async (_u, opts) => {
+    const body = JSON.parse(opts.body);
+    if (body.max_tokens === 6 && !body.tools) {
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "live" } }] }), text: async () => "" };
+    }
+    if (String(body.model).includes("compound")) compoundCalls++;
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "dato" } }] }), text: async () => "" };
+  };
+  const { svc, inserted, runs } = svcForRoute({ fetchImpl });
+  for (let i = 0; i < 11; i++) await call(svc);
+  assert.equal(compoundCalls, 10);
+  assert.match(inserted.at(-1), /limitando|unos minutos/i);
+  assert.equal(runs.at(-1).error, "live-rate-limited");
+});
+
+test("classifier only sees the last 4 history rows", async () => {
+  let routerHistoryLen = null;
+  const fetchImpl = async (_u, opts) => {
+    const body = JSON.parse(opts.body);
+    if (body.max_tokens === 6 && !body.tools) {
+      routerHistoryLen = body.messages.length - 2; // minus system + the new user message
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "general" } }] }), text: async () => "" };
+    }
+    return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "ok" } }] }), text: async () => "" };
+  };
+  // historyRows has 4 entries -> the LIMIT 4 router query "returns" all 4
+  const { svc } = svcForRoute({
+    fetchImpl,
+    historyRows: [
+      { sender_type: "user", body: "m1" }, { sender_type: "assistant", body: "m2" },
+      { sender_type: "user", body: "m3" }, { sender_type: "user", body: "m4" },
+    ],
+  });
+  await call(svc);
+  assert.equal(routerHistoryLen, 4);
+});
