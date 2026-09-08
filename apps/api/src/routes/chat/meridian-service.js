@@ -148,10 +148,159 @@ export function createMeridianService({
     return { conversationId, created: true };
   }
 
+  // -- the Groq tool-calling loop (Task 7) ----------------------------
+  function clampToolResult(value) {
+    let json = JSON.stringify(value ?? null);
+    if (json.length > TOOL_RESULT_MAX_BYTES) {
+      json = JSON.stringify({ truncated: true, note: "Resultado demasiado grande; pide un rango mas chico." });
+    }
+    return json;
+  }
+
+  async function callGroq(messages) {
+    const body = {
+      model, temperature: 0.2, max_tokens: 1000,
+      tools: TOOL_DEFS, tool_choice: "auto",
+      ...(isReasoningModel(model) ? { reasoning_format: "hidden" } : {}),
+      messages,
+    };
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1200));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
+      let res;
+      try {
+        res = await fetchFn(`${baseUrl}/openai/v1/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.GROQ_API_KEY}` },
+          body: JSON.stringify(body), signal: controller.signal,
+        });
+      } catch (err) { lastErr = err; clearTimeout(timer); continue; }
+      clearTimeout(timer);
+      if (res.status === 429 || res.status >= 500) { lastErr = new Error(`Groq ${res.status}`); continue; }
+      if (!res.ok) { const d = await res.text().catch(() => ""); throw new Error(`Groq ${res.status}: ${d.slice(0, 160)}`); }
+      const payload = await res.json();
+      return payload?.choices?.[0]?.message ?? null;
+    }
+    throw lastErr ?? new Error("Groq sin respuesta");
+  }
+
+  async function loadHistory(conversationId) {
+    const rows = await prisma.$queryRaw`
+      SELECT m.sender_type, m.body, m.message_type
+      FROM chat_messages m
+      WHERE m.conversation_id = ${conversationId}::uuid
+        AND m.deleted_at IS NULL
+        AND m.thread_root_id IS NULL
+      ORDER BY m.created_at DESC
+      LIMIT ${HISTORY_LIMIT}
+    `;
+    rows.reverse();
+    return rows.map((m) => {
+      if (m.sender_type === "assistant") return { role: "assistant", content: m.body || "" };
+      if (m.sender_type === "system") return { role: "user", content: `[sistema] ${m.body || ""}` };
+      return { role: "user", content: m.body || "" };
+    });
+  }
+
+  async function runTurn({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId }) {
+    const startedAt = Date.now();
+    const toolLog = [];
+    let iterations = 0;
+    let finalText = "";
+    try {
+      const history = await loadHistory(conversationId);
+      const llmMessages = [{ role: "system", content: systemPrompt() }, ...history];
+      const ctx = { companyId, actorProfileId, actorAuthUserId, conversationId };
+
+      for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter += 1) {
+        iterations = iter + 1;
+        const msg = await callGroq(llmMessages);
+        const toolCalls = msg?.tool_calls ?? [];
+        if (!toolCalls.length) {
+          finalText = String(msg?.content ?? "").trim() || "(no tengo una respuesta ahora mismo)";
+          break;
+        }
+        llmMessages.push({ role: "assistant", content: msg.content ?? "", tool_calls: toolCalls });
+        for (const call of toolCalls) {
+          const name = call.function?.name;
+          let args = {};
+          try { args = JSON.parse(call.function?.arguments || "{}"); } catch { args = {}; }
+          const runner = runners[name];
+          const t0 = Date.now();
+          let result;
+          try {
+            result = runner ? await runner(args, ctx) : { error: `Herramienta desconocida: ${name}` };
+          } catch (err) {
+            result = { error: `La herramienta fallo: ${String(err?.message ?? err).slice(0, 160)}` };
+          }
+          toolLog.push({ name, ms: Date.now() - t0, ok: !result?.error });
+          llmMessages.push({ role: "tool", tool_call_id: call.id, content: clampToolResult(result) });
+        }
+        if (iter === MAX_TOOL_ITERATIONS - 1) {
+          finalText = "No pude terminar de revisarlo (demasiados pasos). Intenta con algo mas concreto.";
+        }
+      }
+    } catch (err) {
+      finalText = "No pude responder ahora mismo, intentalo de nuevo en un momento.";
+      toolLog.push({ error: String(err?.message ?? err).slice(0, 200) });
+    }
+
+    await insertAssistantMessage({ conversationId, body: finalText });
+    try {
+      await prisma.chatMeridianRun.create({
+        data: {
+          companyId: companyId ?? null, conversationId, actorProfileId,
+          triggerMessageId: triggerMessageId ?? null, model,
+          toolCalls: toolLog, iterations, latencyMs: Date.now() - startedAt,
+          error: toolLog.find((x) => x.error)?.error ?? null,
+        },
+      });
+    } catch { /* audit is best-effort */ }
+  }
+
+  async function emitTyping(conversationId, typing) {
+    if (!broadcaster) return;
+    await broadcaster.broadcastToChannel(
+      `chat:presence:${conversationId}`, "typing",
+      { userId: "meridian", isTyping: typing },
+    ).catch(() => {});
+  }
+
+  async function handleUserMessage({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId }) {
+    if (!isConfigured()) {
+      await insertAssistantMessage({ conversationId, body: "MeridIAn no esta configurado en este entorno." });
+      return;
+    }
+    if (!checkRate(actorProfileId)) {
+      await insertAssistantMessage({ conversationId, body: "Voy un poco saturado, dame un momento e intentalo de nuevo." });
+      return;
+    }
+    // Serialize per conversation so replies stay in order.
+    const waitStart = Date.now();
+    while (inFlight.has(conversationId) && Date.now() - waitStart < 30_000) {
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    inFlight.add(conversationId);
+    // 3s, not longer: the chat client's presence hook auto-clears a typing
+    // flag after 4s of silence (useChatPresence). A slower refresh flickers.
+    const keepAlive = setInterval(() => { emitTyping(conversationId, true); }, 3_000);
+    try {
+      await emitTyping(conversationId, true);
+      await runTurn({ companyId, conversationId, actorProfileId, actorAuthUserId, triggerMessageId });
+    } finally {
+      clearInterval(keepAlive);
+      inFlight.delete(conversationId);
+      await emitTyping(conversationId, false);
+    }
+  }
+
   return {
     isConfigured,
     getOrCreateMeridianProfile,
     ensureMeridianConversation,
+    handleUserMessage,
     _internals: { checkRate, systemPrompt, model, runners, inFlight },
   };
 }
