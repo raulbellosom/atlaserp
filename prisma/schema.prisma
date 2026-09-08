@@ -354,6 +354,7 @@ model UserProfile {
   postalCode String? @map("postal_code")
   bio          String?
   availableForChat Boolean @default(false) @map("available_for_chat")
+  isBot        Boolean  @default(false) @map("is_bot")
   enabled      Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -3344,4 +3345,25 @@ model PfmGoal {
 
   @@index([companyId, ownerId, enabled])
   @@map("pfm_goal")
+}
+
+/// Per-turn audit for the MeridIAn chat assistant (Spec 1). No message content
+/// here — that lives in chat_messages. Written with prisma.$queryRaw like the
+/// rest of atlas.chat; this model exists so `pnpm db:studio` and typed reads work.
+model ChatMeridianRun {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  companyId        String?  @map("company_id") @db.Uuid
+  conversationId   String   @map("conversation_id") @db.Uuid
+  actorProfileId   String   @map("actor_profile_id") @db.Uuid
+  triggerMessageId String?  @map("trigger_message_id") @db.Uuid
+  model            String?
+  toolCalls        Json?    @map("tool_calls")
+  iterations       Int?     @db.SmallInt
+  latencyMs        Int?     @map("latency_ms")
+  error            String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([companyId, createdAt])
+  @@index([conversationId])
+  @@map("chat_meridian_run")
 }
