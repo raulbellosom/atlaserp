@@ -20,7 +20,10 @@ import {
   chatToggleReactionSchema,
   chatMessageSearchQuerySchema,
 } from "@atlas/validators";
-import { createChatService, ChatServiceError } from "./chat-service.js";
+import { createChatService, ChatServiceError, resolveUserProfileId } from "./chat-service.js";
+import { createMeridianService } from "./meridian-service.js";
+import { createMeridianRoutes } from "./meridian-routes.js";
+import { createVisionService } from "../../services/vision-service.js";
 import { createChatExternalInboxService } from "./chat-external-inbox-service.js";
 import { createChatModerationService, ChatModerationServiceError } from "./chat-moderation-service.js";
 import { createModerationRoutes } from "./moderation-routes.js";
@@ -79,6 +82,52 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const moderationService = createChatModerationService({ prisma });
   const chatSearchService = createChatSearchService({ prisma });
 
+  // MeridIAn (AI assistant) — Spec 1.
+  const visionService = createVisionService();
+  async function signAttachmentUrl(bucket, objectKey) {
+    const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(objectKey, 120);
+    if (error || !data?.signedUrl) throw new Error("no se pudo firmar el adjunto");
+    return data.signedUrl;
+  }
+  async function insertMeridianReply({ conversationId, body }) {
+    const [botRow] = await prisma.$queryRaw`
+      SELECT m.user_id AS bot_id
+      FROM chat_conversation_members m
+      JOIN user_profile up ON up.id = m.user_id
+      WHERE m.conversation_id = ${conversationId}::uuid AND up.is_bot = true
+      LIMIT 1
+    `;
+    const botId = botRow?.bot_id ?? null;
+    const [msg] = await prisma.$queryRaw`
+      INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type)
+      VALUES (${conversationId}::uuid, ${botId}, 'assistant', ${String(body).slice(0, 4000)}, 'text')
+      RETURNING id, created_at
+    `;
+    await prisma.$executeRaw`
+      UPDATE chat_conversations
+      SET last_message_id = ${msg.id}::uuid, last_message_at = ${msg.created_at}, updated_at = NOW()
+      WHERE id = ${conversationId}::uuid
+    `;
+    if (broadcaster) {
+      const memberRows = await prisma.$queryRaw`
+        SELECT user_id FROM chat_conversation_members WHERE conversation_id = ${conversationId}::uuid AND left_at IS NULL
+      `;
+      broadcaster.broadcastToUsers(memberRows.map((m) => m.user_id.toString()), "chat.message.new", {
+        conversationId, messageId: msg.id, senderName: "MeridIAn",
+      }).catch(() => {});
+    }
+    return msg;
+  }
+  const meridianService = createMeridianService({
+    prisma,
+    visionService,
+    chatSearchService,
+    listMessages: chatService.listMessages,
+    broadcaster,
+    signAttachmentUrl,
+    insertAssistantMessage: insertMeridianReply,
+  });
+
   // ================================================================
   // INTERNAL CHAT — all routes require authentication
   // ================================================================
@@ -89,6 +138,12 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   internal.get("/conversations", requirePermission("chat.conversations.read"), async (c) => {
     try {
       const authUserId = c.get("authUserId");
+      try {
+        const actorProfileId = await resolveUserProfileId(prisma, authUserId);
+        await meridianService.ensureMeridianConversation({ companyId: c.get("companyId") ?? null, actorProfileId });
+      } catch (e) {
+        console.error("[atlas.chat] meridian ensure (list)", e?.message ?? e);
+      }
       const { limit, cursor, archived } = c.req.query();
       const result = await chatService.listConversations({
         authUserId,
@@ -253,6 +308,25 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const body = await c.req.json();
       const data = chatSendMessageSchema.parse(body);
       const result = await chatService.sendMessage({ conversationId, authUserId, ...data });
+
+      // If this is the user's MeridIAn conversation, kick off the assistant
+      // turn in the background — do NOT await (the reply arrives via realtime).
+      try {
+        const [conv] = await prisma.$queryRaw`SELECT type, company_id FROM chat_conversations WHERE id = ${conversationId}::uuid LIMIT 1`;
+        if (conv?.type === "meridian") {
+          const actorProfileId = await resolveUserProfileId(prisma, authUserId);
+          meridianService.handleUserMessage({
+            companyId: conv.company_id ?? c.get("companyId") ?? null,
+            conversationId,
+            actorProfileId,
+            actorAuthUserId: authUserId,
+            triggerMessageId: result?.id ?? null,
+          }).catch((e) => console.error("[atlas.chat] meridian turn", e?.message ?? e));
+        }
+      } catch (e) {
+        console.error("[atlas.chat] meridian dispatch", e?.message ?? e);
+      }
+
       return c.json({ data: result }, 201);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
@@ -994,9 +1068,21 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // MeridIAn (AI assistant) routes carry their own "/chat/..." paths, so they
+  // mount at the app root behind authMiddleware (not under the "/chat"-prefixed
+  // `internal` sub-app, which would double the prefix).
+  const meridian = new Hono();
+  meridian.use("*", authMiddleware);
+  meridian.route("", createMeridianRoutes({
+    requirePermission,
+    meridianService,
+    resolveProfileId: (authUserId) => resolveUserProfileId(prisma, authUserId),
+  }));
+
   // Mount sub-routers
   app.route("/chat", internal);
   app.route("/public/chat", pub);
+  app.route("", meridian);
 
   return app;
 }
