@@ -1069,6 +1069,20 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
+  // GET /public/chat/session/:token/attachments/:attachmentId/url
+  // Short-lived signed URL for an attachment the guest can see — scoped to the
+  // session's own conversation.
+  pub.get("/session/:token/attachments/:attachmentId/url", async (c) => {
+    try {
+      const rawToken = c.req.param("token");
+      const attachmentId = c.req.param("attachmentId");
+      const result = await guestService.getGuestAttachmentUrl({ rawToken, attachmentId });
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error obteniendo URL del adjunto.");
+    }
+  });
+
   // Message templates (quick-reply snippets) — see template-routes.js.
   internal.route("", createTemplateRoutes({ requirePermission, templateService }));
 

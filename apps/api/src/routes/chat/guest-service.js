@@ -503,6 +503,33 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     return { data: rows.reverse(), conversationId };
   }
 
+  async function getGuestAttachmentUrl({ rawToken, attachmentId }) {
+    const session = await resolveGuestSession(rawToken);
+    const convRows = await prisma.$queryRaw`
+      SELECT c.id FROM chat_conversations c
+      INNER JOIN chat_conversation_members ccm
+        ON ccm.conversation_id = c.id AND ccm.guest_session_id = ${session.id}
+      WHERE c.deleted_at IS NULL
+      ORDER BY c.created_at DESC
+      LIMIT 1
+    `;
+    if (!convRows.length) throw new GuestChatServiceError("No hay conversacion activa.", 404);
+    const conversationId = convRows[0].id;
+
+    const attRows = await prisma.$queryRaw`
+      SELECT bucket, object_key
+      FROM chat_attachments
+      WHERE id = ${attachmentId}::uuid AND conversation_id = ${conversationId}::uuid
+      LIMIT 1
+    `;
+    if (!attRows.length) throw new GuestChatServiceError("Adjunto no encontrado.", 404);
+
+    const { bucket, object_key: objectKey } = attRows[0];
+    const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(objectKey, 300);
+    if (error || !data?.signedUrl) throw new GuestChatServiceError("Error generando URL del adjunto.", 500);
+    return { url: data.signedUrl, expiresIn: 300 };
+  }
+
   async function closeGuestSession({ rawToken }) {
     const session = await resolveGuestSession(rawToken);
     await prisma.$executeRaw`
@@ -524,6 +551,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     getGuestSessionInfo,
     sendGuestMessage,
     listGuestMessages,
+    getGuestAttachmentUrl,
     closeGuestSession,
   };
 }

@@ -87,3 +87,40 @@ test("sendGuestMessage without attachmentId never touches chat_attachments", asy
   const linkCall = prisma.calls.find((c) => c.sql.includes("UPDATE chat_attachments"));
   assert.equal(linkCall, undefined);
 });
+
+test("getGuestAttachmentUrl returns a signed url for an attachment in the session's conversation", async () => {
+  const prisma = makePrismaStub({
+    query: (sql) => {
+      if (sql.includes("FROM chat_attachments") && sql.includes("object_key")) {
+        return [{ bucket: "atlas-chat", object_key: "conversations/conv-1/guest/abc.png" }];
+      }
+      return undefined;
+    },
+  });
+  const supabaseAdmin = {
+    storage: {
+      from: (bucket) => ({
+        createSignedUrl: async (key) => {
+          assert.equal(bucket, "atlas-chat");
+          assert.equal(key, "conversations/conv-1/guest/abc.png");
+          return { data: { signedUrl: "https://x/signed" }, error: null };
+        },
+      }),
+    },
+  };
+  const svc = createGuestChatService({ prisma, supabaseAdmin, notificationService: null, broadcaster: null });
+  const res = await svc.getGuestAttachmentUrl({ rawToken: "tok", attachmentId: "att-1" });
+  assert.equal(res.url, "https://x/signed");
+  assert.equal(res.expiresIn, 300);
+});
+
+test("getGuestAttachmentUrl throws 404 when the attachment is not in the conversation", async () => {
+  const prisma = makePrismaStub({
+    query: (sql) => (sql.includes("FROM chat_attachments") ? [] : undefined),
+  });
+  const svc = createGuestChatService({ prisma, supabaseAdmin: {}, notificationService: null, broadcaster: null });
+  await assert.rejects(
+    () => svc.getGuestAttachmentUrl({ rawToken: "tok", attachmentId: "att-x" }),
+    /no encontrado/i,
+  );
+});
