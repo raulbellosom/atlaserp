@@ -62,7 +62,8 @@ tablas nuevas `chat_meridian_thread` / `chat_meridian_message` (estilo PFM). Un 
 | **1** | `2026-09-07-chat-meridian-spec-1-core-direct-chat-design.md` | `meridian-service` (loop Groq + visión + rate limit), identidad del bot, conversación `meridian` fija que reutiliza la UI de chat existente | — |
 | **2** | *(pendiente)* Panel del asistente + acción por mensaje | Panel lateral colapsable, hilos privados por usuario, contexto = conversación anfitriona + mensaje referenciado | Spec 1 |
 | **3** | *(pendiente)* Mención `@meridIAn` en línea | El bot como participante mencionable en canales/grupos; respuestas visibles | Spec 1 |
-| *(v2)* | Alcance ERP | herramientas de lectura multi-módulo | Spec 1 |
+| **4** | `2026-09-07-chat-meridian-spec-4-web-and-routing-design.md` — *(aprobado, pendiente de plan)* | Conocimiento general (ya parchado), salida a internet vía modelos compound de Groq, y routing de modelo/herramientas con una llamada corta de clasificación | Spec 1 |
+| *(v2)* | Alcance ERP | herramientas de lectura multi-módulo (Fase A: `search_atlas` sobre `GET /search`; Fase B: por módulo) | Spec 1 |
 
 Cada spec produce su propio plan y su propia implementación, en ese orden. Se
 "brainstormea" y se implementa **Spec 1** primero.
