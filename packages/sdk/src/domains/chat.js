@@ -410,5 +410,13 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         method: "POST",
         body: JSON.stringify({}),
       }),
+
+    // ----------------------------------------------------------------
+    // MeridIAn (AI assistant) — Spec 1
+    // ----------------------------------------------------------------
+    meridian: {
+      ensure: (token) => request("/chat/meridian", { headers: withAuthHeaders(token) }),
+      status: (token) => request("/chat/meridian/status", { headers: withAuthHeaders(token) }),
+    },
   };
 }
