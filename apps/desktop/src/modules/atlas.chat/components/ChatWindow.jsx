@@ -16,17 +16,14 @@ import { ConversationProfilePanel } from "./ConversationProfilePanel";
 import { PinnedMessagesSheet } from "./PinnedMessagesSheet";
 import { ThreadPanel } from "./ThreadPanel";
 import { CallShareDialog } from "../calls/CallShareDialog";
-import {
-  useChatMessages, useSendMessage, useMarkRead, useDeleteMessage, useDeleteAttachment,
-  usePinMessage, useToggleReaction,
-} from "../hooks/useChatMessages";
+import { usePinMessage } from "../hooks/useChatMessages";
+import { useChatWindowData } from "../hooks/useChatWindowData";
 import { usePinnedMessages } from "../hooks/usePinnedMessages";
 import { useChatMessageSearch } from "../hooks/useChatMessageSearch";
 import { useChatPresence } from "../hooks/useChatPresence";
 import { useChatConversations, useArchiveConversation, useUnarchiveConversation } from "../hooks/useChatConversations";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useMeridianStatus } from "../hooks/useMeridian";
-import { mapTypingNames } from "../lib/meridian";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { buildAllAttachments, buildMessagesTranscript } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -50,23 +47,32 @@ function saveHidden(conversationId, set) {
 
 // ── Main ChatWindow ───────────────────────────────────────────────────────────
 
-export function ChatWindow({ conversation, onClose, initialFilesView = false, initialJumpMessageId = null, embedded = null, onCollapse = null }) {
+export function ChatWindow({ conversation, onClose, initialFilesView = false, initialJumpMessageId = null, embedded = null, onCollapse = null, variant = "internal" }) {
   const navigate = useNavigate();
   const { userProfile, session } = useAuth();
+  const isExternal = variant === "external";
   const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
   const token = session?.access_token;
   const conversationId = conversation?.id;
 
-  const { data: messagesData, isLoading, hasMore, isLoadingMore, loadMore } = useChatMessages(conversationId);
-  const { mutateAsync: sendMessage } = useSendMessage(conversationId);
-  const { mutate: markReadMutate } = useMarkRead(conversationId);
-  const { mutate: deleteMessageMutate } = useDeleteMessage(conversationId);
-  const { mutate: deleteAttachmentMutate, isPending: isDeletingAttachment, variables: deletingAttachmentId } = useDeleteAttachment(conversationId);
+  // One selector for all message data — internal chat hooks, or the external
+  // support path (/chat/external/*). Both return the same shape.
+  const chatData = useChatWindowData(conversationId, variant);
+  const messagesData = useMemo(() => ({ data: chatData.messages }), [chatData.messages]);
+  const { isLoading, hasMore, isLoadingMore, loadMore } = chatData;
+  const sendMessage = chatData.sendMessage;
+  const markReadMutate = chatData.markRead;
+  const deleteMessageMutate = chatData.deleteMessage;
+  const deleteAttachmentMutate = chatData.deleteAttachment;
+  const deletingAttachmentId = chatData.deletingAttachmentId;
+  const isDeletingAttachment = deletingAttachmentId != null;
+  const toggleReactionMutate = ({ messageId, emoji, attachmentId }) =>
+    chatData.toggleReaction(messageId, emoji, attachmentId);
   const { mutate: pinMutate } = usePinMessage(conversationId);
-  const { mutate: toggleReactionMutate } = useToggleReaction(conversationId);
   const { mutate: archiveMutate } = useArchiveConversation();
   const { mutate: unarchiveMutate } = useUnarchiveConversation();
-  const { onlineUsers, typingUsersList, sendTyping } = useChatPresence(conversationId);
+  const { onlineUsers, sendTyping: presenceSendTyping } = useChatPresence(isExternal ? null : conversationId);
+  const sendTyping = isExternal ? chatData.sendTyping : presenceSendTyping;
   const { data: convsData } = useChatConversations();
   const conversations = convsData?.data ?? [];
   // The conversation-list preview only returns a 5-member slice with no
@@ -581,7 +587,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               messages={messages}
               isLoading={isLoading}
               currentUserId={userProfile?.id}
-              typingUsers={mapTypingNames(typingUsersList)}
+              typingUsers={chatData.typingUsers}
               onAttachmentClick={handleAttachmentClick}
               members={detailMembers ?? conversation.members}
               conversationType={conversation?.type}
