@@ -145,7 +145,67 @@ function createGroqAdapter({ env, fetchImpl }) {
     throw lastErr ?? new VisionServiceError("El servicio de vision no respondio.");
   }
 
-  return { call };
+  // Generic image description for the MeridIAn chat assistant. Same Groq
+  // OpenAI-compatible endpoint, retry/timeout pattern and reasoning-model
+  // handling as call(), but returns free-form prose instead of receipt JSON.
+  async function describe({ imageBase64, mimeType, question }) {
+    if (!apiKey) throw new VisionServiceError("Descripcion de imagen no configurada (falta GROQ_API_KEY).", 503);
+    const prompt = (question && String(question).trim())
+      ? String(question).trim().slice(0, 500)
+      : "Describe con precision y en espanol lo que se ve en esta imagen: texto legible, cifras, objetos y contexto. Se conciso.";
+    const body = {
+      model,
+      temperature: 0,
+      ...(isReasoningModel(model) ? { reasoning_format: "hidden" } : {}),
+      messages: [
+        { role: "system", content: "Eres un asistente que describe imagenes para otro asistente. Responde solo con la descripcion, sin preambulos." },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: `data:${mimeType || "image/jpeg"};base64,${imageBase64}` } },
+          ],
+        },
+      ],
+    };
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, retryDelayMs));
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      let res;
+      try {
+        res = await fetchFn(`${baseUrl}/openai/v1/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        lastErr = new VisionServiceError(`No se pudo contactar al servicio de vision: ${err.message}`);
+        clearTimeout(t);
+        continue;
+      }
+      clearTimeout(t);
+      if (res.status === 429 || res.status >= 500) {
+        lastErr = new VisionServiceError(`El servicio de vision respondio ${res.status}.`, 502);
+        continue;
+      }
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new VisionServiceError(`El servicio de vision rechazo la peticion (${res.status}): ${detail.slice(0, 300)}`);
+      }
+      const payload = await res.json();
+      const content = payload?.choices?.[0]?.message?.content;
+      if (!content || !String(content).trim()) {
+        throw new VisionServiceError("El servicio de vision no devolvio una descripcion.");
+      }
+      return { description: String(content).trim().slice(0, 4000), model: payload.model ?? model };
+    }
+    throw lastErr ?? new VisionServiceError("El servicio de vision no respondio.");
+  }
+
+  return { call, describe };
 }
 
 export function createVisionService({ env = process.env, fetchImpl } = {}) {
@@ -161,6 +221,9 @@ export function createVisionService({ env = process.env, fetchImpl } = {}) {
     provider,
     async extractReceipt({ imageBase64, mimeType }) {
       return adapter.call({ imageBase64, mimeType });
+    },
+    async describeImage({ imageBase64, mimeType, question }) {
+      return adapter.describe({ imageBase64, mimeType, question });
     },
   };
 }
