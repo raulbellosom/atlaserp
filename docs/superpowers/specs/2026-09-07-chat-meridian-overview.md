@@ -61,8 +61,8 @@ tablas nuevas `chat_meridian_thread` / `chat_meridian_message` (estilo PFM). Un 
 |---|------|---------|------------|
 | **1** | `2026-09-07-chat-meridian-spec-1-core-direct-chat-design.md` | `meridian-service` (loop Groq + visión + rate limit), identidad del bot, conversación `meridian` fija que reutiliza la UI de chat existente | — |
 | **2** | *(pendiente)* Panel del asistente + acción por mensaje | Panel lateral colapsable, hilos privados por usuario, contexto = conversación anfitriona + mensaje referenciado | Spec 1 |
-| **3** | *(pendiente)* Mención `@meridIAn` en línea | El bot como participante mencionable en canales/grupos; respuestas visibles | Spec 1 |
-| **4** | `2026-09-07-chat-meridian-spec-4-web-and-routing-design.md` — *(aprobado, pendiente de plan)* | Conocimiento general (ya parchado), salida a internet vía modelos compound de Groq, y routing de modelo/herramientas con una llamada corta de clasificación | Spec 1 |
+| **3** | `2026-09-07-chat-meridian-spec-3-mention-design.md` — **shipped 2026-09-07** | Mención `@meridIAn` en canales/grupos: respuesta pública desde el contexto del canal, detección por token literal (el bot no es miembro), cooldown por canal, `chat_meridian_run.surface='mention'` | Spec 1 + Spec 4 |
+| **4** | `2026-09-07-chat-meridian-spec-4-web-and-routing-design.md` — **routing shipped 2026-09-07; web BLOQUEADA** (Groq compound 413/plan-gated) | Conocimiento general (parchado), routing chat/general/live con clasificador corto. Web vía compound cableada pero la cuenta Groq no la tiene habilitada | Spec 1 |
 | *(v2)* | Alcance ERP | herramientas de lectura multi-módulo (Fase A: `search_atlas` sobre `GET /search`; Fase B: por módulo) | Spec 1 |
 
 Cada spec produce su propio plan y su propia implementación, en ese orden. Se
