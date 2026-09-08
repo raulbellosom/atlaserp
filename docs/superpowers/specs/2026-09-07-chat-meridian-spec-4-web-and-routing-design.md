@@ -1,5 +1,15 @@
 # atlas.chat — MeridIAn Spec 4: conocimiento general, web y routing de modelos
 
+> **Estado de implementación (2026-09-07):** routing + conocimiento general
+> **SHIPPED y funcionando** (clasificador `chat`/`general`/`live`, `chat_meridian_run.route`,
+> sub-límite `live`, breaker, env vars). **La búsqueda web está BLOQUEADA:**
+> `groq/compound` y `groq/compound-mini` devuelven **413 Request Entity Too Large
+> incluso para una petición trivial** en esta cuenta de Groq → compound está
+> gated por plan/cuenta y no está habilitado. El camino `live` está cableado y
+> degrada a "Ahora mismo no puedo consultar internet en este entorno". Siguiente:
+> (a) habilitar compound en la cuenta de Groq, o (b) v3 = herramienta `web_search`
+> propia con API key de proveedor (Tavily/Brave/Serper).
+
 - **Estado:** aprobado (self-approved 2026-09-07 por instrucción del usuario)
 - **Depende de:** Spec 1 (motor + chat directo), ya en `main`.
 - **Overview:** `docs/superpowers/specs/2026-09-07-chat-meridian-overview.md`
