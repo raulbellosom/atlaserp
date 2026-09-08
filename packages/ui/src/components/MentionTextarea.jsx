@@ -116,7 +116,11 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [triggerPos, setTriggerPos] = useState(0)
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 })
+  // The menu is anchored to the textarea (not the caret): it sits just above
+  // the field, left-aligned, and — because it's pinned by its bottom edge —
+  // grows UPWARD as more results come in. Flips below only if there's no room
+  // above (field near the top of the screen).
+  const [menuPos, setMenuPos] = useState({ left: 0, width: 240, place: 'above', anchor: 0, maxHeight: 260 })
   const [activeIdx, setActiveIdx] = useState(0)
   const textareaRef = useRef(null)
   const containerRef = useRef(null)
@@ -159,54 +163,28 @@ const MentionTextarea = forwardRef(function MentionTextarea({
       })
     : members
 
+  // Anchor the menu to the textarea. Default: floating just above it, its
+  // bottom pinned so it grows upward with more results. Flip below only when
+  // the field is too close to the top of the viewport.
   function computeMenuPos(textarea) {
-    const MENU_H = 260
-    const MENU_W = 240
+    const GAP = 6
+    const MIN_W = 200
+    const MAX_W = 340
+    const DESIRED_H = 260
     const rect = textarea.getBoundingClientRect()
-    const vvp = window.visualViewport
-    const vw = vvp ? vvp.width : window.innerWidth
-    const vh = vvp ? vvp.offsetTop + vvp.height : window.innerHeight
+    const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight
 
-    let caretOffsetTop = 0
-    let lineH = 20
-    try {
-      const cs = getComputedStyle(textarea)
-      lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4 || 20
-      const mirror = document.createElement('div')
-      for (const p of [
-        'boxSizing', 'width', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-        'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-        'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing', 'lineHeight',
-      ]) mirror.style[p] = cs[p]
-      mirror.style.position = 'absolute'
-      mirror.style.visibility = 'hidden'
-      mirror.style.top = '-9999px'
-      mirror.style.whiteSpace = 'pre-wrap'
-      mirror.style.wordWrap = 'break-word'
-      mirror.style.overflowWrap = 'break-word'
-      const caretSpan = document.createElement('span')
-      caretSpan.textContent = '​'
-      mirror.appendChild(document.createTextNode(textarea.value.slice(0, textarea.selectionStart)))
-      mirror.appendChild(caretSpan)
-      document.body.appendChild(mirror)
-      caretOffsetTop = caretSpan.offsetTop
-      document.body.removeChild(mirror)
-    } catch (_) {}
+    const width = Math.round(Math.min(MAX_W, Math.max(MIN_W, rect.width)))
+    const left = Math.round(Math.min(Math.max(8, rect.left), vw - width - 8))
 
-    const paddingTop = parseFloat(getComputedStyle(textarea).paddingTop) || 0
-    const caretTop = rect.top + paddingTop + caretOffsetTop - textarea.scrollTop
-    const caretBottom = caretTop + lineH
-    const anchorBottom = Math.min(Math.max(caretBottom, rect.top + 4), rect.bottom)
-    const anchorTop = Math.min(Math.max(caretTop, rect.top), rect.bottom - 4)
-    const spaceBelow = vh - anchorBottom
-    const spaceAbove = anchorTop
-    const top = spaceBelow >= MENU_H + 8
-      ? anchorBottom + 4
-      : spaceAbove >= MENU_H + 8
-        ? anchorTop - MENU_H - 4
-        : anchorBottom + 4
-    const left = Math.min(Math.max(8, rect.left), vw - MENU_W - 8)
-    return { top, left }
+    const spaceAbove = rect.top - GAP - 8
+    const spaceBelow = vh - rect.bottom - GAP - 8
+    const place = spaceAbove >= 140 || spaceAbove >= spaceBelow ? 'above' : 'below'
+    if (place === 'above') {
+      return { left, width, place, anchor: Math.round(rect.top - GAP), maxHeight: Math.max(120, Math.min(DESIRED_H, spaceAbove)) }
+    }
+    return { left, width, place, anchor: Math.round(rect.bottom + GAP), maxHeight: Math.max(120, Math.min(DESIRED_H, spaceBelow)) }
   }
 
   const handleChange = useCallback(
@@ -280,6 +258,22 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     }
   }
 
+  // Keep the menu glued to the textarea while it's open: re-anchor when the
+  // result count changes (width/flip can change) and on scroll/resize.
+  useEffect(() => {
+    if (!open) return
+    const reanchor = () => {
+      if (textareaRef.current) setMenuPos(computeMenuPos(textareaRef.current))
+    }
+    reanchor()
+    window.addEventListener('scroll', reanchor, true)
+    window.addEventListener('resize', reanchor)
+    return () => {
+      window.removeEventListener('scroll', reanchor, true)
+      window.removeEventListener('resize', reanchor)
+    }
+  }, [open, filtered.length])
+
   useEffect(() => {
     if (!open) return
     function handleClick(e) {
@@ -316,13 +310,17 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         <div
           ref={menuRef}
           data-mention-dropdown
-          className="min-w-50 max-w-65 rounded-xl py-1 overflow-y-auto overscroll-contain"
+          className="rounded-xl py-1 overflow-y-auto overscroll-contain flex flex-col"
           style={{
             position: 'fixed',
-            top: menuPos.top,
             left: menuPos.left,
+            width: menuPos.width,
+            // Pinned by bottom when above the field -> grows upward with results.
+            ...(menuPos.place === 'above'
+              ? { bottom: Math.max(8, (window.visualViewport?.height ?? window.innerHeight) - menuPos.anchor) }
+              : { top: menuPos.anchor }),
             zIndex: 9999,
-            maxHeight: 260,
+            maxHeight: menuPos.maxHeight,
             backdropFilter: 'blur(var(--glass-blur))',
             WebkitBackdropFilter: 'blur(var(--glass-blur))',
             background: 'var(--glass-bg-strong)',
