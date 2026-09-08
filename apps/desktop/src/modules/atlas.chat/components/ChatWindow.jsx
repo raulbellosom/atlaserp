@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
+import { atlas } from "../../../lib/atlas";
+import { ChatTemplatePopover } from "./ChatTemplatePopover";
 import { useConversationFiles } from "../hooks/useConversationFiles";
 import { ErrorState } from "@atlas/ui";
 import { ChatFilesGallery } from "./ChatFilesGallery";
@@ -52,8 +55,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const { userProfile, session } = useAuth();
   const isExternal = variant === "external";
   const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
+  const queryClient = useQueryClient();
   const token = session?.access_token;
   const conversationId = conversation?.id;
+
+  const handleCloseExternal = useCallback(async () => {
+    if (!conversationId) return;
+    await atlas.chat.closeExternal(conversationId, token);
+    queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"], exact: false });
+  }, [conversationId, token, queryClient]);
 
   // One selector for all message data — internal chat hooks, or the external
   // support path (/chat/external/*). Both return the same shape.
@@ -508,6 +518,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onClose={onClose}
         embedded={embedded}
         onCollapse={onCollapse}
+        variant={variant}
+        externalStatus={conversation?.status ?? null}
+        onCloseExternal={isExternal ? handleCloseExternal : undefined}
         filesView={filesView}
         onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); setProfileInitialTab(null); }}
         searchMode={searchMode}
@@ -533,15 +546,15 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         onOpenProfile={openProfile}
         onOpenPinned={() => setShowPinned(true)}
         isMeridian={isMeridian}
-        onOpenMeridian={() => { setMeridianFocus(null); setMeridianPanelOpen(true); }}
+        onOpenMeridian={isExternal ? undefined : () => { setMeridianFocus(null); setMeridianPanelOpen(true); }}
         meridianDisabled={meridianStatus?.available === false}
-        callsEnabled={callsEnabled}
+        callsEnabled={isExternal ? false : callsEnabled}
         callPending={callPending}
         onStartAudioCall={() => startCall({ conversationId, kind: "AUDIO" })}
         onStartVideoCall={() => startCall({ conversationId, kind: "VIDEO" })}
-        onOpenGuestLink={callsEnabled ? () => setShareOpen(true) : undefined}
+        onOpenGuestLink={!isExternal && callsEnabled ? () => setShareOpen(true) : undefined}
         isArchived={conversation?.is_archived ?? false}
-        onArchive={conversationId
+        onArchive={!isExternal && conversationId
           ? () => conversation?.is_archived
             ? unarchiveMutate(conversationId)
             : archiveMutate(conversationId)
@@ -645,7 +658,41 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           handles that. At xl and up this column stays visible alongside the
           sidebar (see below), composer included, so you can keep chatting
           while looking at the profile. */}
-      {!filesView && (
+      {!filesView && isExternal && conversation?.status !== "closed" && (
+        <div className="shrink-0">
+          <div className="flex items-center gap-2 px-3 pt-2">
+            <ChatTemplatePopover
+              onSelect={(body) => composerRef.current?.setBody?.(body)}
+              vars={{
+                nombre_agente: userProfile?.displayName ?? userProfile?.email ?? "Agente",
+                nombre_cliente: conversation?.guest_name ?? conversation?.guest_email ?? "Cliente",
+                email_cliente: conversation?.guest_email ?? "",
+              }}
+            />
+            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Plantillas</span>
+          </div>
+          <MessageComposer
+            ref={composerRef}
+            onSend={handleSend}
+            onTyping={sendTyping}
+            placeholder="Responder al visitante..."
+            conversationId={conversationId}
+            conversationType="external_support"
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
+            dropZoneDisabled
+            edgeInset
+          />
+        </div>
+      )}
+
+      {!filesView && isExternal && conversation?.status === "closed" && (
+        <div className="shrink-0 border-t border-[hsl(var(--border))] px-4 py-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
+          Esta conversacion fue cerrada.
+        </div>
+      )}
+
+      {!filesView && !isExternal && (
         <MessageComposer
           ref={composerRef}
           onSend={handleSend}
@@ -713,11 +760,13 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         conversations={conversations}
       />
 
-      <CallShareDialog
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-        conversationId={conversationId}
-      />
+      {!isExternal && (
+        <CallShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          conversationId={conversationId}
+        />
+      )}
 
       <PinnedMessagesSheet
         open={showPinned}

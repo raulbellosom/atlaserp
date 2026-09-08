@@ -46,6 +46,7 @@ export function ChatHeader({
   isMeridian = false,
   onOpenMeridian, meridianDisabled = false,
   embedded = null, onCollapse = null,
+  variant = "internal", externalStatus = null, onCloseExternal = null,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -156,6 +157,66 @@ export function ChatHeader({
         >
           <ChevronDown className="h-4 w-4" />
         </button>
+      </div>
+    );
+  }
+
+  // ── External support mode ───────────────────────────────────────────────────
+  if (variant === "external") {
+    const guestName = conversation?.guest_name ?? conversation?.guest_email ?? "Visitante";
+    const closed = externalStatus === "closed";
+    return (
+      <div className="chat-glass flex items-center gap-3 px-3 sm:px-4 py-3 shrink-0">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors shrink-0 touch-manipulation"
+            aria-label="Volver"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
+        <div className="h-9 w-9 rounded-full bg-violet-100 dark:bg-violet-900 flex items-center justify-center text-sm font-semibold text-violet-600 dark:text-violet-300 uppercase shrink-0">
+          {guestName[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="chat-font-display text-sm font-semibold truncate">{guestName}</p>
+          {conversation?.guest_page_url && (
+            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
+              {conversation.guest_page_url.replace(/^https?:\/\//, "")}
+            </p>
+          )}
+        </div>
+        <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Buscar mensajes">
+          <Search className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleFilesView}
+          title={filesView ? "Ver mensajes" : "Ver archivos"}
+          className={[headerBtnCls, filesView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : ""].join(" ")}
+        >
+          {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={headerBtnCls}>
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onEnterSelection}>
+              <CheckSquare className="h-3.5 w-3.5 mr-2" />
+              Seleccionar mensajes
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {!closed && onCloseExternal && (
+          <Button size="sm" variant="outline" onClick={onCloseExternal} className="shrink-0">
+            Cerrar
+          </Button>
+        )}
       </div>
     );
   }
