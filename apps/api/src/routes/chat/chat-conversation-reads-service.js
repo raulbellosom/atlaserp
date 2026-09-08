@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { ChatServiceError } from "./chat-service-error.js";
+import { assertNotMeridian } from "./meridian-conversation-guard.js";
 
 // Extracted from chat-service.js to keep that file under its documented
 // 1500-line hard ceiling. Receives getUserProfileId/assertMember/
@@ -10,16 +11,9 @@ import { ChatServiceError } from "./chat-service-error.js";
 // instantiates this internally (see chat-service.js) using its own
 // existing closures.
 export function createChatConversationReadsService({ prisma, getUserProfileId, assertMember, batchSignAvatarUrls }) {
-  // The MeridIAn assistant chat (chat_conversations.type = 'meridian') is a
-  // fixed per-user 1:1 conversation: it cannot be archived or hidden from the
-  // list. Mirrors assertNotMeridian in chat-service.js. A non-meridian
-  // conversation (row undefined or a different type) falls straight through.
-  async function assertNotMeridian(conversationId, action = "modificar") {
-    const [row] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
-    if (row?.type === "meridian") {
-      throw new ChatServiceError(`No puedes ${action} el chat con MeridIAn.`, 400);
-    }
-  }
+  // assertNotMeridian(prisma, conversationId, action) is shared from
+  // ./meridian-conversation-guard.js — the 'meridian' chat cannot be archived
+  // or hidden from the list.
 
   async function listConversations({ authUserId, limit = 50, cursor = null, archived = false }) {
     const profileId = await getUserProfileId(authUserId);
@@ -175,7 +169,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
 
   async function archiveConversation({ conversationId, authUserId }) {
     const profileId = await getUserProfileId(authUserId);
-    await assertNotMeridian(conversationId, "archivar");
+    await assertNotMeridian(prisma, conversationId, "archivar");
     await prisma.$executeRaw`
       UPDATE chat_conversation_members
       SET archived_at = NOW()
@@ -206,7 +200,7 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
 
   async function hideConversation({ conversationId, authUserId }) {
     const profileId = await getUserProfileId(authUserId);
-    await assertNotMeridian(conversationId, "eliminar de la lista");
+    await assertNotMeridian(prisma, conversationId, "eliminar de la lista");
     const [conv] = await prisma.$queryRaw`
       SELECT type FROM chat_conversations WHERE id = ${conversationId} AND deleted_at IS NULL LIMIT 1
     `;

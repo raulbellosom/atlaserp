@@ -5,6 +5,7 @@ import { ChatServiceError } from "./chat-service-error.js";
 import { createChatConversationReadsService } from "./chat-conversation-reads-service.js";
 import { createChatAttachmentsService } from "./chat-attachments-service.js";
 import { buildReplyPreview } from "./chat-reply-preview.js";
+import { assertNotMeridian } from "./meridian-conversation-guard.js";
 
 export { ChatServiceError };
 
@@ -158,17 +159,9 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     }
   }
 
-  // The MeridIAn assistant chat is an ordinary chat_conversations row with
-  // type = 'meridian'. It is a fixed, per-user 1:1 conversation — it cannot be
-  // renamed, deleted, or have its membership changed. Guarded mutations call
-  // this before doing any work. Non-meridian conversations (row undefined or a
-  // different type) fall straight through, so this is a no-op for them.
-  async function assertNotMeridian(conversationId, action = "modificar") {
-    const [row] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
-    if (row?.type === "meridian") {
-      throw new ChatServiceError(`No puedes ${action} el chat con MeridIAn.`, 400);
-    }
-  }
+  // assertNotMeridian(prisma, conversationId, action) is shared from
+  // ./meridian-conversation-guard.js — the 'meridian' chat cannot be renamed,
+  // have its membership changed, or be deleted.
 
   // Only direct conversations can be blocked (spec Non-goal 2 — a block never
   // affects shared groups/channels). Checks both directions: either party
@@ -478,7 +471,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function updateConversation({ conversationId, authUserId, updates }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
-    await assertNotMeridian(conversationId, "renombrar");
+    await assertNotMeridian(prisma, conversationId, "renombrar");
 
     if (permissionsService) {
       const [conv] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
@@ -546,7 +539,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function deleteConversation({ conversationId, authUserId }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
-    await assertNotMeridian(conversationId, "eliminar");
+    await assertNotMeridian(prisma, conversationId, "eliminar");
 
     const [conv] = await prisma.$queryRaw`
       SELECT type FROM chat_conversations WHERE id = ${conversationId} AND deleted_at IS NULL LIMIT 1
@@ -585,7 +578,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function addMembers({ conversationId, authUserId, userIds, role = "member" }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
-    await assertNotMeridian(conversationId, "agregar miembros a");
+    await assertNotMeridian(prisma, conversationId, "agregar miembros a");
 
     if (permissionsService) {
       const [conv] = await prisma.$queryRaw`SELECT type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
@@ -651,7 +644,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   async function removeMember({ conversationId, authUserId, targetUserId }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
-    await assertNotMeridian(conversationId, "quitar miembros de");
+    await assertNotMeridian(prisma, conversationId, "quitar miembros de");
 
     if (permissionsService) {
       const isLast = await permissionsService.isLastOwner(conversationId, targetUserId);
