@@ -30,7 +30,7 @@ function sortByValue(items, by, dir) {
   return sorted;
 }
 
-export function useFilesExplorer(files = []) {
+export function useFilesExplorer(files = [], { server = false } = {}) {
   const [viewMode, setViewMode] = useState("table");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({
@@ -44,6 +44,7 @@ export function useFilesExplorer(files = []) {
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const filteredFiles = useMemo(() => {
+    if (server) return files;
     const q = search.trim().toLowerCase();
 
     const base = files.filter((file) => {
@@ -82,7 +83,7 @@ export function useFilesExplorer(files = []) {
     });
 
     return sortByValue(base, sort.by, sort.dir);
-  }, [files, search, filters, sort]);
+  }, [files, search, filters, sort, server]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 

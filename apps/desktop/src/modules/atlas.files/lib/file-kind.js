@@ -4,6 +4,7 @@ export function getFileKind(mimeType = "") {
   if (value.startsWith("video/")) return "video";
   if (value.startsWith("audio/")) return "audio";
   if (value === "application/pdf") return "pdf";
+  if (value.includes('presentation') || value.includes('powerpoint')) return 'presentation';
   if (value.includes("spreadsheet") || value.includes("excel") || value.includes("csv")) {
     return "sheet";
   }
@@ -35,6 +36,7 @@ export function getKindLabel(kind) {
   if (kind === "video") return "Video";
   if (kind === "audio") return "Audio";
   if (kind === "pdf") return "PDF";
+  if (kind === 'presentation') return 'Presentación';
   if (kind === "sheet") return "Hoja de calculo";
   if (kind === "doc") return "Documento";
   if (kind === "text") return "Texto";

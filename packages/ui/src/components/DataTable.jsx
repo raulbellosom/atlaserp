@@ -32,6 +32,9 @@ export function DataTable({
   emptyIcon,
   emptyAction,
   className,
+  manualPagination = false,
+  showToolbar = true,
+  showPagination = true,
 }) {
   const EMPTY_ROWS = useMemo(() => [], [])
   const [sorting, setSorting] = useState([])
@@ -63,14 +66,15 @@ export function DataTable({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination,
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
   })
 
   const rows = table.getRowModel().rows
 
   return (
     <div className={cn('flex flex-col gap-0', className)}>
-      {(columns.length > 0 || filters) && (
+      {showToolbar && (columns.length > 0 || filters) && (
         <div className="flex flex-wrap items-center gap-2 pb-3">
           <SearchInput
             value={globalFilter}
@@ -175,7 +179,7 @@ export function DataTable({
         </Table>
       </div>
 
-      <PageFooter
+      {showPagination && <PageFooter
         total={table.getFilteredRowModel().rows.length}
         pageIndex={table.getState().pagination.pageIndex}
         pageCount={table.getPageCount()}
@@ -188,7 +192,7 @@ export function DataTable({
           table.setPageSize(size)
           setPagination((p) => ({ ...p, pageIndex: 0, pageSize: size }))
         }}
-      />
+      />}
     </div>
   )
 }

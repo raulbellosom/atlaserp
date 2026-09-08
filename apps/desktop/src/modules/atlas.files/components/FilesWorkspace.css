@@ -1,0 +1,161 @@
+.files-workspace {
+  min-width: 0;
+}
+.files-workspace-heading {
+  display: grid;
+  gap: 12px;
+}
+.files-workspace-intro {
+  margin: -8px 0 4px;
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+.files-create-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.files-create-strip .files-create-tile {
+  --file-color: #185abd;
+  display: flex;
+  justify-content: flex-start;
+  height: auto;
+  min-height: 88px;
+  gap: 14px;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  border-radius: 14px;
+}
+.files-create-tile[data-format="xlsx"] {
+  --file-color: #107c41;
+}
+.files-create-tile[data-format="pptx"] {
+  --file-color: #b7472a;
+}
+.files-create-strip .files-create-tile:hover {
+  background: color-mix(in srgb, var(--file-color) 5%, hsl(var(--card)));
+  border-color: color-mix(in srgb, var(--file-color) 40%, hsl(var(--border)));
+}
+.files-create-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 48px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  color: var(--file-color);
+  background: color-mix(in srgb, var(--file-color) 10%, hsl(var(--card)));
+}
+.files-create-strip .files-create-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.files-create-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.files-create-copy strong {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: normal;
+}
+.files-create-copy > span {
+  font-size: 12px;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+  white-space: normal;
+}
+.files-create-arrow {
+  margin-left: auto;
+  color: hsl(var(--muted-foreground));
+}
+.files-workspace-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid hsl(var(--border));
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+.files-workspace-tabs button {
+  flex-shrink: 0;
+}
+.files-workspace-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 0;
+}
+.files-workspace-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#files-page-size {
+  min-width: 90px;
+}
+.dark .files-create-tile[data-format="docx"] {
+  --file-color: #6aa5f8;
+}
+.dark .files-create-tile[data-format="xlsx"] {
+  --file-color: #57c78e;
+}
+.dark .files-create-tile[data-format="pptx"] {
+  --file-color: #f69d82;
+}
+@media (max-width: 767px) {
+  .files-workspace-table th:nth-child(3),
+  .files-workspace-table td:nth-child(3),
+  .files-workspace-table th:nth-child(4),
+  .files-workspace-table td:nth-child(4),
+  .files-workspace-table th:nth-child(5),
+  .files-workspace-table td:nth-child(5) {
+    display: none;
+  }
+  .files-workspace-table table {
+    table-layout: fixed;
+  }
+  .files-workspace-table th:first-child {
+    width: 36px;
+  }
+  .files-workspace-table th:last-child {
+    width: 88px;
+  }
+  .files-workspace-table td {
+    padding: 10px 4px;
+  }
+  .files-workspace-table .files-name-cell {
+    min-width: 0;
+    gap: 8px;
+  }
+  .files-workspace-table .files-name-cell > :first-child {
+    width: 28px;
+    height: 32px;
+  }
+  .files-create-strip {
+    gap: 8px;
+  }
+  .files-create-strip .files-create-tile {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px;
+    gap: 10px;
+  }
+  .files-create-copy > span,
+  .files-create-arrow {
+    display: none;
+  }
+  .files-create-copy strong {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .files-workspace button {
+    transition: none;
+  }
+}

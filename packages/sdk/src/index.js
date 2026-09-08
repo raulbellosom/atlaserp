@@ -622,6 +622,12 @@ export function createAtlasClient({ baseUrl }) {
         }),
     },
     files: {
+      createDocument: (data, token) => request('/files/documents', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+      getAccess: (id, token) => request(`/files/${encodeURIComponent(id)}/access`, { headers: withAuthHeaders(token), onlineOnly: true }),
+      updateAccess: (id, data, token) => request(`/files/${encodeURIComponent(id)}/access`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+      accessMembers: (id, q, token) => request(`/files/${encodeURIComponent(id)}/members${toQueryString({ q })}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+      invitations: (page, token) => request(`/files/invitations${toQueryString({ page })}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+      respondInvitation: (id, accept, token) => request(`/files/invitations/${encodeURIComponent(id)}/respond`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify({ accept }), onlineOnly: true }),
       officeStatus: (token) => request('/files/office/status', { headers: withAuthHeaders(token) }),
       downloadOfficeFile: (id, token) => requestBlob(`/files/${encodeURIComponent(id)}/office/download`, { headers: withAuthHeaders(token) }),
       createOfficeSession: (id, mode = 'auto', token) => request(`/files/${encodeURIComponent(id)}/office/session`, {

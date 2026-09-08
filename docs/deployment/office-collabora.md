@@ -217,6 +217,14 @@ Audit events: `office.document.opened`, `office.document.saved`, `office.documen
 
 ## Troubleshooting and acceptance
 
+### Changes appear only after saving and reloading another device
+
+There is no separate collaboration switch. Both devices must open the same FileAsset in the live Office editor, with sessions routed to the same CODE document process. A file preview or downloaded copy does not join that live session. Use the same `/app/m/atlas.files/files/:id/edit` path on the same deployed Atlas installation for an initial check; matching filenames alone do not establish file identity.
+
+Development and production normally run separate CODE instances. A browser on `localhost:5173` with `COLLABORA_PUBLIC_URL=http://localhost:9980` does not collaborate live with a browser using the VPS's `https://office.racoondevs.com`, even when both Atlas APIs share database/Storage. Reading saved versions from common storage does not synchronize their live editor processes; competing write leases can also prevent saves. To test cross-device collaboration, open the deployed Atlas URL on both devices instead of mixing local development and production. Do not change only the public Office URL to combine environments: discovery routing, the canonical WOPI URL, token validation and host origins must be consistent too.
+
+For a failure within one installation, compare the file ID, effective editor origin and decoded WOPISrc from the two session responses locally; do not share access tokens or complete capability URLs. Atlas creates WOPISrc from the configured WOPI base plus FileAsset ID, without user, token or revision suffixes. Check that `/cool/` WebSockets stay connected and that any proxy with multiple CODE backends routes the same document to the same instance. Collabora documents this requirement in its [deployment guidance](https://github.com/CollaboraOnline/online/blob/main/kubernetes/helm/collabora-online/README.md). Separate logged-in users are useful for checking permissions, but using the same account on two devices does not itself disable coediting.
+
 | Symptom | Check |
 |---|---|
 | White iframe | CODE public origin reachable; `frame-src`, `form-action`, `frame-ancestors`; no incompatible X-Frame-Options; browser console |
@@ -241,3 +249,7 @@ pnpm build
 ```
 
 Acceptance on your deployment: upload XLSX, edit A1, save/close, reopen and download to verify bytes; open two authorized users concurrently; verify a view-only user's read mode and another company's rejection. Repeat with DOCX/PPTX, Android Chrome, iOS Safari, installed PWA and Tauri. Stop CODE and confirm Atlas listing/upload/download remain usable. Benchmarks depend on document complexity and users; provision headroom for CODE alongside Atlas/Supabase and measure memory/CPU under collaborative load. Official sizing guidance is in the [Collabora FAQ](https://www.collaboraonline.com/faqs/).
+
+## Files workspace
+
+Document creation, internal invitations, per-document permissions and server pagination are covered in [the Files workspace deployment guide](files-workspace.md). This requires updated API/web images and the Files workspace migration; it reuses the existing CODE service.

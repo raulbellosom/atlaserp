@@ -1,9 +1,11 @@
 import { getOfficeFormat } from '@atlas/core';
 import { OfficeError } from './errors.js';
+import { createFileAccess, FileAccessError } from '../files/access.js';
 
 export const OFFICE_FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function createOfficeAccess({ prisma }) {
+  const fileAccess = createFileAccess({ prisma });
   async function authorize({ authUserId, fileId, mode = 'view', claims }, db = prisma) {
     if (!OFFICE_FILE_ID.test(fileId)) throw new OfficeError('Identificador de archivo inválido.', 400, 'invalid_file_id');
     const profile = await db.userProfile.findUnique({ where: { authUserId } });
@@ -55,6 +57,8 @@ export function createOfficeAccess({ prisma }) {
     } else if (file.entityType !== 'AtlasFile' || ![null, 'atlas.files'].includes(file.moduleKey) || (file.metadata?.sourceEntityId && file.metadata.sourceEntityId !== companyId)) {
       throw new OfficeError('Este origen aún no admite edición Office.', 403, 'unsupported_scope');
     }
+    try { await fileAccess.assertAccess(file, { profileId: profile.id, admin }, mode === 'edit' ? 'write' : 'read', db); }
+    catch (error) { if (error instanceof FileAccessError) throw new OfficeError(error.message, error.status, 'forbidden'); throw error; }
     const format = getOfficeFormat(file);
     if (!format || file.bucket !== 'atlas-files' || file.visibility === 'PUBLIC') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
     if (file.sizeBytes > 10 * 1024 * 1024) throw new OfficeError('El archivo supera 10 MB.', 413, 'file_too_large');

@@ -1,4 +1,6 @@
-﻿import JSZip from "jszip";
+﻿import { createFileAccess } from "./files/access.js";
+import JSZip from "jszip";
+import { fileKindWhere } from "./files/query.js";
 import { toLocalIso, getOfficeFormat, OFFICE_FORMATS } from "@atlas/core";
 import { signedUrlWithVariant, publicUrlWithVariant } from "../lib/image-variants.js";
 
@@ -83,7 +85,7 @@ function buildModuleObjectKey({
 }
 
 function normalizePagination({ page, pageSize }) {
-  const safePage = Math.max(1, Number.parseInt(String(page ?? "1"), 10) || 1);
+  const safePage = Math.max(1, Math.min(100000, Number.parseInt(String(page ?? "1"), 10) || 1));
   const safePageSize = Math.min(
     100,
     Math.max(1, Number.parseInt(String(pageSize ?? "20"), 10) || 20),
@@ -120,7 +122,7 @@ function parseMetadata(raw) {
 }
 
 function isAllowedSort(sortBy) {
-  return ["createdAt", "sizeBytes", "originalName"].includes(sortBy);
+  return ["createdAt", "updatedAt", "sizeBytes", "originalName"].includes(sortBy);
 }
 
 function isAllowedMimeType(mimeType) {
@@ -159,6 +161,7 @@ function getUniqueZipEntryName(originalName, usedNames) {
 }
 
 export function createFilesService({ prisma, supabaseAdmin }) {
+  const access = createFileAccess({ prisma });
   async function mutateUnlockedFile(id, data) {
     return prisma.$transaction(async db => {
       await db.$queryRaw`SELECT id FROM file_asset WHERE id = ${id}::uuid FOR UPDATE`;
@@ -171,26 +174,27 @@ export function createFilesService({ prisma, supabaseAdmin }) {
   }
 
   async function getCompanyAssets({ authUserId, fileIds }) {
-    const { companyId } = await getUserCompanyContext(authUserId);
-    return prisma.fileAsset.findMany({ where: { id: { in: fileIds }, entityId: companyId, enabled: true, entityType: { in: ALLOWED_FILE_ENTITY_TYPES } }, select: { id: true, bucket: true, objectKey: true } });
+    const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
+    return prisma.fileAsset.findMany({ where: { id: { in: fileIds }, entityId: companyId, enabled: true, entityType: { in: ALLOWED_FILE_ENTITY_TYPES }, AND: [access.readWhere(context)] }, select: { id: true, bucket: true, objectKey: true } });
   }
   async function getUserCompanyContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
-      select: { id: true },
+      select: { id: true, enabled: true },
     });
 
-    if (!profile) {
+    if (!profile?.enabled) {
       throw new FilesServiceError("Perfil de usuario no encontrado.", 404);
     }
 
     const membership = await prisma.membership.findFirst({
       where: { userId: profile.id, enabled: true },
       orderBy: { createdAt: "desc" },
-      select: { companyId: true },
+      include: { role: { include: { permissions: { include: { permission: true } } } }, company: true },
     });
 
-    if (!membership?.companyId) {
+    if (!membership?.companyId || !membership.company.enabled || !membership.role?.enabled) {
       throw new FilesServiceError(
         "No tienes una empresa activa para gestionar archivos.",
         403,
@@ -200,6 +204,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     return {
       profileId: profile.id,
       companyId: membership.companyId,
+      admin: ["atlas.admin", "system.admin"].includes(membership.role.key),
+      permissions: new Set(membership.role.permissions.filter(p => p.permission.active).map(p => p.permission.key)),
     };
   }
 
@@ -207,6 +213,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     fileId,
     companyId,
     includeDisabled = true,
+    context,
+    operation = "read",
   }) {
     const where = {
       id: fileId,
@@ -223,6 +231,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       throw new FilesServiceError("Archivo no encontrado.", 404);
     }
 
+    if (!context) throw new FilesServiceError("No tienes acceso al archivo.", 403);
+    await access.assertAccess(file, context, operation);
     return file;
   }
 
@@ -278,6 +288,15 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         ? { ...fa, signedUrl: entry.signedUrl, signedUrlExpiresAt: entry.expiresAt }
         : fa;
     });
+  }
+
+  async function enrichModuleAssets(fileAssets) {
+    // Module attachment routes have no document-sharing context. Never issue
+    // capabilities for restricted workspace files through these legacy paths.
+    if (!fileAssets?.length) return fileAssets;
+    const restricted = await prisma.fileAsset.findMany({ where: { id: { in: fileAssets.map(f => f.id) }, accessScope: 'RESTRICTED' }, select: { id: true } });
+    const blocked = new Set(restricted.map(f => f.id));
+    return batchEnrichFileAssets(fileAssets.filter(f => !blocked.has(f.id)), supabaseAdmin.storage);
   }
 
   return {
@@ -360,7 +379,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     },
 
     async list({ authUserId, query = {} }) {
-      const { companyId } = await getUserCompanyContext(authUserId);
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
       const { page, pageSize, skip, take } = normalizePagination(query);
 
       const q = String(query.q ?? "").trim();
@@ -393,6 +413,11 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         entityType: { in: ALLOWED_FILE_ENTITY_TYPES },
       };
 
+      where.AND = [access.readWhere(context)];
+      if (query.workspace === "documents") where.AND.push({ entityType: "AtlasFile", moduleKey: "atlas.files" });
+      if (query.workspace === "attachments") where.AND.push({ NOT: { entityType: "AtlasFile", moduleKey: "atlas.files" } });
+      if (query.workspace === "shared") where.AND.push({ shares: { some: { userId: context.profileId, status: "ACCEPTED" } } });
+      if (query.kind) where.AND.push(fileKindWhere(query.kind));
       if (enabled !== undefined) where.enabled = enabled;
       if (moduleKey) where.moduleKey = moduleKey;
       if (entityType) where.entityType = entityType;
@@ -420,7 +445,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         prisma.fileAsset.count({ where }),
         prisma.fileAsset.findMany({
           where,
-          orderBy: { [sortBy]: sortDir },
+          orderBy: [{ [sortBy]: sortDir }, { id: sortDir }],
           skip,
           take,
         }),
@@ -439,14 +464,16 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     },
 
     async getById({ authUserId, id }) {
-      const { companyId } = await getUserCompanyContext(authUserId);
-      return ensureFileBelongsToCompany({ fileId: id, companyId });
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
+      return ensureFileBelongsToCompany({ fileId: id, companyId, context });
     },
 
     async rename({ authUserId, id, originalName }) {
-      const { companyId } = await getUserCompanyContext(authUserId);
-      await ensureFileBelongsToCompany({ fileId: id, companyId });
-
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
+      const file = await ensureFileBelongsToCompany({ fileId: id, companyId, context });
+      if (file.accessScope === "RESTRICTED") await access.assertAccess(file, context, "manage");
       return mutateUnlockedFile(id, { originalName: String(originalName).trim() });
     },
 
@@ -480,12 +507,14 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         );
       }
 
-      const { companyId } = await getUserCompanyContext(authUserId);
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
       const uniqueRequestedFileIds = [...new Set(requestedFileIds)];
 
       const files = await prisma.fileAsset.findMany({
         where: {
           id: { in: uniqueRequestedFileIds },
+          AND: [access.readWhere(context)],
           entityId: companyId,
           enabled: true,
           entityType: { in: ALLOWED_FILE_ENTITY_TYPES },
@@ -614,10 +643,12 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     },
 
     async getSignedUrl({ authUserId, id, variant = "full" }) {
-      const { companyId } = await getUserCompanyContext(authUserId);
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
       const file = await ensureFileBelongsToCompany({
         fileId: id,
         companyId,
+        context,
         includeDisabled: false,
       });
 
@@ -648,20 +679,24 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     },
 
     async setEnabled({ authUserId, id, enabled }) {
-      const { companyId } = await getUserCompanyContext(authUserId);
-      await ensureFileBelongsToCompany({ fileId: id, companyId });
-
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
+      const file = await ensureFileBelongsToCompany({ fileId: id, companyId, context });
+      if (file.accessScope === "RESTRICTED") await access.assertAccess(file, context, "manage");
       return mutateUnlockedFile(id, { enabled: Boolean(enabled) });
     },
 
     async delete({ authUserId, id }) {
-      const { companyId } = await getUserCompanyContext(authUserId);
+      const context = await getUserCompanyContext(authUserId);
+      const { companyId } = context;
       const file = await ensureFileBelongsToCompany({
         fileId: id,
         companyId,
+        context,
         includeDisabled: true,
       });
 
+      if (file.accessScope === "RESTRICTED") await access.assertAccess(file, context, "manage");
       // Keep Office recovery objects; serializes with WOPI before disabling.
       if (getOfficeFormat(file) || file.contentRevision > 1) {
         await mutateUnlockedFile(id, { enabled: false });
@@ -712,9 +747,10 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     },
 
     async enrichFileAssets(fileAssets) {
-      return batchEnrichFileAssets(fileAssets, supabaseAdmin.storage);
+      return enrichModuleAssets(fileAssets);
     },
     getCompanyAssets,
+    getUserCompanyContext,
 
     async enrichFilesWithSignedUrls(associations) {
       if (!Array.isArray(associations) || associations.length === 0) return associations;
@@ -723,12 +759,12 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         .filter((fa) => fa?.id);
       if (fileAssets.length === 0) return associations;
 
-      const enrichedAssets = await batchEnrichFileAssets(fileAssets, supabaseAdmin.storage);
+      const enrichedAssets = await enrichModuleAssets(fileAssets);
       const enrichedMap = new Map(enrichedAssets.map((fa) => [fa.id, fa]));
       return associations.map((assoc) => ({
         ...assoc,
         file_asset: assoc.file_asset
-          ? (enrichedMap.get(assoc.file_asset.id) ?? assoc.file_asset)
+          ? (enrichedMap.get(assoc.file_asset.id) ?? null)
           : null,
       }));
     },

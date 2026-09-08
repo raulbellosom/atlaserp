@@ -1,13 +1,15 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  SelectField,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -20,7 +22,8 @@ import {
   CheckCircle2,
   File as FileIcon,
   Loader2,
-  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
   SearchX,
   Upload,
   X,
@@ -31,7 +34,11 @@ import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useFilesExplorer } from "../hooks/useFilesExplorer";
 import { FilesToolbar } from "../components/FilesToolbar";
-import { FilesTableView } from "../components/FilesTableView";
+import { FilesWorkspaceTable } from "../components/FilesWorkspaceTable";
+import { FilesWorkspaceHeader } from "../components/FilesWorkspaceHeader";
+import { CreateDocumentDialog } from "../components/CreateDocumentDialog";
+import { FileSharingDialog } from "../components/FileSharingDialog";
+import { FileInvitations } from "../components/FileInvitations";
 import { FilesCardView } from "../components/FilesCardView";
 import { FilesGridView } from "../components/FilesGridView";
 import { AdvancedFileViewer } from "../components/AdvancedFileViewer";
@@ -66,9 +73,54 @@ export default function FilesScreen() {
   const canUploadFiles = hasPermission("files.assets.create");
 
   const isAdmin = Boolean(
-    hasPermission("files.assets.update") || hasPermission("files.assets.delete"),
+    hasPermission("files.assets.update") ||
+    hasPermission("files.assets.delete"),
   );
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showUpload, setShowUpload] = useState(false);
+  const [newFormat, setNewFormat] = useState(null);
+  const [shareFile, setShareFile] = useState(null);
+  const page = Math.max(
+    1,
+    Math.min(100000, Number.parseInt(searchParams.get("page"), 10) || 1),
+  );
+  const pageSize = [20, 50, 100].includes(Number(searchParams.get("pageSize")))
+    ? Number(searchParams.get("pageSize"))
+    : 20;
+  const workspace = [
+    "documents",
+    "attachments",
+    "shared",
+    "invitations",
+  ].includes(searchParams.get("workspace"))
+    ? searchParams.get("workspace")
+    : "all";
+  const queryParams = {
+    page,
+    pageSize,
+    workspace,
+    q: searchParams.get("q") || "",
+    kind: searchParams.get("kind") || "",
+    moduleKey: searchParams.get("moduleKey") || "",
+    enabled: searchParams.get("enabled") || "",
+    sortBy: searchParams.get("sortBy") || "updatedAt",
+    sortDir: searchParams.get("sortDir") || "desc",
+  };
+  function changeQuery(changes, resetPage = true) {
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === "" || value == null) next.delete(key);
+          else next.set(key, String(value));
+        }
+        if (resetPage) next.delete("page");
+        return next;
+      },
+      { replace: true },
+    );
+  }
   const [viewerOpen, setViewerOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -91,25 +143,84 @@ export default function FilesScreen() {
   }
 
   const filesQuery = useQuery({
-    queryKey: ["files-list"],
-    queryFn: () =>
-      atlas.files.list(
-        { page: 1, pageSize: 300, sortBy: "createdAt", sortDir: "desc" },
-        token,
-      ),
-    enabled: Boolean(token),
+    queryKey: ["files-list", session?.user?.id, queryParams],
+    queryFn: () => atlas.files.list(queryParams, token),
+    enabled: Boolean(token) && canReadFiles && workspace !== "invitations",
   });
-
   const files = useMemo(() => filesQuery.data?.data ?? [], [filesQuery.data]);
   const pagination = filesQuery.data?.pagination;
-  const moduleOptions = useMemo(() => {
-    const unique = [
-      ...new Set(files.map((file) => file.moduleKey).filter(Boolean)),
-    ];
-    return unique.map((moduleKey) => ({ value: moduleKey, label: moduleKey }));
-  }, [files]);
-
-  const explorer = useFilesExplorer(files);
+  useEffect(() => {
+    if (pagination && page > pagination.totalPages)
+      setSearchParams(
+        (previous) => {
+          const next = new URLSearchParams(previous);
+          next.set("page", String(Math.max(1, pagination.totalPages)));
+          return next;
+        },
+        { replace: true },
+      );
+  }, [pagination, page, setSearchParams]);
+  const moduleOptions = [
+    "files",
+    "company",
+    "contacts",
+    "hr",
+    "projects",
+    "inventory",
+    "fleet",
+    "growth",
+  ].map((key) => ({
+    value: `atlas.${key}`,
+    label: {
+      files: "Archivos",
+      company: "Empresa",
+      contacts: "Contactos",
+      hr: "Personal",
+      projects: "Proyectos",
+      inventory: "Inventario",
+      fleet: "Flota",
+      growth: "Ventas",
+    }[key],
+  }));
+  const explorerState = useFilesExplorer(files, { server: true });
+  const explorer = {
+    ...explorerState,
+    search: queryParams.q,
+    filters: {
+      enabled: queryParams.enabled,
+      kind: queryParams.kind,
+      moduleKey: queryParams.moduleKey,
+    },
+    sort: { by: queryParams.sortBy, dir: queryParams.sortDir },
+    setSearch: (q) => changeQuery({ q }),
+    setFilters: (filters) =>
+      changeQuery({ enabled: "", kind: "", moduleKey: "", ...filters }),
+    setSort: (sort) => changeQuery({ sortBy: sort.by, sortDir: sort.dir }),
+  };
+  const resetSelection = explorerState.setSelectedIds;
+  explorer.selectVisible = () => {
+    resetSelection(files.slice(0, 50).map((file) => file.id));
+    if (files.length > 50)
+      toast.info("Se seleccionaron los primeros 50 archivos de esta página.");
+  };
+  explorer.toggleSelect = (id) => {
+    if (!explorer.selectedSet.has(id) && explorer.selectedCount >= 50) {
+      toast.info("Puedes seleccionar hasta 50 archivos por descarga.");
+      return;
+    }
+    explorerState.toggleSelect(id);
+  };
+  const queryIdentity = searchParams.toString();
+  useEffect(() => {
+    resetSelection([]);
+  }, [queryIdentity, resetSelection]);
+  const routeQuery = useQuery({
+    queryKey: ["file-detail", session?.user?.id, routeFileId],
+    queryFn: () => atlas.files.get(routeFileId, token),
+    enabled: Boolean(routeFileId && token && canReadFiles),
+    staleTime: 0,
+    gcTime: 0,
+  });
   const setEnabledMutation = useMutation({
     mutationFn: ({ id, enabled }) => atlas.files.setEnabled(id, enabled, token),
     onSuccess: async () => {
@@ -128,7 +239,7 @@ export default function FilesScreen() {
 
   const handleUploadFiles = useCallback(
     async (filesToUpload) => {
-      if (!token || !filesToUpload?.length) return;
+      if (!token || !canUploadFiles || !filesToUpload?.length) return;
       const files = Array.from(filesToUpload);
       const newItems = files.map((file, i) => ({
         id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
@@ -167,7 +278,7 @@ export default function FilesScreen() {
         setUploadQueue((prev) => prev.filter((q) => q.status === "error"));
       }, 3500);
     },
-    [token, queryClient],
+    [token, queryClient, canUploadFiles],
   );
 
   useEffect(() => {
@@ -268,7 +379,12 @@ export default function FilesScreen() {
     }
 
     const uncachedIds = imageFiles
-      .filter((f) => f?.id && !signedUrlCacheRef.current.has(f.id) && !previewFetchPendingRef.current.has(f.id))
+      .filter(
+        (f) =>
+          f?.id &&
+          !signedUrlCacheRef.current.has(f.id) &&
+          !previewFetchPendingRef.current.has(f.id),
+      )
       .map((f) => f.id);
 
     if (uncachedIds.length === 0) return;
@@ -299,18 +415,21 @@ export default function FilesScreen() {
   }, [explorer.filteredFiles, token]);
 
   useEffect(() => {
-    if (!routeFileId) return;
-    if (!files.length || filesQuery.isLoading) return;
-
-    const found = files.find((file) => file.id === routeFileId);
-    if (!found) return;
-
-    setDetailFile(found);
-    setDetailOpen(true);
-  }, [routeFileId, files, filesQuery.isLoading]);
+    if (routeQuery.data?.data) {
+      setDetailFile(routeQuery.data.data);
+      setDetailOpen(true);
+    }
+  }, [routeQuery.data]);
 
   function openViewer(file) {
-    if (office?.enabled && file.enabled && getOfficeFormat(file)) { office.open(file.id); return; }
+    if (office?.enabled && file.enabled !== false && getOfficeFormat(file)) {
+      office.open(file.id);
+      return;
+    }
+    if (!files.some((item) => item.id === file.id)) {
+      openDetail(file);
+      return;
+    }
     explorer.openById(file.id);
     setViewerOpen(true);
   }
@@ -332,10 +451,23 @@ export default function FilesScreen() {
 
   async function copyLink(file) {
     try {
-      const url = await resolveSignedUrl(file);
-      if (!url) throw new Error("missing url");
+      const native =
+        window.location.protocol === "tauri:" ||
+        window.location.hostname === "tauri.localhost";
+      const url = native
+        ? (await atlas.files.getAccess(file.id, token))?.data?.shareUrl
+        : new URL(
+            `/app/m/atlas.files/files/${encodeURIComponent(file.id)}`,
+            window.location.origin,
+          ).href;
+      if (!url) {
+        toast.error(
+          "Configura la URL web de Atlas en el servidor para compartir enlaces.",
+        );
+        return;
+      }
       await navigator.clipboard.writeText(url);
-      toast.success("Enlace copiado");
+      toast.success("Enlace de Atlas copiado");
     } catch {
       toast.error("No se pudo copiar el enlace");
     }
@@ -345,7 +477,9 @@ export default function FilesScreen() {
     setDetailFile(file);
     setDetailOpen(true);
     if (pushRoute) {
-      navigate(`/app/m/atlas.files/files/${encodeURIComponent(file.id)}`);
+      navigate(
+        `/app/m/atlas.files/files/${encodeURIComponent(file.id)}${location.search}`,
+      );
     }
   }
 
@@ -353,7 +487,7 @@ export default function FilesScreen() {
     setDetailOpen(false);
     setDetailFile(null);
     if (routeFileId) {
-      navigate("/app/m/atlas.files/files", { replace: true });
+      navigate(`/app/m/atlas.files/files${location.search}`, { replace: true });
     }
   }
 
@@ -411,7 +545,7 @@ export default function FilesScreen() {
 
   if (!canReadFiles) {
     return (
-      <div className="flex flex-col min-h-full">
+      <div className="files-workspace flex flex-col min-h-full">
         <div className="flex-1 p-4 md:p-6 space-y-6">
           <PageHeader
             eyebrow="Atlas Files"
@@ -425,156 +559,231 @@ export default function FilesScreen() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="files-workspace flex flex-col min-h-full">
       <div className="flex-1 p-4 md:p-6 space-y-6">
-        <PageHeader
-          eyebrow="Atlas Files"
-          title="Explorador de archivos"
-          description="Visualiza, organiza, renombra y descarga archivos por lote o individualmente."
-          actions={
-            <Button
-              variant="outline"
-              onClick={() => filesQuery.refetch()}
-              disabled={filesQuery.isFetching}
-            >
-              {filesQuery.isFetching ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Actualizar
-            </Button>
-          }
+        <FilesWorkspaceHeader
+          onCreate={setNewFormat}
+          onUpload={() => setShowUpload(true)}
+          canCreate={canUploadFiles && hasPermission("files.assets.update")}
+          canUpload={canUploadFiles}
+          officeAvailable={Boolean(
+            office?.enabled && office?.available !== false,
+          )}
         />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Subir archivo</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <Dialog open={showUpload} onOpenChange={setShowUpload}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Subir archivos</DialogTitle>
+              <DialogDescription>
+                Agrega archivos a este espacio. Se conserva el acceso de la
+                empresa.
+              </DialogDescription>
+            </DialogHeader>
             <FileUploader
               multiple
               onUploadMany={handleUploadFiles}
               maxSizeMB={10}
-              accept="image/*,application/pdf,text/*,.csv,.xlsx,.doc,.docx,.pptx,.zip,.md"
-              emptyLabel="Arrastrar o seleccionar archivos"
-              hint="Arrastra tus archivos aqui o selecciona multiples desde tu equipo."
+              accept="image/*,application/pdf,text/*,.csv,.xlsx,.doc,.docx,.pptx,.md"
               disabled={!canUploadFiles}
             />
-            {!canUploadFiles && (
-              <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Necesitas permiso files.assets.create para subir archivos.
-              </p>
-            )}
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              {pagination?.total ?? files.length} archivo(s) registrados.
-            </p>
-          </CardContent>
-        </Card>
-
-        <FilesToolbar
-          search={explorer.search}
-          onSearchChange={explorer.setSearch}
-          filters={explorer.filters}
-          onFiltersChange={explorer.setFilters}
-          viewMode={explorer.viewMode}
-          onViewModeChange={explorer.setViewMode}
-          selectedCount={explorer.selectedCount}
-          onSelectVisible={explorer.selectVisible}
-          onClearSelection={explorer.clearSelection}
-          onBulkDirect={handleBulkDirect}
-          onBulkZip={handleBulkZip}
-          bulkLoading={bulkDownloadMutation.isPending}
-          sort={explorer.sort}
-          onSortChange={explorer.setSort}
-          moduleOptions={moduleOptions}
-        />
-
-        {filesQuery.isLoading ? (
-          <div className="h-40 rounded-xl border border-[hsl(var(--border))] flex items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--muted-foreground))]" />
-          </div>
-        ) : filesQuery.isError ? (
+          </DialogContent>
+        </Dialog>
+        <nav className="files-workspace-tabs" aria-label="Vistas de archivos">
+          {[
+            ["all", "Todos"],
+            ["documents", "Documentos"],
+            ["shared", "Compartidos conmigo"],
+            ["attachments", "Adjuntos del ERP"],
+            ["invitations", "Invitaciones"],
+          ].map(([key, label]) => (
+            <Button
+              key={key}
+              variant={workspace === key ? "secondary" : "ghost"}
+              aria-current={workspace === key ? "page" : undefined}
+              onClick={() => changeQuery({ workspace: key })}
+            >
+              {label}
+            </Button>
+          ))}
+        </nav>
+        {routeQuery.isError && (
           <ErrorState
-            title="No se pudieron cargar los archivos"
-            message="Reintenta la carga para continuar."
-            onRetry={() => filesQuery.refetch()}
+            title="No se pudo abrir el archivo enlazado"
+            description="Comprueba que tengas acceso y que el archivo siga disponible."
+            onRetry={() => routeQuery.refetch()}
           />
-        ) : explorer.filteredFiles.length === 0 ? (
-          <EmptyState
-            icon={SearchX}
-            title="Sin resultados"
-            description="No hay archivos que coincidan con los filtros actuales."
-          />
-        ) : explorer.viewMode === "table" ? (
-          <FilesTableView
-            files={explorer.filteredFiles}
-            selectedSet={explorer.selectedSet}
-            onToggleSelect={explorer.toggleSelect}
-            onPreview={openViewer}
-            onDownload={downloadFile}
-            onCopyLink={copyLink}
-            onRename={(file, nextName) =>
-              toast.promise(
-                renameMutation.mutateAsync({
-                  id: file.id,
-                  originalName: nextName,
-                }),
-                {
-                  loading: "Guardando nombre...",
-                  success: "Nombre de archivo actualizado",
-                  error: (error) =>
-                    getApiErrorMessage(
-                      error,
-                      "No se pudo renombrar el archivo",
-                    ),
-                },
-              )
-            }
-            onOpenRenameModal={(file) => {
-              setRenameTarget(file);
-              setRenameValue(file.originalName || "");
-            }}
-            onDetail={(file) => openDetail(file, true)}
-            onToggleEnabled={(file) =>
-              setToggleTarget({
-                id: file.id,
-                enabled: !file.enabled,
-                name: file.originalName,
-              })
-            }
-            onDelete={(file) => setDeleteTarget(file)}
-            isAdmin={isAdmin}
-            previewMap={previewMap}
-          />
-        ) : explorer.viewMode === "cards" ? (
-          <FilesCardView
-            files={explorer.filteredFiles}
-            selectedSet={explorer.selectedSet}
-            onToggleSelect={explorer.toggleSelect}
-            onPreview={openViewer}
-            onDownload={downloadFile}
-            onCopyLink={copyLink}
-            onRename={(file) => {
-              setRenameTarget(file);
-              setRenameValue(file.originalName || "");
-            }}
-            onDetail={(file) => openDetail(file, true)}
-            previewMap={previewMap}
-            isAdmin={isAdmin}
-            onDelete={(file) => setDeleteTarget(file)}
+        )}
+        {workspace === "invitations" ? (
+          <FileInvitations
+            token={token}
+            userId={session?.user?.id}
+            onOpen={openViewer}
           />
         ) : (
-          <FilesGridView
-            files={explorer.filteredFiles}
-            selectedSet={explorer.selectedSet}
-            onToggleSelect={explorer.toggleSelect}
-            onPreview={openViewer}
-            onDownload={downloadFile}
-            onDetail={(file) => openDetail(file, true)}
-            previewMap={previewMap}
-            isAdmin={isAdmin}
-            onDelete={(file) => setDeleteTarget(file)}
+          <>
+            <FilesToolbar
+              search={explorer.search}
+              onSearchChange={explorer.setSearch}
+              filters={explorer.filters}
+              onFiltersChange={explorer.setFilters}
+              viewMode={explorer.viewMode}
+              onViewModeChange={explorer.setViewMode}
+              selectedCount={explorer.selectedCount}
+              onSelectVisible={explorer.selectVisible}
+              onClearSelection={explorer.clearSelection}
+              onBulkDirect={handleBulkDirect}
+              onBulkZip={handleBulkZip}
+              bulkLoading={bulkDownloadMutation.isPending}
+              sort={explorer.sort}
+              onSortChange={explorer.setSort}
+              moduleOptions={moduleOptions}
+            />
+
+            {filesQuery.isLoading ? (
+              <div className="h-40 rounded-xl border border-[hsl(var(--border))] flex items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--muted-foreground))]" />
+              </div>
+            ) : filesQuery.isError ? (
+              <ErrorState
+                title="No se pudieron cargar los archivos"
+                message="Reintenta la carga para continuar."
+                onRetry={() => filesQuery.refetch()}
+              />
+            ) : explorer.filteredFiles.length === 0 ? (
+              <EmptyState
+                icon={SearchX}
+                title="Sin resultados"
+                description="No hay archivos que coincidan con los filtros actuales."
+              />
+            ) : explorer.viewMode === "table" ? (
+              <FilesWorkspaceTable
+                files={explorer.filteredFiles}
+                selectedSet={explorer.selectedSet}
+                onToggleSelect={explorer.toggleSelect}
+                onSelectVisible={explorer.selectVisible}
+                onClearSelection={explorer.clearSelection}
+                onShare={setShareFile}
+                onPreview={openViewer}
+                onDownload={downloadFile}
+                onCopyLink={copyLink}
+                onRename={(file) => {
+                  setRenameTarget(file);
+                  setRenameValue(file.originalName || "");
+                }}
+                onDetail={(file) => openDetail(file, true)}
+                onToggleEnabled={(file) =>
+                  setToggleTarget({
+                    id: file.id,
+                    enabled: !file.enabled,
+                    name: file.originalName,
+                  })
+                }
+                onDelete={(file) => setDeleteTarget(file)}
+                canUpdate={hasPermission("files.assets.update")}
+                canDelete={hasPermission("files.assets.delete")}
+                profileId={userProfile?.id}
+                isCompanyAdmin={userProfile?.isAdmin}
+                isAdmin={isAdmin}
+                previewMap={previewMap}
+              />
+            ) : explorer.viewMode === "cards" ? (
+              <FilesCardView
+                files={explorer.filteredFiles}
+                selectedSet={explorer.selectedSet}
+                onToggleSelect={explorer.toggleSelect}
+                onPreview={openViewer}
+                onDownload={downloadFile}
+                onCopyLink={copyLink}
+                onRename={(file) => {
+                  setRenameTarget(file);
+                  setRenameValue(file.originalName || "");
+                }}
+                onDetail={(file) => openDetail(file, true)}
+                previewMap={previewMap}
+                isAdmin={isAdmin}
+                onDelete={(file) => setDeleteTarget(file)}
+              />
+            ) : (
+              <FilesGridView
+                files={explorer.filteredFiles}
+                selectedSet={explorer.selectedSet}
+                onToggleSelect={explorer.toggleSelect}
+                onPreview={openViewer}
+                onDownload={downloadFile}
+                onDetail={(file) => openDetail(file, true)}
+                previewMap={previewMap}
+                isAdmin={isAdmin}
+                onDelete={(file) => setDeleteTarget(file)}
+              />
+            )}
+            <div className="files-workspace-pagination">
+              <span
+                className="text-sm text-[hsl(var(--muted-foreground))]"
+                role="status"
+              >
+                {filesQuery.isFetching
+                  ? "Actualizando…"
+                  : `${pagination?.total ? (page - 1) * pageSize + 1 : 0}–${Math.min(page * pageSize, pagination?.total ?? 0)} de ${pagination?.total ?? 0} archivos`}
+              </span>
+              <div>
+                <SelectField
+                  id="files-page-size"
+                  label="Por página"
+                  value={String(pageSize)}
+                  options={[20, 50, 100].map((size) => ({
+                    value: String(size),
+                    label: String(size),
+                  }))}
+                  onChange={(value) => changeQuery({ pageSize: value })}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Página anterior"
+                  disabled={page <= 1 || filesQuery.isFetching}
+                  onClick={() => changeQuery({ page: page - 1 }, false)}
+                >
+                  <ChevronLeft />
+                </Button>
+                <span className="text-sm whitespace-nowrap">
+                  {page} / {pagination?.totalPages ?? 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Página siguiente"
+                  disabled={
+                    page >= (pagination?.totalPages ?? 1) ||
+                    filesQuery.isFetching
+                  }
+                  onClick={() => changeQuery({ page: page + 1 }, false)}
+                >
+                  <ChevronRight />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+        {newFormat && (
+          <CreateDocumentDialog
+            key={newFormat}
+            format={newFormat}
+            token={token}
+            onClose={() => setNewFormat(null)}
+            onCreated={(file) => {
+              setNewFormat(null);
+              openViewer(file);
+            }}
+          />
+        )}
+        {shareFile && (
+          <FileSharingDialog
+            key={shareFile.id}
+            file={shareFile}
+            token={token}
+            userId={session?.user?.id}
+            onClose={() => setShareFile(null)}
+            onCopyLink={copyLink}
           />
         )}
       </div>
@@ -677,6 +886,10 @@ export default function FilesScreen() {
       />
 
       <FileDetailPanel
+        onShare={(file) => {
+          closeDetail();
+          setShareFile(file);
+        }}
         open={detailOpen}
         onOpenChange={(v) => {
           if (!v) {

@@ -1,28 +1,41 @@
 import {
   Badge,
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
   useOfficeActions,
 } from "@atlas/ui";
 import { getOfficeFormat } from "@atlas/core";
 import { ExternalLink, FileSearch } from "lucide-react";
-import { formatBytes, formatDate, getKindLabel, getFileKind } from "../lib/file-kind";
+import {
+  formatBytes,
+  formatDate,
+  getKindLabel,
+  getFileKind,
+} from "../lib/file-kind";
 import { resolveFileOrigin } from "../lib/file-origin-resolver";
 
 function Row({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 border-b border-[hsl(var(--border))]/60">
-      <span className="text-xs text-[hsl(var(--muted-foreground))]">{label}</span>
+      <span className="text-xs text-[hsl(var(--muted-foreground))]">
+        {label}
+      </span>
       <span className="text-sm text-right break-all">{value || "—"}</span>
     </div>
   );
 }
 
-export function FileDetailPanel({ open, onOpenChange, file, onGoOrigin }) {
+export function FileDetailPanel({
+  open,
+  onOpenChange,
+  file,
+  onGoOrigin,
+  onShare,
+}) {
   const office = useOfficeActions();
   if (!file) return null;
 
@@ -30,26 +43,48 @@ export function FileDetailPanel({ open, onOpenChange, file, onGoOrigin }) {
   const kind = getFileKind(file.mimeType);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <FileSearch className="h-4 w-4" />
             Detalle de archivo
-          </DialogTitle>
-          <DialogDescription>{file.originalName}</DialogDescription>
-        </DialogHeader>
-        {office?.enabled && file.enabled && getOfficeFormat(file) && <Button onClick={() => office.open(file.id)}>{office.canEdit ? 'Editar' : 'Abrir'} en Office</Button>}
+          </SheetTitle>
+          <SheetDescription>{file.originalName}</SheetDescription>
+        </SheetHeader>
+        {office?.enabled && file.enabled !== false && getOfficeFormat(file) && (
+          <Button onClick={() => office.open(file.id)}>
+            Abrir en Office
+          </Button>
+        )}
+        {onShare && (
+          <Button variant="outline" onClick={() => onShare(file)}>
+            Compartir y permisos
+          </Button>
+        )}
         <div className="space-y-2">
-          <Row label="ID" value={file.id} />
           <Row label="Nombre" value={file.originalName} />
-          <Row label="Tipo" value={`${getKindLabel(kind)} · ${file.mimeType}`} />
-          <Row label="Tamano" value={formatBytes(file.sizeBytes)} />
-          <Row label="Modulo" value={file.moduleKey} />
-          <Row label="Entidad" value={`${file.entityType || "—"} · ${file.entityId || "—"}`} />
+          <Row label="Tipo" value={getKindLabel(kind)} />
+          <Row label="Tamaño" value={formatBytes(file.sizeBytes)} />
+          <Row label="Origen" value={origin.label} />
+          <Row
+            label="Acceso"
+            value={
+              file.accessScope === "RESTRICTED"
+                ? "Personas seleccionadas"
+                : file.visibility === "PUBLIC"
+                  ? "Público"
+                  : file.entityType === "AtlasFile"
+                    ? "Empresa"
+                    : "Desde el origen"
+            }
+          />
+          <Row label="Modificado" value={formatDate(file.updatedAt)} />
           <Row label="Subido" value={formatDate(file.createdAt)} />
           <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">Estado</span>
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">
+              Estado
+            </span>
             <Badge variant={file.enabled ? "success" : "secondary"}>
               {file.enabled ? "Activo" : "Deshabilitado"}
             </Badge>
@@ -63,15 +98,21 @@ export function FileDetailPanel({ open, onOpenChange, file, onGoOrigin }) {
             {origin.originHint || "Sin informacion adicional"}
           </p>
           {origin.originPath ? (
-            <Button size="sm" className="mt-1" onClick={() => onGoOrigin(origin.originPath)}>
+            <Button
+              size="sm"
+              className="mt-1"
+              onClick={() => onGoOrigin(origin.originPath)}
+            >
               <ExternalLink className="h-3.5 w-3.5" />
               Ir al origen
             </Button>
           ) : (
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">Origen no navegable.</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Origen no navegable.
+            </p>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

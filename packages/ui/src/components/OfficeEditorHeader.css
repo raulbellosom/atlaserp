@@ -1,0 +1,45 @@
+﻿.office-editor-header {
+  --office-accent: #185abd;
+  flex-shrink: 0;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border-bottom: 2px solid var(--office-accent);
+  padding-top: env(safe-area-inset-top);
+}
+.office-editor-header[data-format="xlsx"] { --office-accent: #107c41; }
+.office-editor-header[data-format="pptx"] { --office-accent: #b7472a; }
+.office-editor-header[data-format="default"] { --office-accent: #64748b; }
+.office-editor-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  padding-inline: 8px;
+}
+.office-editor-header .office-editor-back,
+.office-editor-header .office-editor-action {
+  flex-shrink: 0;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 6px;
+  color: inherit;
+}
+.office-editor-header .office-editor-back { gap: 8px; padding: 0 8px; }
+.office-editor-logo { width: 24px; height: 24px; flex-shrink: 0; object-fit: contain; }
+.office-editor-back-label { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.office-editor-header button:focus-visible { outline: 2px solid var(--office-accent); outline-offset: -3px; }
+.office-editor-document { flex: 1; min-width: 0; border-left: 1px solid hsl(var(--border)); padding-left: 12px; }
+.office-editor-header .office-editor-heading { min-width: 0; padding: 0; }
+.office-editor-heading h1 { font-size: 13px; font-weight: 500; line-height: 1.5; }
+.office-editor-header .office-editor-action { width: 44px; padding: 0; }
+.office-editor-status { display: inline-flex; align-items: center; flex-shrink: 0; gap: 6px; color: hsl(var(--muted-foreground)); font-size: 11px; white-space: nowrap; }
+.office-editor-status svg { width: 14px; height: 14px; flex-shrink: 0; }
+@media (max-width: 767px) {
+  .office-editor-header-main { gap: 8px; padding-inline: 4px; }
+  .office-editor-back-label { display: none; }
+  .office-editor-document { padding-left: 8px; }
+  .office-editor-status-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .office-editor-header button { transition: none; }
+}

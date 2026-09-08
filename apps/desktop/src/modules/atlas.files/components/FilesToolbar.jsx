@@ -26,6 +26,7 @@ const FILTERS = [
       { value: "pdf", label: "PDF" },
       { value: "sheet", label: "Hoja" },
       { value: "doc", label: "Documento" },
+      { value: "presentation", label: "Presentación" },
       { value: "text", label: "Texto" },
       { value: "generic", label: "Otro" },
     ],
@@ -55,14 +56,6 @@ export function FilesToolbar({
       key: "moduleKey",
       label: "Modulo",
       options: moduleOptions,
-    },
-    {
-      key: "origin",
-      label: "Origen",
-      options: [
-        { value: "mapped", label: "Navegable" },
-        { value: "unmapped", label: "No navegable" },
-      ],
     },
   ].filter((filter) => filter.options?.length);
 
@@ -102,55 +95,64 @@ export function FilesToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">Seleccionados: {selectedCount}</Badge>
+        {selectedCount > 0 && (
+          <Badge variant="outline">Seleccionados: {selectedCount}</Badge>
+        )}
         <Button
           type="button"
           variant="outline"
           size="sm"
+          aria-label="Seleccionar visibles"
           onClick={onSelectVisible}
         >
           <CheckSquare className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Seleccionar visibles</span>
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onBulkDirect}
-          disabled={selectedCount === 0 || bulkLoading}
-        >
-          <Download className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Descargar seleccionados</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          onClick={onBulkZip}
-          disabled={selectedCount === 0 || bulkLoading}
-        >
-          <Archive className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Descargar ZIP</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClearSelection}
-          disabled={selectedCount === 0 || bulkLoading}
-        >
-          <span className="hidden sm:inline">Limpiar selección</span>
-          <span className="sm:hidden">Limpiar</span>
-        </Button>
+        {selectedCount > 0 && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label="Descargar seleccionados"
+              onClick={onBulkDirect}
+              disabled={selectedCount === 0 || bulkLoading}
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Descargar seleccionados</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              aria-label="Descargar ZIP"
+              onClick={onBulkZip}
+              disabled={selectedCount === 0 || bulkLoading}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Descargar ZIP</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClearSelection}
+              disabled={selectedCount === 0 || bulkLoading}
+            >
+              <span className="hidden sm:inline">Limpiar selección</span>
+              <span className="sm:hidden">Limpiar</span>
+            </Button>
+          </>
+        )}
         <div className="sm:ml-auto inline-flex items-center gap-1.5 rounded-xl border border-[hsl(var(--border))] px-1.5 py-1">
           <Button
             type="button"
-            variant={sort.by === "createdAt" ? "secondary" : "ghost"}
+            variant={sort.by === "updatedAt" ? "secondary" : "ghost"}
             size="sm"
             onClick={() =>
               onSortChange({
-                by: "createdAt",
+                by: "updatedAt",
                 dir:
-                  sort.by === "createdAt" && sort.dir === "desc"
+                  sort.by === "updatedAt" && sort.dir === "desc"
                     ? "asc"
                     : "desc",
               })

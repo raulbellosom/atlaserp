@@ -478,7 +478,7 @@ model RolePermission {
 }
 
 model FileAsset {
-  id String @id @default(uuid(7)) @db.Uuid
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
   bucket        String
   objectKey String @map("object_key")
   originalName String @map("original_name")
@@ -489,6 +489,9 @@ model FileAsset {
   officeLock String? @map("office_lock")
   officeLockExpiresAt DateTime? @map("office_lock_expires_at")
   versions FileAssetVersion[]
+  accessScope String @default("COMPANY") @map("access_scope")
+  creationKey String? @map("creation_key")
+  shares FileAssetShare[]
   visibility    FileVisibility @default(PRIVATE)
   moduleKey String? @map("module_key")
   entityType String? @map("entity_type")
@@ -504,7 +507,26 @@ model FileAsset {
   generatedDocuments GeneratedDocument[]
 
   @@index([moduleKey, entityType, entityId])
+  @@index([entityId, enabled, createdAt, id])
+  @@index([entityId, updatedAt, id])
+  @@unique([uploadedById, creationKey])
   @@map("file_asset")
+}
+
+model FileAssetShare {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  fileId String @db.Uuid @map("file_id")
+  userId String @db.Uuid @map("user_id")
+  role String @default("VIEWER")
+  status String @default("PENDING")
+  invitedById String @db.Uuid @map("invited_by_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  file FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, userId])
+  @@index([userId, status, createdAt])
+  @@map("file_asset_share")
 }
 
 model FileAssetVersion {

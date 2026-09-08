@@ -1,10 +1,13 @@
 import { Hono } from "hono";
+import { createFilesWorkspaceRouter } from './files-workspace.js';
 import { fileBulkDownloadSchema, fileRenameSchema } from "@atlas/validators";
 import { FilesServiceError } from "../services/files-service.js";
+import { FileAccessError } from "../services/files/access.js";
 import { getActivityContext, publishActivityFromContext } from "../services/activity-publisher.js";
 
 export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
   const app = new Hono();
+  app.route('/', createFilesWorkspaceRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
   const WEBSITE_BUCKET_NAME = "atlas-website";
 app.post(
   "/files/upload",
@@ -71,7 +74,7 @@ app.post(
       }
       return c.json({ data: responseAsset }, 201);
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo subir el archivo." }, 500);
@@ -90,6 +93,8 @@ app.get(
         authUserId,
         query: {
           q: c.req.query("q"),
+          kind: c.req.query("kind"),
+          workspace: c.req.query("workspace"),
           moduleKey: c.req.query("moduleKey"),
           entityType: c.req.query("entityType"),
           entityId: c.req.query("entityId"),
@@ -104,7 +109,7 @@ app.get(
       });
       return c.json(result);
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudieron cargar los archivos." }, 500);
@@ -123,7 +128,7 @@ app.get(
       const asset = await filesService.getById({ authUserId, id });
       return c.json({ data: asset });
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo cargar el archivo." }, 500);
@@ -173,7 +178,7 @@ app.patch(
       });
       return c.json({ data: updated });
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo renombrar el archivo." }, 500);
@@ -209,7 +214,7 @@ app.post(
 
       return c.json({ data });
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo procesar la descarga masiva." }, 500);
@@ -229,7 +234,7 @@ app.get(
       const data = await filesService.getSignedUrl({ authUserId, id, variant });
       return c.json({ data });
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json(
@@ -318,7 +323,7 @@ app.patch(
       });
       return c.json({ data: updated });
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json(
@@ -348,7 +353,7 @@ app.delete(
       });
       return c.json({ ok: true });
     } catch (err) {
-      if (err instanceof FilesServiceError) {
+      if (err instanceof FilesServiceError || err instanceof FileAccessError) {
         return c.json({ error: err.message }, err.status);
       }
       return c.json({ error: "No se pudo eliminar el archivo." }, 500);

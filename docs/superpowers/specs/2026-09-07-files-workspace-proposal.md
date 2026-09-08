@@ -1,11 +1,12 @@
 # Propuesta: Archivos como espacio de documentos y colaboración
 
-Estado: propuesta de producto e implementación, pendiente de revisión del usuario. No representa funciones ya implementadas.
+Estado: diseño de referencia. La primera entrega está implementada en el workspace local: creación Office, paginación de servidor, permisos e invitaciones internas. Consulta el alcance efectivo y el despliegue en [Archivos](../../deployment/files-workspace.md). Las secciones siguientes conservan el diagnóstico y la propuesta originales; las ampliaciones futuras no se consideran implementadas.
 
 ## Punto de partida y pendientes
 
-- En esta revisión, `http://127.0.0.1:9980/hosting/discovery` respondió HTTP 200 con XML WOPI en desarrollo; `https://office.racoondevs.com/hosting/discovery` respondió HTTP 502. El VPS requiere revisar que CODE esté levantado y que Nginx pueda alcanzar `127.0.0.1:9980`. No se dispone de diagnóstico interno del VPS para atribuir todavía una causa concreta.
-- Office permite abrir y editar archivos existentes mediante CODE/WOPI. Hay pruebas de guardado y coedición con CODE real y fixtures de API/Storage, y pruebas PostgreSQL por separado. Falta confirmar el flujo autenticado completo de subir, editar, guardar y reabrir en la instalación real del usuario; discovery o un certificado válido no lo demuestran.
+- El usuario ya confirmó apertura y guardado desde Atlas. El HTTP 502 observado al comienzo del despliegue es un antecedente, no un diagnóstico vigente del VPS. En la revisión del DOCX original, el CODE local respondió a conversiones PDF/PNG; no se volvió a comprobar el VPS.
+- Office permite abrir, editar y coeditar archivos existentes mediante CODE/WOPI. Hay pruebas con dos identidades y CODE real usando fixtures de API/Storage, y pruebas PostgreSQL por separado. Falta aceptación con dos cuentas reales de Atlas, permisos de lectura/edición y aislamiento entre empresas en la instalación desplegada. No hay una bandera adicional de colaboración: las sesiones autorizadas del mismo archivo usan el mismo WOPISrc y diferentes identidades.
+- El problema visual de la cotización se reprodujo directamente en CODE con el DOCX original, sin Atlas. Es un pendiente de compatibilidad de ese documento, documentado en [la validación Office](../../deployment/office-validation.md); no bloquea el diseño del explorador ni se corrige rediseñando Archivos.
 - Confirmar que VPS tiene las imágenes/instalador actualizados y la migración Office aplicada. Publicación y despliegue no se pueden dar por realizados desde los cambios locales.
 - Falta aceptación en dispositivos reales, PWA y Tauri; el build y la emulación no cubren esa aceptación.
 - Hoy Archivos tiene carga múltiple, búsqueda/filtros, vistas tabla/tarjetas/cuadrícula, vista previa, renombrado, origen y descarga individual/ZIP. La carga ocupa una tarjeta grande por encima del explorador.
@@ -34,7 +35,7 @@ Mantener una única entrada **Archivos** en la navegación global. Incorporar vi
 - Debajo: navegación interna, búsqueda y filtros compactos; lista por defecto y cuadrícula opcional para vistas previas.
 - Cada fila: icono/formato, nombre, origen, última modificación y alcance de acceso. Acciones secundarias en menú contextual; acciones masivas aparecen al seleccionar.
 - Panel lateral `Sheet`: vista previa, detalles útiles y acceso. Los identificadores técnicos se reservan para información avanzada.
-- Editor a pantalla completa: nombre y regreso a Archivos, estado de guardado y acción Compartir. Colaboradores/cursor/presencia dentro del editor se apoyan en CODE; no inventar avatares conectados desde la lista de personas con permiso.
+- Editor a pantalla completa: conservar la cabecera compacta de 46px con logo pequeño, regreso, nombre y estado de guardado. Sin duplicar Guardar ni añadir una segunda fila. Incorporar Compartir cuando exista su backend, conservando la densidad. Colaboradores/cursor/presencia dentro del editor se apoyan en CODE; no inventar avatares conectados desde la lista de personas con permiso.
 - En móvil: lista vertical, selector compacto de vistas, filtros en Sheet, detalle/editor ocupando la pantalla disponible. La navegación del módulo sigue dentro de Archivos.
 
 Estética: densidad moderada, tipografía y colores semánticos existentes de Atlas, acento primario para Nuevo, superficies limpias con bordes suaves. Transiciones breves de panel/selección respetando reducción de movimiento; evitar paneles de estadísticas que desplacen los documentos. Componentes `@atlas/ui`: PageHeader, Button, DropdownMenu, Tabs, SearchInput, AtlasTable/DataTable, Sheet, Dialog, FileUploader, EmptyState, ErrorState, ConfirmDialog y campos de formulario existentes. Reutilizar los tokens del sistema, sin introducir un segundo tema.
@@ -75,7 +76,7 @@ Compartición pública, invitados externos, caducidad de enlaces y rol exclusivo
 
 ## Orden de entrega
 
-1. Cerrar la aceptación del Office actual en Atlas real: guardar/reabrir, lector/editor, segunda persona y otra empresa. Es independiente de definir este diseño.
+1. Completar la aceptación del Office actual en Atlas real: reabrir, lector/editor, segunda persona y otra empresa. El usuario confirmó el guardado; la coedición tiene evidencia con fixtures. Estas comprobaciones pueden avanzar junto con el rediseño y no requieren resolver primero la maquetación de la cotización.
 2. Rediseñar la estructura de Archivos y añadir creación de documentos con el alcance actual claramente indicado. Cambiar Copiar enlace a una ruta autenticada de Atlas. Corregir la paginación y separar FilesScreen en componentes de responsabilidad acotada.
 3. Implementar permisos por documento, política común de acceso, migración compatible y diálogo Compartir. Activar entonces la vista Compartidos conmigo y el alcance restringido para documentos nuevos.
 4. Añadir carpetas, favoritos, actividad/historial visible y plantillas según uso. Las revisiones internas de recuperación existentes no equivalen todavía a una pantalla de historial/restauración.
