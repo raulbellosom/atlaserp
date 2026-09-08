@@ -1,6 +1,23 @@
 name: atlaserp
 
 services:
+  collabora:
+    image: collabora/code:26.04.2.4.1
+    profiles: ["office"]
+    environment:
+      aliasgroup1: ${COLLABORA_WOPI_HOST:-http://api:4010}
+      extra_params: ${COLLABORA_EXTRA_PARAMS:---o:ssl.enable=false --o:ssl.termination=false --o:logging.level=warning}
+      content_security_policy: ${COLLABORA_CONTENT_SECURITY_POLICY:-frame-ancestors http://localhost:5173 http://tauri.localhost https://tauri.localhost tauri://localhost;}
+    ports:
+      - "127.0.0.1:9980:9980"
+    # CODE 26 includes /usr/bin/coolwsd --probe; retain its native healthcheck.
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   atlas-api-external:
     image: ${ATLAS_API_IMAGE:-raulbellosom/atlaserp:api-latest}
     container_name: atlas-api-external

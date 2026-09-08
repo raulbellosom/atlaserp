@@ -402,3 +402,50 @@ export ATLAS_WORKER_IMAGE=raulbellosom/atlaserp:worker-latest
 export ATLAS_WEB_EXTERNAL_IMAGE=raulbellosom/atlaserp:web-latest
 node ./setup-external.mjs --skip-pull
 ```
+## Editor Office opcional (Collabora CODE)
+
+Office viene desactivado. Para habilitarlo en el VPS, primero publica las nuevas
+imagenes de Atlas y los archivos del instalador. Desde la **carpeta existente del
+instalador**, refresca los scripts y Compose con el bootstrap actualizado:
+
+```bash
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh
+bash ./bootstrap-external.sh
+```
+
+Conserva `.env.external` y `custom-modules/`; sobrescribe los archivos distribuidos
+del instalador, por lo que debes guardar/reaplicar cualquier personalizacion de
+esos archivos. El comando `npm run atlas:external` descarga imagenes y Dev Kit,
+pero **no actualiza sus propios scripts ni Compose**.
+
+Configura el DNS y proxy HTTPS/WebSocket de Office, y edita estas variables en
+`.env.external` (sustituye los dominios por los reales):
+
+```dotenv
+ATLAS_OFFICE_ENABLED=true
+COLLABORA_PUBLIC_URL=https://office.tudominio.com
+ATLAS_OFFICE_HOST_ORIGIN=https://erp.tudominio.com
+COLLABORA_INTERNAL_URL=http://collabora:9980
+ATLAS_WOPI_URL=http://api:4010
+```
+
+Ejecuta `npm run atlas:external`. La primera vez descarga la imagen fijada
+`collabora/code:26.04.2.4.1`, crea el servicio `collabora` y genera/persiste la clave
+WOPI. Requiere las nuevas imagenes de API y web y la migracion Office; no uses
+`atlas:external:quick` para esta primera activacion. El instalador no crea el DNS
+ni configura el proxy/certificado de Office. El puerto 9980 escucha en loopback
+para el proxy del host. Office no depende de LiveKit.
+
+En actualizaciones posteriores usa el mismo comando, carpeta y proyecto Compose
+(`atlaserp`). Hay **un editor compartido**, no un contenedor por archivo o usuario.
+Collabora se conserva si no cambia su imagen/configuracion; Atlas y los servicios
+Calls integrados mantienen su recreacion habitual, reemplazando los contenedores
+anteriores. Las tareas temporales de migracion/seed se eliminan con `--rm`.
+Las imagenes antiguas pueden seguir ocupando disco aunque no haya contenedores
+duplicados. Guarda y cierra los documentos antes de desplegar: la API se reinicia.
+
+Para desarrollo local, configura `.env.local` y ejecuta `npm run atlas:local`.
+Para desactivar Office, cambia el indicador a `false` y ejecuta el setup; detiene
+el editor y conserva los documentos y su clave para futuras activaciones.
+
+Consulta la [guia completa de despliegue, actualizaciones, proxy y recuperacion](../../docs/deployment/office-collabora.md).

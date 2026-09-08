@@ -104,3 +104,13 @@ React → GET /instance/status → { initialized: false }
 |---|---|
 | API | https://supabase.racoondevs.com |
 | Studio | https://studio.supabase.racoondevs.com |
+## Optional Office editing
+
+Collabora CODE is an optional external editor behind a small Office provider
+interface. Atlas authenticates sessions and hosts WOPI; FileAsset and private
+Supabase Storage remain authoritative. Stable WOPI resource IDs enable
+collaboration. PostgreSQL leases and atomic revision pointer swaps prevent
+concurrent overwrites and retain recovery copies. The shared UI editor uses the
+SDK, and unsupported parent scopes are denied until their authorization is
+integrated. See [deployment and protocol details](deployment/office-collabora.md)
+and the [design specification](superpowers/specs/2026-09-07-collabora-office-design.md).

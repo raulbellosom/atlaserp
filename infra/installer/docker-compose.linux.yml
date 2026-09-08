@@ -12,6 +12,9 @@
 name: atlaserp
 
 services:
+  collabora:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   atlas-api-local:
     extra_hosts:
       - "host.docker.internal:host-gateway"

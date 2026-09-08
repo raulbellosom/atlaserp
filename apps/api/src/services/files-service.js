@@ -1,5 +1,5 @@
 ﻿import JSZip from "jszip";
-import { toLocalIso } from "@atlas/core";
+import { toLocalIso, getOfficeFormat, OFFICE_FORMATS } from "@atlas/core";
 import { signedUrlWithVariant, publicUrlWithVariant } from "../lib/image-variants.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -26,6 +26,7 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   "PfmReceipt",
 ];
 const ALLOWED_EXACT_MIME_TYPES = new Set([
+  ...Object.values(OFFICE_FORMATS).map(format => format.mimeType),
   "application/pdf",
   "application/json",
   "text/csv",
@@ -158,6 +159,21 @@ function getUniqueZipEntryName(originalName, usedNames) {
 }
 
 export function createFilesService({ prisma, supabaseAdmin }) {
+  async function mutateUnlockedFile(id, data) {
+    return prisma.$transaction(async db => {
+      await db.$queryRaw`SELECT id FROM file_asset WHERE id = ${id}::uuid FOR UPDATE`;
+      const current = await db.fileAsset.findUnique({ where: { id } });
+      if (current?.officeLock && new Date(current.officeLockExpiresAt).getTime() > Date.now()) {
+        throw new FilesServiceError("El documento está abierto en Office. Cierra el editor antes de modificarlo.", 409);
+      }
+      return db.fileAsset.update({ where: { id }, data });
+    });
+  }
+
+  async function getCompanyAssets({ authUserId, fileIds }) {
+    const { companyId } = await getUserCompanyContext(authUserId);
+    return prisma.fileAsset.findMany({ where: { id: { in: fileIds }, entityId: companyId, enabled: true, entityType: { in: ALLOWED_FILE_ENTITY_TYPES } }, select: { id: true, bucket: true, objectKey: true } });
+  }
   async function getUserCompanyContext(authUserId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
@@ -431,10 +447,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       const { companyId } = await getUserCompanyContext(authUserId);
       await ensureFileBelongsToCompany({ fileId: id, companyId });
 
-      return prisma.fileAsset.update({
-        where: { id },
-        data: { originalName: String(originalName).trim() },
-      });
+      return mutateUnlockedFile(id, { originalName: String(originalName).trim() });
     },
 
     async bulkDownload({ authUserId, fileIds, mode }) {
@@ -638,10 +651,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       const { companyId } = await getUserCompanyContext(authUserId);
       await ensureFileBelongsToCompany({ fileId: id, companyId });
 
-      return prisma.fileAsset.update({
-        where: { id },
-        data: { enabled: Boolean(enabled) },
-      });
+      return mutateUnlockedFile(id, { enabled: Boolean(enabled) });
     },
 
     async delete({ authUserId, id }) {
@@ -651,6 +661,12 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         companyId,
         includeDisabled: true,
       });
+
+      // Keep Office recovery objects; serializes with WOPI before disabling.
+      if (getOfficeFormat(file) || file.contentRevision > 1) {
+        await mutateUnlockedFile(id, { enabled: false });
+        return { ok: true };
+      }
 
       const { error: storageError } = await supabaseAdmin.storage
         .from(file.bucket)
@@ -698,6 +714,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     async enrichFileAssets(fileAssets) {
       return batchEnrichFileAssets(fileAssets, supabaseAdmin.storage);
     },
+    getCompanyAssets,
 
     async enrichFilesWithSignedUrls(associations) {
       if (!Array.isArray(associations) || associations.length === 0) return associations;

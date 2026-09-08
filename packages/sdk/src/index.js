@@ -38,6 +38,7 @@ export function createAtlasClient({ baseUrl }) {
   }
 
   async function request(path, options = {}) {
+    const { onlineOnly = false, ...fetchOptions } = options;
     const isFormData = options.body instanceof FormData;
     const method = (options.method ?? "GET").toUpperCase();
     // DELETE is intentionally excluded: Atlas ERP uses soft-delete (PATCH enabled=false) for
@@ -46,6 +47,7 @@ export function createAtlasClient({ baseUrl }) {
     const isOnline = typeof navigator === "undefined" ? true : navigator.onLine;
     if (
       !isOnline &&
+      !onlineOnly &&
       _offlineTransport &&
       MUTATION_METHODS.includes(method) &&
       !isFormData
@@ -54,7 +56,7 @@ export function createAtlasClient({ baseUrl }) {
       if (queued) return queued;
     }
     const response = await fetch(`${baseUrl}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers: isFormData
         ? (options.headers ?? {})
         : { "Content-Type": "application/json", ...(options.headers ?? {}) },
@@ -620,6 +622,11 @@ export function createAtlasClient({ baseUrl }) {
         }),
     },
     files: {
+      officeStatus: (token) => request('/files/office/status', { headers: withAuthHeaders(token) }),
+      downloadOfficeFile: (id, token) => requestBlob(`/files/${encodeURIComponent(id)}/office/download`, { headers: withAuthHeaders(token) }),
+      createOfficeSession: (id, mode = 'auto', token) => request(`/files/${encodeURIComponent(id)}/office/session`, {
+        method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify({ mode }), onlineOnly: true,
+      }),
       upload: (formData, token) =>
         request("/files/upload", {
           method: "POST",

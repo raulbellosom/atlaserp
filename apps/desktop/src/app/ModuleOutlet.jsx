@@ -78,6 +78,9 @@ const SCREEN_MAP = {
   "atlas.files:/files/:id": lazy(
     () => import("../modules/atlas.files/screens/FilesScreen.jsx"),
   ),
+  "atlas.files:/files/:id/edit": lazy(
+    () => import("../modules/atlas.files/screens/OfficeEditorScreen.jsx"),
+  ),
   "atlas.hr:/": lazy(() => import("../modules/atlas.hr/screens/HrScreen.jsx")),
   "atlas.hr:/hr": lazy(
     () => import("../modules/atlas.hr/screens/HrScreen.jsx"),
@@ -482,6 +485,7 @@ function resolveScreen(moduleKey, subPath) {
     return SCREEN_MAP["atlas.identity:/identity/users/:id"] ?? null;
   }
   if (moduleKey === "atlas.files" && subPath.startsWith("/files/")) {
+    if (/^\/files\/[^/]+\/edit\/?$/.test(subPath)) return SCREEN_MAP["atlas.files:/files/:id/edit"];
     return SCREEN_MAP["atlas.files:/files/:id"] ?? null;
   }
   if (moduleKey === "atlas.hr" && subPath.startsWith("/hr/employees/")) {

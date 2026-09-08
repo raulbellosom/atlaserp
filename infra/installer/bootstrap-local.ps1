@@ -9,6 +9,7 @@ $files = @(
   "docker-compose.yml",
   "docker-compose.linux.yml",
   "lib/devkit-installer.mjs",
+  "lib/office-config.mjs",
   "lib/livekit-config.mjs",
   "package.json",
   "setup-local.mjs",

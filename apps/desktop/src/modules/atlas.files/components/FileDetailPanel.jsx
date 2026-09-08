@@ -6,7 +6,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  useOfficeActions,
 } from "@atlas/ui";
+import { getOfficeFormat } from "@atlas/core";
 import { ExternalLink, FileSearch } from "lucide-react";
 import { formatBytes, formatDate, getKindLabel, getFileKind } from "../lib/file-kind";
 import { resolveFileOrigin } from "../lib/file-origin-resolver";
@@ -21,6 +23,7 @@ function Row({ label, value }) {
 }
 
 export function FileDetailPanel({ open, onOpenChange, file, onGoOrigin }) {
+  const office = useOfficeActions();
   if (!file) return null;
 
   const origin = resolveFileOrigin(file);
@@ -36,6 +39,7 @@ export function FileDetailPanel({ open, onOpenChange, file, onGoOrigin }) {
           </DialogTitle>
           <DialogDescription>{file.originalName}</DialogDescription>
         </DialogHeader>
+        {office?.enabled && file.enabled && getOfficeFormat(file) && <Button onClick={() => office.open(file.id)}>{office.canEdit ? 'Editar' : 'Abrir'} en Office</Button>}
         <div className="space-y-2">
           <Row label="ID" value={file.id} />
           <Row label="Nombre" value={file.originalName} />

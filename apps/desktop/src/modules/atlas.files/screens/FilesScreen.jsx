@@ -13,7 +13,9 @@ import {
   ErrorState,
   FileUploader,
   PageHeader,
+  useOfficeActions,
 } from "@atlas/ui";
+import { getOfficeFormat } from "@atlas/core";
 import {
   CheckCircle2,
   File as FileIcon,
@@ -50,6 +52,7 @@ function useFileIdFromPath(pathname) {
 }
 
 export default function FilesScreen() {
+  const office = useOfficeActions();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
@@ -307,6 +310,7 @@ export default function FilesScreen() {
   }, [routeFileId, files, filesQuery.isLoading]);
 
   function openViewer(file) {
+    if (office?.enabled && file.enabled && getOfficeFormat(file)) { office.open(file.id); return; }
     explorer.openById(file.id);
     setViewerOpen(true);
   }
@@ -452,7 +456,7 @@ export default function FilesScreen() {
               multiple
               onUploadMany={handleUploadFiles}
               maxSizeMB={10}
-              accept="image/*,application/pdf,text/*,.csv,.xlsx,.doc,.docx,.zip,.md"
+              accept="image/*,application/pdf,text/*,.csv,.xlsx,.doc,.docx,.pptx,.zip,.md"
               emptyLabel="Arrastrar o seleccionar archivos"
               hint="Arrastra tus archivos aqui o selecciona multiples desde tu equipo."
               disabled={!canUploadFiles}

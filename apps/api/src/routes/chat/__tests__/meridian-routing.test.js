@@ -11,7 +11,7 @@ function groqRouter({ routeWord = "general", answers = [], onBody } = {}) {
   return async (_url, opts) => {
     const body = JSON.parse(opts.body);
     onBody?.(body);
-    const isClassifier = body.max_tokens === 6 && !body.tools;
+    const isClassifier = !body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador");
     const content = isClassifier ? routeWord : (answers[i++] ?? "(sin mas)");
     return {
       ok: true, status: 200,
@@ -61,7 +61,7 @@ test("route chat: runs the tool loop, run.route === 'chat'", async () => {
   const tc = [{ id: "c1", type: "function", function: { name: "get_recent_messages", arguments: "{}" } }];
   const fetchImpl = async (_u, opts) => {
     const body = JSON.parse(opts.body);
-    if (body.max_tokens === 6 && !body.tools) {
+    if (!body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador")) {
       return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "chat" } }] }), text: async () => "" };
     }
     // first loop call -> tool call; second -> final
@@ -109,7 +109,7 @@ test("classifier returns junk -> route general", async () => {
 test("classifier fetch fails -> route chat (fallback)", async () => {
   const fetchImpl = async (_u, opts) => {
     const body = JSON.parse(opts.body);
-    if (body.max_tokens === 6 && !body.tools) throw new Error("router down");
+    if (!body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador")) throw new Error("router down");
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "respondido por chat" } }] }), text: async () => "" };
   };
   const { svc, inserted, runs } = svcForRoute({ fetchImpl });
@@ -123,7 +123,7 @@ test("classifier circuit breaker: after 3 failed turns the 4th skips the classif
   let classifierCalls = 0;
   const fetchImpl = async (_u, opts) => {
     const body = JSON.parse(opts.body);
-    if (body.max_tokens === 6 && !body.tools) { classifierCalls++; throw new Error("down"); }
+    if (!body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador")) { classifierCalls++; throw new Error("down"); }
     return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "x" } }] }), text: async () => "" };
   };
   const { svc } = svcForRoute({ fetchImpl });
@@ -137,7 +137,7 @@ test("live sub-limit: 11th live turn in the window is canned, compound not calle
   let compoundCalls = 0;
   const fetchImpl = async (_u, opts) => {
     const body = JSON.parse(opts.body);
-    if (body.max_tokens === 6 && !body.tools) {
+    if (!body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador")) {
       return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "live" } }] }), text: async () => "" };
     }
     if (String(body.model).includes("compound")) compoundCalls++;
@@ -154,7 +154,7 @@ test("classifier only sees the last 4 history rows", async () => {
   let routerHistoryLen = null;
   const fetchImpl = async (_u, opts) => {
     const body = JSON.parse(opts.body);
-    if (body.max_tokens === 6 && !body.tools) {
+    if (!body.tools && String(body.messages?.[0]?.content ?? "").startsWith("Eres un clasificador")) {
       routerHistoryLen = body.messages.length - 2; // minus system + the new user message
       return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: "general" } }] }), text: async () => "" };
     }

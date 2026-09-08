@@ -1,13 +1,13 @@
 # Embedded Office editing in Atlas Files
 
 Date: 2026-09-07
-Status: Proposed — discussion only; implementation requires a subsequent user instruction
+Status: Superseded by [Collabora design](2026-09-07-collabora-office-design.md).
 Plan: ../plans/2026-09-07-office-editor-plan.md
 
 ## Context and repository evidence
 
-This document describes proposed work, not an implemented feature. No runtime,
-database, deployment or installer changes have been made for Office yet.
+This is the historical ONLYOFFICE proposal. The subsequent Collabora request
+authorized implementation; use the linked Collabora specification and deployment guide.
 
 The user's latest instruction supersedes the attachment's automatic execution:
 prepare and discuss a proposal before implementation. Licensing is an unresolved

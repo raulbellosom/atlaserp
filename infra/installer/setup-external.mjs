@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
 // setup-external.mjs
 //
 // Production setup: Atlas ERP against an external (self-hosted or cloud) Supabase.
@@ -577,6 +578,7 @@ async function main() {
   }
 
   // ── 2. Validate Docker ─────────────────────────────────────────────────────
+  const office = await configureOffice({ envFile, composeEnvFile: path.resolve(installerDir, ".env") });
   console.log("[2/5] Validating Docker...");
   run("docker", ["compose", "version"]);
 
@@ -630,12 +632,16 @@ async function main() {
 
   // ── 6. Start containers ────────────────────────────────────────────────────
   console.log("\nStarting Atlas (external profile)...");
+  if (!office.enabled) run("docker", ["compose", ...composeFiles, "--profile", "office", "stop", "collabora"]);
   removeInactiveLiveKitServices(liveKit);
   const liveKitProfiles = getLiveKitComposeProfiles(liveKit)
     .flatMap((profile) => ["--profile", profile]);
+  // Limit forced restarts to Atlas/Calls: an unchanged editor must keep its sessions.
+  const services = ["atlas-api-external", "atlas-worker-external", "atlas-web-external",
+    ...(liveKit.mode === "embedded" ? ["livekit-redis", "livekit", ...(liveKit.managedTls ? ["livekit-caddy"] : [])] : [])];
   run(
     "docker",
-    ["compose", ...composeFiles, "--profile", "external", ...liveKitProfiles, "up", "-d", "--force-recreate"],
+    ["compose", ...composeFiles, "--profile", "external", ...liveKitProfiles, ...office.profiles, "up", "-d", "--force-recreate", ...services],
     {
       env: {
         ...process.env,
@@ -649,7 +655,9 @@ async function main() {
     },
   );
 
+  if (office.enabled) run("docker", ["compose", ...composeFiles, ...office.profiles, "up", "-d", "collabora"]);
   await validateLiveKitRuntime(liveKit);
+  await checkOfficeRuntime(office);
 
   console.log("");
   console.log("Atlas ERP is ready (external mode):");

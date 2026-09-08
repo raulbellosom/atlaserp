@@ -1,0 +1,21 @@
+# Docker Desktop: Atlas API and Vite run on the host via pnpm dev.
+# Run from the repository root:
+# node scripts/start-office-dev.mjs
+# Partial project: manage only collabora-dev; never use down/--remove-orphans here.
+name: atlaserp
+
+services:
+  collabora-dev:
+    image: collabora/code:26.04.2.4.1
+    environment:
+      aliasgroup1: ${COLLABORA_WOPI_HOST:-http://host.docker.internal:4010}
+      extra_params: ${COLLABORA_EXTRA_PARAMS:---o:ssl.enable=false --o:ssl.termination=false --o:server_name=localhost:9980 --o:logging.level=warning --o:logging.anonymize.anonymize_user_data=true}
+      content_security_policy: "${COLLABORA_CONTENT_SECURITY_POLICY:-frame-ancestors http://localhost:5173 http://tauri.localhost https://tauri.localhost tauri://localhost;}"
+    ports:
+      - "127.0.0.1:9980:9980"
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

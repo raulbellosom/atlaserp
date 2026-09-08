@@ -12,6 +12,7 @@ import { AtlasOfflineDatabase, createDexiePersister } from "@atlas/offline";
 import { Toaster, TooltipProvider } from "@atlas/ui";
 import { AuthProvider } from "../auth/AuthProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
+import { OfficeProvider } from "../providers/OfficeProvider";
 import { CallsProvider } from "../modules/atlas.chat/calls/CallsProvider";
 import { AtlasApp } from "./AtlasApp";
 import { HomeScreen } from "./HomeScreen";
@@ -116,6 +117,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
       <TooltipProvider>
         <BrowserRouter>
           <AuthProvider>
+            <OfficeProvider>
             <Routes>
               <Route path="/" element={<PublicWebsiteEntry />} />
               <Route path="/app/setup" element={<AppRouteGuard mode="setup" />} />
@@ -147,6 +149,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
               </Route>
               <Route path="*" element={<PublicWebsiteEntry />} />
             </Routes>
+            </OfficeProvider>
           </AuthProvider>
           <Toaster />
         </BrowserRouter>

@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { LoadingState } from "./LoadingState.jsx";
+import { OfficeAttachmentAction } from "./OfficeAttachmentAction.jsx";
 import { Alert, AlertDescription, AlertTitle } from "./Alert.jsx";
 import { Input } from "./Input.jsx";
 import { FileViewer } from "./FileViewer.jsx";
@@ -221,7 +222,7 @@ function PendingCard({ item, hasRecord, onOpen, onRetry, onRemove, busy }) {
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+      <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100">
         {canOpen && (
           <IconAction
             label="Vista previa"
@@ -339,7 +340,7 @@ function AssociatedCard({
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+      <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100">
         <IconAction
           label="Vista previa"
           onClick={() => onOpen(item)}
@@ -362,6 +363,7 @@ function AssociatedCard({
             <Download className="h-3.5 w-3.5" />
           )}
         </IconAction>
+        <OfficeAttachmentAction file={item} />
         {canWrite && (
           <IconAction
             label="Quitar"

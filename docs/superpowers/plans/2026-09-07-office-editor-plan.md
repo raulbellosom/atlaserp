@@ -2,12 +2,10 @@
 
 Date: 2026-09-07
 Spec: ../specs/2026-09-07-office-editor-design.md
-Status: Proposed sequencing only; implementation not started.
+Status: Superseded by [Collabora implementation plan](2026-09-07-collabora-office-plan.md).
 
-The user's latest instruction is to prepare a proposal first. It supersedes the
-attachment's automatic execution. Do not execute this plan until the user requests
-implementation. Resolve the distribution/edition question before final packaging
-without silently changing Atlas licensing or the preferred provider.
+This is the historical ONLYOFFICE plan. The subsequent Collabora request
+authorized implementation and automatic approval of the new specification and plan.
 
 ## 0. Review proposal and validate protocol before large changes
 

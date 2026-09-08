@@ -90,6 +90,10 @@ pnpm dev
 
 Open `http://localhost:5173` or run `pnpm dev:tauri` for the native window.
 
+When Office is enabled in the root `.env` with a localhost CODE URL, both commands
+also start `collabora-dev` in the Docker `atlaserp` group. See the
+[development Office configuration](docs/deployment/office-collabora.md#development-with-pnpm-dev-on-docker-desktop).
+
 ## Dev commands
 
 ### Servers
@@ -208,6 +212,11 @@ See:
 - `docs/TASKS.md`
 
 ## Notes
+
+Office editing is optional: the `office` installer profile adds Collabora CODE for
+DOCX/XLSX/PPTX inside Files and supported attachments. Atlas retains Storage,
+permissions and recoverable revisions. See [Office deployment and troubleshooting](docs/deployment/office-collabora.md)
+for configuration, CODE licensing/support limitations and verification.
 
 - UI text in Spanish.
 - Code, docs, and comments in English.

@@ -58,6 +58,7 @@ if (fs.existsSync(composeFile)) {
     [
       "compose", ...composeFiles,
       "--profile", "external",
+      "--profile", "office",
       "--profile", "livekit",
       "--profile", "livekit-tls",
       "down", "--remove-orphans",

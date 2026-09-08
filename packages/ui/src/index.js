@@ -276,3 +276,7 @@ export { SyncStatusBar } from "./components/SyncStatusBar.jsx";
 export { SyncStatusPopover } from "./components/SyncStatusPopover.jsx";
 export { PendingMutationsPanel } from "./components/PendingMutationsPanel.jsx";
 export { ConflictDialog } from "./components/ConflictDialog.jsx";
+
+export { OfficeDocumentEditor } from "./components/OfficeDocumentEditor.jsx";
+export { OfficeAttachmentAction } from "./components/OfficeAttachmentAction.jsx";
+export { OfficeActionsContext, useOfficeActions } from "./components/office-actions-context.js";
