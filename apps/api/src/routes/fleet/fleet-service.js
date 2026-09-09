@@ -344,6 +344,7 @@ export function createFleetService({ prisma }) {
           NULLIF(TRIM(COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')), '') AS driver_name,
           fd.phone AS driver_phone,
           fd.license_number AS driver_license_number,
+          fd.photo_asset_id AS driver_photo_asset_id,
           vm.name AS vehicle_model_name,
           vm.year AS vehicle_model_year,
           COALESCE(vb_m.name, vb.name) AS vehicle_brand_name,
@@ -377,6 +378,15 @@ export function createFleetService({ prisma }) {
                 COALESCE(NULLIF(REGEXP_REPLACE(fv.economic_individual_number, '^0+', ''), ''), '0')
             ELSE NULL
           END AS full_economic_number,
+          (SELECT fvd3.file_asset_id
+           FROM fleet_vehicle_document fvd3
+           JOIN "file_asset" fa3 ON fa3.id::text = fvd3.file_asset_id::text
+           WHERE fvd3.vehicle_id::text = fv.id::text
+             AND fvd3.company_id::text = fv.company_id::text
+             AND fvd3.enabled = true
+             AND fa3."mime_type" ILIKE 'image/%'
+           ORDER BY fvd3.created_at ASC
+           LIMIT 1) AS cover_image_file_asset_id,
           (SELECT json_build_object(
             'id', fip.id::text,
             'insurer_name', fip.insurer_name,
