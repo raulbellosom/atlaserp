@@ -207,6 +207,8 @@ export { PageHeader } from "./components/PageHeader.jsx";
 export { EmptyState } from "./components/EmptyState.jsx";
 export { ErrorState } from "./components/ErrorState.jsx";
 export { StatCard } from "./components/StatCard.jsx";
+export { StatStrip } from "./components/StatStrip.jsx";
+export { DetailHero } from "./components/DetailHero.jsx";
 export { SwatchField, DEFAULT_SWATCHES } from "./components/SwatchField.jsx";
 export { ProgressMeter } from "./components/ProgressMeter.jsx";
 export { RingProgress } from "./components/RingProgress.jsx";
