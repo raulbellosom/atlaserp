@@ -33,6 +33,7 @@ import { createVisionService as createPfmVisionService } from '../../api/src/ser
 import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
+import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
 
 const { PrismaClient } = pkg
 
@@ -408,6 +409,26 @@ runChatSessionExpiryTick()
 setInterval(() => {
   runChatSessionExpiryTick()
 }, CHAT_EXPIRY_INTERVAL_MS)
+
+const CHAT_ORPHAN_SWEEP_INTERVAL_MS = 30 * 60 * 1000
+async function runChatOrphanAttachmentSweepTick() {
+  try {
+    const result = await sweepOrphanChatAttachments({ prisma, supabaseAdmin: workerSupabaseAdmin })
+    if ((result.swept ?? 0) > 0) {
+      console.log(
+        `[worker] chat orphan attachment sweep ${formatLogTimestamp()} swept=${result.swept}`,
+      )
+    }
+  } catch (err) {
+    console.error('[worker] chat orphan attachment sweep tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  }
+}
+
+runChatOrphanAttachmentSweepTick()
+setInterval(() => {
+  runChatOrphanAttachmentSweepTick()
+}, CHAT_ORPHAN_SWEEP_INTERVAL_MS)
 
 process.on('SIGTERM', async () => {
   await prisma.$disconnect().catch(() => {})
