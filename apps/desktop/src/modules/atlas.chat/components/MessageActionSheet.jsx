@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useCoarsePointer, useOfficeActions } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
+import { computeActionSheetLayout } from "../lib/messageActionLayout";
 import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
 
 // Unified action surface for a message — one popover for every trigger:
@@ -23,6 +24,7 @@ export function MessageActionSheet({
   actionProps,        // args for buildMessageActions (minus onReact)
   onQuickReact,       // (emoji) => void
   onOpenFullPicker,   // () => void
+  onBubbleShift,      // (dy:number) => void — ChatMessageBubble translates the row so the stack fits the safe area
 }) {
   const coarse = useCoarsePointer();
   const actions = buildMessageActions({ ...actionProps, onReact: undefined });
@@ -40,42 +42,42 @@ export function MessageActionSheet({
   const [pos, setPos] = useState(null);
 
   useLayoutEffect(() => {
-    if (!open) { setPos(null); return; }
+    if (!open) { setPos(null); onBubbleShift?.(0); return; }
     const panel = panelRef.current;
     const pill = pillRef.current;
     if (!panel || !pill) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const m = 8;
-    const gap = 8;
+
+    const rootStyle = getComputedStyle(document.documentElement);
+    const safeTop = parseFloat(rootStyle.getPropertyValue("--safe-top")) || 0;
+    const safeBottom = parseFloat(rootStyle.getPropertyValue("--safe-bottom")) || 0;
+
     const pr = panel.getBoundingClientRect();
     const plr = pill.getBoundingClientRect();
-    const pw = pr.width;
-    const ph = pr.height;
-    const pillW = plr.width;
-    const pillH = plr.height;
 
-    // Touch anchors to the bubble; mouse anchors to the cursor point.
-    const rect = (!coarse && anchorPoint)
-      ? { top: anchorPoint.y, bottom: anchorPoint.y, left: anchorPoint.x, right: anchorPoint.x }
-      : anchorRect ?? { top: vh / 2 - 20, bottom: vh / 2 + 20, left: m, right: vw - m };
+    const layout = computeActionSheetLayout({
+      vw: window.innerWidth,
+      vh: window.innerHeight,
+      rect: anchorRect ?? null,
+      anchorPoint: (!coarse && anchorPoint) ? anchorPoint : null,
+      pillSize: { width: plr.width, height: plr.height },
+      panelSize: { width: pr.width, height: pr.height },
+      coarse,
+      isOwn,
+      safeTop,
+      safeBottom,
+      gap: 8,
+      margin: 8,
+    });
 
-    const clampX = (x, w) => Math.max(m, Math.min(x, vw - w - m));
-    const alignRight = coarse && isOwn;
-    const panelLeft = alignRight ? clampX(rect.right - pw, pw) : clampX(rect.left, pw);
-    const pillLeft = alignRight ? clampX(rect.right - pillW, pillW) : clampX(rect.left, pillW);
-
-    const belowTop = rect.bottom + gap;
-    const flip = belowTop + ph > vh - m;
-    const panelTop = flip
-      ? Math.max(m + pillH + gap, rect.top - gap - ph)
-      : Math.min(belowTop, vh - ph - m);
-    const pillTop = flip
-      ? Math.max(m, panelTop - gap - pillH)
-      : Math.max(m, rect.top - gap - pillH);
-
-    setPos({ panelLeft, panelTop, pillLeft, pillTop });
-  }, [open, anchorRect, anchorPoint, isOwn, coarse, attachmentActions.length, primary.length, danger.length]);
+    setPos({
+      panelLeft: layout.panelLeft,
+      panelTop: layout.panelTop,
+      pillLeft: layout.pillLeft,
+      pillTop: layout.pillTop,
+      sRect: layout.sRect,
+    });
+    onBubbleShift?.(layout.shiftY);
+  }, [open, anchorRect, anchorPoint, isOwn, coarse, attachmentActions.length, primary.length, danger.length, onBubbleShift]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -109,7 +111,7 @@ export function MessageActionSheet({
   const surface = "glass-strong text-[hsl(var(--popover-foreground,var(--foreground)))] shadow-lg";
   const gate = armed ? "" : "pointer-events-none";
 
-  const r = anchorRect;
+  const r = pos?.sRect ?? anchorRect;
   const scrim = "bg-black/55 backdrop-blur-[3px]";
 
   const menuItem = (a, extra = "") => (
@@ -139,6 +141,11 @@ export function MessageActionSheet({
           the pressed bubble. Mouse: an invisible full-screen click catcher. */}
       {coarse && r ? (
         <>
+          {/* Transparent catcher over the spotlighted bubble — WhatsApp
+              dismisses on a tap anywhere that isn't an action. */}
+          <button type="button" aria-label="Cerrar" onClick={close}
+            className="absolute"
+            style={{ top: r.top, left: r.left, width: Math.max(0, r.right - r.left), height: Math.max(0, r.bottom - r.top) }} />
           <button type="button" aria-label="Cerrar" onClick={close}
             className={["absolute left-0 right-0 top-0", scrim].join(" ")}
             style={{ height: Math.max(0, r.top) }} />
