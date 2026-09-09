@@ -708,10 +708,14 @@ export function createCallService({
     const addedMembers = [];
     for (const uid of targetIds) {
       if (alreadyMembers.has(uid)) continue;
+      // (conversation_id, user_id) is a PARTIAL unique index
+      // (WHERE user_id IS NOT NULL AND left_at IS NULL); the ON CONFLICT clause
+      // must repeat that predicate or Postgres raises 42P10 and this 500s.
       const inserted = await prisma.$executeRaw`
         INSERT INTO chat_conversation_members (conversation_id, user_id, role)
         VALUES (${conversationId}, ${uid}, 'member')
-        ON CONFLICT (conversation_id, user_id) DO UPDATE
+        ON CONFLICT (conversation_id, user_id) WHERE user_id IS NOT NULL AND left_at IS NULL
+        DO UPDATE
           SET left_at = NULL, role = EXCLUDED.role, role_id = NULL
           WHERE chat_conversation_members.left_at IS NOT NULL
       `;

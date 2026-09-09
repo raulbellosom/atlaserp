@@ -610,10 +610,18 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
 
     const results = [];
     for (const uid of validUserIds) {
+      // The unique index on (conversation_id, user_id) is partial
+      // (WHERE user_id IS NOT NULL AND left_at IS NULL). Postgres only accepts a
+      // partial index as an ON CONFLICT arbiter when the clause repeats that
+      // predicate — without it every call raises 42P10 ("no unique or exclusion
+      // constraint matching the ON CONFLICT specification") and the whole add
+      // returns 500. A previously-left member is not in the partial index, so it
+      // does not conflict and simply gets a fresh active row.
       const inserted = await prisma.$executeRaw`
         INSERT INTO chat_conversation_members (conversation_id, user_id, role)
         VALUES (${conversationId}, ${uid}, ${role})
-        ON CONFLICT (conversation_id, user_id) DO UPDATE
+        ON CONFLICT (conversation_id, user_id) WHERE user_id IS NOT NULL AND left_at IS NULL
+        DO UPDATE
           SET left_at = NULL, role = EXCLUDED.role, role_id = NULL
           WHERE chat_conversation_members.left_at IS NOT NULL
       `;

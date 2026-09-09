@@ -340,6 +340,35 @@ describe("chat-service — addMembers permission enforcement", () => {
     const result = await svc.addMembers({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, userIds: [OTHER_PROFILE_ID] });
     assert.deepEqual(result, { added: [OTHER_PROFILE_ID] });
   });
+
+  // Regression: the unique index on (conversation_id, user_id) is PARTIAL
+  // (WHERE user_id IS NOT NULL AND left_at IS NULL). Postgres rejects a bare
+  // `ON CONFLICT (conversation_id, user_id)` against it with 42P10, which
+  // surfaced as a 500 on every "add member" call. The clause must repeat the
+  // index predicate.
+  it("membership upsert targets the partial unique index (ON CONFLICT carries its predicate)", async () => {
+    const prisma = buildPrismaMock(
+      [
+        [{ id: PROFILE_ID }],
+        [{ id: "member-row" }],
+        [{ type: "channel" }],
+        [{ display_name: "Other User" }],
+      ],
+      [],
+    );
+    const seen = [];
+    prisma.$executeRaw = async (strings) => {
+      seen.push(Array.isArray(strings) ? strings.join("?") : String(strings ?? ""));
+      return { count: 1 };
+    };
+    const permissionsService = { assertChannelPermission: async () => ({ position: 100, isSystem: true }) };
+    const svc = createChatService({ prisma, permissionsService });
+    await svc.addMembers({ conversationId: CONV_ID, authUserId: AUTH_USER_ID, userIds: [OTHER_PROFILE_ID] });
+
+    const upsert = seen.find((sql) => /INSERT INTO chat_conversation_members/i.test(sql));
+    assert.ok(upsert, "expected an INSERT INTO chat_conversation_members statement");
+    assert.match(upsert, /ON CONFLICT \(conversation_id, user_id\)\s+WHERE\s+user_id IS NOT NULL AND left_at IS NULL/i);
+  });
 });
 
 describe("chat-service — removeMember permission enforcement", () => {
