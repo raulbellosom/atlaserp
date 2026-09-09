@@ -190,6 +190,31 @@ export default defineView({
 })
 ```
 
+#### Detail presentation layer (opt-in)
+
+A DETAIL `schema` may declare any of the keys below. Omit them all and the detail
+renders as a plain stack of `label / value` sections (unchanged behaviour).
+
+- `schema.hero` — `{ titleField, subtitleFields: [], statusField, statusMap?,
+  imageField?, imageDocsPath?, fallbackIcon, accentColorField?, metaChips: [] }`.
+  Renders `DetailHero` at the top and hands it the page actions (Volver /
+  header actions / Editar). `imageField` is a file-asset id resolved to a signed
+  URL client-side; if it is empty and `imageDocsPath` (a `:id` template) is set,
+  the first `image/*` document at that path is used; otherwise the branded
+  `fallbackIcon` panel shows, faintly tinted by `accentColorField`. `statusMap`
+  maps a raw status value (e.g. `active` / a boolean) to a display label.
+  `metaChips` entries are `{ field, label?, icon?, type? }`; `type: 'color'`
+  renders a swatch.
+- `schema.kpis` — `[{ label, field, type?, icon?, hrefTemplate? }]`. Renders
+  `StatStrip`. `field` supports dotted paths; values are formatted with the same
+  rules as detail fields (dates, `boolean` -> Si/No, currency, status pills).
+- `schema.layout: 'two-column'` + `section.column: 'main' | 'aside'` — on `lg+`
+  the body becomes a main column (2/3) plus an aside column (1/3). Default
+  `column` is `main`.
+- On a `relation-card` section, `relationCard.avatarField` (a file-asset id) plus
+  `relationCard.contactActions: [{ type: 'call', field }]` add an avatar
+  (initials fallback) and `tel:` buttons.
+
 ### CUSTOM — full custom React screen
 
 Use CUSTOM when TABLE/FORM/DETAIL renderers are insufficient. Requires a component registered via the dynamic bundle. No SCREEN_MAP entry needed.
@@ -428,6 +453,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `EmptyState` | Empty list placeholder with icon and message |
 | `ErrorState` | Error display with retry option |
 | `StatCard` | KPI metric card with label, value, trend |
+| `StatStrip` | Responsive key-figures strip — a 6-up grid on desktop, a horizontal snap-scroll carousel on mobile. Consumed by `AtlasDetail` when the DETAIL blueprint declares `schema.kpis`. Items: `[{ key, label, value (node), icon (lucide name), href }]`. |
+| `DetailHero` | Redesigned entity-detail header: a representative image (or a branded fallback panel tinted by an accent colour) + title + subtitle + status pill + meta chips + an actions slot. Presentational only; consumed by `AtlasDetail` when the DETAIL blueprint declares `schema.hero`. |
 | `SearchInput` | Search text field with icon |
 | `FilterBar` | Horizontal filter control bar |
 | `DynamicTable` | Blueprint-driven table renderer |
