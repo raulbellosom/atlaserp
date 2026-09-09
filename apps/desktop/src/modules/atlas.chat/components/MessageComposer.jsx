@@ -24,6 +24,8 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { MessageQuote } from "./MessageQuote";
+import { ChatAttachmentViewer } from "./ChatAttachmentViewer";
+import { mapPendingToViewerFiles, attachmentIdsToDiscard } from "../lib/pendingAttachments";
 
 // Quick-access emoji for the mobile inline strip (matches MessageReactionPicker).
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🙏", "🔥", "😮", "😢", "🎉"];
@@ -106,7 +108,7 @@ function RemoveBtn({ onClick }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
       className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-colors touch-manipulation z-10"
       aria-label="Quitar"
     >
@@ -129,16 +131,27 @@ function StatusOverlay({ uploading, error }) {
   return null;
 }
 
-function AttachmentPreviewCard({ entry, onRemove }) {
+function AttachmentPreviewCard({ entry, onRemove, onOpen }) {
   const mime = entry.file.type;
   const isImage = mime.startsWith("image/");
   const isVideo = mime.startsWith("video/");
   const isAudio = mime.startsWith("audio/");
 
+  // Shared props that turn a card body into a "ver archivo" click target.
+  const openProps = {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": "Ver archivo",
+    onClick: () => onOpen?.(entry),
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen?.(entry); }
+    },
+  };
+
   // ── Image thumbnail ──────────────────────────────────────────────────────
   if (isImage && entry.objectUrl) {
     return (
-      <div className="relative h-20 w-20 rounded-xl overflow-hidden shrink-0 bg-[hsl(var(--muted))]">
+      <div {...openProps} className="relative h-20 w-20 rounded-xl overflow-hidden shrink-0 bg-[hsl(var(--muted))] cursor-pointer">
         <img src={entry.objectUrl} alt="" className="h-full w-full object-cover" />
         <StatusOverlay uploading={entry.uploading} error={entry.error} />
         <RemoveBtn onClick={() => onRemove(entry.localId)} />
@@ -149,7 +162,7 @@ function AttachmentPreviewCard({ entry, onRemove }) {
   // ── Video thumbnail ──────────────────────────────────────────────────────
   if (isVideo) {
     return (
-      <div className="relative h-20 w-20 rounded-xl overflow-hidden shrink-0 bg-black/25">
+      <div {...openProps} className="relative h-20 w-20 rounded-xl overflow-hidden shrink-0 bg-black/25 cursor-pointer">
         {entry.objectUrl && (
           <video
             src={`${entry.objectUrl}#t=0.001`}
@@ -192,7 +205,7 @@ function AttachmentPreviewCard({ entry, onRemove }) {
 
   // ── Generic file ─────────────────────────────────────────────────────────
   return (
-    <div className="relative flex items-center gap-2.5 bg-[hsl(var(--muted))] rounded-xl px-3 py-2.5 shrink-0 pr-8" style={{ maxWidth: 200 }}>
+    <div {...openProps} className="relative flex items-center gap-2.5 bg-[hsl(var(--muted))] rounded-xl px-3 py-2.5 shrink-0 pr-8 cursor-pointer" style={{ maxWidth: 200 }}>
       <div className="h-8 w-8 rounded-full bg-[hsl(var(--border))] flex items-center justify-center shrink-0">
         {fileTypeIcon(mime)}
       </div>
@@ -254,6 +267,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const [recordingError, setRecordingError] = useState(null);
   const [pendingEntityRefs, setPendingEntityRefs] = useState([]);
   const [showEntityPicker, setShowEntityPicker] = useState(false);
+  const [attView, setAttView] = useState({ open: false, index: 0 });
 
   // spec Non-goal 3: entity references must never be offered in
   // external_support conversations — composer-level enforcement only, the
@@ -291,8 +305,13 @@ export const MessageComposer = forwardRef(function MessageComposer(
   // a reload or leaks across conversations.
   const draftsRef = useRef(new Map());
   const prevConversationIdRef = useRef(conversationId);
+  // localIds handed to a SUCCESSFUL send — the cleanup paths must not discard
+  // the server rows those became.
+  const sentLocalIdsRef = useRef(new Set());
+  // Latest pendingFiles, readable from unmount/switch cleanup closures.
+  const pendingFilesRef = useRef([]);
 
-  const { uploadFile } = useChatUpload(conversationId);
+  const { uploadFile, deleteUpload } = useChatUpload(conversationId);
 
   useImperativeHandle(ref, () => ({
     addFiles: (files) => addFilesToQueue(files),
@@ -313,6 +332,23 @@ export const MessageComposer = forwardRef(function MessageComposer(
   useEffect(() => {
     const prevId = prevConversationIdRef.current;
     if (prevId === conversationId) return;
+    // Leaving this conversation with queued-but-unsent uploads: discard them
+    // server-side and drop them from the composer (they were presigned against
+    // the OLD conversation — they must not ride along into the new one).
+    for (const id of attachmentIdsToDiscard(pendingFilesRef.current, sentLocalIdsRef.current)) {
+      deleteUpload(id).catch(() => {});
+    }
+    if (pendingFilesRef.current.length) {
+      for (const entry of pendingFilesRef.current) {
+        if (entry.objectUrl) {
+          URL.revokeObjectURL(entry.objectUrl);
+          objectUrlsRef.current.delete(entry.objectUrl);
+        }
+        delete uploadingRef.current[entry.localId];
+      }
+      setPendingFiles([]);
+    }
+    sentLocalIdsRef.current = new Set();
     if (prevId != null) {
       if (body.trim()) draftsRef.current.set(prevId, body);
       else draftsRef.current.delete(prevId);
@@ -324,10 +360,11 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
   function addFilesToQueue(files) {
     const entries = Array.from(files).map((file) => {
-      const objectUrl = (file.type.startsWith("image/") || file.type.startsWith("video/"))
-        ? URL.createObjectURL(file)
-        : null;
-      if (objectUrl) objectUrlsRef.current.add(objectUrl);
+      // Every pending file gets a blob URL now, not just image/video: it lets
+      // the composer's viewer render PDFs/text/Office locally and instantly,
+      // and it rides the same revoke paths (removeFile / send / unmount).
+      const objectUrl = URL.createObjectURL(file);
+      objectUrlsRef.current.add(objectUrl);
       return {
         localId: `${Date.now()}-${Math.random()}`,
         file,
@@ -368,10 +405,20 @@ export const MessageComposer = forwardRef(function MessageComposer(
   }
 
   useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useEffect(() => {
     return () => {
       for (const objectUrl of objectUrlsRef.current) URL.revokeObjectURL(objectUrl);
       objectUrlsRef.current.clear();
+      // Uploads that finished but were never sent (composer closed with files
+      // still queued) — discard their server rows + objects.
+      for (const id of attachmentIdsToDiscard(pendingFilesRef.current, sentLocalIdsRef.current)) {
+        deleteUpload(id).catch(() => {});
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Voice recording ──────────────────────────────────────────────────────
@@ -461,11 +508,28 @@ export const MessageComposer = forwardRef(function MessageComposer(
   }, []);
 
   // ── File queue ───────────────────────────────────────────────────────────
+  function openPendingViewer(entry) {
+    const viewerFiles = mapPendingToViewerFiles(pendingFiles);
+    const index = viewerFiles.findIndex((f) => f.id === entry.localId);
+    if (index < 0) return; // audio card — no viewer
+    setAttView({ open: true, index });
+  }
+
   function removeFile(localId) {
     const entry = pendingFiles.find((file) => file.localId === localId);
     if (entry?.objectUrl) {
       URL.revokeObjectURL(entry.objectUrl);
       objectUrlsRef.current.delete(entry.objectUrl);
+    }
+    // Discard the server-side upload too. If it already finished we have the
+    // id; if it's still in flight, wait for the id then delete. Fire-and-forget
+    // so the card disappears immediately; the worker sweep is the backstop.
+    if (entry?.attachmentId) {
+      deleteUpload(entry.attachmentId).catch(() => {});
+    } else if (uploadingRef.current[localId]) {
+      Promise.resolve(uploadingRef.current[localId])
+        .then((id) => id && deleteUpload(id))
+        .catch(() => {});
     }
     setPendingFiles((prev) => prev.filter((file) => file.localId !== localId));
     delete uploadingRef.current[localId];
@@ -559,6 +623,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
           }
         }, 4000);
       }
+      for (const f of pendingFiles) sentLocalIdsRef.current.add(f.localId);
       setBody("");
       setPendingFiles([]);
       setPendingEntityRefs([]);
@@ -690,7 +755,12 @@ export const MessageComposer = forwardRef(function MessageComposer(
           style={{ scrollbarWidth: "none" }}
         >
           {pendingFiles.map((entry) => (
-            <AttachmentPreviewCard key={entry.localId} entry={entry} onRemove={removeFile} />
+            <AttachmentPreviewCard
+              key={entry.localId}
+              entry={entry}
+              onRemove={removeFile}
+              onOpen={openPendingViewer}
+            />
           ))}
         </div>
       )}
@@ -1018,6 +1088,17 @@ export const MessageComposer = forwardRef(function MessageComposer(
           Intro para enviar · Shift+Intro para nueva linea
         </p>
       )}
+
+      <ChatAttachmentViewer
+        open={attView.open}
+        onOpenChange={(open) => setAttView((v) => ({ ...v, open }))}
+        attachments={mapPendingToViewerFiles(pendingFiles)}
+        activeIndex={attView.index}
+        onIndexChange={(i) => setAttView((v) => ({ ...v, index: i }))}
+        resolveUrl={(f) => f.url ?? null}
+        canOpenInOffice={() => false}
+        onOpenInOffice={() => {}}
+      />
     </div>
     </div>
   );
