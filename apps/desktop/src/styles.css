@@ -89,6 +89,10 @@ html {
   --glass-tint: rgba(33, 199, 255, 0.08);
   --glass-glow: rgba(33, 199, 255, 0.25);
   --topbar-height: 3.5rem;
+  /* Exposed as custom properties so JS (MessageActionSheet positioning) can
+     read the device safe-area insets without a probe element. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ── Mobile: near-opaque glass in light mode (backdrop-filter unreliable on some phones) ── */
