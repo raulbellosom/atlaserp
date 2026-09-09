@@ -264,6 +264,10 @@ export function ChatMessageBubble({
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [actionSheet, setActionSheet] = useState({ open: false, point: null, rect: null, attachment: null });
+  // The action sheet reports how far it had to move the pill/card stack to keep
+  // it inside the safe area (notch / home indicator); the message row follows
+  // by the same amount so the spotlighted bubble stays aligned with the scrims.
+  const [bubbleShiftY, setBubbleShiftY] = useState(0);
   const lastTapRef = useRef(0);
   // Set the instant a long-press fires so the click/tap that lands when the
   // finger lifts is swallowed instead of activating whatever is under it
@@ -425,8 +429,14 @@ export function ChatMessageBubble({
     onClickCapture: handleRowClickCapture,
     onContextMenu: handleRowContextMenu,
     style: {
-      transform: translateX ? `translateX(${translateX}px)` : undefined,
-      transition: translateX ? "none" : "transform 0.18s ease-out",
+      transform: [
+        translateX ? `translateX(${translateX}px)` : "",
+        bubbleShiftY ? `translateY(${bubbleShiftY}px)` : "",
+      ].filter(Boolean).join(" ") || undefined,
+      // Snap (no transition) whenever the action-sheet shift is in play — the
+      // scrims around the spotlight snap, so a lagging bubble would misalign.
+      transition: (translateX || bubbleShiftY) ? "none" : "transform 0.18s ease-out",
+      willChange: bubbleShiftY ? "transform" : undefined,
       // Let the browser own vertical scroll but hand horizontal drags to the
       // swipe handlers — without this the browser claims the gesture and
       // fires pointercancel mid-drag, so the swipe never completes.
@@ -601,6 +611,7 @@ export function ChatMessageBubble({
           }}
           onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
           onOpenFullPicker={() => setReactionPickerOpen(true)}
+          onBubbleShift={setBubbleShiftY}
         />
         <MessageReactionPicker
           open={reactionPickerOpen}
@@ -783,6 +794,7 @@ export function ChatMessageBubble({
         }}
         onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
         onOpenFullPicker={() => setReactionPickerOpen(true)}
+        onBubbleShift={setBubbleShiftY}
       />
       {/* Avatar — invisible on non-last to keep column alignment */}
       <div className={["shrink-0", isLast ? "visible" : "invisible"].join(" ")}>
