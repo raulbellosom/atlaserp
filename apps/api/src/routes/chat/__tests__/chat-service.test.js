@@ -1882,69 +1882,154 @@ describe("chat-service — deleteAttachment", () => {
   const ATT_ID = "01900000-0000-7000-8000-00000000a010";
   const MSG_ID = "01900000-0000-7000-8000-00000000m010";
 
-  it("throws 404 when the attachment doesn't exist or the caller isn't the message sender", async () => {
+  // A supabaseAdmin stub whose storage.from(bucket).remove(keys) records calls.
+  function buildStorageStub() {
+    const removed = [];
+    return {
+      removed,
+      storage: {
+        from(bucket) {
+          return {
+            async remove(keys) {
+              removed.push({ bucket, keys });
+              return { data: keys.map((k) => ({ name: k })), error: null };
+            },
+          };
+        },
+      },
+    };
+  }
+
+  it("throws 404 when the attachment row doesn't exist", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }], // resolveUserProfileId
-      [],                    // ownership lookup: no match
+      [],                    // attachment row lookup: no match
     ]);
-    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const service = createChatService({ prisma, supabaseAdmin: buildStorageStub() });
     await assert.rejects(
       () => service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID }),
       (err) => err instanceof ChatServiceError && err.status === 404,
     );
   });
 
-  it("removes just the attachment and decrements attachment_count when other attachments/body remain", async () => {
+  it("pending: uploader deletes the row and the storage object", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, body: "mira esto", attachment_count: 3, metadata: {} }],
+      [{ id: ATT_ID, message_id: null, bucket: "atlas-chat", object_key: "conversations/c/x.jpg", uploaded_by_user_id: PROFILE_ID }],
+    ], [
+      { count: 1 }, // DELETE FROM chat_attachments
+    ]);
+    const supabaseAdmin = buildStorageStub();
+    const service = createChatService({ prisma, supabaseAdmin });
+    const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
+    assert.deepEqual(result, { ok: true, pending: true });
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["conversations/c/x.jpg"] }]);
+    assert.equal(prisma._executeRawCallCount, 1);
+  });
+
+  it("pending: a non-uploader gets 404 and nothing is deleted", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: null, bucket: "atlas-chat", object_key: "conversations/c/x.jpg", uploaded_by_user_id: OTHER_PROFILE_ID }],
+    ]);
+    const supabaseAdmin = buildStorageStub();
+    const service = createChatService({ prisma, supabaseAdmin });
+    await assert.rejects(
+      () => service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+    assert.deepEqual(supabaseAdmin.removed, []);
+    assert.equal(prisma._executeRawCallCount, 0);
+  });
+
+  it("sent: throws 404 when the caller isn't the message sender", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k", uploaded_by_user_id: PROFILE_ID }],
+      [], // message-context lookup: no row (not the sender / deleted)
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildStorageStub() });
+    await assert.rejects(
+      () => service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID }),
+      (err) => err instanceof ChatServiceError && err.status === 404,
+    );
+  });
+
+  it("sent: removes just the attachment, decrements attachment_count, deletes the object", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k1", uploaded_by_user_id: PROFILE_ID }],
+      [{ body: "mira esto", attachment_count: 3, metadata: {} }],
     ], [
       { count: 1 }, // DELETE FROM chat_attachments
       { count: 1 }, // UPDATE chat_messages SET attachment_count = ...
     ]);
-    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const supabaseAdmin = buildStorageStub();
+    const service = createChatService({ prisma, supabaseAdmin });
     const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
     assert.deepEqual(result, { ok: true, messageDeleted: false });
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["k1"] }]);
     assert.equal(prisma._executeRawCallCount, 2);
   });
 
-  it("soft-deletes the whole message when this is the last attachment and there is no body or entity refs", async () => {
+  it("sent: soft-deletes the message when it's the last attachment with no body or entity refs, deletes the object", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, body: "", attachment_count: 1, metadata: {} }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k2", uploaded_by_user_id: PROFILE_ID }],
+      [{ body: "", attachment_count: 1, metadata: {} }],
     ], [
       { count: 1 }, // UPDATE chat_messages SET deleted_at = NOW()
       { count: 1 }, // DELETE FROM chat_attachments
     ]);
-    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const supabaseAdmin = buildStorageStub();
+    const service = createChatService({ prisma, supabaseAdmin });
     const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
     assert.deepEqual(result, { ok: true, messageDeleted: true });
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["k2"] }]);
   });
 
-  it("does NOT soft-delete the whole message when it's the last attachment but body text remains", async () => {
+  it("sent: keeps the message when the last attachment leaves body text behind", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, body: "no borres esto", attachment_count: 1, metadata: {} }],
-    ], [
-      { count: 1 }, // DELETE FROM chat_attachments
-      { count: 1 }, // UPDATE chat_messages SET attachment_count = ...
-    ]);
-    const service = createChatService({ prisma, supabaseAdmin: {} });
-    const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
-    assert.deepEqual(result, { ok: true, messageDeleted: false });
-  });
-
-  it("does NOT soft-delete the whole message when it's the last attachment but an entity ref remains", async () => {
-    const prisma = buildPrismaMock([
-      [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, body: null, attachment_count: 1, metadata: { entityRefs: [{ entityType: "contact", recordId: "x" }] } }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k3", uploaded_by_user_id: PROFILE_ID }],
+      [{ body: "no borres esto", attachment_count: 1, metadata: {} }],
     ], [
       { count: 1 },
       { count: 1 },
     ]);
-    const service = createChatService({ prisma, supabaseAdmin: {} });
+    const service = createChatService({ prisma, supabaseAdmin: buildStorageStub() });
     const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
     assert.deepEqual(result, { ok: true, messageDeleted: false });
+  });
+
+  it("sent: keeps the message when the last attachment leaves an entity ref behind", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k4", uploaded_by_user_id: PROFILE_ID }],
+      [{ body: null, attachment_count: 1, metadata: { entityRefs: [{ entityType: "contact", recordId: "x" }] } }],
+    ], [
+      { count: 1 },
+      { count: 1 },
+    ]);
+    const service = createChatService({ prisma, supabaseAdmin: buildStorageStub() });
+    const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
+    assert.deepEqual(result, { ok: true, messageDeleted: false });
+  });
+
+  it("swallows a storage-removal error and still deletes the row", async () => {
+    const prisma = buildPrismaMock([
+      [{ id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: null, bucket: "atlas-chat", object_key: "boom", uploaded_by_user_id: PROFILE_ID }],
+    ], [
+      { count: 1 },
+    ]);
+    const supabaseAdmin = {
+      storage: { from: () => ({ remove: async () => ({ data: null, error: new Error("network") }) }) },
+    };
+    const service = createChatService({ prisma, supabaseAdmin });
+    const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
+    assert.deepEqual(result, { ok: true, pending: true });
+    assert.equal(prisma._executeRawCallCount, 1);
   });
 });
 

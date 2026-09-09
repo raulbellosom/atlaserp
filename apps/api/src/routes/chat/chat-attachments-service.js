@@ -111,20 +111,52 @@ export function createChatAttachmentsService({
     return { url: signedUrl };
   }
 
+  async function removeStorageObject(bucket, objectKey) {
+    try {
+      const { error } = await supabaseAdmin.storage.from(bucket).remove([objectKey]);
+      if (error) {
+        console.error("[atlas.chat] deleteAttachment: storage remove failed", { bucket, objectKey, error: error.message });
+      }
+    } catch (err) {
+      console.error("[atlas.chat] deleteAttachment: storage remove threw", { bucket, objectKey, error: err?.message ?? err });
+    }
+  }
+
   async function deleteAttachment({ attachmentId, authUserId }) {
     const profileId = await getUserProfileId(authUserId);
 
+    // Fetch the attachment WITHOUT joining chat_messages: a pending upload
+    // (message_id NULL, never linked to a sent message) has no message to join.
+    const attRows = await prisma.$queryRaw`
+      SELECT id, message_id, bucket, object_key, uploaded_by_user_id
+      FROM chat_attachments
+      WHERE id = ${attachmentId}
+      LIMIT 1
+    `;
+    if (!attRows.length) throw new ChatServiceError("Archivo no encontrado o sin permiso.", 404);
+    const att = attRows[0];
+
+    // ── Pending upload: the uploader can always discard their own un-sent file.
+    if (att.message_id == null) {
+      if (att.uploaded_by_user_id !== profileId) {
+        throw new ChatServiceError("Archivo no encontrado o sin permiso.", 404);
+      }
+      await removeStorageObject(att.bucket, att.object_key);
+      await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
+      return { ok: true, pending: true };
+    }
+
+    // ── Sent attachment: same message-context rules as before.
     const rows = await prisma.$queryRaw`
-      SELECT a.id, a.message_id, m.body, m.attachment_count, m.metadata
-      FROM chat_attachments a
-      INNER JOIN chat_messages m ON m.id = a.message_id
-      WHERE a.id = ${attachmentId}
+      SELECT m.body, m.attachment_count, m.metadata
+      FROM chat_messages m
+      WHERE m.id = ${att.message_id}
         AND m.sender_user_id = ${profileId}
         AND m.deleted_at IS NULL
       LIMIT 1
     `;
     if (!rows.length) throw new ChatServiceError("Archivo no encontrado o sin permiso.", 404);
-    const { message_id: messageId, body, attachment_count: attachmentCount, metadata } = rows[0];
+    const { body, attachment_count: attachmentCount, metadata } = rows[0];
 
     const isLastAttachment = attachmentCount <= 1;
     const hasBody = Boolean(body && body.trim());
@@ -137,16 +169,18 @@ export function createChatAttachmentsService({
       // listener on chat_messages only; chat_attachments has no subscription
       // of its own. Same mechanism deleteMessage already relies on.
       await prisma.$executeRaw`
-        UPDATE chat_messages SET deleted_at = NOW(), body = '' WHERE id = ${messageId}
+        UPDATE chat_messages SET deleted_at = NOW(), body = '' WHERE id = ${att.message_id}
       `;
       await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
+      await removeStorageObject(att.bucket, att.object_key);
       return { ok: true, messageDeleted: true };
     }
 
     await prisma.$executeRaw`DELETE FROM chat_attachments WHERE id = ${attachmentId}`;
     await prisma.$executeRaw`
-      UPDATE chat_messages SET attachment_count = GREATEST(attachment_count - 1, 0) WHERE id = ${messageId}
+      UPDATE chat_messages SET attachment_count = GREATEST(attachment_count - 1, 0) WHERE id = ${att.message_id}
     `;
+    await removeStorageObject(att.bucket, att.object_key);
     return { ok: true, messageDeleted: false };
   }
 
