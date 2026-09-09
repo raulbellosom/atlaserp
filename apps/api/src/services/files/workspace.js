@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import { OFFICE_FORMATS } from "@atlas/core";
+import { signedUrlsWithVariant } from "../../lib/image-variants.js";
 import { createFileAccess, FileAccessError } from "./access.js";
 
 export function createFilesWorkspace({
@@ -10,7 +11,43 @@ export function createFilesWorkspace({
   env = process.env,
 }) {
   const access = createFileAccess({ prisma });
-  const userSelect = { id: true, displayName: true, email: true };
+  const userSelect = { id: true, displayName: true, email: true, avatarFileId: true };
+
+  // Resolves each user's avatar file to a short-lived signed URL and returns a
+  // trimmed payload ({ id, displayName, email, avatarUrl }). Batched by bucket.
+  async function attachAvatarUrls(users) {
+    const list = users.filter(Boolean);
+    const fileIds = [...new Set(list.map((u) => u.avatarFileId).filter(Boolean))];
+    const urlByFileId = new Map();
+    if (fileIds.length) {
+      const assets = await prisma.fileAsset.findMany({
+        where: { id: { in: fileIds } },
+        select: { id: true, bucket: true, objectKey: true },
+      });
+      const byBucket = new Map();
+      for (const a of assets) {
+        if (!byBucket.has(a.bucket)) byBucket.set(a.bucket, []);
+        byBucket.get(a.bucket).push(a);
+      }
+      await Promise.all(
+        [...byBucket.entries()].map(async ([bucket, group]) => {
+          const urls = await signedUrlsWithVariant(
+            supabaseAdmin,
+            bucket,
+            group.map((a) => a.objectKey),
+            "thumb",
+          );
+          group.forEach((a, i) => urlByFileId.set(a.id, urls[i] ?? null));
+        }),
+      );
+    }
+    return list.map((u) => ({
+      id: u.id,
+      displayName: u.displayName,
+      email: u.email,
+      avatarUrl: u.avatarFileId ? (urlByFileId.get(u.avatarFileId) ?? null) : null,
+    }));
+  }
   function shareUrl(fileId) {
     try {
       const base = new URL(env.ATLAS_OFFICE_HOST_ORIGIN || env.ATLAS_APP_URL);
@@ -200,10 +237,11 @@ export function createFilesWorkspace({
         [file.uploadedById, ...shares.map((s) => s.userId)].filter(Boolean),
       ),
     ];
-    const users = await prisma.userProfile.findMany({
+    const rawUsers = await prisma.userProfile.findMany({
       where: { id: { in: ids } },
       select: userSelect,
     });
+    const users = await attachAvatarUrls(rawUsers);
     return {
       scope: file.accessScope,
       shareUrl: shareUrl(file.id),
@@ -249,7 +287,7 @@ export function createFilesWorkspace({
       orderBy: { user: { displayName: "asc" } },
       take: 30,
     });
-    return rows.map((m) => m.user);
+    return attachAvatarUrls(rows.map((m) => m.user));
   }
   async function changeSharing({
     authUserId,

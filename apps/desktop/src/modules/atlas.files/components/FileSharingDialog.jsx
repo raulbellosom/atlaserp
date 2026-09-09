@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
@@ -8,14 +8,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  ComboboxField,
+  SearchInput,
   SelectField,
   EmptyState,
   ErrorState,
   LoadingState,
   ConfirmDialog,
 } from "@atlas/ui";
-import { Users, UserPlus, Link2 } from "lucide-react";
+import { Users, UserPlus, Link2, X } from "lucide-react";
+import {
+  UserAvatar,
+  UserPickerItem,
+  UserListSkeleton,
+} from "../../atlas.chat/components/UserPicker";
 import { atlas } from "../../../lib/atlas";
 import { filesError } from "../lib/files-error";
 
@@ -36,7 +41,7 @@ export function FileSharingDialog({
 }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [person, setPerson] = useState("");
+  const [selected, setSelected] = useState([]);
   const [role, setRole] = useState("VIEWER");
   const [revoke, setRevoke] = useState(null);
   const access = useQuery({
@@ -53,24 +58,63 @@ export function FileSharingDialog({
     staleTime: 0,
     gcTime: 0,
   });
+
+  const invalidateAccess = () => {
+    queryClient.invalidateQueries({ queryKey: ["file-access", file.id, userId] });
+    queryClient.invalidateQueries({ queryKey: ["files-list"] });
+    queryClient.invalidateQueries({ queryKey: ["file-invitations"] });
+  };
+
   const update = useMutation({
     mutationFn: (body) => atlas.files.updateAccess(file.id, body, token),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["file-access", file.id, userId],
-      });
-      queryClient.invalidateQueries({ queryKey: ["files-list"] });
-      queryClient.invalidateQueries({ queryKey: ["file-invitations"] });
-      setPerson("");
+      invalidateAccess();
       setRevoke(null);
     },
   });
+
+  // Multi-invite: apply the chosen role to every selected person. Sequential so
+  // the per-file row lock in changeSharing never contends, and so a partial
+  // failure leaves the successful invites applied (the list refetches on settle).
+  const inviteMany = useMutation({
+    mutationFn: async ({ userIds, role: r }) => {
+      const failures = [];
+      for (const uid of userIds) {
+        try {
+          await atlas.files.updateAccess(file.id, { userId: uid, role: r }, token);
+        } catch (e) {
+          failures.push(e);
+        }
+      }
+      if (failures.length) {
+        throw failures.length === userIds.length
+          ? failures[0]
+          : new Error(`No se pudo invitar a ${failures.length} de ${userIds.length} personas. El resto sí.`);
+      }
+    },
+    onSettled: invalidateAccess,
+    onSuccess: () => setSelected([]),
+  });
+
+  function toggle(u) {
+    setSelected((prev) =>
+      prev.some((s) => s.id === u.id) ? prev.filter((s) => s.id !== u.id) : [...prev, u],
+    );
+  }
+
+  const options = useMemo(() => {
+    const sharedIds = new Set((data?.shares ?? []).map((s) => s.userId));
+    return (members.data?.data ?? []).filter(
+      (u) => u.id !== data?.owner?.id && !sharedIds.has(u.id),
+    );
+  }, [members.data, data]);
+
   return (
     <>
       <Dialog
         open
         onOpenChange={(open) => {
-          if (!open && !update.isPending) onClose();
+          if (!open && !update.isPending && !inviteMany.isPending) onClose();
         }}
       >
         <DialogContent className="sm:max-w-xl max-h-[85dvh] overflow-y-auto">
@@ -108,30 +152,71 @@ export function FileSharingDialog({
                     siendo necesarios. Los administradores conservan acceso.
                   </p>
                   <div className="space-y-3 rounded-xl border p-4">
-                    <ComboboxField
-                      id="file-recipient"
-                      label="Invitar a una persona de la empresa"
-                      placeholder="Buscar nombre o correo…"
-                      options={(members.data?.data ?? [])
-                        .filter((u) => u.id !== data.owner?.id)
-                        .map((u) => ({
-                          value: u.id,
-                          label: `${u.displayName} · ${u.email}`,
-                        }))}
-                      onSearchChange={setSearch}
-                      value={person}
-                      onChange={setPerson}
-                      emptyText={
-                        members.isFetching
-                          ? "Buscando…"
-                          : "Sin personas disponibles"
-                      }
-                    />
-                    {members.isError && (
-                      <p role="alert" className="text-sm text-destructive">
-                        No se pudieron cargar las personas. Vuelve a buscar.
-                      </p>
+                    <div>
+                      <label
+                        htmlFor="file-recipient"
+                        className="text-sm font-medium"
+                      >
+                        Invitar a personas de la empresa
+                      </label>
+                      <SearchInput
+                        id="file-recipient"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Buscar nombre o correo…"
+                        className="mt-1.5"
+                      />
+                    </div>
+
+                    {selected.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selected.map((u) => (
+                          <span
+                            key={u.id}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--muted))] py-1 pl-1 pr-2 text-xs"
+                          >
+                            <UserAvatar user={u} size="sm" />
+                            <span className="max-w-36 truncate">
+                              {u.displayName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggle(u)}
+                              aria-label={`Quitar a ${u.displayName}`}
+                              className="rounded-full p-0.5 hover:bg-[hsl(var(--border))]"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
                     )}
+
+                    <div className="max-h-56 overflow-y-auto rounded-lg border p-1">
+                      {members.isError ? (
+                        <p role="alert" className="px-3 py-4 text-sm text-destructive">
+                          No se pudieron cargar las personas. Vuelve a buscar.
+                        </p>
+                      ) : members.isFetching && !members.data ? (
+                        <UserListSkeleton />
+                      ) : options.length === 0 ? (
+                        <p className="px-3 py-4 text-sm text-[hsl(var(--muted-foreground))]">
+                          {members.isFetching
+                            ? "Buscando…"
+                            : "Sin personas disponibles"}
+                        </p>
+                      ) : (
+                        options.map((u) => (
+                          <UserPickerItem
+                            key={u.id}
+                            user={u}
+                            selected={selected.some((s) => s.id === u.id)}
+                            onToggle={toggle}
+                          />
+                        ))
+                      )}
+                    </div>
+
                     <div className="flex items-end gap-3">
                       <div className="flex-1">
                         <SelectField
@@ -140,19 +225,31 @@ export function FileSharingDialog({
                           value={role}
                           onChange={setRole}
                           options={ROLES}
-                          disabled={update.isPending}
+                          disabled={inviteMany.isPending}
                         />
                       </div>
                       <Button
-                        onClick={() => update.mutate({ userId: person, role })}
-                        disabled={!person || update.isPending}
+                        onClick={() =>
+                          inviteMany.mutate({
+                            userIds: selected.map((s) => s.id),
+                            role,
+                          })
+                        }
+                        disabled={selected.length === 0 || inviteMany.isPending}
                       >
                         <UserPlus className="h-4 w-4" />
-                        Invitar
+                        {inviteMany.isPending
+                          ? "Invitando…"
+                          : `Invitar${selected.length ? ` (${selected.length})` : ""}`}
                       </Button>
                     </div>
+                    {inviteMany.isError && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {filesError(inviteMany.error)}
+                      </p>
+                    )}
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                      La invitación aparecerá en Archivos → Invitaciones.
+                      Cada invitación aparecerá en Archivos → Invitaciones.
                     </p>
                   </div>
                 </>
@@ -164,8 +261,11 @@ export function FileSharingDialog({
                 </p>
               )}
               {data.owner && (
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="truncate">{data.owner.displayName}</span>
+                <div className="flex items-center gap-2 text-sm">
+                  <UserAvatar user={data.owner} size="sm" />
+                  <span className="min-w-0 flex-1 truncate">
+                    {data.owner.displayName}
+                  </span>
                   <Badge variant="secondary">Propietario</Badge>
                 </div>
               )}
@@ -177,6 +277,10 @@ export function FileSharingDialog({
                         key={share.id}
                         className="flex flex-wrap items-center gap-2 border-t pt-3"
                       >
+                        <UserAvatar
+                          user={share.user ?? { displayName: "Usuario" }}
+                          size="sm"
+                        />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">
                             {share.user?.displayName ?? "Usuario"}
