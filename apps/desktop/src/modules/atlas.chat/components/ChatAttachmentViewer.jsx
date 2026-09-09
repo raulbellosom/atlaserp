@@ -69,11 +69,13 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
       onIndexChange={onIndexChange}
       onResolveSignedUrl={resolveSignedUrl}
       onOpenInOffice={(f) => {
-        // B1: only entity references are FileAsset-backed. Real chat
-        // attachments get their own path in Plan B2.
-        if (f?.isEntityRef && office?.enabled) office.open(f.id);
+        if (!office?.enabled) return;
+        // Entity references are atlas.files records; real chat attachments use
+        // the dedicated chat WOPI scope.
+        if (f?.isEntityRef) office.open(f.id);
+        else office.openChatAttachment(f.id);
       }}
-      canOpenInOffice={(f) => Boolean(f?.isEntityRef)}
+      canOpenInOffice={() => Boolean(office?.enabled)}
       zIndex={10000}
     />
   );

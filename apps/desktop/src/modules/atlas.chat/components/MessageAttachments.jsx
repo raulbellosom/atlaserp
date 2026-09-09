@@ -5,10 +5,20 @@ import {
   Loader2, Download, Play, Pause, Mic, AlertCircle,
   FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File, Trash2, Smile,
-  Copy, Link2, ExternalLink,
+  Copy, Link2, ExternalLink, FilePenLine,
 } from "lucide-react";
-import { ConfirmDialog, useCoarsePointer } from "@atlas/ui";
+import {
+  ConfirmDialog,
+  useCoarsePointer,
+  useOfficeActions,
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@atlas/ui";
 import { formatFileSize, isImageMime, isAudioAttachment } from "../lib/chatUtils";
+import { isOfficeOpenable } from "../lib/officeFileActions";
 import { atlas } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { MessageReactionPicker } from "./MessageReactionPicker";
@@ -63,10 +73,21 @@ export function useAttachmentUrl(att) {
 // list, merged into the unified message menu (MessageActionSheet) so an image
 // or file message shows BOTH its message actions and these. `url` may be null
 // (still resolving) — those entries render disabled.
-export function buildAttachmentActions({ att, url }) {
+export function buildAttachmentActions({ att, url, office }) {
   if (!att) return [];
   const isImage = isImageMime(att.mimeType);
   const items = [];
+  if (
+    office?.enabled &&
+    isOfficeOpenable({ fileName: att.fileName, mimeType: att.mimeType })
+  ) {
+    items.push({
+      key: "att-office",
+      label: office.canEdit ? "Abrir en editor de Office" : "Abrir en Office (solo lectura)",
+      icon: FilePenLine,
+      onSelect: () => office.openChatAttachment(att.id),
+    });
+  }
   if (isImage) {
     items.push({
       key: "att-copy-image", label: "Copiar imagen", icon: Copy, disabled: !url,
@@ -581,12 +602,12 @@ export function AudioCard({ att, isOwn }) {
 }
 
 // ── File card (generic) ───────────────────────────────────────────────────────
-function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
+function FileCard({ att, index, allAttachments, onOpen, isOwn, office }) {
   const { data: url } = useAttachmentUrl(att);
   const { Icon, colorClass } = getFileTypeInfo(att.mimeType);
 
   function handleDownload(e) {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     if (!url) return;
     const a = document.createElement("a");
     a.href = url;
@@ -596,35 +617,54 @@ function FileCard({ att, index, allAttachments, onOpen, isOwn }) {
     a.click();
   }
 
+  const menuItems = buildAttachmentActions({ att, url, office });
+
   return (
-    <div
-      data-attachment-id={att.id}
-      className={[
-        "flex items-center gap-2.5 mt-1.5 px-3 py-2 rounded-xl max-w-55",
-        isOwn ? "bg-white/15" : "bg-[hsl(var(--border))]",
-      ].join(" ")}
-    >
-      <button
-        type="button"
-        onClick={() => onOpen?.(allAttachments, index)}
-        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
-      >
-        <Icon className={`h-4 w-4 shrink-0 ${colorClass}`} />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium truncate">{att.fileName}</p>
-          <p className="text-xs opacity-50">{formatFileSize(att.sizeBytes)}</p>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          data-attachment-id={att.id}
+          className={[
+            "flex items-center gap-2.5 mt-1.5 px-3 py-2 rounded-xl max-w-55",
+            isOwn ? "bg-white/15" : "bg-[hsl(var(--border))]",
+          ].join(" ")}
+        >
+          <button
+            type="button"
+            onClick={() => onOpen?.(allAttachments, index)}
+            className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+          >
+            <Icon className={`h-4 w-4 shrink-0 ${colorClass}`} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{att.fileName}</p>
+              <p className="text-xs opacity-50">{formatFileSize(att.sizeBytes)}</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={!url}
+            title="Descargar"
+            className="shrink-0 opacity-60 hover:opacity-100 transition-opacity disabled:opacity-20"
+          >
+            <Download className="h-4 w-4" />
+          </button>
         </div>
-      </button>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={!url}
-        title="Descargar"
-        className="shrink-0 opacity-60 hover:opacity-100 transition-opacity disabled:opacity-20"
-      >
-        <Download className="h-4 w-4" />
-      </button>
-    </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        {menuItems.map((a) => (
+          <ContextMenuItem key={a.key} disabled={a.disabled} onSelect={() => a.onSelect()}>
+            {a.icon && <a.icon className="h-4 w-4 mr-2" />}
+            {a.label}
+          </ContextMenuItem>
+        ))}
+        <ContextMenuSeparator />
+        <ContextMenuItem disabled={!url} onSelect={() => handleDownload()}>
+          <Download className="h-4 w-4 mr-2" />
+          Descargar
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -768,6 +808,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
 
 // ── Attachments renderer ──────────────────────────────────────────────────────
 export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
+  const office = useOfficeActions();
   if (!attachments?.length) return null;
 
   // Group images together for grid layout
@@ -819,6 +860,7 @@ export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, curren
             allAttachments={ordered}
             onOpen={onOpen}
             isOwn={isOwn}
+            office={office}
           />
         );
       })}

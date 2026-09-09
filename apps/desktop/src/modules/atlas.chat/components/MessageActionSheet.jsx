@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCoarsePointer } from "@atlas/ui";
+import { useCoarsePointer, useOfficeActions } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
@@ -32,7 +32,8 @@ export function MessageActionSheet({
   // the same menu when an image/file tile was the press target. useAttachmentUrl
   // is safe to call with undefined — it just stays disabled.
   const { data: attUrl } = useAttachmentUrl(attachment ?? undefined);
-  const attachmentActions = attachment ? buildAttachmentActions({ att: attachment, url: attUrl }) : [];
+  const office = useOfficeActions();
+  const attachmentActions = attachment ? buildAttachmentActions({ att: attachment, url: attUrl, office }) : [];
 
   const pillRef = useRef(null);
   const panelRef = useRef(null);
