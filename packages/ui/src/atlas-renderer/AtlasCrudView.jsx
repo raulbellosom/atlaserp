@@ -444,67 +444,75 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
             </>
           )}
 
-          {mode === "detail" && currentDetailBlueprint && (
-            <>
-              <PageHeader
-                compact
-                eyebrow={
-                  currentDetailBlueprint?.schema?.title ??
-                  currentDetailBlueprint?.title ??
-                  null
-                }
-                title={
-                  recordData
-                    ? resolveRowLabel(recordData)
-                    : (currentDetailBlueprint?.schema?.title ??
-                      currentDetailBlueprint?.title ??
-                      "Detalle")
-                }
-                actions={
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={goToList}>
-                      <ArrowLeft className="mr-1.5 h-4 w-4" />
-                      Volver
-                    </Button>
-                    {detailHeaderActions
-                      .filter((action) => isActionVisible(action, recordData))
-                      .map((action) => {
-                        const actionKey = String(action.key ?? action.label ?? "action");
-                        const variant = action.variant ?? "outline";
-                        return (
-                          <Button
-                            key={actionKey}
-                            type="button"
-                            size="sm"
-                            variant={variant}
-                            loading={headerActionLoadingKey === actionKey}
-                            onClick={() => executeHeaderAction(action)}
-                          >
-                            {action.label ?? "Accion"}
-                          </Button>
-                        );
-                      })}
-                    {currentFormBlueprint && (
-                      <Button size="sm" onClick={() => setMode("edit")}>
-                        Editar
+          {mode === "detail" && currentDetailBlueprint && (() => {
+            const heroEnabled = Boolean(currentDetailBlueprint?.schema?.hero);
+            const detailActions = (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={goToList}>
+                  <ArrowLeft className="mr-1.5 h-4 w-4" />
+                  Volver
+                </Button>
+                {detailHeaderActions
+                  .filter((action) => isActionVisible(action, recordData))
+                  .map((action) => {
+                    const actionKey = String(action.key ?? action.label ?? "action");
+                    const variant = action.variant ?? "outline";
+                    return (
+                      <Button
+                        key={actionKey}
+                        type="button"
+                        size="sm"
+                        variant={variant}
+                        loading={headerActionLoadingKey === actionKey}
+                        onClick={() => executeHeaderAction(action)}
+                      >
+                        {action.label ?? "Accion"}
                       </Button>
-                    )}
-                  </div>
-                }
-              />
-              {renderRecordLoadingOrError() ??
-                (recordData && (
-                  <AtlasDetail
-                    blueprint={currentDetailBlueprint}
-                    fields={fields}
-                    data={recordData}
-                    accentColor={accentColor}
-                    token={token}
-                    apiBaseUrl={apiBaseUrl}
+                    );
+                  })}
+                {currentFormBlueprint && (
+                  <Button size="sm" onClick={() => setMode("edit")}>
+                    Editar
+                  </Button>
+                )}
+              </div>
+            );
+            return (
+              <>
+                {!heroEnabled && (
+                  <PageHeader
+                    compact
+                    eyebrow={
+                      currentDetailBlueprint?.schema?.title ??
+                      currentDetailBlueprint?.title ??
+                      null
+                    }
+                    title={
+                      recordData
+                        ? resolveRowLabel(recordData)
+                        : (currentDetailBlueprint?.schema?.title ??
+                          currentDetailBlueprint?.title ??
+                          "Detalle")
+                    }
+                    actions={detailActions}
                   />
-                ))}
-            </>
-          )}
+                )}
+                {renderRecordLoadingOrError() ??
+                  (recordData && (
+                    <AtlasDetail
+                      blueprint={currentDetailBlueprint}
+                      fields={fields}
+                      data={recordData}
+                      accentColor={accentColor}
+                      token={token}
+                      apiBaseUrl={apiBaseUrl}
+                      onBack={heroEnabled ? goToList : undefined}
+                      heroActions={heroEnabled ? detailActions : undefined}
+                    />
+                  ))}
+              </>
+            );
+          })()}
 
           {mode === "edit" && currentFormBlueprint && (
             <>
