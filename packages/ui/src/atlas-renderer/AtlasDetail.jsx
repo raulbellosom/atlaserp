@@ -25,11 +25,20 @@ import * as LucideIcons from "lucide-react";
 import { LoadingState } from "../components/LoadingState.jsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
+import { Badge } from "../components/Badge.jsx";
+import { Avatar, AvatarImage, AvatarFallback } from "../components/Avatar.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { MarkdownViewer } from "../components/MarkdownViewer.jsx";
+import { DetailHero } from "../components/DetailHero.jsx";
+import { StatStrip } from "../components/StatStrip.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
 import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
+import {
+  resolveHeroModel,
+  resolveKpis,
+  splitSectionsByColumn,
+} from "./detail-presentation.js";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -513,8 +522,32 @@ function normalizeTextValue(value) {
   return String(value).trim();
 }
 
-function RelationCardSection({ section, data }) {
+function RelationCardSection({ section, data, apiBaseUrl, token }) {
   const relationCard = section.relationCard;
+  const [avatarUrl, setAvatarUrl] = useState(null);
+
+  const rawAvatarId = relationCard?.avatarField
+    ? getByPath(data, relationCard.avatarField)
+    : null;
+  const avatarAssetId = normalizeTextValue(rawAvatarId) || null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!avatarAssetId) {
+      setAvatarUrl(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    (async () => {
+      const url = await fetchSignedUrl(apiBaseUrl, token, avatarAssetId);
+      if (!cancelled) setAvatarUrl(url);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl, token, avatarAssetId]);
+
   if (!relationCard?.idField) {
     return (
       <div className="rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
@@ -550,39 +583,82 @@ function RelationCardSection({ section, data }) {
       ? replacePathTokens(relationCard.hrefTemplate, { id: relatedId })
       : null;
 
-  const Icon = resolveIcon(relationCard.icon) ?? Link2;
+  const contactActions = (
+    Array.isArray(relationCard.contactActions) ? relationCard.contactActions : []
+  )
+    .map((action, idx) => {
+      if (!action || action.type !== "call" || !action.field) return null;
+      const phone = normalizeTextValue(getByPath(data, action.field));
+      if (!phone) return null;
+      return {
+        key: `${action.field}-${idx}`,
+        phone,
+        label: action.label || "Llamar",
+      };
+    })
+    .filter(Boolean);
 
-  const content = (
-    <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 transition-colors hover:border-[hsl(var(--ring))]">
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
-          <Icon size={16} />
-        </span>
-        <div className="min-w-0 space-y-1">
-          <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
-            {title}
-          </p>
-          {subtitles.length > 0 ? (
-            <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
-              {subtitles.join(" · ")}
-            </p>
-          ) : null}
-          {href ? (
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
-              Ir al detalle relacionado
-            </p>
-          ) : null}
-        </div>
-      </div>
+  const Icon = resolveIcon(relationCard.icon) ?? Link2;
+  const showAvatar = Boolean(relationCard.avatarField) && hasRelatedId;
+
+  const media = showAvatar ? (
+    <Avatar className="mt-0.5 h-9 w-9 rounded-lg">
+      {avatarUrl ? (
+        <AvatarImage src={avatarUrl} alt={title} className="rounded-lg" />
+      ) : null}
+      <AvatarFallback className="rounded-lg bg-[hsl(var(--muted))] text-xs text-[hsl(var(--muted-foreground))]">
+        {initialsFromName(cleanTitle)}
+      </AvatarFallback>
+    </Avatar>
+  ) : (
+    <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
+      <Icon size={16} />
+    </span>
+  );
+
+  const inner = (
+    <div className="min-w-0 space-y-1">
+      <p className="text-sm font-semibold text-[hsl(var(--foreground))] truncate">
+        {title}
+      </p>
+      {subtitles.length > 0 ? (
+        <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">
+          {subtitles.join(" · ")}
+        </p>
+      ) : null}
+      {href ? (
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">
+          Ir al detalle relacionado
+        </p>
+      ) : null}
     </div>
   );
 
-  if (!href) return content;
-
   return (
-    <a href={href} className="block">
-      {content}
-    </a>
+    <div className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-4 py-3 transition-colors hover:border-[hsl(var(--ring))]">
+      <div className="flex items-start gap-3">
+        {media}
+        {href ? (
+          <a href={href} className="block min-w-0 flex-1">
+            {inner}
+          </a>
+        ) : (
+          <div className="min-w-0 flex-1">{inner}</div>
+        )}
+      </div>
+      {contactActions.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2 pl-11">
+          {contactActions.map((action) => (
+            <Button key={action.key} asChild variant="outline" size="sm">
+              <a href={`tel:${action.phone}`}>
+                <Phone size={14} />
+                {action.label}
+              </a>
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -786,6 +862,135 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
   );
 }
 
+async function fetchSignedUrl(apiBaseUrl, token, fileAssetId) {
+  if (!fileAssetId) return null;
+  try {
+    const res = await fetch(
+      joinUrl(apiBaseUrl, `/files/${encodeURIComponent(fileAssetId)}/signed-url`),
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    );
+    if (!res.ok) return null;
+    const payload = parseJsonSafe(await res.text());
+    return payload?.data?.signedUrl ?? payload?.data?.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFirstImageAssetId(apiBaseUrl, token, docsPath, recordId) {
+  if (!docsPath || !recordId) return null;
+  try {
+    const path = replacePathTokens(docsPath, { id: recordId });
+    const res = await fetch(joinUrl(apiBaseUrl, path), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return null;
+    const rows = extractArrayPayload(parseJsonSafe(await res.text()));
+    const image = rows.find((row) =>
+      String(row?.file_asset?.mimeType ?? row?.mimeType ?? "")
+        .toLowerCase()
+        .startsWith("image/"),
+    );
+    return image?.file_asset_id ?? image?.fileAssetId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function initialsFromName(name) {
+  const full = String(name ?? "").trim();
+  if (!full) return "--";
+  const words = full.split(/\s+/).filter(Boolean);
+  const a = words[0]?.charAt(0) ?? "";
+  const b = words.length > 1 ? (words[1]?.charAt(0) ?? "") : "";
+  return `${a}${b}`.toUpperCase() || "--";
+}
+
+function HeroStatus({ heroModel, data }) {
+  const { statusValue, statusMap } = heroModel;
+  if (statusValue === null || statusValue === undefined || statusValue === "") {
+    return null;
+  }
+  if (statusMap) {
+    const key = String(statusValue);
+    const label = statusMap[key] ?? key;
+    const positive = key === "true" || key === "active";
+    return (
+      <Badge variant={positive ? "success" : "destructive"}>{label}</Badge>
+    );
+  }
+  return renderValue({ type: "text" }, statusValue, data);
+}
+
+function HeroContainer({ heroModel, kpiItems, data, apiBaseUrl, token, actions }) {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [imageLoading, setImageLoading] = useState(
+    Boolean(heroModel.imageAssetId || heroModel.imageDocsPath),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let assetId = heroModel.imageAssetId;
+      if (!assetId && heroModel.imageDocsPath) {
+        assetId = await fetchFirstImageAssetId(
+          apiBaseUrl,
+          token,
+          heroModel.imageDocsPath,
+          data?.id,
+        );
+      }
+      if (!assetId) {
+        if (!cancelled) {
+          setImageUrl(null);
+          setImageLoading(false);
+        }
+        return;
+      }
+      const url = await fetchSignedUrl(apiBaseUrl, token, assetId);
+      if (!cancelled) {
+        setImageUrl(url);
+        setImageLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    apiBaseUrl,
+    token,
+    heroModel.imageAssetId,
+    heroModel.imageDocsPath,
+    data?.id,
+  ]);
+
+  const kpiRenderItems = kpiItems.map((item) => ({
+    key: item.key,
+    label: item.label,
+    icon: item.icon,
+    href: item.href,
+    value: renderValue({ type: item.type }, item.rawValue, data),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <DetailHero
+        title={heroModel.title}
+        subtitle={heroModel.subtitle}
+        statusNode={<HeroStatus heroModel={heroModel} data={data} />}
+        imageUrl={imageUrl}
+        imageLoading={imageLoading}
+        fallbackIcon={heroModel.fallbackIcon}
+        accentHex={heroModel.accentHex}
+        chips={heroModel.chips}
+        actions={actions}
+      />
+      {kpiRenderItems.length > 0 ? <StatStrip items={kpiRenderItems} /> : null}
+    </div>
+  );
+}
+
 function FieldLabel({ field }) {
   const Icon = resolveIcon(field?.icon) ?? null;
 
@@ -807,6 +1012,7 @@ export function AtlasDetail({
   data,
   onEdit,
   onBack,
+  heroActions,
   token,
   apiBaseUrl,
 }) {
@@ -815,6 +1021,19 @@ export function AtlasDetail({
   const sections = useMemo(
     () => normalizeSections(schema, fieldMap),
     [schema, fieldMap],
+  );
+  const heroModel = useMemo(
+    () =>
+      data && typeof data === "object" ? resolveHeroModel(schema, data) : null,
+    [schema, data],
+  );
+  const kpiItems = useMemo(
+    () => (data && typeof data === "object" ? resolveKpis(schema, data) : []),
+    [schema, data],
+  );
+  const { twoColumn, main: mainSections, aside: asideSections } = useMemo(
+    () => splitSectionsByColumn(sections, schema?.layout),
+    [sections, schema?.layout],
   );
 
   if (!data || typeof data !== "object") {
@@ -828,21 +1047,159 @@ export function AtlasDetail({
     );
   }
 
+  const fallbackActions =
+    onBack || onEdit ? (
+      <>
+        {onBack && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onBack?.()}
+          >
+            Volver
+          </Button>
+        )}
+        {onEdit && (
+          <Button type="button" size="sm" onClick={() => onEdit?.(data)}>
+            Editar
+          </Button>
+        )}
+      </>
+    ) : null;
+
+  const renderSection = (section) => (
+    <div key={section.id} className="space-y-4">
+      {section.title ? (
+        <div className="pb-3 border-b border-[hsl(var(--border))] flex items-center gap-2">
+          {(() => {
+            const SectionIcon = section.icon ? LucideIcons[section.icon] : null;
+            return SectionIcon ? (
+              <SectionIcon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
+            ) : null;
+          })()}
+          <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
+            {section.title}
+          </h4>
+        </div>
+      ) : null}
+
+      {section.type === "attachments" ? (
+        <AttachmentsPanel
+          apiBaseUrl={apiBaseUrl}
+          token={token}
+          recordId={data?.id ?? null}
+          config={section.attachments ?? {}}
+          context="detail"
+          readOnly
+          showHeading={false}
+        />
+      ) : null}
+
+      {section.type === "relation-card" ? (
+        <RelationCardSection
+          section={section}
+          data={data}
+          apiBaseUrl={apiBaseUrl}
+          token={token}
+        />
+      ) : null}
+
+      {section.type === "relation-list" ? (
+        <RelationListSection
+          section={section}
+          data={data}
+          apiBaseUrl={apiBaseUrl}
+          token={token}
+        />
+      ) : null}
+
+      {section.type === "fields" ? (
+        <div className="space-y-4">
+          <dl className={gridClass(section.columns)}>
+            {section.fields.map((fieldName) => {
+              const field = fieldMap.get(fieldName);
+              if (!field) return null;
+              if (
+                field.visibleWhen &&
+                !matchesFieldRule(field.visibleWhen, data)
+              )
+                return null;
+              if (field.hiddenWhen && matchesFieldRule(field.hiddenWhen, data))
+                return null;
+              const value = data[field.name];
+              const isMarkdown = field.type === "markdown";
+              const strValue =
+                value != null && value !== "" ? String(value) : null;
+              return (
+                <div
+                  key={field.name}
+                  className={`space-y-1.5${isMarkdown ? " col-span-full" : ""}`}
+                >
+                  <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                    <FieldLabel field={field} />
+                  </dt>
+                  <dd className="text-sm text-[hsl(var(--foreground))]">
+                    {isMarkdown ? (
+                      strValue ? (
+                        <MarkdownViewer value={strValue} />
+                      ) : (
+                        <span className="text-[hsl(var(--muted-foreground))]">
+                          —
+                        </span>
+                      )
+                    ) : (
+                      renderValue(field, value, data)
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+          {section.fields.includes("labor_cost") &&
+          section.fields.includes("parts_cost") &&
+          section.fields.includes("total_cost") ? (
+            <CostsSummaryPanel
+              laborCost={data.labor_cost ?? 0}
+              partsCost={data.parts_cost ?? 0}
+              totalCost={data.total_cost ?? 0}
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      {(onBack || onEdit) && (
-        <div className="flex items-center justify-end gap-2">
-          {onBack && (
-            <Button type="button" variant="outline" onClick={() => onBack?.()}>
-              Volver
-            </Button>
-          )}
-          {onEdit && (
-            <Button type="button" onClick={() => onEdit?.(data)}>
-              Editar
-            </Button>
-          )}
-        </div>
+      {heroModel ? (
+        <HeroContainer
+          heroModel={heroModel}
+          kpiItems={kpiItems}
+          data={data}
+          apiBaseUrl={apiBaseUrl}
+          token={token}
+          actions={heroActions ?? fallbackActions}
+        />
+      ) : (
+        (onBack || onEdit) && (
+          <div className="flex items-center justify-end gap-2">
+            {onBack && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onBack?.()}
+              >
+                Volver
+              </Button>
+            )}
+            {onEdit && (
+              <Button type="button" onClick={() => onEdit?.(data)}>
+                Editar
+              </Button>
+            )}
+          </div>
+        )
       )}
 
       {sections.length === 0 && (
@@ -854,107 +1211,18 @@ export function AtlasDetail({
         </Alert>
       )}
 
-      {sections.map((section) => (
-        <div key={section.id} className="space-y-4">
-          {section.title ? (
-            <div className="pb-3 border-b border-[hsl(var(--border))] flex items-center gap-2">
-              {(() => {
-                const SectionIcon = section.icon
-                  ? LucideIcons[section.icon]
-                  : null;
-                return SectionIcon ? (
-                  <SectionIcon className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
-                ) : null;
-              })()}
-              <h4 className="text-sm font-semibold text-[hsl(var(--foreground))]">
-                {section.title}
-              </h4>
-            </div>
-          ) : null}
-
-          {section.type === "attachments" ? (
-            <AttachmentsPanel
-              apiBaseUrl={apiBaseUrl}
-              token={token}
-              recordId={data?.id ?? null}
-              config={section.attachments ?? {}}
-              context="detail"
-              readOnly
-              showHeading={false}
-            />
-          ) : null}
-
-          {section.type === "relation-card" ? (
-            <RelationCardSection section={section} data={data} />
-          ) : null}
-
-          {section.type === "relation-list" ? (
-            <RelationListSection
-              section={section}
-              data={data}
-              apiBaseUrl={apiBaseUrl}
-              token={token}
-            />
-          ) : null}
-
-          {section.type === "fields" ? (
-            <div className="space-y-4">
-              <dl className={gridClass(section.columns)}>
-                {section.fields.map((fieldName) => {
-                  const field = fieldMap.get(fieldName);
-                  if (!field) return null;
-                  if (
-                    field.visibleWhen &&
-                    !matchesFieldRule(field.visibleWhen, data)
-                  )
-                    return null;
-                  if (
-                    field.hiddenWhen &&
-                    matchesFieldRule(field.hiddenWhen, data)
-                  )
-                    return null;
-                  const value = data[field.name];
-                  const isMarkdown = field.type === "markdown";
-                  const strValue =
-                    value != null && value !== "" ? String(value) : null;
-                  return (
-                    <div
-                      key={field.name}
-                      className={`space-y-1.5${isMarkdown ? " col-span-full" : ""}`}
-                    >
-                      <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                        <FieldLabel field={field} />
-                      </dt>
-                      <dd className="text-sm text-[hsl(var(--foreground))]">
-                        {isMarkdown ? (
-                          strValue ? (
-                            <MarkdownViewer value={strValue} />
-                          ) : (
-                            <span className="text-[hsl(var(--muted-foreground))]">
-                              —
-                            </span>
-                          )
-                        ) : (
-                          renderValue(field, value, data)
-                        )}
-                      </dd>
-                    </div>
-                  );
-                })}
-              </dl>
-              {section.fields.includes("labor_cost") &&
-              section.fields.includes("parts_cost") &&
-              section.fields.includes("total_cost") ? (
-                <CostsSummaryPanel
-                  laborCost={data.labor_cost ?? 0}
-                  partsCost={data.parts_cost ?? 0}
-                  totalCost={data.total_cost ?? 0}
-                />
-              ) : null}
-            </div>
-          ) : null}
+      {twoColumn ? (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="min-w-0 space-y-6 lg:col-span-2">
+            {mainSections.map(renderSection)}
+          </div>
+          <div className="min-w-0 space-y-6">
+            {asideSections.map(renderSection)}
+          </div>
         </div>
-      ))}
+      ) : (
+        <div className="space-y-6">{sections.map(renderSection)}</div>
+      )}
     </div>
   );
 }
