@@ -15,6 +15,7 @@ import {
   SheetTitle,
   Skeleton,
   TextField,
+  UnsavedChangesBar,
 } from "@atlas/ui";
 import { ArrowLeft, KeyRound, Pencil, Power, PowerOff, Shield } from "lucide-react";
 import { toast } from "sonner";
@@ -351,37 +352,16 @@ export default function RoleEditorScreen() {
 
       {/* ── Floating save bar ────────────────────────────────────────────────── */}
       {isDirty && canManagePermissions && (
-        <div className="sticky bottom-0 z-20 p-4 md:p-6 pt-0">
-          <div className="glass-strong flex items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--border))] px-5 py-3.5 shadow-2xl">
-            <p className="text-sm font-medium text-[hsl(var(--foreground))]">
-              Cambios sin guardar en permisos
-            </p>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={savePermsMutation.isPending}
-                onClick={() => setPendingKeys(new Set(savedKeys))}
-              >
-                Descartar
-              </Button>
-              <Button
-                size="sm"
-                disabled={savePermsMutation.isPending}
-                onClick={() =>
-                  savePermsMutation.mutate({
-                    id: role.id,
-                    keys: pendingKeys,
-                  })
-                }
-              >
-                {savePermsMutation.isPending
-                  ? "Guardando..."
-                  : "Guardar permisos"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <UnsavedChangesBar
+          className="px-4 md:px-6"
+          message="Cambios sin guardar en permisos"
+          saving={savePermsMutation.isPending}
+          saveLabel="Guardar permisos"
+          onDiscard={() => setPendingKeys(new Set(savedKeys))}
+          onSave={() =>
+            savePermsMutation.mutate({ id: role.id, keys: pendingKeys })
+          }
+        />
       )}
 
       {/* ── Edit role sheet ──────────────────────────────────────────────────── */}

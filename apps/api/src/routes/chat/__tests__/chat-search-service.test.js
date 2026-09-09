@@ -129,6 +129,40 @@ describe("searchMessages", () => {
     assert.equal(out.truncated, true);
   });
 
+  it("maps a Postgres statement timeout to a 503 ChatServiceError", async () => {
+    let call = 0;
+    const prisma = {
+      $queryRaw: async () => {
+        call += 1;
+        if (call === 1) return [{ id: PROFILE_ID }];
+        const err = new Error("canceling statement due to statement timeout");
+        err.code = "57014";
+        throw err;
+      },
+    };
+    const svc = createChatSearchService({ prisma });
+    await assert.rejects(
+      () => svc.searchMessages({ authUserId: AUTH_USER_ID, q: "factura", conversationId: null }),
+      (err) => err.name === "ChatServiceError" && err.status === 503,
+    );
+  });
+
+  it("rethrows a non-timeout DB error unchanged", async () => {
+    let call = 0;
+    const prisma = {
+      $queryRaw: async () => {
+        call += 1;
+        if (call === 1) return [{ id: PROFILE_ID }];
+        throw new Error("some other failure");
+      },
+    };
+    const svc = createChatSearchService({ prisma });
+    await assert.rejects(
+      () => svc.searchMessages({ authUserId: AUTH_USER_ID, q: "factura" }),
+      (err) => err.message === "some other failure",
+    );
+  });
+
   it("clamps limit and offset to their maxima", async () => {
     let call = 0;
     let searchValues = null;

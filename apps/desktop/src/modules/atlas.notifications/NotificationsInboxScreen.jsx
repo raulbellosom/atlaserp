@@ -181,7 +181,7 @@ export default function NotificationsInboxScreen() {
         title="Notificaciones"
         description="Revisa eventos importantes de calendario, website y sistema."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               onClick={() => query.refetch()}

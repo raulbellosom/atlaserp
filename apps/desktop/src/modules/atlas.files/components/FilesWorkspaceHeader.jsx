@@ -50,7 +50,7 @@ export function FilesWorkspaceHeader({
         compact
         title="Archivos"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               aria-label="Subir archivos"

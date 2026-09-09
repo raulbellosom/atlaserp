@@ -400,6 +400,17 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ permissionKeys }),
         }),
+      // Additive per-user permission grants (ALLOW-only).
+      getUserPermissionGrants: (userId, token) =>
+        request(`/identity/users/${encodeURIComponent(userId)}/permission-grants`, {
+          headers: withAuthHeaders(token),
+        }),
+      setUserPermissionGrants: (userId, data, token) =>
+        request(`/identity/users/${encodeURIComponent(userId)}/permission-grants`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       createUser: (data, token) =>
         request("/identity/users", {
           method: "POST",

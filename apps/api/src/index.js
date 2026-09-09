@@ -101,6 +101,11 @@ import {
   TTL,
 } from "./lib/cache.js";
 import {
+  filterGrantableKeys,
+  findEscalatingKeys,
+  diffGrantKeys,
+} from "./lib/permission-grants.js";
+import {
   signedUrlWithVariant,
   signedUrlsWithVariant,
 } from "./lib/image-variants.js";
@@ -321,12 +326,35 @@ async function _loadUserContext(authUserId, cacheKey) {
     adminMembership?.role?.key ?? activeMemberships[0]?.role?.key ?? null;
   const isAdmin = ADMIN_ROLE_KEYS.has(roleKey);
   const permissionSet = new Set(BASE_PERMISSION_KEYS);
+  const roleKeySet = new Set();
   for (const membership of activeMemberships) {
     for (const rolePermission of membership.role?.permissions ?? []) {
       const key = rolePermission?.permission?.key;
-      if (key) permissionSet.add(key);
+      if (key) { permissionSet.add(key); roleKeySet.add(key); }
     }
   }
+
+  // Additive per-user grants (ALLOW-only). Union with the role's permissions;
+  // never subtracts. Scoped to the companies of the active memberships, active
+  // permissions only. See
+  // docs/superpowers/specs/2026-09-08-per-user-permission-grants.md
+  const grantKeySet = new Set();
+  const grantCompanyIds = [...new Set(activeMemberships.map((m) => m.companyId).filter(Boolean))];
+  if (grantCompanyIds.length) {
+    const grants = await prisma.userPermissionGrant.findMany({
+      where: {
+        userId: profile.id,
+        companyId: { in: grantCompanyIds },
+        permission: { active: true },
+      },
+      include: { permission: { select: { key: true } } },
+    });
+    for (const g of grants) {
+      const key = g.permission?.key;
+      if (key) { permissionSet.add(key); grantKeySet.add(key); }
+    }
+  }
+
   if (isAdmin) {
     const allPermissions = await prisma.permission.findMany({
       where: { active: true },
@@ -345,6 +373,8 @@ async function _loadUserContext(authUserId, cacheKey) {
     isAdmin,
     permissions: [...permissionSet].sort(),
     permissionSet,
+    roleKeys: [...roleKeySet].sort(),
+    grantKeys: [...grantKeySet].sort(),
   };
   cacheSet(cacheKey, context, TTL.USER_CONTEXT);
   return context;
@@ -613,7 +643,11 @@ function hasProtectedIdentityAdminRole(user) {
 }
 
 function buildIdentityUsersWhere({ search, enabled }) {
-  const where = {};
+  // Bot profiles (e.g. the per-company MeridIAn assistant, is_bot = true) have no
+  // login and are not administrable users — never list them in the users screen
+  // or in any user picker that reads this endpoint (chat "Anadir miembros",
+  // CreateChatModal, etc.).
+  const where = { isBot: false };
   if (typeof enabled === "boolean") {
     where.enabled = enabled;
   }
@@ -2856,6 +2890,183 @@ app.patch(
     }
   },
 );
+
+// ── Per-user permission grants (ALLOW-only, additive) ─────────────────────────
+// Effective permissions = role permissions ∪ these grants. Never subtracts.
+// Spec: docs/superpowers/specs/2026-09-08-per-user-permission-grants.md
+function canManageUserGrants(context) {
+  if (!context) return false;
+  if (context.isAdmin) return true;
+  return Boolean(
+    context.permissionSet?.has("identity.permissions.update") &&
+    context.permissionSet?.has("identity.users.update"),
+  );
+}
+
+// Resolves the target user's active memberships, the company a grant is scoped
+// to (same precedence as _loadUserContext: an admin-role membership, else the
+// first active one), and the set of permission keys the user already inherits
+// from their role(s).
+async function loadUserGrantContext(userId) {
+  const target = await prisma.userProfile.findUnique({
+    where: { id: userId },
+    include: {
+      memberships: {
+        where: { enabled: true },
+        include: {
+          role: {
+            include: {
+              permissions: {
+                where: { permission: { active: true } },
+                include: { permission: { select: { key: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!target) return null;
+  const activeMs = target.memberships.filter((m) => m.role?.enabled);
+  const adminMs = activeMs.find((m) => ADMIN_ROLE_KEYS.has(m.role?.key));
+  const companyId = (adminMs ?? activeMs[0])?.companyId ?? null;
+  const roleKeys = new Set();
+  for (const m of activeMs) {
+    for (const rp of m.role?.permissions ?? []) {
+      if (rp.permission?.key) roleKeys.add(rp.permission.key);
+    }
+  }
+  return { target, companyId, roleKeys };
+}
+
+app.get("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!canManageUserGrants(context)) {
+      return c.json({ error: "No autorizado." }, 403);
+    }
+    const id = c.req.param("id");
+    const grantCtx = await loadUserGrantContext(id);
+    if (!grantCtx) return c.json({ error: "Usuario no encontrado." }, 404);
+
+    const grants = await prisma.userPermissionGrant.findMany({
+      where: {
+        userId: id,
+        ...(grantCtx.companyId ? { companyId: grantCtx.companyId } : {}),
+      },
+      include: { permission: { select: { key: true, active: true } } },
+    });
+    const grantedKeys = grants
+      .map((g) => g.permission?.key)
+      .filter(Boolean)
+      .sort();
+
+    return c.json({
+      data: { grantedKeys, roleKeys: [...grantCtx.roleKeys].sort() },
+    });
+  } catch (err) {
+    console.error("[identity] get permission-grants", err?.message ?? err);
+    return c.json({ error: "No se pudieron cargar los permisos." }, 500);
+  }
+});
+
+app.put("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
+  try {
+    const context = await getOrLoadUserContext(c);
+    if (!canManageUserGrants(context)) {
+      return c.json({ error: "No autorizado." }, 403);
+    }
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const requested = Array.isArray(body?.permissionKeys)
+      ? [...new Set(body.permissionKeys.filter((k) => typeof k === "string" && k))]
+      : null;
+    if (!requested) {
+      return c.json({ error: "permissionKeys debe ser un arreglo." }, 422);
+    }
+
+    const grantCtx = await loadUserGrantContext(id);
+    if (!grantCtx) return c.json({ error: "Usuario no encontrado." }, 404);
+    if (!grantCtx.companyId) {
+      return c.json({ error: "El usuario no tiene una empresa asignada." }, 400);
+    }
+
+    // Only active permissions can be granted.
+    const activePerms = await prisma.permission.findMany({
+      where: { key: { in: requested }, active: true },
+      select: { id: true, key: true },
+    });
+    const targetKeys = filterGrantableKeys({
+      requestedKeys: requested,
+      activeKeys: activePerms.map((p) => p.key),
+      roleKeys: grantCtx.roleKeys,
+    });
+
+    // Privilege-escalation guard: a non-admin manager can only hand out
+    // permissions they themselves already hold. Admins are unrestricted.
+    const escalating = findEscalatingKeys({
+      targetKeys,
+      actorHeldKeys: context.permissionSet ?? new Set(),
+      actorIsAdmin: context.isAdmin,
+    });
+    if (escalating.length) {
+      return c.json(
+        {
+          error:
+            "Solo puedes conceder permisos que tu propia cuenta ya tiene: " +
+            escalating.join(", "),
+        },
+        403,
+      );
+    }
+
+    const permByKey = new Map(activePerms.map((p) => [p.key, p.id]));
+    const existing = await prisma.userPermissionGrant.findMany({
+      where: { userId: id, companyId: grantCtx.companyId },
+      include: { permission: { select: { key: true } } },
+    });
+    const existingKeys = existing.map((g) => g.permission?.key).filter(Boolean);
+    const nextKeys = new Set(targetKeys);
+    const { added, removed } = diffGrantKeys({ existingKeys, nextKeys });
+
+    if (added.length || removed.length) {
+      await prisma.$transaction([
+        prisma.userPermissionGrant.deleteMany({
+          where: { userId: id, companyId: grantCtx.companyId },
+        }),
+        prisma.userPermissionGrant.createMany({
+          data: targetKeys.map((k) => ({
+            userId: id,
+            companyId: grantCtx.companyId,
+            permissionId: permByKey.get(k),
+            grantedById: context.profile?.id ?? null,
+          })),
+          skipDuplicates: true,
+        }),
+      ]);
+
+      // Take effect immediately rather than after the user-context TTL.
+      cacheDel(`user_ctx:${grantCtx.target.authUserId}`);
+
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "identity.user.permission_grants.update",
+        severity: "warning",
+        entityType: "UserProfile",
+        entityId: id,
+        summary:
+          `${actorName} actualizó los permisos individuales de ${grantCtx.target.email ?? id}` +
+          (added.length ? ` (+${added.join(", ")})` : "") +
+          (removed.length ? ` (-${removed.join(", ")})` : ""),
+      });
+    }
+
+    return c.json({ data: { grantedKeys: [...nextKeys].sort() } });
+  } catch (err) {
+    console.error("[identity] put permission-grants", err?.message ?? err);
+    return c.json({ error: "No se pudieron guardar los permisos." }, 500);
+  }
+});
 
 app.get("/runtime/modules", authMiddleware, async (c) => {
   const context = await getOrLoadUserContext(c);

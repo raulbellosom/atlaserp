@@ -27,7 +27,7 @@ export function PageHeader({
           </h1>
         </div>
         {actions && (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 [&>*]:min-w-0">
             {actions}
           </div>
         )}
@@ -58,7 +58,7 @@ export function PageHeader({
         )}
       </div>
       {actions && (
-        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end [&>*]:min-w-0">
           {actions}
         </div>
       )}

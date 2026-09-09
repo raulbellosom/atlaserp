@@ -123,7 +123,7 @@ export default function WalletDetailScreen() {
         }
         description={`${formatMoney(wallet.currentBalance, wallet.currency)}${wallet.reference ? ` · ${wallet.reference}` : ""}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {wallet.canWrite !== false && (
               <Button variant="outline" onClick={() => setAdjustOpen(true)}>
                 <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Ajustar saldo

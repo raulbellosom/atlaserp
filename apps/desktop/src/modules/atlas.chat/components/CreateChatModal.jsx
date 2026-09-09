@@ -128,7 +128,7 @@ export function CreateChatModal({ open, onClose, onCreated }) {
           )}
 
           {/* User list */}
-          <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-1 px-1">
+          <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-2 px-2 py-1">
             {isLoading ? (
               <UserListSkeleton />
             ) : users.length ? (

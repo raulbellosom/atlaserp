@@ -34,7 +34,7 @@ export function ChatHeader({
   detailMembers,
   filesView, onToggleFilesView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
-  searchMatchCount, searchCurrentIdx, searchBusy, searchError, onNextMatch, onPrevMatch,
+  searchMatchCount, searchCurrentIdx, searchBusy, searchError, searchHasQuery, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
   onSelectionCancel, onDeleteForMe, onDeleteForAll, onForwardSelected, onCopySelected,
   onEnterSelection,
@@ -128,8 +128,11 @@ export function ChatHeader({
           placeholder="Buscar en la conversacion..."
           className="flex-1 text-sm bg-transparent outline-none placeholder:text-[hsl(var(--muted-foreground))]"
         />
-        {searchQuery && (
-          <span className={["text-xs shrink-0 tabular-nums", (hasMatches || searchBusy) && !searchError ? "text-[hsl(var(--muted-foreground))]" : "text-red-400"].join(" ")}>
+        {/* Status only appears once the query is long enough for the search to
+            actually run — otherwise the in-bubble highlight (client-side
+            substring) would show marks next to a bogus "Sin resultados". */}
+        {searchQuery && searchHasQuery && (
+          <span className={["text-xs shrink-0 tabular-nums", searchError || (!hasMatches && !searchBusy) ? "text-red-400" : "text-[hsl(var(--muted-foreground))]"].join(" ")}>
             {searchError
               ? "Error al buscar"
               : searchBusy && !hasMatches
@@ -298,82 +301,74 @@ export function ChatHeader({
           ) : null}
         </div>
 
+        {/* Call actions — grouped under one control so the header row stays
+            short on narrow screens (voz / video / invitado externo). */}
         {!embedded && callsEnabled && !isMeridian && conversation?.type !== "external_support" && (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={headerBtnCls}
-              onClick={onStartAudioCall}
-              disabled={callPending}
-              title="Iniciar llamada de voz"
-            >
-              <Phone className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={headerBtnCls}
-              onClick={onStartVideoCall}
-              disabled={callPending}
-              title="Iniciar videollamada"
-            >
-              <Video className="h-4 w-4" />
-            </Button>
-            {onOpenGuestLink && (conversation?.type === "channel" || conversation?.type === "group") && (
-              <Button
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className={headerBtnCls}
-                onClick={onOpenGuestLink}
-                title="Invitar a alguien externo (enlace de reunión)"
+                className={[headerBtnCls, callPending ? "opacity-40 cursor-not-allowed" : ""].join(" ")}
+                disabled={callPending}
+                title="Llamar"
               >
-                <UserPlus className="h-4 w-4" />
-              </Button>
-            )}
-          </>
+                <Phone className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onStartAudioCall} disabled={callPending}>
+                <Phone className="h-3.5 w-3.5 mr-2" />
+                Llamada de voz
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onStartVideoCall} disabled={callPending}>
+                <Video className="h-3.5 w-3.5 mr-2" />
+                Videollamada
+              </DropdownMenuItem>
+              {onOpenGuestLink && (conversation?.type === "channel" || conversation?.type === "group") && (
+                <DropdownMenuItem onSelect={onOpenGuestLink}>
+                  <UserPlus className="h-3.5 w-3.5 mr-2" />
+                  Invitar a alguien externo
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
-        {/* MeridIAn assistant panel */}
+        {/* Search — always visible */}
+        <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Buscar mensajes">
+          <Search className="h-4 w-4" />
+        </button>
+
+        {/* MeridIAn assistant panel — collapses into the ⋮ menu below sm */}
         {!isMeridian && onOpenMeridian && conversation?.type !== "external_support" && (
           <button
             type="button"
             onClick={onOpenMeridian}
             disabled={meridianDisabled}
-            className={[headerBtnCls, meridianDisabled ? "opacity-40 cursor-not-allowed" : ""].join(" ")}
+            className={[headerBtnCls, "hidden sm:flex", meridianDisabled ? "opacity-40 cursor-not-allowed" : ""].join(" ")}
             title={meridianDisabled ? "MeridIAn no esta configurado" : "Preguntar a MeridIAn sobre esta conversacion"}
           >
             <Sparkles className="h-4 w-4" />
           </button>
         )}
 
-        {/* Search */}
-        <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Buscar mensajes">
-          <Search className="h-4 w-4" />
-        </button>
-
-        {/* Files toggle */}
+        {/* Files toggle — collapses into the ⋮ menu below sm */}
         <button
           type="button"
           onClick={onToggleFilesView}
           title={filesView ? "Ver mensajes" : "Ver archivos"}
           className={[
             headerBtnCls,
+            "hidden sm:flex",
             filesView ? "text-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.1)]" : "",
           ].join(" ")}
         >
           {filesView ? <MessageSquare className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
         </button>
 
-        {/* Profile / members access lives in the three-dots menu below — the
-            header row keeps only the avatar/title as the tap target for it. */}
-
-        {/* Pinned messages */}
+        {/* Pinned messages — collapses into the ⋮ menu below sm */}
         {pinnedCount > 0 && (
-          <button type="button" onClick={onOpenPinned} title="Mensajes fijados" className={[headerBtnCls, "relative"].join(" ")}>
+          <button type="button" onClick={onOpenPinned} title="Mensajes fijados" className={[headerBtnCls, "relative hidden sm:flex"].join(" ")}>
             <Pin className="h-4 w-4" />
             <span className="absolute -top-1 -right-1 h-4 min-w-4 rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-[9px] font-bold flex items-center justify-center px-1 ring-2 ring-[hsl(var(--background))]">
               {pinnedCount > 9 ? "9+" : pinnedCount}
@@ -389,6 +384,25 @@ export function ChatHeader({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* Actions hoisted out of the header row on narrow screens */}
+            {!isMeridian && onOpenMeridian && conversation?.type !== "external_support" && (
+              <DropdownMenuItem className="sm:hidden" disabled={meridianDisabled} onSelect={onOpenMeridian}>
+                <Sparkles className="h-3.5 w-3.5 mr-2" />
+                Preguntar a MeridIAn
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem className="sm:hidden" onSelect={onToggleFilesView}>
+              {filesView
+                ? <><MessageSquare className="h-3.5 w-3.5 mr-2" />Ver mensajes</>
+                : <><FolderOpen className="h-3.5 w-3.5 mr-2" />Ver archivos</>}
+            </DropdownMenuItem>
+            {pinnedCount > 0 && (
+              <DropdownMenuItem className="sm:hidden" onSelect={onOpenPinned}>
+                <Pin className="h-3.5 w-3.5 mr-2" />
+                Mensajes fijados ({pinnedCount > 9 ? "9+" : pinnedCount})
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator className="sm:hidden" />
             {!isMeridian && (
               <DropdownMenuItem onSelect={() => onOpenProfile(isChannelOrGroup ? "members" : null)}>
                 <Users className="h-3.5 w-3.5 mr-2" />

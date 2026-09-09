@@ -319,6 +319,7 @@ model Company {
 
   memberships    Membership[]
   brandingConfig BrandingConfig?
+  permissionGrants UserPermissionGrant[]
 
   hrEmployees    HrEmployee[]
   hrDepartments  HrDepartment[]
@@ -395,6 +396,9 @@ model UserProfile {
   entityMentions  EntityCommentMention[]  @relation("UserEntityMentions")
   entityReactions EntityCommentReaction[] @relation("UserEntityReactions")
 
+  permissionGrants UserPermissionGrant[] @relation("UserGrantSubject")
+  grantsAuthored   UserPermissionGrant[] @relation("UserGrantAuthor")
+
   @@map("user_profile")
 }
 
@@ -459,6 +463,7 @@ model Permission {
 
   module      AtlasModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   roles       RolePermission[]
+  userGrants  UserPermissionGrant[]
 
   @@index([moduleId])
   @@index([active])
@@ -475,6 +480,29 @@ model RolePermission {
 
   @@unique([roleId, permissionId])
   @@map("role_permission")
+}
+
+// Additive per-user permission grants (ALLOW-only). The effective permission set
+// for a user is (role permissions) ∪ (these grants). Never subtracts — there is
+// no DENY. Scoped per company like Membership. See
+// docs/superpowers/specs/2026-09-08-per-user-permission-grants.md.
+model UserPermissionGrant {
+  id String @id @default(uuid(7)) @db.Uuid
+  userId String @db.Uuid @map("user_id")
+  companyId String @db.Uuid @map("company_id")
+  permissionId String @db.Uuid @map("permission_id")
+  grantedById String? @db.Uuid @map("granted_by_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user       UserProfile @relation("UserGrantSubject", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy  UserProfile? @relation("UserGrantAuthor", fields: [grantedById], references: [id], onDelete: SetNull)
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId, permissionId])
+  @@index([userId, companyId])
+  @@map("user_permission_grant")
 }
 
 model FileAsset {

@@ -3,7 +3,10 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 
-const MIN_LEN = 2;
+// In-conversation search runs from the first non-space char (the server
+// tokenizer already handles 1-char queries — a `y`/`de` search should just
+// work). Global search across every conversation keeps a 2-char floor so a
+// single keystroke doesn't fan out over the whole history.
 const DEBOUNCE_MS = 250;
 
 // Debounced fuzzy message search backed by GET /chat/search/messages. Pass
@@ -20,7 +23,8 @@ export function useChatMessageSearch({ q, conversationId = null, limit = 30, ena
     return () => clearTimeout(handle);
   }, [q]);
 
-  const active = enabled && Boolean(token) && debounced.length >= MIN_LEN;
+  const minLen = conversationId ? 1 : 2;
+  const active = enabled && Boolean(token) && debounced.length >= minLen;
 
   const query = useQuery({
     queryKey: ["chat-message-search", conversationId ?? "global", debounced, limit],
@@ -31,6 +35,9 @@ export function useChatMessageSearch({ q, conversationId = null, limit = 30, ena
       ),
     enabled: active,
     staleTime: 15_000,
+    // Absorb a transient 401 during token refresh so the header doesn't flash
+    // "Error al buscar" on an otherwise-fine query.
+    retry: 1,
     placeholderData: keepPreviousData,
   });
 
@@ -51,6 +58,10 @@ export function useChatMessageSearch({ q, conversationId = null, limit = 30, ena
     truncated: Boolean(query.data?.truncated),
     isSearching: active && query.isFetching,
     isError: query.isError,
-    hasQuery: debounced.length >= MIN_LEN,
+    // `hasQuery` is true only once the (debounced, trimmed) query is long
+    // enough for the search to actually run — the caller uses it to tell a
+    // real "Sin resultados" apart from "keep typing", and to gate the
+    // in-bubble highlight so marks never appear without a match count.
+    hasQuery: active,
   };
 }

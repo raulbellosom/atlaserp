@@ -144,7 +144,7 @@ export default function InventoryItemDetail() {
         eyebrow={item.assetTag}
         title={item.name}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <InventoryStatusBadge status={item.status} size="sm" />
             <Button
               variant="outline"

@@ -141,7 +141,7 @@ export default function WebsitePagesScreen() {
           description="Gestiona las paginas del sitio publico."
           actions={
             siteId && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => setTemplateOpen(true)}>
                   <LayoutTemplate className="h-4 w-4 mr-1.5" />
                   Desde plantilla
@@ -171,7 +171,7 @@ export default function WebsitePagesScreen() {
             title="Sin paginas"
             description="Crea tu primera pagina desde una plantilla o desde cero."
             actions={
-              <div className="flex items-center gap-3 justify-center">
+              <div className="flex flex-wrap items-center gap-3 justify-center">
                 <Button onClick={() => setTemplateOpen(true)}>
                   <LayoutTemplate className="h-4 w-4 mr-1.5" />
                   Empezar desde plantilla

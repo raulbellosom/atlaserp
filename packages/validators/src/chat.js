@@ -59,6 +59,9 @@ export const chatPresignAttachmentSchema = z.object({
   fileName: z.string().min(1).max(255),
   mimeType: z.string().min(1).max(255),
   sizeBytes: z.number().int().min(1).max(20 * 1024 * 1024),
+  // Voice-note length measured client-side at record time. Optional; capped
+  // at 24h so a bad value can't be persisted.
+  durationMs: z.number().int().min(0).max(24 * 60 * 60 * 1000).optional(),
 });
 
 export const chatGuestSessionSchema = z.object({

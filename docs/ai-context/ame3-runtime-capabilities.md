@@ -449,7 +449,8 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 
 | Export | Description |
 |---|---|
-| `PageHeader` | Page title bar with actions slot |
+| `PageHeader` | Page title bar with actions slot. The actions slot wraps (`flex-wrap`) — pass a fragment or a `flex flex-wrap` container, never a non-wrapping `flex` div (its buttons clip off the right edge on mobile). |
+| `UnsavedChangesBar` | Sticky "you have unsaved changes" bar. Props: `message`, `saving`, `onDiscard`, `onSave`, `saveLabel`, `savingLabel`, `discardLabel`, `className`. Stacks vertically below `sm` (primary action on top) and clears the mobile bottom nav via `env(safe-area-inset-bottom)`. Use instead of hand-rolling a save/discard footer. |
 | `EmptyState` | Empty list placeholder with icon and message |
 | `ErrorState` | Error display with retry option |
 | `StatCard` | KPI metric card with label, value, trend |

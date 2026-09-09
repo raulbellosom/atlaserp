@@ -174,7 +174,7 @@ export default function WebsiteOverviewScreen() {
           site.domain ? `https://${site.domain}` : "Dominio no configurado"
         }
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Badge variant={site.status === "published" ? "success" : "warning"}>
               {site.status === "published" ? "Publicado" : "Borrador"}
             </Badge>

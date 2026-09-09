@@ -6,9 +6,12 @@ import {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import { Button, MentionTextarea, Popover, PopoverAnchor, PopoverContent } from "@atlas/ui";
 import {
-  Send, Paperclip, Smile, X, Loader2, AlertCircle, Mic,
+  Button, MentionTextarea, Popover, PopoverAnchor, PopoverContent,
+  Dialog, DialogContent, DialogHeader, DialogTitle, useCoarsePointer,
+} from "@atlas/ui";
+import {
+  Send, Paperclip, Smile, X, Loader2, AlertCircle, Mic, Plus,
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIcon, Link2, User, Landmark, IdCard,
 } from "lucide-react";
@@ -21,6 +24,9 @@ import { useAuth } from "../../../auth/AuthProvider";
 import { EntityReferencePicker } from "./EntityReferencePicker";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { MessageQuote } from "./MessageQuote";
+
+// Quick-access emoji for the mobile inline strip (matches MessageReactionPicker).
+const QUICK_EMOJIS = ["👍", "❤️", "😂", "🙏", "🔥", "😮", "😢", "🎉"];
 
 // A replyingTo value may be a full message object (from a bubble) or an
 // already-shaped preview. Normalise to the API preview shape MessageQuote wants.
@@ -236,6 +242,11 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [emojiModalOpen, setEmojiModalOpen] = useState(false);
+  // Touch devices get an in-flow quick strip + a full-screen-safe Dialog
+  // instead of the desktop Popover, which Radix could flip off-screen when
+  // the composer sits at the bottom of a Sheet.
+  const coarse = useCoarsePointer();
   const [isDragOver, setIsDragOver] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [recording, setRecording] = useState(false);
@@ -379,6 +390,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
+      let startedAt = 0;
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
@@ -393,13 +405,23 @@ export const MessageComposer = forwardRef(function MessageComposer(
         const now = new Date();
         const ts = `${now.getHours().toString().padStart(2,"0")}-${now.getMinutes().toString().padStart(2,"0")}-${now.getSeconds().toString().padStart(2,"0")}`;
         const file = new File([blob], `nota_de_voz_${ts}.${ext}`, { type: baseMime });
+        // Real length, wall-clock — the only reliable source (webm/opus blobs
+        // report no duration). Rides along on the File to presign as durationMs.
+        const durationMs = startedAt ? Math.max(0, Math.round(performance.now() - startedAt)) : null;
+        if (durationMs != null) {
+          try { file.voiceDurationMs = durationMs; } catch { /* File expando unsupported */ }
+        }
         setRecording(false);
         setRecordSeconds(0);
         voiceAutoSendRef.current = true;
         addFilesToQueue([file]);
       };
 
-      recorder.start(100);
+      // No timeslice: some mobile browsers (iOS Safari) emit corrupt fragments
+      // when MediaRecorder is chunked — one valid container on stop plays back
+      // cleanly.
+      startedAt = performance.now();
+      recorder.start();
       recorderRef.current = recorder;
       setRecording(true);
       setRecordSeconds(0);
@@ -778,6 +800,35 @@ export const MessageComposer = forwardRef(function MessageComposer(
             />
           </div>
 
+          {/* Mobile quick-emoji strip — a normal in-flow row (full composer
+              width) so it can never render off-screen the way the Popover
+              could inside a bottom-anchored Sheet. The trailing "+" opens the
+              full picker in a body-portaled Dialog. */}
+          {coarse && showEmoji && (
+            <div className="flex w-full items-center gap-1 overflow-x-auto overscroll-x-contain px-2 pb-1 pt-0.5">
+              {QUICK_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => { insertEmoji({ emoji: e }); setShowEmoji(false); }}
+                  className="shrink-0 h-9 w-9 rounded-full text-xl leading-none flex items-center justify-center hover:bg-[hsl(var(--border))] active:scale-95 transition-transform touch-manipulation"
+                  aria-label={`Insertar ${e}`}
+                >
+                  {e}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => { setShowEmoji(false); setEmojiModalOpen(true); }}
+                className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--border))] hover:text-[hsl(var(--foreground))] transition-colors touch-manipulation"
+                aria-label="Ver todos los emojis"
+                title="Mas emojis"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
           {/* Action toolbar — attach / reference / emoji / mic grouped on the
               left, send separated on the far right. Previously these lived
               inline next to the textarea inside one pill-shaped row, which
@@ -849,7 +900,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
                 `bottom-full` never had anywhere valid to paint outside those
                 boxes. A Radix Popover portals to <body> and is immune to any
                 of that. */}
-            <Popover open={showEmoji} onOpenChange={setShowEmoji}>
+            <Popover open={showEmoji && !coarse} onOpenChange={(o) => { if (!coarse) setShowEmoji(o); }}>
               <PopoverAnchor asChild>
                 <button
                   type="button"
@@ -901,6 +952,30 @@ export const MessageComposer = forwardRef(function MessageComposer(
                 />
               </PopoverContent>
             </Popover>
+
+            {/* Full emoji picker for touch — a body-portaled Dialog, opened
+                from the "+" in the quick strip. Immune to the Sheet-anchor
+                clipping that could push the Popover off-screen on mobile. */}
+            <Dialog open={emojiModalOpen} onOpenChange={setEmojiModalOpen}>
+              <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-md p-0 overflow-hidden">
+                <DialogHeader className="px-4 pt-4">
+                  <DialogTitle>Emojis</DialogTitle>
+                </DialogHeader>
+                <div className="p-2">
+                  <EmojiPicker
+                    onEmojiClick={(ed) => { insertEmoji(ed); setEmojiModalOpen(false); }}
+                    theme="dark"
+                    emojiStyle={EmojiStyle.NATIVE}
+                    width="100%"
+                    height={360}
+                    searchPlaceholder="Buscar emoji..."
+                    lazyLoadEmojis
+                    skinTonesDisabled
+                    autoFocusSearch={false}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Mic — only shown when there's nothing else ready to send */}
             {!body.trim() && !pendingFiles.length && !pendingEntityRefs.length && (

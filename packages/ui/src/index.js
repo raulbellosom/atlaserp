@@ -204,6 +204,7 @@ export { Alert, AlertTitle, AlertDescription } from "./components/Alert.jsx";
 // Molecules & Organisms
 export { DatePickerField } from "./components/DatePickerField.jsx";
 export { PageHeader } from "./components/PageHeader.jsx";
+export { UnsavedChangesBar } from "./components/UnsavedChangesBar.jsx";
 export { EmptyState } from "./components/EmptyState.jsx";
 export { ErrorState } from "./components/ErrorState.jsx";
 export { StatCard } from "./components/StatCard.jsx";

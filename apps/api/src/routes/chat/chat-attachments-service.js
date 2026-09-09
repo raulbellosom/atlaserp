@@ -21,7 +21,7 @@ export function createChatAttachmentsService({
   getCachedSignedUrl,
   setCachedSignedUrl,
 }) {
-  async function presignAttachmentUpload({ authUserId, conversationId, fileName, mimeType, sizeBytes }) {
+  async function presignAttachmentUpload({ authUserId, conversationId, fileName, mimeType, sizeBytes, durationMs = null }) {
     const profileId = await getUserProfileId(authUserId);
     await assertMember(conversationId, profileId);
 
@@ -53,9 +53,13 @@ export function createChatAttachmentsService({
     }
 
     // message_id is NULL until sendMessage links it
+    const durationValue = Number.isFinite(durationMs) && durationMs >= 0
+      ? Math.round(durationMs)
+      : null;
+
     const attRows = await prisma.$queryRaw`
       INSERT INTO chat_attachments
-        (conversation_id, bucket, object_key, file_name, mime_type, size_bytes, uploaded_by_user_id)
+        (conversation_id, bucket, object_key, file_name, mime_type, size_bytes, duration_ms, uploaded_by_user_id)
       VALUES (
         ${conversationId},
         'atlas-chat',
@@ -63,6 +67,7 @@ export function createChatAttachmentsService({
         ${fileName},
         ${mimeType},
         ${sizeBytes},
+        ${durationValue},
         ${profileId}
       )
       RETURNING id

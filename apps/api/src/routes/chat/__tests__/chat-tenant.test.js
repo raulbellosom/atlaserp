@@ -120,6 +120,32 @@ describe("chat-service — cross-tenant member guard", () => {
     );
   });
 
+  it("addMembers: a company-less platform admin is NOT blocked by the peer guard", async () => {
+    _resetProfileIdCacheForTests();
+    // ADMIN_PROFILE_ID is absent from membershipByUser -> no company membership.
+    const ADMIN_PROFILE_ID = "01900000-0000-7000-8000-0000000000ad";
+    const prisma = buildPrisma([
+      [{ id: ADMIN_PROFILE_ID }], // resolveUserProfileId
+      [{ id: "member-row" }], // assertMember
+      [{ type: "group" }], // conversation type lookup
+    ]);
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const svc = createChatService({ prisma, permissionsService });
+    // The guard no longer throws 403; execution reaches the insert loop, where
+    // the stubbed $executeRaw throws its own "Unexpected" error. Any error that
+    // is NOT a 403 ChatServiceError proves the company guard let the call
+    // through.
+    await assert.rejects(
+      () =>
+        svc.addMembers({
+          conversationId: CONV_ID,
+          authUserId: AUTH_USER_ID,
+          userIds: [FOREIGN_PROFILE_ID],
+        }),
+      (err) => !(err instanceof ChatServiceError && err.status === 403),
+    );
+  });
+
   it("addMembers rejects a foreign-company userId even after assertChannelPermission grants the action", async () => {
     _resetProfileIdCacheForTests();
     const prisma = buildPrisma([

@@ -112,7 +112,9 @@ export function createChatSearchService({ prisma }) {
       ? Prisma.sql`AND m.conversation_id = ${conversationId}::uuid`
       : Prisma.empty;
 
-    const rows = await prisma.$queryRaw`
+    let rows;
+    try {
+      rows = await prisma.$queryRaw`
       SELECT
         m.id            AS message_id,
         m.conversation_id,
@@ -156,6 +158,28 @@ export function createChatSearchService({ prisma }) {
       ORDER BY score DESC, m.created_at DESC
       LIMIT ${safeLimit + 1} OFFSET ${safeOffset}
     `;
+    } catch (err) {
+      // A statement timeout (57014) on a huge conversation is an expected,
+      // recoverable outcome — surface it as 503 "try a narrower term" instead
+      // of a generic 500 that the client renders as a flat "Error al buscar".
+      const code = err?.code ?? err?.meta?.code;
+      const msg = String(err?.message ?? "");
+      const timedOut = code === "57014" || /canceling statement|statement timeout/i.test(msg);
+      console.warn("[atlas.chat] message search failed", {
+        conversationId: conversationId ?? null,
+        tokenCount: tokens.length,
+        code: code ?? null,
+        timedOut,
+        message: msg.slice(0, 200),
+      });
+      if (timedOut) {
+        throw new ChatServiceError(
+          "La busqueda tardo demasiado. Intenta con un termino mas especifico.",
+          503,
+        );
+      }
+      throw err;
+    }
 
     const truncated = rows.length > safeLimit;
     const page = truncated ? rows.slice(0, safeLimit) : rows;

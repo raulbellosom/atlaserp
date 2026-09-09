@@ -253,7 +253,7 @@ export default function GroupScreen() {
           title={group.name}
           description={`${members.length} miembro${members.length !== 1 ? 's' : ''} · ${accounts.length} cuenta${accounts.length !== 1 ? 's' : ''}`}
           actions={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {myRole === 'admin' && (
                 <Button variant="outline" size="sm" onClick={() => { setRenameValue(group.name); setRenameOpen(true) }}>
                   <Pencil size={14} className="mr-1" /> Renombrar

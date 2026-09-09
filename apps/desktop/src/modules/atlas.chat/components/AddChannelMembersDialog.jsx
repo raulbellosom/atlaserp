@@ -16,6 +16,7 @@ import {
   SearchInput,
 } from "@atlas/ui";
 import { X, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
@@ -66,7 +67,10 @@ export function AddChannelMembersDialog({ open, onClose, conversationId, existin
       await addMembers({ userIds: selected.map((u) => u.id) });
       resetAndClose();
     } catch (err) {
-      setError(err?.message ?? "Error anadiendo miembros.");
+      const msg = err?.message ?? "No se pudieron agregar los miembros.";
+      setError(msg);
+      // The inline line can be scrolled out of view in a tall list — surface it.
+      toast.error(msg);
     }
   }
 
@@ -113,7 +117,7 @@ export function AddChannelMembersDialog({ open, onClose, conversationId, existin
             </div>
           )}
 
-          <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-1 px-1">
+          <div className="max-h-56 overflow-y-auto space-y-0.5 -mx-2 px-2 py-1">
             {isLoading ? (
               <UserListSkeleton />
             ) : users.length ? (

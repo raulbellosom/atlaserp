@@ -200,7 +200,7 @@ export default function HrScreen() {
         title="Colaboradores"
         description="Directorio y expedientes del equipo."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               onClick={() => navigate("/app/m/atlas.hr/hr/org-chart")}

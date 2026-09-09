@@ -222,9 +222,21 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     });
     const companyIds = ownerMemberships.map((m) => m.companyId);
     if (companyIds.length === 0) {
-      // Acting user has no active company membership (e.g. platform admin) —
-      // only allow self-reference, never an arbitrary foreign user id.
-      return ids.includes(actingProfileId.toString()) ? [actingProfileId.toString()] : [];
+      // Acting user has no active company membership — a platform admin. This
+      // guard exists to stop a COMPANY user smuggling in a foreign-company
+      // user; a company-less admin has already cleared the route permission
+      // (and, for channels/groups, the members.manage check) and can see every
+      // user in the instance. The old "self only" fallback made it impossible
+      // for such an account to ever add anyone to a channel/group ("Uno o mas
+      // usuarios no pertenecen a tu empresa." on every invite). Allow any
+      // candidate that is a real, enabled member of some company.
+      const realPeers = await prisma.membership.findMany({
+        where: { userId: { in: ids }, enabled: true },
+        select: { userId: true },
+      });
+      const allowed = new Set(realPeers.map((m) => m.userId));
+      allowed.add(actingProfileId.toString());
+      return ids.filter((id) => allowed.has(id));
     }
     const peers = await prisma.membership.findMany({
       where: { userId: { in: ids }, enabled: true, companyId: { in: companyIds } },
@@ -720,6 +732,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'fileName', a.file_name,
             'mimeType', a.mime_type,
             'sizeBytes', a.size_bytes,
+            'durationMs', a.duration_ms,
             'width', a.width,
             'height', a.height,
             'objectKey', a.object_key,
@@ -851,6 +864,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
             'fileName', a.file_name,
             'mimeType', a.mime_type,
             'sizeBytes', a.size_bytes,
+            'durationMs', a.duration_ms,
             'width', a.width,
             'height', a.height,
             'objectKey', a.object_key,
@@ -1111,8 +1125,8 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
       // sharing it across messages is safe) and re-owning them to the sender.
       await prisma.$executeRaw`
         INSERT INTO chat_attachments
-          (message_id, conversation_id, bucket, object_key, file_name, mime_type, size_bytes, width, height, uploaded_by_user_id)
-        SELECT ${msg.id}, ${conversationId}, bucket, object_key, file_name, mime_type, size_bytes, width, height, ${profileId}
+          (message_id, conversation_id, bucket, object_key, file_name, mime_type, size_bytes, duration_ms, width, height, uploaded_by_user_id)
+        SELECT ${msg.id}, ${conversationId}, bucket, object_key, file_name, mime_type, size_bytes, duration_ms, width, height, ${profileId}
         FROM chat_attachments
         WHERE message_id = ${cloneAttachmentsFrom}
       `;

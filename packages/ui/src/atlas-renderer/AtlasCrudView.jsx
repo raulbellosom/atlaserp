@@ -420,7 +420,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                   "Nuevo registro"
                 }
                 actions={
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" size="sm" onClick={goToList}>
                       Cancelar
                     </Button>
@@ -525,7 +525,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                 }
                 title={recordData ? resolveRowLabel(recordData) : "Editar registro"}
                 actions={
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" size="sm" onClick={goToList}>
                       Cancelar
                     </Button>

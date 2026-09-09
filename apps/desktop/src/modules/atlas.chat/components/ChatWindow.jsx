@@ -419,6 +419,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     orderedHitIds: rawSearchHitIds,
     isSearching: isSearchingServer,
     isError: searchError,
+    hasQuery: searchHasQuery,
   } = useChatMessageSearch({
     q: searchQuery,
     conversationId,
@@ -531,6 +532,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         searchCurrentIdx={searchCurrentIdx}
         searchBusy={isSearchingServer}
         searchError={searchError}
+        searchHasQuery={searchHasQuery}
         onNextMatch={handleNextMatch}
         onPrevMatch={handlePrevMatch}
         selectionMode={selectionMode}
@@ -638,7 +640,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
               selectedMsgIds={selectedMsgIds}
               onToggleSelect={toggleSelectMessage}
               onEnterSelection={enterSelectionMode}
-              searchQuery={searchMode ? searchQuery : ""}
+              searchQuery={searchMode && searchHasQuery ? searchQuery : ""}
               searchMatchIds={searchMode && searchMatchIds.length ? new Set(searchMatchIds) : null}
               currentMatchId={currentMatchId}
               scrollToMessage={jumpTarget}

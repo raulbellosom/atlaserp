@@ -27,12 +27,20 @@ export function useChatUpload(conversationId) {
   async function uploadFile(file) {
     const mimeType = resolveMime(file);
 
+    // Voice notes carry their real length, measured at record time — the
+    // player then never has to probe a MediaRecorder blob (webm/opus has no
+    // Duration element).
+    const durationMs = Number.isFinite(file?.voiceDurationMs)
+      ? Math.round(file.voiceDurationMs)
+      : undefined;
+
     const res = await atlas.chat.presignAttachment(
       {
         conversationId,
         fileName: file.name,
         mimeType,
         sizeBytes: file.size,
+        ...(durationMs != null ? { durationMs } : {}),
       },
       session?.access_token,
     );

@@ -26,6 +26,7 @@ import {
   TextField,
 } from "@atlas/ui";
 import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
+import UserPermissionGrantsCard from "../components/UserPermissionGrantsCard";
 import {
   ArrowLeft,
   CalendarDays,
@@ -68,6 +69,9 @@ export default function UserEditorScreen() {
   const canManageUsers = hasPermission("identity.users.update");
   const canDeleteUsers = hasPermission("identity.users.delete");
   const canReadRoles = hasPermission("identity.roles.read");
+  const canManageGrants =
+    hasPermission("identity.permissions.update") &&
+    hasPermission("identity.users.update");
   const queryClient = useQueryClient();
   const isSelf = userId === userProfile?.id;
   const canEditForm = canManageUsers && isEditRoute;
@@ -251,7 +255,7 @@ export default function UserEditorScreen() {
         eyebrow="Atlas Identity"
         title={isEditRoute ? "Editar usuario" : "Detalle de usuario"}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               onClick={() => navigate("/app/m/atlas.identity/identity/users")}
@@ -645,6 +649,14 @@ export default function UserEditorScreen() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {canReadUsers && user && canManageGrants && (
+        <UserPermissionGrantsCard
+          userId={user.id}
+          token={token}
+          canManage={canManageUsers && isEditRoute}
+        />
       )}
 
       {canReadUsers && user && !isEditRoute && (

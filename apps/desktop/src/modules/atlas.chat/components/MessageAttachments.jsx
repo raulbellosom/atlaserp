@@ -404,45 +404,47 @@ function seedBars(seed, count) {
 export function AudioCard({ att, isOwn }) {
   const { data: url, isLoading, refetch, isFetching } = useAttachmentUrl(att);
   const audioRef = useRef(null);
-  const durationFoundRef = useRef(false);
-  const seekingForDurationRef = useRef(false);
+  // A media error is most often a stale signed URL — refetch + reload once
+  // before showing the "no disponible" state.
+  const retriedRef = useRef(false);
+  const decodeTriedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [elementDuration, setElementDuration] = useState(0);
+  const [decodedDuration, setDecodedDuration] = useState(0);
   const [started, setStarted] = useState(false); // has playback ever advanced?
   const [loadError, setLoadError] = useState(false);
+
+  // Duration priority: server value (measured client-side at record time) >
+  // whatever the media element resolves > a one-shot decodeAudioData of the
+  // blob. No seek hacks — `audio.currentTime = 1e101` wedged playback on
+  // mobile Safari (showed "0:0", then only a corrupted fraction played).
+  const serverDuration =
+    Number.isFinite(att?.durationMs) && att.durationMs > 0 ? att.durationMs / 1000 : 0;
+  const duration = serverDuration || elementDuration || decodedDuration || 0;
 
   const bars = useMemo(() => {
     const seed = Array.from(String(att.id)).reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0);
     return seedBars(seed, 30);
   }, [att.id]);
 
-  // MediaRecorder webm/mp4 blobs frequently report Infinity/NaN duration until
-  // the media element has actually been scrubbed. Seek far past the end once
-  // to force the browser to resolve the real value, then snap back to 0.
-  function probeDuration(audio) {
-    if (!audio || durationFoundRef.current) return;
-    if (isFinite(audio.duration) && audio.duration > 0) {
-      durationFoundRef.current = true;
-      setDuration(audio.duration);
-      return;
-    }
+  // Legacy notes (uploaded before duration_ms) and any blob the element can't
+  // measure: decode the downloaded audio once to get an exact length.
+  async function decodeDurationFallback() {
+    if (decodeTriedRef.current || serverDuration || elementDuration || !url) return;
+    decodeTriedRef.current = true;
     try {
-      seekingForDurationRef.current = true;
-      audio.currentTime = 1e101;
-    } catch { /* ignore — some browsers throw on an out-of-range seek */ }
-  }
-
-  function handleSeeked(e) {
-    const audio = e.currentTarget;
-    if (durationFoundRef.current) { seekingForDurationRef.current = false; return; }
-    if (isFinite(audio.duration) && audio.duration > 0) {
-      durationFoundRef.current = true;
-      setDuration(audio.duration);
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      const decoded = await ctx.decodeAudioData(buf.slice(0));
+      if (isFinite(decoded?.duration) && decoded.duration > 0) setDecodedDuration(decoded.duration);
+      ctx.close?.();
+    } catch {
+      // Leave the length unknown ("--:--"); linear playback still works.
     }
-    seekingForDurationRef.current = false;
-    audio.currentTime = 0;
-    setCurrentTime(0);
   }
 
   function togglePlay() {
@@ -459,7 +461,7 @@ export function AudioCard({ att, isOwn }) {
 
   function handleSeek(e) {
     const audio = audioRef.current;
-    if (!audio || !duration) return;
+    if (!audio || !duration) return; // seek stays disabled until a length is known
     const rect = e.currentTarget.getBoundingClientRect();
     const clientX = e.changedTouches?.[0]?.clientX ?? e.touches?.[0]?.clientX ?? e.clientX;
     if (!isFinite(clientX)) return;
@@ -470,12 +472,18 @@ export function AudioCard({ att, isOwn }) {
   }
 
   const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
-  const timeLabel = fmtAudioTime(started ? currentTime : (duration || 0));
+  const timeLabel = duration > 0
+    ? fmtAudioTime(started ? currentTime : duration)
+    : started
+      ? fmtAudioTime(currentTime)
+      : "--:--";
 
   const playBg    = isOwn ? "rgba(255,255,255,0.22)" : "var(--brand-primary)";
   const playColor = isOwn ? "white"                  : "var(--brand-primary-foreground)";
   const barPlayed = isOwn ? "rgba(255,255,255,0.95)" : "var(--brand-primary)";
-  const barRest   = isOwn ? "rgba(255,255,255,0.30)" : "hsl(var(--border))";
+  // `hsl(var(--border))` is near-invisible on a light received bubble — use a
+  // muted-foreground tint so the idle waveform reads in both themes.
+  const barRest   = isOwn ? "rgba(255,255,255,0.30)" : "hsl(var(--muted-foreground) / 0.4)";
   const metaColor = isOwn ? "rgba(255,255,255,0.70)" : "hsl(var(--muted-foreground))";
 
   // Keep the player visible and retryable even when URL resolution fails.
@@ -483,7 +491,7 @@ export function AudioCard({ att, isOwn }) {
   const playDisabled = isLoading || isFetching;
 
   return (
-    <div className="mt-2 flex items-center gap-2.5" style={{ width: 244, maxWidth: "100%" }}>
+    <div className="mt-2 flex items-center gap-2.5" style={{ width: "100%", minWidth: 200, maxWidth: 340 }}>
       {url && (
         <audio
           ref={audioRef}
@@ -494,25 +502,24 @@ export function AudioCard({ att, isOwn }) {
             setCurrentTime(0);
             setStarted(false);
           }}
-          onLoadedMetadata={(e) => { setLoadError(false); probeDuration(e.currentTarget); }}
-          onCanPlay={(e) => probeDuration(e.currentTarget)}
-          onSeeked={handleSeeked}
+          onLoadedMetadata={(e) => {
+            setLoadError(false);
+            retriedRef.current = false;
+            const d = e.currentTarget.duration;
+            if (isFinite(d) && d > 0) setElementDuration(d);
+            else decodeDurationFallback();
+          }}
           onDurationChange={(e) => {
             const d = e.currentTarget.duration;
-            if (isFinite(d) && d > 0 && !durationFoundRef.current) {
-              durationFoundRef.current = true;
-              setDuration(d);
-            }
+            if (isFinite(d) && d > 0) setElementDuration(d);
           }}
           onTimeUpdate={(e) => {
-            // Ignore the giant timestamp the duration-probe seek reports.
-            if (seekingForDurationRef.current) return;
             const t = e.currentTarget.currentTime;
             if (!isFinite(t)) return;
             setCurrentTime(t);
             if (t > 0) setStarted(true);
           }}
-          onPlay={() => { setPlaying(true); probeDuration(audioRef.current); }}
+          onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => {
             setPlaying(false);
@@ -525,6 +532,11 @@ export function AudioCard({ att, isOwn }) {
               id: att.id, mimeType: att.mimeType,
               code: e.currentTarget?.error?.code, message: e.currentTarget?.error?.message,
             });
+            if (!retriedRef.current) {
+              retriedRef.current = true;
+              refetch().then(() => audioRef.current?.load()).catch(() => setLoadError(true));
+              return;
+            }
             setLoadError(true);
           }}
         />

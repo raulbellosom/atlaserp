@@ -24,6 +24,13 @@ const MODULE_LABELS = {
   platform: "Plataforma",
   calendar: "Calendario",
   catalog: "Catalogo",
+  chat: "Chat",
+  pfm: "Finanzas personales",
+  inventory: "Inventario",
+  pos: "Punto de venta",
+  notes: "Notas",
+  growth: "Growth",
+  documents: "Documentos",
 };
 
 const FEATURE_LABELS = {
@@ -69,6 +76,11 @@ const FEATURE_LABELS = {
   pages: "Paginas",
   theme: "Tema",
   menus: "Menus",
+  // chat
+  meridian: "MeridIAn",
+  conversations: "Conversaciones",
+  support: "Soporte externo",
+  chat_reports: "Reportes de chat",
 };
 
 const ACTION_LABELS = {
@@ -86,6 +98,7 @@ const ACTION_LABELS = {
   publish: "Publicar",
   export: "Exportar",
   import: "Importar",
+  use: "Usar",
 };
 
 function parsePermissionKey(key) {
@@ -183,11 +196,18 @@ function BulkSwitch({ selectedCount, totalCount, disabled, onToggle }) {
 
 // ── Individual permission row ──────────────────────────────────────────────────
 
-function PermissionRow({ checked, disabled, label, description, onChange }) {
+function PermissionRow({ checked, disabled, locked, label, description, onChange }) {
   return (
     <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[hsl(var(--border))]/60 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-tight">{label}</p>
+        <p className="text-sm font-medium leading-tight flex items-center gap-2">
+          {label}
+          {locked && (
+            <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+              Del rol
+            </Badge>
+          )}
+        </p>
         {description && (
           <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-relaxed">
             {description}
@@ -196,7 +216,7 @@ function PermissionRow({ checked, disabled, label, description, onChange }) {
       </div>
       <PermSwitch
         checked={checked}
-        disabled={disabled}
+        disabled={disabled || locked}
         onCheckedChange={() => onChange()}
         size="sm"
       />
@@ -243,7 +263,11 @@ export default function PermissionFeatureTree({
   onTogglePermission,
   onBulkToggle,
   disabled,
+  // Keys the subject already has from another source (e.g. their role) — shown
+  // checked + disabled with a "Del rol" badge, and excluded from bulk toggles.
+  lockedKeys,
 }) {
+  const locked = useMemo(() => lockedKeys ?? new Set(), [lockedKeys]);
   // The assigned/unassigned filter runs against the persisted assignment
   // (baselineKeys), not the live pending edits — otherwise a row jumps out of
   // the list the instant you toggle it and you can't confirm the change.
@@ -322,7 +346,7 @@ export default function PermissionFeatureTree({
     const open = new Set();
     for (const mod of modules) {
       const keys = mod.features.flatMap((f) => f.items.map((i) => i.key));
-      if (keys.some((k) => pendingKeys.has(k))) open.add(mod.key);
+      if (keys.some((k) => pendingKeys.has(k) || locked.has(k))) open.add(mod.key);
     }
     setOpenedModules(open);
     setInitialized(true);
@@ -408,7 +432,9 @@ export default function PermissionFeatureTree({
   }
 
   const totalPerms = allModuleKeys.length;
-  const totalAssigned = allModuleKeys.filter((k) => pendingKeys.has(k)).length;
+  const totalAssigned = allModuleKeys.filter(
+    (k) => pendingKeys.has(k) || locked.has(k),
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -489,7 +515,12 @@ export default function PermissionFeatureTree({
         const originalModule = modules.find((m) => m.key === moduleItem.key);
         const allModKeys =
           originalModule?.features.flatMap((f) => f.items.map((i) => i.key)) ?? [];
-        const moduleSelected = allModKeys.filter((k) => pendingKeys.has(k)).length;
+        // Locked (role) keys can't be toggled — keep them out of bulk actions
+        // but still count them as "assigned" in the header summary.
+        const bulkModKeys = allModKeys.filter((k) => !locked.has(k));
+        const moduleSelected = allModKeys.filter(
+          (k) => pendingKeys.has(k) || locked.has(k),
+        ).length;
         const moduleFull = allModKeys.length > 0 && moduleSelected === allModKeys.length;
         const moduleEmpty = moduleSelected === 0;
         const isOpen = isModuleOpen(moduleItem.key, moduleItem.features.length > 0);
@@ -547,8 +578,8 @@ export default function PermissionFeatureTree({
               <BulkSwitch
                 selectedCount={moduleSelected}
                 totalCount={allModKeys.length}
-                disabled={disabled}
-                onToggle={(checked) => onBulkToggle(allModKeys, checked)}
+                disabled={disabled || bulkModKeys.length === 0}
+                onToggle={(checked) => onBulkToggle(bulkModKeys, checked)}
               />
             </div>
 
@@ -562,8 +593,9 @@ export default function PermissionFeatureTree({
                   const allFeatKeys =
                     originalFeature?.items.map((i) => i.key) ??
                     featureItem.items.map((i) => i.key);
-                  const featureSelected = allFeatKeys.filter((k) =>
-                    pendingKeys.has(k),
+                  const bulkFeatKeys = allFeatKeys.filter((k) => !locked.has(k));
+                  const featureSelected = allFeatKeys.filter(
+                    (k) => pendingKeys.has(k) || locked.has(k),
                   ).length;
 
                   return (
@@ -579,27 +611,31 @@ export default function PermissionFeatureTree({
                         <BulkSwitch
                           selectedCount={featureSelected}
                           totalCount={allFeatKeys.length}
-                          disabled={disabled}
+                          disabled={disabled || bulkFeatKeys.length === 0}
                           onToggle={(checked) =>
-                            onBulkToggle(allFeatKeys, checked)
+                            onBulkToggle(bulkFeatKeys, checked)
                           }
                         />
                       </div>
 
                       {/* Permission rows — 2 cols on md+ */}
                       <div className="grid grid-cols-1 md:grid-cols-2">
-                        {featureItem.items.map((item) => (
-                          <PermissionRow
-                            key={item.key}
-                            checked={pendingKeys.has(item.key)}
-                            disabled={disabled}
-                            label={getActionLabel(item.actionKey)}
-                            description={
-                              item.description || item.name || item.key
-                            }
-                            onChange={() => onTogglePermission(item.key)}
-                          />
-                        ))}
+                        {featureItem.items.map((item) => {
+                          const isLocked = locked.has(item.key);
+                          return (
+                            <PermissionRow
+                              key={item.key}
+                              checked={isLocked || pendingKeys.has(item.key)}
+                              disabled={disabled}
+                              locked={isLocked}
+                              label={getActionLabel(item.actionKey)}
+                              description={
+                                item.description || item.name || item.key
+                              }
+                              onChange={() => onTogglePermission(item.key)}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                   );

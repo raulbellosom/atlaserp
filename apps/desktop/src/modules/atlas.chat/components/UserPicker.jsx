@@ -35,7 +35,7 @@ export function UserPickerItem({ user, selected, onToggle }) {
       className={[
         "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-left transition-colors",
         selected
-          ? "bg-[hsl(var(--primary)/0.1)] ring-1 ring-[hsl(var(--primary))]"
+          ? "bg-[hsl(var(--primary)/0.1)] ring-1 ring-inset ring-[hsl(var(--primary))]"
           : "hover:bg-[hsl(var(--muted))]",
       ].join(" ")}
     >

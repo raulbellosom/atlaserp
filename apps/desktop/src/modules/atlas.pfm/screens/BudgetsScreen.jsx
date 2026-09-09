@@ -48,7 +48,7 @@ export default function BudgetsScreen() {
         title="Presupuestos y metas"
         description="Limites mensuales y objetivos de ahorro"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => { setEditGoal(null); setGoalSheet(true); }}>
               <PiggyBank className="mr-1.5 h-4 w-4" /> Nueva meta
             </Button>

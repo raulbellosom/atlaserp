@@ -1044,7 +1044,7 @@ export default function ModuleCatalog() {
           title="Catálogo de módulos"
           description="Gestiona el ciclo de vida de los módulos de tu instancia Atlas."
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {canUploadModules && (
                 <Button
                   variant="outline"
