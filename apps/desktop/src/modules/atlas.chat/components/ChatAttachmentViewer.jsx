@@ -17,7 +17,21 @@ import { useAuth } from "../../../auth/AuthProvider";
 // chat_attachments and use the chat-specific one. Callers that only ever
 // pass real attachments (e.g. ConversationMediaTab.jsx) are unaffected —
 // `isEntityRef` is simply absent/falsy for every entry there.
-export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIndex, onIndexChange }) {
+export function ChatAttachmentViewer({
+  open,
+  onOpenChange,
+  attachments,
+  activeIndex,
+  onIndexChange,
+  // When provided, replaces the built-in signed-URL resolution wholesale — the
+  // composer passes a synchronous blob-URL resolver for still-pending files.
+  resolveUrl = null,
+  // Default: Office actions enabled when the workspace has Collabora. The
+  // composer passes `() => false` because a pending file has no attachment id
+  // to open server-side yet.
+  canOpenInOffice = null,
+  onOpenInOffice = null,
+}) {
   const { session } = useAuth();
   const token = session?.access_token;
   const office = useOfficeActions();
@@ -67,15 +81,18 @@ export function ChatAttachmentViewer({ open, onOpenChange, attachments, activeIn
       files={files}
       activeIndex={activeIndex ?? 0}
       onIndexChange={onIndexChange}
-      onResolveSignedUrl={resolveSignedUrl}
-      onOpenInOffice={(f) => {
-        if (!office?.enabled) return;
-        // Entity references are atlas.files records; real chat attachments use
-        // the dedicated chat WOPI scope.
-        if (f?.isEntityRef) office.open(f.id);
-        else office.openChatAttachment(f.id);
-      }}
-      canOpenInOffice={() => Boolean(office?.enabled)}
+      onResolveSignedUrl={resolveUrl ?? resolveSignedUrl}
+      onOpenInOffice={
+        onOpenInOffice ??
+        ((f) => {
+          if (!office?.enabled) return;
+          // Entity references are atlas.files records; real chat attachments use
+          // the dedicated chat WOPI scope.
+          if (f?.isEntityRef) office.open(f.id);
+          else office.openChatAttachment(f.id);
+        })
+      }
+      canOpenInOffice={canOpenInOffice ?? (() => Boolean(office?.enabled))}
       zIndex={10000}
     />
   );
