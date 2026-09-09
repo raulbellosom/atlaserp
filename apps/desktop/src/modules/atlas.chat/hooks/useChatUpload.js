@@ -57,5 +57,13 @@ export function useChatUpload(conversationId) {
     return attachmentId;
   }
 
-  return { uploadFile };
+  // Discard an already-presigned/uploaded attachment that never got sent
+  // (composer "remove", or the composer unmounting with unsent uploads).
+  // Best-effort: the worker's orphan sweep is the backstop.
+  async function deleteUpload(attachmentId) {
+    if (!attachmentId) return;
+    await atlas.chat.deleteAttachment(attachmentId, session?.access_token);
+  }
+
+  return { uploadFile, deleteUpload };
 }
