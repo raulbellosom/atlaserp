@@ -1,26 +1,51 @@
-import { Popover, PopoverAnchor, PopoverContent } from "@atlas/ui";
+import { Popover, PopoverAnchor, PopoverContent, Sheet, SheetContent, SheetHeader, SheetTitle, useCoarsePointer } from "@atlas/ui";
 import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
 
-// A minimal popover wrapping the same EmojiPicker MessageComposer.jsx already
-// uses for its own emoji button — same library, same visual language, not a
-// reimplementation. Uses @atlas/ui's Popover (Radix, portaled to <body>) so it
-// stays fully visible and correctly positioned regardless of where the message
-// sits inside ChatMessageList's scrolling container — a hand-rolled `absolute`
-// div here would get clipped by that ancestor's overflow-y-auto for messages
-// near the top or bottom of the visible scrollport.
+// The full emoji picker for choosing a reaction outside the quick set. On a
+// coarse pointer (phone) it opens as a bottom Sheet — WhatsApp-style, and the
+// same pattern MessageComposer.jsx already uses for its own "+" — because a
+// body-portaled Popover anchored to a bubble mispositions on small viewports
+// (spilled off the top / behind the status bar). On desktop it stays a Radix
+// Popover anchored beside the bubble.
 //
-// Opened externally (from the "Reaccionar" item in MessageActions' dropdown,
-// not by clicking the popover's own anchor), so this uses PopoverAnchor
-// (an invisible reference point) rather than PopoverTrigger — `children` is
-// the bubble-column element the picker should anchor to.
-// `onPick(emoji)` receives the plain emoji character.
+// Opened externally (from the "+" in MessageActionSheet's quick-reaction pill),
+// so `children` is the bubble-column element the desktop popover anchors to and
+// must always render in place. `onPick(emoji)` receives the plain character.
+const PICKER_PROPS = {
+  theme: "dark",
+  emojiStyle: EmojiStyle.NATIVE,
+  searchPlaceholder: "Buscar emoji...",
+  lazyLoadEmojis: true,
+  skinTonesDisabled: true,
+  autoFocusSearch: false,
+};
+
 export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign = "start", children }) {
-  // Opens to the side of the message bubble instead of above/below it — for
-  // an own (right-aligned, anchorAlign="end") message that means to its
-  // left, toward the center of the column; for a received (left-aligned,
-  // anchorAlign="start") message, to its right. Radix still auto-flips to
-  // the opposite side on its own if that side has no room (e.g. a very
-  // narrow viewport), so this is the preferred side, not the only one.
+  const coarse = useCoarsePointer();
+
+  if (coarse) {
+    return (
+      <>
+        {children}
+        <Sheet open={open} onOpenChange={onOpenChange}>
+          <SheetContent side="bottom" className="p-0 gap-0" style={{ zIndex: 10001 }}>
+            <SheetHeader className="px-4 pt-4 pb-2">
+              <SheetTitle>Reaccionar</SheetTitle>
+            </SheetHeader>
+            <div className="px-2 pb-2">
+              <EmojiPicker
+                {...PICKER_PROPS}
+                onEmojiClick={(d) => { onPick(d.emoji); onOpenChange(false); }}
+                width="100%"
+                height="min(48vh, 400px)"
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverAnchor asChild>{children}</PopoverAnchor>
@@ -28,37 +53,22 @@ export function MessageReactionPicker({ open, onOpenChange, onPick, anchorAlign 
         side={anchorAlign === "end" ? "left" : "right"}
         align="start"
         sideOffset={8}
-        // Keep the picker fully on-screen on narrow phones — without this the
-        // fixed-width emoji panel spills past the viewport edge next to a
-        // wide message bubble.
+        // Keep the picker fully on-screen on narrow windows — without this the
+        // fixed-width emoji panel spills past the viewport edge next to a wide
+        // message bubble.
         collisionPadding={8}
-        // pointer-events-auto + an explicit high z-index are load-bearing when
-        // this picker is opened from inside a modal Sheet/Dialog (e.g. the
-        // ThreadPanel "Hilo" sheet): Radix Dialog sets `pointer-events: none`
-        // on <body> while open, and this Popover portals to <body> as a
-        // sibling — without these it renders behind the sheet and swallows no
-        // clicks ("el panel de emojis no se muestra / z-index").
+        // pointer-events-auto + explicit high z-index: when opened from inside a
+        // modal Sheet/Dialog (ThreadPanel "Hilo"), Radix Dialog sets
+        // `pointer-events: none` on <body> and this Popover portals as a sibling.
         className="w-auto p-0 overflow-hidden pointer-events-auto"
         style={{ zIndex: 10001 }}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <EmojiPicker
+          {...PICKER_PROPS}
           onEmojiClick={(emojiData) => { onPick(emojiData.emoji); onOpenChange(false); }}
-          theme="dark"
-          // Render native OS emoji so the picker matches the reaction pills,
-          // the quick-reaction row and composed message text (all native
-          // Unicode). The library's default is an Apple image sprite, which
-          // reads as a different emoji set from what actually lands.
-          emojiStyle={EmojiStyle.NATIVE}
           width="min(92vw, 300px)"
-          // Responsive height so the panel never spills past the top/bottom of
-          // a short viewport (Radix shifts it on-screen horizontally, but a
-          // hard 320px could still overflow vertically on small windows).
           height="min(60vh, 320px)"
-          searchPlaceholder="Buscar emoji..."
-          lazyLoadEmojis
-          skinTonesDisabled
-          autoFocusSearch={false}
         />
       </PopoverContent>
     </Popover>
