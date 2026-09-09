@@ -15,6 +15,7 @@ import { MessageReactionPicker } from "./MessageReactionPicker";
 import { EntityReferenceCard } from "./EntityReferenceCard";
 import { FileReferenceGroup } from "./FileReferenceGroup";
 import { AttachmentsBlock } from "./MessageAttachments";
+import { isMergeableMediaMessage } from "../lib/messageMedia";
 import { MessageQuote } from "./MessageQuote";
 import { CallLogCard } from "./CallLogCard";
 import { getCallMeta } from "./callLogMeta";
@@ -226,6 +227,27 @@ function HighlightedText({ text, query }) {
     if (lastIndex < part.length) highlighted.push(part.slice(lastIndex));
   }
   return <>{highlighted}</>;
+}
+
+// One bubble shared by image/video attachments and their caption, WhatsApp
+// style: media flush to the top (no inner rounding — the bubble's
+// overflow-hidden clips it), caption directly below in the same coloured
+// bubble. Rendered instead of the standalone text bubble + loose media block
+// when isMergeableMediaMessage(attachments) and there is a caption.
+function MediaCaptionBubble({ radiusClass, isOwn, body, searchQuery, replyTo, onJumpToMessage, attachmentsBlockProps }) {
+  return (
+    <div className={[radiusClass, "overflow-hidden mt-1", isOwn ? "bg-(--brand-primary)" : "bg-[hsl(var(--muted))]"].join(" ")}>
+      <AttachmentsBlock {...attachmentsBlockProps} merged />
+      <div className="px-3 py-2 text-sm leading-relaxed">
+        {replyTo && (
+          <MessageQuote reply={replyTo} variant="inline" context={isOwn ? "onBrand" : "onMuted"} onJump={onJumpToMessage} />
+        )}
+        <p className={["text-left whitespace-pre-wrap wrap-break-word", isOwn ? "text-(--brand-primary-foreground)" : "text-[hsl(var(--foreground))]"].join(" ")}>
+          <HighlightedText text={body} query={searchQuery} />
+        </p>
+      </div>
+    </div>
+  );
 }
 
 // ── Main bubble ───────────────────────────────────────────────────────────────
@@ -514,6 +536,11 @@ export function ChatMessageBubble({
   // the chip's now-flat top edge and produces the exact seam this feature
   // exists to remove.
   const firstEntityRefAttached = hasBody && entityRefs.length > 0 && !firstRefIsFile;
+  // Caption + all-image (or single-video) attachments render as ONE bubble
+  // (WhatsApp-style). Never for the assistant, never when an entity-ref already
+  // merges into the text bubble, never for a deleted message.
+  const mergeMediaCaption =
+    hasBody && !isAssistant && !firstEntityRefAttached && isMergeableMediaMessage(attachments);
   // When a message carries entity refs but no text body, the refs ARE the whole
   // message — wrap them in a bubble-colored container instead of leaving them
   // floating bare, so the message still reads as a chat bubble. Only when
@@ -640,7 +667,7 @@ export function ChatMessageBubble({
                 display:contents so it's invisible to layout and the text
                 bubble renders exactly as if it were a direct child, same as
                 before this existed. */}
-            {hasText && (
+            {hasText && !mergeMediaCaption && (
               <div className={firstEntityRefAttached ? "grid" : "contents"}>
                 {hasText && (
                   <div
@@ -685,16 +712,37 @@ export function ChatMessageBubble({
             )}
 
             {!isDeleted && attachments.length > 0 && (
-              <AttachmentsBlock
-                attachments={attachments}
-                onOpen={onAttachmentClick}
-                isOwn
-                messageId={message.id}
-                currentUserId={currentUserId}
-                onToggleReaction={onToggleReaction}
-                onDeleteAttachment={onDeleteAttachment}
-                deletingAttachmentId={deletingAttachmentId}
-              />
+              mergeMediaCaption ? (
+                <MediaCaptionBubble
+                  radiusClass={radius}
+                  isOwn
+                  body={message.body}
+                  searchQuery={searchQuery}
+                  replyTo={message.reply_to}
+                  onJumpToMessage={onJumpToMessage}
+                  attachmentsBlockProps={{
+                    attachments,
+                    onOpen: onAttachmentClick,
+                    isOwn: true,
+                    messageId: message.id,
+                    currentUserId,
+                    onToggleReaction,
+                    onDeleteAttachment,
+                    deletingAttachmentId,
+                  }}
+                />
+              ) : (
+                <AttachmentsBlock
+                  attachments={attachments}
+                  onOpen={onAttachmentClick}
+                  isOwn
+                  messageId={message.id}
+                  currentUserId={currentUserId}
+                  onToggleReaction={onToggleReaction}
+                  onDeleteAttachment={onDeleteAttachment}
+                  deletingAttachmentId={deletingAttachmentId}
+                />
+              )
             )}
 
             {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
@@ -838,7 +886,7 @@ export function ChatMessageBubble({
             <MessageQuote reply={message.reply_to} variant="inline" context="standalone" onJump={onJumpToMessage} />
           )}
 
-          {hasText && (
+          {hasText && !mergeMediaCaption && (
             <div className={firstEntityRefAttached ? "grid" : "contents"}>
               {hasText && (
                 <div
@@ -883,16 +931,37 @@ export function ChatMessageBubble({
           )}
 
           {!isDeleted && attachments.length > 0 && (
-            <AttachmentsBlock
-              attachments={attachments}
-              onOpen={onAttachmentClick}
-              isOwn={false}
-              messageId={message.id}
-              currentUserId={currentUserId}
-              onToggleReaction={onToggleReaction}
-              onDeleteAttachment={onDeleteAttachment}
-              deletingAttachmentId={deletingAttachmentId}
-            />
+            mergeMediaCaption ? (
+              <MediaCaptionBubble
+                radiusClass={radius}
+                isOwn={false}
+                body={message.body}
+                searchQuery={searchQuery}
+                replyTo={message.reply_to}
+                onJumpToMessage={onJumpToMessage}
+                attachmentsBlockProps={{
+                  attachments,
+                  onOpen: onAttachmentClick,
+                  isOwn: false,
+                  messageId: message.id,
+                  currentUserId,
+                  onToggleReaction,
+                  onDeleteAttachment,
+                  deletingAttachmentId,
+                }}
+              />
+            ) : (
+              <AttachmentsBlock
+                attachments={attachments}
+                onOpen={onAttachmentClick}
+                isOwn={false}
+                messageId={message.id}
+                currentUserId={currentUserId}
+                onToggleReaction={onToggleReaction}
+                onDeleteAttachment={onDeleteAttachment}
+                deletingAttachmentId={deletingAttachmentId}
+              />
+            )
           )}
 
           {!isDeleted && entityRefs.length > (firstEntityRefAttached ? 1 : 0) && (
