@@ -255,35 +255,51 @@ function AttachmentReactionPills({ reactions, currentUserId, onToggleReaction, m
 }
 
 // ── Image card ────────────────────────────────────────────────────────────────
+// A single image renders inside a bounded, more-square preview box: its display
+// aspect ratio is clamped to [3:4 … 4:3]. A very tall screenshot shows as a 3:4
+// box (top/bottom cropped by object-cover), a panorama as 4:3, anything in
+// between at its true ratio. The full, uncropped image is shown in the viewer.
+const THUMB_MIN_RATIO = 3 / 4;   // tallest allowed (portrait)
+const THUMB_MAX_RATIO = 4 / 3;   // widest allowed (landscape)
+
 function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId, merged = false }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
   const [failedUrl, setFailedUrl] = useState(null);
+  const [ratio, setRatio] = useState(null);
   const rounded = merged ? "" : "rounded-xl";
+  const boxRatio = ratio ?? THUMB_MIN_RATIO;
 
   return (
     <div data-attachment-id={att.id} className={["relative group block overflow-hidden", rounded].join(" ")} style={{ minHeight: 80 }}>
       <button
         type="button"
         onClick={() => onOpen?.(allAttachments, index)}
-        className={["block w-full overflow-hidden hover:opacity-90 transition-opacity bg-black/10", rounded].join(" ")}
+        className={["relative block w-full overflow-hidden hover:opacity-90 transition-opacity bg-black/10", rounded].join(" ")}
+        style={{ aspectRatio: String(boxRatio) }}
       >
         {isLoading ? (
-          <div className="flex items-center justify-center h-20 w-32">
+          <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin opacity-40" />
           </div>
         ) : url && failedUrl !== url ? (
           <img
             src={url}
             alt={att.fileName}
-            className="block w-full object-cover"
-            style={{ maxHeight: merged ? 340 : 220 }}
+            className="block w-full h-full object-cover"
+            onLoad={(e) => {
+              const w = e.currentTarget.naturalWidth;
+              const h = e.currentTarget.naturalHeight;
+              if (w > 0 && h > 0) {
+                setRatio(Math.min(THUMB_MAX_RATIO, Math.max(THUMB_MIN_RATIO, w / h)));
+              }
+            }}
             onError={() => {
               console.warn("[chat] image load failed", { url, id: att.id });
               setFailedUrl(url);
             }}
           />
         ) : (
-          <div className="flex items-center justify-center h-20 w-32 opacity-40">
+          <div className="absolute inset-0 flex items-center justify-center opacity-40">
             <FileText className="h-6 w-6" />
           </div>
         )}
@@ -757,10 +773,10 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
   const rounded = merged ? "" : "rounded-xl";
   const gridWidth = merged ? "100%" : 220;
 
-  // 1 image: natural aspect ratio
+  // 1 image: bounded, more-square preview box (ImageCard clamps its ratio)
   if (count === 1) {
     return (
-      <div className={mt} style={{ maxWidth: merged ? "100%" : 220, width: merged ? "100%" : undefined }}>
+      <div className={mt} style={{ width: merged ? "100%" : 240, maxWidth: "100%" }}>
         <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} merged={merged} {...tileProps} />
       </div>
     );
