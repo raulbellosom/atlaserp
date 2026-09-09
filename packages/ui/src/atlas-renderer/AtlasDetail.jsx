@@ -25,12 +25,9 @@ import * as LucideIcons from "lucide-react";
 import { LoadingState } from "../components/LoadingState.jsx";
 import { Alert, AlertDescription, AlertTitle } from "../components/Alert.jsx";
 import { Button } from "../components/Button.jsx";
-import { Badge } from "../components/Badge.jsx";
 import { Avatar, AvatarImage, AvatarFallback } from "../components/Avatar.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { MarkdownViewer } from "../components/MarkdownViewer.jsx";
-import { DetailHero } from "../components/DetailHero.jsx";
-import { StatStrip } from "../components/StatStrip.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
 import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
@@ -39,6 +36,11 @@ import {
   resolveKpis,
   splitSectionsByColumn,
 } from "./detail-presentation.js";
+import {
+  HeroContainer,
+  fetchSignedUrl,
+  initialsFromName,
+} from "./atlas-detail-hero.jsx";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -862,135 +864,6 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
   );
 }
 
-async function fetchSignedUrl(apiBaseUrl, token, fileAssetId) {
-  if (!fileAssetId) return null;
-  try {
-    const res = await fetch(
-      joinUrl(apiBaseUrl, `/files/${encodeURIComponent(fileAssetId)}/signed-url`),
-      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-    );
-    if (!res.ok) return null;
-    const payload = parseJsonSafe(await res.text());
-    return payload?.data?.signedUrl ?? payload?.data?.url ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchFirstImageAssetId(apiBaseUrl, token, docsPath, recordId) {
-  if (!docsPath || !recordId) return null;
-  try {
-    const path = replacePathTokens(docsPath, { id: recordId });
-    const res = await fetch(joinUrl(apiBaseUrl, path), {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) return null;
-    const rows = extractArrayPayload(parseJsonSafe(await res.text()));
-    const image = rows.find((row) =>
-      String(row?.file_asset?.mimeType ?? row?.mimeType ?? "")
-        .toLowerCase()
-        .startsWith("image/"),
-    );
-    return image?.file_asset_id ?? image?.fileAssetId ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function initialsFromName(name) {
-  const full = String(name ?? "").trim();
-  if (!full) return "--";
-  const words = full.split(/\s+/).filter(Boolean);
-  const a = words[0]?.charAt(0) ?? "";
-  const b = words.length > 1 ? (words[1]?.charAt(0) ?? "") : "";
-  return `${a}${b}`.toUpperCase() || "--";
-}
-
-function HeroStatus({ heroModel, data }) {
-  const { statusValue, statusMap } = heroModel;
-  if (statusValue === null || statusValue === undefined || statusValue === "") {
-    return null;
-  }
-  if (statusMap) {
-    const key = String(statusValue);
-    const label = statusMap[key] ?? key;
-    const positive = key === "true" || key === "active";
-    return (
-      <Badge variant={positive ? "success" : "destructive"}>{label}</Badge>
-    );
-  }
-  return renderValue({ type: "text" }, statusValue, data);
-}
-
-function HeroContainer({ heroModel, kpiItems, data, apiBaseUrl, token, actions }) {
-  const [imageUrl, setImageUrl] = useState(null);
-  const [imageLoading, setImageLoading] = useState(
-    Boolean(heroModel.imageAssetId || heroModel.imageDocsPath),
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      let assetId = heroModel.imageAssetId;
-      if (!assetId && heroModel.imageDocsPath) {
-        assetId = await fetchFirstImageAssetId(
-          apiBaseUrl,
-          token,
-          heroModel.imageDocsPath,
-          data?.id,
-        );
-      }
-      if (!assetId) {
-        if (!cancelled) {
-          setImageUrl(null);
-          setImageLoading(false);
-        }
-        return;
-      }
-      const url = await fetchSignedUrl(apiBaseUrl, token, assetId);
-      if (!cancelled) {
-        setImageUrl(url);
-        setImageLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    apiBaseUrl,
-    token,
-    heroModel.imageAssetId,
-    heroModel.imageDocsPath,
-    data?.id,
-  ]);
-
-  const kpiRenderItems = kpiItems.map((item) => ({
-    key: item.key,
-    label: item.label,
-    icon: item.icon,
-    href: item.href,
-    value: renderValue({ type: item.type }, item.rawValue, data),
-  }));
-
-  return (
-    <div className="space-y-4">
-      <DetailHero
-        title={heroModel.title}
-        subtitle={heroModel.subtitle}
-        statusNode={<HeroStatus heroModel={heroModel} data={data} />}
-        imageUrl={imageUrl}
-        imageLoading={imageLoading}
-        fallbackIcon={heroModel.fallbackIcon}
-        accentHex={heroModel.accentHex}
-        chips={heroModel.chips}
-        actions={actions}
-      />
-      {kpiRenderItems.length > 0 ? <StatStrip items={kpiRenderItems} /> : null}
-    </div>
-  );
-}
-
 function FieldLabel({ field }) {
   const Icon = resolveIcon(field?.icon) ?? null;
 
@@ -1180,6 +1053,7 @@ export function AtlasDetail({
           apiBaseUrl={apiBaseUrl}
           token={token}
           actions={heroActions ?? fallbackActions}
+          renderValue={renderValue}
         />
       ) : (
         (onBack || onEdit) && (

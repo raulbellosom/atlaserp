@@ -1,0 +1,169 @@
+// Hero glue for AtlasDetail's opt-in presentation layer: resolves the hero image
+// signed URL client-side and composes DetailHero + StatStrip. Kept out of
+// AtlasDetail.jsx to keep that file under the repo file-size budget.
+import { useEffect, useState } from "react";
+import { Badge } from "../components/Badge.jsx";
+import { DetailHero } from "../components/DetailHero.jsx";
+import { StatStrip } from "../components/StatStrip.jsx";
+import { replacePathTokens } from "./detail-presentation.js";
+
+function joinUrl(baseUrl, apiPath) {
+  const base = String(baseUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+  const path = String(apiPath ?? "").trim();
+  if (!path) return base;
+  if (!path.startsWith("/")) return `${base}/${path}`;
+  return `${base}${path}`;
+}
+
+function parseJsonSafe(text) {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function extractArrayPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && typeof payload.data === "object") {
+    return extractArrayPayload(payload.data);
+  }
+  return [];
+}
+
+export async function fetchSignedUrl(apiBaseUrl, token, fileAssetId) {
+  if (!fileAssetId) return null;
+  try {
+    const res = await fetch(
+      joinUrl(apiBaseUrl, `/files/${encodeURIComponent(fileAssetId)}/signed-url`),
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    );
+    if (!res.ok) return null;
+    const payload = parseJsonSafe(await res.text());
+    return payload?.data?.signedUrl ?? payload?.data?.url ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFirstImageAssetId(apiBaseUrl, token, docsPath, recordId) {
+  if (!docsPath || !recordId) return null;
+  try {
+    const path = replacePathTokens(docsPath, { id: recordId });
+    const res = await fetch(joinUrl(apiBaseUrl, path), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return null;
+    const rows = extractArrayPayload(parseJsonSafe(await res.text()));
+    const image = rows.find((row) =>
+      String(row?.file_asset?.mimeType ?? row?.mimeType ?? "")
+        .toLowerCase()
+        .startsWith("image/"),
+    );
+    return image?.file_asset_id ?? image?.fileAssetId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function initialsFromName(name) {
+  const full = String(name ?? "").trim();
+  if (!full) return "--";
+  const words = full.split(/\s+/).filter(Boolean);
+  const a = words[0]?.charAt(0) ?? "";
+  const b = words.length > 1 ? (words[1]?.charAt(0) ?? "") : "";
+  return `${a}${b}`.toUpperCase() || "--";
+}
+
+function HeroStatus({ heroModel, data, renderValue }) {
+  const { statusValue, statusMap } = heroModel;
+  if (statusValue === null || statusValue === undefined || statusValue === "") {
+    return null;
+  }
+  if (statusMap) {
+    const key = String(statusValue);
+    const label = statusMap[key] ?? key;
+    const positive = key === "true" || key === "active";
+    return <Badge variant={positive ? "success" : "destructive"}>{label}</Badge>;
+  }
+  return renderValue({ type: "text" }, statusValue, data);
+}
+
+// `renderValue` is injected by AtlasDetail so the two files share one formatter.
+export function HeroContainer({
+  heroModel,
+  kpiItems,
+  data,
+  apiBaseUrl,
+  token,
+  actions,
+  renderValue,
+}) {
+  const [imageUrl, setImageUrl] = useState(null);
+  const [imageLoading, setImageLoading] = useState(
+    Boolean(heroModel.imageAssetId || heroModel.imageDocsPath),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let assetId = heroModel.imageAssetId;
+      if (!assetId && heroModel.imageDocsPath) {
+        assetId = await fetchFirstImageAssetId(
+          apiBaseUrl,
+          token,
+          heroModel.imageDocsPath,
+          data?.id,
+        );
+      }
+      if (!assetId) {
+        if (!cancelled) {
+          setImageUrl(null);
+          setImageLoading(false);
+        }
+        return;
+      }
+      const url = await fetchSignedUrl(apiBaseUrl, token, assetId);
+      if (!cancelled) {
+        setImageUrl(url);
+        setImageLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBaseUrl, token, heroModel.imageAssetId, heroModel.imageDocsPath, data?.id]);
+
+  const kpiRenderItems = kpiItems.map((item) => ({
+    key: item.key,
+    label: item.label,
+    icon: item.icon,
+    href: item.href,
+    value: renderValue({ type: item.type }, item.rawValue, data),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <DetailHero
+        title={heroModel.title}
+        subtitle={heroModel.subtitle}
+        statusNode={
+          <HeroStatus heroModel={heroModel} data={data} renderValue={renderValue} />
+        }
+        imageUrl={imageUrl}
+        imageLoading={imageLoading}
+        fallbackIcon={heroModel.fallbackIcon}
+        accentHex={heroModel.accentHex}
+        chips={heroModel.chips}
+        actions={actions}
+      />
+      {kpiRenderItems.length > 0 ? <StatStrip items={kpiRenderItems} /> : null}
+    </div>
+  );
+}
