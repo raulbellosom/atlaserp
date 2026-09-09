@@ -13,6 +13,7 @@ export function OfficeProvider({ children }) {
   const canEdit = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('files.assets.update'));
   const status = useQuery({ queryKey: ['office-status', userProfile?.id], queryFn: () => atlas.files.officeStatus(session.access_token), enabled: Boolean(session && canRead), staleTime: 60000, retry: false });
   const open = useCallback(id => navigate(`/app/m/atlas.files/files/${encodeURIComponent(id)}/edit`, { state: { officeReturnTo: location.pathname } }), [navigate, location.pathname]);
-  const value = useMemo(() => ({ enabled: Boolean(canRead && status.data?.data?.enabled), available: Boolean(status.data?.data?.available), canEdit, open }), [canRead, canEdit, status.data, open]);
+  const openChatAttachment = useCallback(id => navigate(`/app/m/atlas.chat/chat/attachment/${encodeURIComponent(id)}/edit`, { state: { officeReturnTo: location.pathname } }), [navigate, location.pathname]);
+  const value = useMemo(() => ({ enabled: Boolean(canRead && status.data?.data?.enabled), available: Boolean(status.data?.data?.available), canEdit, open, openChatAttachment }), [canRead, canEdit, status.data, open, openChatAttachment]);
   return <OfficeActionsContext.Provider value={value}>{children}</OfficeActionsContext.Provider>;
 }
