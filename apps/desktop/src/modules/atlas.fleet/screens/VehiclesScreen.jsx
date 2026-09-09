@@ -297,9 +297,47 @@ const VEHICLE_DETAIL = {
     entity: "vehicle",
     component: "AtlasDetail",
     apiPath: "/fleet/vehicles",
+    layout: "two-column",
+    hero: {
+      titleField: "plate",
+      subtitleFields: [
+        "vehicle_brand_name",
+        "vehicle_model_name",
+        "vehicle_model_year",
+      ],
+      statusField: "status",
+      imageField: "cover_image_file_asset_id",
+      imageDocsPath: "/fleet/vehicles/:id/documents",
+      fallbackIcon: "Truck",
+      accentColorField: "color",
+      metaChips: [
+        { field: "vehicle_type_name", label: "Tipo", icon: "Layers" },
+        { field: "full_economic_number", label: "No. Economico", icon: "Hash" },
+        { field: "color", label: "Color", type: "color" },
+      ],
+    },
+    kpis: [
+      { label: "Matricula", field: "plate", icon: "Hash" },
+      { label: "No. Economico", field: "full_economic_number", icon: "Hash" },
+      { label: "Tipo", field: "vehicle_type_name", icon: "Layers" },
+      { label: "Financiado", field: "is_financed", type: "boolean", icon: "Landmark" },
+      {
+        label: "Operador",
+        field: "driver_name",
+        icon: "UserCheck",
+        hrefTemplate: "/app/m/atlas.fleet/drivers/:driver_id",
+      },
+      {
+        label: "Poliza",
+        field: "active_insurance_policy.expiry_date",
+        type: "date",
+        icon: "ShieldCheck",
+      },
+    ],
     sections: [
       {
         label: "Identificacion del vehiculo",
+        column: "main",
         columns: 2,
         fields: [
           { field: "plate", label: "Matricula", icon: "Hash" },
@@ -320,6 +358,7 @@ const VEHICLE_DETAIL = {
       },
       {
         label: "Estado y apariencia",
+        column: "main",
         columns: 2,
         fields: [
           { field: "status", label: "Estado operativo", icon: "Activity" },
@@ -333,6 +372,7 @@ const VEHICLE_DETAIL = {
       },
       {
         label: "Financiamiento",
+        column: "main",
         columns: 2,
         fields: [
           {
@@ -387,6 +427,7 @@ const VEHICLE_DETAIL = {
         id: "assigned_driver",
         type: "relation-card",
         label: "Conductor asignado",
+        column: "aside",
         relationCard: {
           idField: "driver_id",
           titleField: "driver_name",
@@ -394,12 +435,17 @@ const VEHICLE_DETAIL = {
           fallbackTitle: "Sin conductor asignado",
           hrefTemplate: "/app/m/atlas.fleet/drivers/:id",
           icon: "UserCheck",
+          avatarField: "driver_photo_asset_id",
+          contactActions: [
+            { type: "call", field: "driver_phone", label: "Llamar" },
+          ],
         },
       },
       {
         id: "active_insurance",
         type: "relation-card",
         label: "Poliza de seguro activa",
+        column: "aside",
         relationCard: {
           idField: "active_insurance_policy.id",
           titleField: "active_insurance_policy.insurer_name",
@@ -418,6 +464,7 @@ const VEHICLE_DETAIL = {
         id: "insurance_history",
         type: "relation-list",
         label: "Historial de polizas",
+        column: "aside",
         relationList: {
           apiPath: "/fleet/vehicles/:id/insurance",
           idField: "id",
@@ -435,6 +482,7 @@ const VEHICLE_DETAIL = {
       },
       {
         label: "Observaciones",
+        column: "main",
         fields: [
           {
             field: "notes",
@@ -448,6 +496,7 @@ const VEHICLE_DETAIL = {
         id: "documents",
         type: "documents",
         label: "Documentos del vehiculo",
+        column: "aside",
         documents: {
           listPath: "/fleet/vehicles/:id/documents",
           addPath: "/fleet/vehicles/:id/documents",
