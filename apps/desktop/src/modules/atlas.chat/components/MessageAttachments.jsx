@@ -255,16 +255,17 @@ function AttachmentReactionPills({ reactions, currentUserId, onToggleReaction, m
 }
 
 // ── Image card ────────────────────────────────────────────────────────────────
-function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
+function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId, merged = false }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
   const [failedUrl, setFailedUrl] = useState(null);
+  const rounded = merged ? "" : "rounded-xl";
 
   return (
-    <div data-attachment-id={att.id} className="relative group block rounded-xl overflow-hidden" style={{ minHeight: 80 }}>
+    <div data-attachment-id={att.id} className={["relative group block overflow-hidden", rounded].join(" ")} style={{ minHeight: 80 }}>
       <button
         type="button"
         onClick={() => onOpen?.(allAttachments, index)}
-        className="block w-full rounded-xl overflow-hidden hover:opacity-90 transition-opacity bg-black/10"
+        className={["block w-full overflow-hidden hover:opacity-90 transition-opacity bg-black/10", rounded].join(" ")}
       >
         {isLoading ? (
           <div className="flex items-center justify-center h-20 w-32">
@@ -275,7 +276,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
             src={url}
             alt={att.fileName}
             className="block w-full object-cover"
-            style={{ maxHeight: 220 }}
+            style={{ maxHeight: merged ? 340 : 220 }}
             onError={() => {
               console.warn("[chat] image load failed", { url, id: att.id });
               setFailedUrl(url);
@@ -307,7 +308,7 @@ function ImageCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
 }
 
 // ── Video card ────────────────────────────────────────────────────────────────
-function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
+function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId, merged = false }) {
   const { data: url, isLoading } = useAttachmentUrl(att);
   const [videoErr, setVideoErr] = useState(false);
 
@@ -317,8 +318,8 @@ function VideoCard({ att, index, allAttachments, onOpen, messageId, isOwn, curre
   return (
     <div
       data-attachment-id={att.id}
-      className="relative group block rounded-xl overflow-hidden bg-black/25 mt-1.5"
-      style={{ width: 220, height: 140, maxWidth: "100%" }}
+      className={["relative group block overflow-hidden bg-black/25", merged ? "" : "rounded-xl mt-1.5"].join(" ")}
+      style={{ width: merged ? "100%" : 220, height: merged ? 200 : 140, maxWidth: "100%" }}
     >
       <button
         type="button"
@@ -741,7 +742,7 @@ function ImageCoverCell({ att, index, allAttachments, onOpen, overflowCount = 0,
 }
 
 // ── Image grid (Telegram-style layouts) ───────────────────────────────────────
-function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
+function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId, merged = false }) {
   const shown = images.slice(0, 4);
   const overflowCount = Math.max(0, images.length - 4);
   const count = shown.length;
@@ -750,11 +751,17 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
   // sites.
   const tileProps = { messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId };
 
+  // `merged`: the grid sits flush inside a caption bubble — fill its width, no
+  // top margin, no outer rounding (the bubble clips).
+  const mt = merged ? "" : "mt-1.5";
+  const rounded = merged ? "" : "rounded-xl";
+  const gridWidth = merged ? "100%" : 220;
+
   // 1 image: natural aspect ratio
   if (count === 1) {
     return (
-      <div className="mt-1.5" style={{ maxWidth: 220 }}>
-        <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
+      <div className={mt} style={{ maxWidth: merged ? "100%" : 220, width: merged ? "100%" : undefined }}>
+        <ImageCard att={images[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} merged={merged} {...tileProps} />
       </div>
     );
   }
@@ -762,7 +769,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
   // 2 images: side-by-side square cells
   if (count === 2) {
     return (
-      <div className="mt-1.5 flex gap-0.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
+      <div className={[mt, "flex gap-0.5 overflow-hidden", rounded].join(" ")} style={{ width: gridWidth, maxWidth: '100%' }}>
         {shown.map((att, i) => (
           <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
             <ImageCoverCell att={att} index={startIndex + i} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
@@ -775,7 +782,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
   // 3 images: 1 wide on top + 2 side-by-side below
   if (count === 3) {
     return (
-      <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
+      <div className={[mt, "overflow-hidden", rounded].join(" ")} style={{ width: gridWidth, maxWidth: '100%' }}>
         <div className="relative" style={{ height: 132 }}>
           <ImageCoverCell att={shown[0]} index={startIndex} allAttachments={allAttachments} onOpen={onOpen} {...tileProps} />
         </div>
@@ -792,7 +799,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
 
   // 4+ images: 2×2 grid, last cell shows overflow counter
   return (
-    <div className="mt-1.5 rounded-xl overflow-hidden" style={{ width: 220, maxWidth: '100%' }}>
+    <div className={[mt, "overflow-hidden", rounded].join(" ")} style={{ width: gridWidth, maxWidth: '100%' }}>
       <div className="flex gap-0.5">
         {shown.slice(0, 2).map((att, i) => (
           <div key={att.id} className="relative flex-1" style={{ height: 110 }}>
@@ -819,7 +826,7 @@ function ImageGrid({ images, allAttachments, onOpen, startIndex, messageId, isOw
 }
 
 // ── Attachments renderer ──────────────────────────────────────────────────────
-export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId }) {
+export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId, merged = false }) {
   const office = useOfficeActions();
   if (!attachments?.length) return null;
 
@@ -832,6 +839,16 @@ export function AttachmentsBlock({ attachments, onOpen, isOwn, messageId, curren
 
   // Same six per-tile props for the grid and every video card.
   const tileProps = { messageId, isOwn, currentUserId, onToggleReaction, onDeleteAttachment, deletingAttachmentId };
+
+  // `merged` (caller = MediaCaptionBubble) guarantees all-images or one video;
+  // render just that media flush inside the caption bubble, no top margin, no
+  // own rounding — the bubble's overflow-hidden clips it.
+  if (merged) {
+    if (imageAtts.length > 0) {
+      return <ImageGrid images={imageAtts} allAttachments={ordered} onOpen={onOpen} startIndex={0} merged {...tileProps} />;
+    }
+    return <VideoCard att={others[0]} index={0} allAttachments={ordered} onOpen={onOpen} merged {...tileProps} />;
+  }
 
   return (
     <>
