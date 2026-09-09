@@ -107,6 +107,24 @@ const INSURANCE_DETAIL = {
     entity: 'insurance_policy',
     component: 'AtlasDetail',
     apiPath: '/fleet/insurance',
+    hero: {
+      titleField: 'insurer_name',
+      subtitleFields: ['policy_number'],
+      statusField: 'status',
+      statusMap: { active: 'Vigente', expired: 'Vencida', disabled: 'Inactiva' },
+      fallbackIcon: 'ShieldCheck',
+      metaChips: [
+        { field: 'vehicle_plate', label: 'Vehiculo', icon: 'Truck' },
+        { field: 'coverage_type_label', label: 'Cobertura', icon: 'Shield' },
+        { field: 'expiry_date', label: 'Vence', type: 'date', icon: 'CalendarDays' },
+      ],
+    },
+    kpis: [
+      { label: 'Cobertura', field: 'coverage_type_label', icon: 'Shield' },
+      { label: 'Prima anual', field: 'premium', type: 'currency', icon: 'DollarSign' },
+      { label: 'Inicio', field: 'start_date', type: 'date', icon: 'CalendarDays' },
+      { label: 'Fin vigencia', field: 'expiry_date', type: 'date', icon: 'CalendarDays' },
+    ],
     sections: [
       {
         label: 'Datos de la poliza',

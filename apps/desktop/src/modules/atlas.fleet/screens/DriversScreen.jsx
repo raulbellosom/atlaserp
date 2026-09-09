@@ -109,6 +109,24 @@ const DRIVER_DETAIL = {
     entity: 'driver',
     component: 'AtlasDetail',
     apiPath: '/fleet/drivers',
+    hero: {
+      titleField: 'full_name',
+      subtitleFields: ['license_type'],
+      statusField: 'status',
+      imageField: 'photo_asset_id_resolved',
+      fallbackIcon: 'UserRound',
+      metaChips: [
+        { field: 'phone', label: 'Tel', icon: 'Phone' },
+        { field: 'license_number', label: 'Lic.', icon: 'Hash' },
+        { field: 'license_expiry_date', label: 'Vence', type: 'date', icon: 'CalendarDays' },
+      ],
+    },
+    kpis: [
+      { label: 'Telefono', field: 'phone', icon: 'Phone' },
+      { label: 'No. Licencia', field: 'license_number', icon: 'Hash' },
+      { label: 'Tipo licencia', field: 'license_type', icon: 'Tag' },
+      { label: 'Vencimiento', field: 'license_expiry_date', type: 'date', icon: 'CalendarDays' },
+    ],
     sections: [
       {
         label: 'Datos del chofer',
