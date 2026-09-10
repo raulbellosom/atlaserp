@@ -9,6 +9,7 @@ import {
   setLayerOpacity,
   setLayerLocked,
   moveElementsToLayer,
+  moveElementNear,
   bumpVersion,
   groupElementsByLayer,
   elementLabel,
@@ -170,6 +171,21 @@ test('mergeVisibleBack: an element moved out of a hidden layer is not duplicated
   const nextVisible = [E('b', 'vis')] // user reassigned it via the panel
   const merged = mergeVisibleBack(prevFull, nextVisible, layers)
   assert.deepEqual(merged.map((e) => e.id), ['b'])
+})
+
+test('moveElementNear: drops dragged before target, adopting target layer + bump', () => {
+  const els = [E('a', 'x', { version: 1 }), E('b', 'x', { version: 1 }), E('c', 'y', { version: 1 })]
+  // move c so it sits just before a, joining layer x
+  const out = moveElementNear(els, 'c', 'a')
+  assert.deepEqual(out.map((e) => e.id), ['c', 'a', 'b'])
+  assert.equal(out.find((e) => e.id === 'c').customData.layerId, 'x')
+  assert.equal(out.find((e) => e.id === 'c').version, 2)
+})
+
+test('moveElementNear: no-op when dragging onto itself or missing ids', () => {
+  const els = [E('a', 'x'), E('b', 'x')]
+  assert.equal(moveElementNear(els, 'a', 'a'), els)
+  assert.equal(moveElementNear(els, 'a', 'ghost'), els)
 })
 
 test('setLayerOpacity: dims elements and stashes baseOpacity; 100% restores', () => {

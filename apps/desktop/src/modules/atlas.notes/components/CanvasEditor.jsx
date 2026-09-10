@@ -18,6 +18,7 @@ import {
   setLayerOpacity,
   setLayerLocked,
   moveElementsToLayer,
+  moveElementNear,
   groupElementsByLayer,
   setElementHidden,
   setElementLocked,
@@ -349,16 +350,19 @@ export function CanvasEditor({ note }) {
     onDeleteElement: (id) => {
       applyElements(deleteElement(elementsRef.current, id))
     },
-    onMoveElementToLayer: (elementId, layerId) => {
-      applyElements(moveElementsToLayer(elementsRef.current, new Set([elementId]), layerId))
-      setActiveLayerId(layerId)
-    },
   }
 
   const layerCbs = {
     activeLayerId,
     layerElements,
     childHandlers,
+    onMoveElementToLayer: (elementId, layerId) => {
+      applyElements(moveElementsToLayer(elementsRef.current, new Set([elementId]), layerId))
+      setActiveLayerId(layerId)
+    },
+    onMoveElementNear: (draggedId, targetId) => {
+      applyElements(moveElementNear(elementsRef.current, draggedId, targetId))
+    },
     onSelect: setActiveLayerId,
     onRename: (id, name) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, name } : l))),
     onSetColor: (id, color) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, color } : l))),

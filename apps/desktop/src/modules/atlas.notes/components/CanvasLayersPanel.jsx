@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
-  DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors, useDraggable,
+  DndContext, PointerSensor, KeyboardSensor, closestCenter, pointerWithin,
+  useSensor, useSensors, useDraggable, useDroppable,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -67,26 +68,29 @@ function ColorSwatch({ color, onPick }) {
 function ChildRow({ el, layerColor, onSelectElement, onToggleElementHidden, onToggleElementLocked, onDeleteElement }) {
   const Icon = TYPE_ICON[el.type] ?? Square
   const hidden = Boolean(el.customData?.hidden)
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `child:${el.id}` })
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: `child:${el.id}` })
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: `slot:${el.id}` })
 
   return (
     <div
+      ref={setDropRef}
       className={[
-        'group/child flex items-center gap-1 h-9 pl-6 pr-1.5 rounded-md cursor-pointer',
+        'group/child flex items-center gap-1 h-9 pr-1.5 rounded-md cursor-pointer',
         isDragging ? 'opacity-40' : 'hover:bg-black/4 dark:hover:bg-white/5',
+        isOver ? 'ring-2 ring-amber-400/70' : '',
       ].join(' ')}
       onClick={() => onSelectElement(el.id)}
     >
       <span
-        ref={setNodeRef}
+        ref={setDragRef}
         {...listeners}
         {...attributes}
         onClick={(e) => e.stopPropagation()}
-        className="shrink-0 flex items-center justify-center w-5 h-7 text-muted-foreground/40 cursor-grab active:cursor-grabbing touch-none"
-        aria-label="Arrastrar a otra capa"
-        title="Arrastra a otra capa"
+        className="shrink-0 flex items-center justify-center w-9 h-9 text-muted-foreground/50 cursor-grab active:cursor-grabbing touch-none"
+        aria-label="Arrastrar a otra capa o posicion"
+        title="Manten pulsado y arrastra"
       >
-        <GripVertical size={12} />
+        <GripVertical size={14} />
       </span>
       <span className="shrink-0 w-1 h-4 rounded-full" style={{ backgroundColor: layerColor }} />
       <Icon size={13} className="shrink-0 text-muted-foreground/70" />
@@ -259,9 +263,9 @@ function LayerRow({
       </div>
 
       {expanded && (
-        <div className="mt-0.5 mb-1 flex flex-col gap-px">
+        <div className="mt-0.5 mb-1 pl-3 flex flex-col gap-px">
           {childCount === 0 ? (
-            <div className="pl-8 py-1.5 text-[11px] text-muted-foreground/40">Capa vacia</div>
+            <div className="pl-5 py-1.5 text-[11px] text-muted-foreground/40">Capa vacia</div>
           ) : (
             childElements.map((el) => (
               <ChildRow key={el.id} el={el} layerColor={layer.color} {...childHandlers} />
@@ -293,6 +297,7 @@ function LayersBody({
   onOpacity,
   onReorderList,
   onMoveElementToLayer,
+  onMoveElementNear,
   onDuplicate,
   onMergeDown,
   onDelete,
@@ -308,12 +313,21 @@ function LayersBody({
     useSensor(KeyboardSensor),
   )
 
+  // Shapes drop precisely onto whatever is under the finger; layer reordering
+  // wants nearest-centre. Try pointer-within first, fall back to closestCenter.
+  function collision(args) {
+    const within = pointerWithin(args)
+    return within.length ? within : closestCenter(args)
+  }
+
   function handleDragEnd({ active, over }) {
     if (!over || active.id === over.id) return
     const a = String(active.id)
     const o = String(over.id)
-    if (a.startsWith('child:') && o.startsWith('layer:')) {
-      onMoveElementToLayer(a.slice('child:'.length), o.slice('layer:'.length))
+    if (a.startsWith('child:')) {
+      const draggedId = a.slice('child:'.length)
+      if (o.startsWith('slot:')) onMoveElementNear(draggedId, o.slice('slot:'.length))
+      else if (o.startsWith('layer:')) onMoveElementToLayer(draggedId, o.slice('layer:'.length))
       return
     }
     if (a.startsWith('layer:') && o.startsWith('layer:')) {
@@ -325,7 +339,7 @@ function LayersBody({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-0.5 px-1.5 pb-2 overflow-y-auto">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={collision} onDragEnd={handleDragEnd}>
         <SortableContext items={topFirst.map((l) => `layer:${l.id}`)} strategy={verticalListSortingStrategy}>
           {topFirst.map((layer, idxFromTop) => (
             <SortableLayerRow

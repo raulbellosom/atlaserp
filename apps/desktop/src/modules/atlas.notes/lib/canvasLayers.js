@@ -223,6 +223,22 @@ export function moveElementsToLayer(elements, idSet, layerId) {
   )
 }
 
+// Drop `draggedId` right before `targetId`, taking on the target's layer. Used
+// for drag-and-drop of shapes onto another shape (reorder within a layer or
+// move to another layer at a precise spot).
+export function moveElementNear(elements, draggedId, targetId) {
+  if (draggedId === targetId) return elements
+  const target = elements.find((e) => e.id === targetId)
+  const dragged = elements.find((e) => e.id === draggedId)
+  if (!target || !dragged) return elements
+  const layerId = target.customData?.layerId
+  const rest = elements.filter((e) => e.id !== draggedId)
+  const moved = bumpVersion({ ...dragged, customData: { ...dragged.customData, layerId } })
+  const idx = rest.findIndex((e) => e.id === targetId)
+  rest.splice(idx, 0, moved)
+  return rest
+}
+
 // Move `layerId` so its order rank becomes `toIndex` (0 = back). Returns a
 // new layers array with normalised integer `order`.
 export function reorderLayer(layers, layerId, toIndex) {
