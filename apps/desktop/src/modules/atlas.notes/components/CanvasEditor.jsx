@@ -314,11 +314,12 @@ export function CanvasEditor({ note }) {
     syncRef.current?.broadcastPointer({ x: p.x, y: p.y })
   }, [])
 
-  // Re-derive whenever layers change (visibility / order). Lock and opacity are
-  // written imperatively in their callbacks, so this only needs layers.
+  // Every layer op (visibility / lock / opacity / order / move) pushes its own
+  // updateScene, so this only needs to run once the editor is ready to make the
+  // initial derived scene authoritative (initialData already seeded it).
   useEffect(() => {
-    if (ready) apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
-  }, [layers, ready])
+    if (ready) apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layersRef.current) })
+  }, [ready])
 
   // When the layers panel opens, pull the current canvas selection so the
   // matching shape rows highlight without needing another canvas interaction.
@@ -353,6 +354,23 @@ export function CanvasEditor({ note }) {
     (nextElements) => {
       elementsRef.current = nextElements
       apiRef.current?.updateScene({ elements: deriveScene(nextElements, layersRef.current) })
+      syncRef.current?.notifyLocalChange()
+      persist()
+      setElementsVersion((v) => v + 1)
+    },
+    [persist],
+  )
+
+  // A reorder / layer move: Excalidraw 0.18 sorts by `element.index` (a
+  // fractional index), NOT array position, so we must NULL every index and let
+  // updateScene re-derive them from OUR grouped-by-layer, in-layer array order.
+  const applyOrder = useCallback(
+    (nextElements, nextLayers) => {
+      elementsRef.current = nextElements
+      const layersToUse = nextLayers ?? layersRef.current
+      const scene = deriveScene(nextElements, layersToUse).map((el) => ({ ...el, index: null }))
+      apiRef.current?.updateScene({ elements: scene, captureUpdate: 'IMMEDIATELY' })
+      if (nextLayers) setLayers(nextLayers)
       syncRef.current?.notifyLocalChange()
       persist()
       setElementsVersion((v) => v + 1)
@@ -401,17 +419,20 @@ export function CanvasEditor({ note }) {
     layerElements,
     childHandlers,
     onMoveElementToLayer: (elementId, layerId) => {
-      applyElements(moveElementsToLayer(elementsRef.current, new Set([elementId]), layerId))
+      applyOrder(moveElementsToLayer(elementsRef.current, new Set([elementId]), layerId))
       setActiveLayerId(layerId)
     },
     onMoveElementNear: (draggedId, targetId) => {
-      applyElements(moveElementNear(elementsRef.current, draggedId, targetId))
+      applyOrder(moveElementNear(elementsRef.current, draggedId, targetId))
     },
     onSelect: setActiveLayerId,
     onRename: (id, name) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, name } : l))),
     onSetColor: (id, color) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, color } : l))),
-    onToggleVisible: (id) =>
-      mutateLayers(layers.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))),
+    onToggleVisible: (id) => {
+      const nl = layers.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
+      apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, nl) })
+      mutateLayers(nl)
+    },
     onToggleLocked: (id) => {
       const layer = layers.find((l) => l.id === id)
       const nextLocked = !layer?.locked
@@ -424,38 +445,33 @@ export function CanvasEditor({ note }) {
       apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
       mutateLayers(layers.map((l) => (l.id === id ? { ...l, opacity } : l)))
     },
-    onReorderList: (topFirst) => mutateLayers(orderFromTopFirst(topFirst)),
+    onReorderList: (topFirst) => applyOrder(elementsRef.current, orderFromTopFirst(topFirst)),
     onMoveSelectionHere: (layerId) => {
       const api = apiRef.current
       const sel = api?.getAppState?.().selectedElementIds ?? {}
       const idSet = new Set(Object.keys(sel).filter((k) => sel[k]))
       if (!idSet.size) return
-      elementsRef.current = moveElementsToLayer(elementsRef.current, idSet, layerId)
-      api?.updateScene({ elements: deriveScene(elementsRef.current, layersRef.current) })
-      syncRef.current?.notifyLocalChange()
-      persist()
+      applyOrder(moveElementsToLayer(elementsRef.current, idSet, layerId))
       setActiveLayerId(layerId)
       toast.success(`${idSet.size} elemento${idSet.size === 1 ? '' : 's'} movido${idSet.size === 1 ? '' : 's'}`)
     },
     onDuplicate: (id) => {
       const { layers: nl, elements: ne } = duplicateLayer(layers, elementsRef.current, id)
-      elementsRef.current = ne
-      mutateLayers(nl)
+      applyOrder(ne, nl)
     },
     onMergeDown: (id) => {
       const { layers: nl, elements: ne } = mergeDown(layers, elementsRef.current, id)
-      elementsRef.current = ne
-      mutateLayers(nl)
+      applyOrder(ne, nl)
     },
     onDelete: (id) => {
       if (layers.length === 1) return
-      elementsRef.current = elementsRef.current.filter((el) => el.customData?.layerId !== id)
+      const ne = elementsRef.current.filter((el) => el.customData?.layerId !== id)
       const nl = [...layers]
         .filter((l) => l.id !== id)
         .sort((a, b) => a.order - b.order)
         .map((l, i) => ({ ...l, order: i }))
       if (activeLayerId === id) setActiveLayerId(nl[nl.length - 1].id)
-      mutateLayers(nl)
+      applyOrder(ne, nl)
     },
   }
 

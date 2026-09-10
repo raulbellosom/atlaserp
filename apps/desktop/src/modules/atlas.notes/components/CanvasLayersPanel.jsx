@@ -418,10 +418,15 @@ function LayersBody({
   )
 
   // Shapes drop precisely onto whatever is under the finger; layer reordering
-  // wants nearest-centre. Try pointer-within first, fall back to closestCenter.
+  // wants nearest-centre. Try pointer-within first, and prefer a specific shape
+  // `slot:` over the enclosing `layer:` droppable so reorder-within-layer wins.
   function collision(args) {
     const within = pointerWithin(args)
-    return within.length ? within : closestCenter(args)
+    if (within.length) {
+      const slot = within.find((c) => String(c.id).startsWith('slot:'))
+      return slot ? [slot] : within
+    }
+    return closestCenter(args)
   }
 
   function findChild(elId) {

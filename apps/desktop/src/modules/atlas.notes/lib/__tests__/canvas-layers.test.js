@@ -186,13 +186,19 @@ test('mergeVisibleBack: an element moved out of a hidden layer is not duplicated
   assert.deepEqual(merged.map((e) => e.id), ['b'])
 })
 
-test('moveElementNear: drops dragged before target, adopting target layer + bump', () => {
+test('moveElementNear: dragging down (higher idx target) inserts after; adopts layer + bump', () => {
   const els = [E('a', 'x', { version: 1 }), E('b', 'x', { version: 1 }), E('c', 'y', { version: 1 })]
-  // move c so it sits just before a, joining layer x
-  const out = moveElementNear(els, 'c', 'a')
-  assert.deepEqual(out.map((e) => e.id), ['c', 'a', 'b'])
-  assert.equal(out.find((e) => e.id === 'c').customData.layerId, 'x')
-  assert.equal(out.find((e) => e.id === 'c').version, 2)
+  // drag a (idx 0) onto c (idx 2, higher) -> a lands right after c, joining layer y
+  const out = moveElementNear(els, 'a', 'c')
+  assert.deepEqual(out.map((e) => e.id), ['b', 'c', 'a'])
+  assert.equal(out.find((e) => e.id === 'a').customData.layerId, 'y')
+  assert.equal(out.find((e) => e.id === 'a').version, 2)
+})
+
+test('moveElementNear: dragging up (lower idx target) inserts before', () => {
+  const els = [E('a', 'x'), E('b', 'x'), E('c', 'x')]
+  // drag c (idx 2) onto a (idx 0, lower) -> c lands right before a
+  assert.deepEqual(moveElementNear(els, 'c', 'a').map((e) => e.id), ['c', 'a', 'b'])
 })
 
 test('moveElementNear: no-op when dragging onto itself or missing ids', () => {

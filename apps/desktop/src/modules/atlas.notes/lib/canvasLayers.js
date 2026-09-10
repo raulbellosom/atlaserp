@@ -234,19 +234,21 @@ export function moveElementsToLayer(elements, idSet, layerId) {
   )
 }
 
-// Drop `draggedId` right before `targetId`, taking on the target's layer. Used
-// for drag-and-drop of shapes onto another shape (reorder within a layer or
-// move to another layer at a precise spot).
+// Drop `draggedId` next to `targetId`, taking on the target's layer. The side
+// (before/after) follows the drag direction so it behaves like a normal list
+// reorder. Array order == z-order (index 0 = bottom).
 export function moveElementNear(elements, draggedId, targetId) {
   if (draggedId === targetId) return elements
-  const target = elements.find((e) => e.id === targetId)
-  const dragged = elements.find((e) => e.id === draggedId)
-  if (!target || !dragged) return elements
-  const layerId = target.customData?.layerId
+  const fromIdx = elements.findIndex((e) => e.id === draggedId)
+  const toIdx = elements.findIndex((e) => e.id === targetId)
+  if (fromIdx === -1 || toIdx === -1) return elements
+  const layerId = elements[toIdx].customData?.layerId
+  const dragged = elements[fromIdx]
   const rest = elements.filter((e) => e.id !== draggedId)
   const moved = bumpVersion({ ...dragged, customData: { ...dragged.customData, layerId } })
-  const idx = rest.findIndex((e) => e.id === targetId)
-  rest.splice(idx, 0, moved)
+  let insertAt = rest.findIndex((e) => e.id === targetId)
+  if (fromIdx < toIdx) insertAt += 1 // dragged was below the target -> land above it
+  rest.splice(insertAt, 0, moved)
   return rest
 }
 
