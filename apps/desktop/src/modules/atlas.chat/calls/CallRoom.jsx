@@ -11,6 +11,7 @@ import { CallShareDialog } from "./CallShareDialog";
 import { CallInvitePanel } from "./CallInvitePanel";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { useCallGuests } from "./hooks/useCallGuests";
+import { useCallEphemeral } from "./hooks/useCallEphemeral";
 import { CallRoomLayout } from "./CallRoomLayout";
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
@@ -89,6 +90,15 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
 
   const refresh = useCallback(() => setRenderVersion((value) => value + 1), []);
   const screenShareSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
+
+  // Ephemeral in-call affordances (data-channel only): floating reactions + raise-hand.
+  const ephemeral = useCallEphemeral({
+    room,
+    publishData,
+    selfIdentity: room.localParticipant?.identity,
+    selfName: room.localParticipant?.name || "Tú",
+    isHost: isInitiator,
+  });
 
   const refreshCameraCapabilities = useCallback(async () => {
     const publication = room.localParticipant.getTrackPublication(Track.Source.Camera);
@@ -528,6 +538,10 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         invitePanel: isInitiator && isAlone && !inviteDismissed
           ? <CallInvitePanel conversationId={conversationId} onClose={() => setInviteDismissed(true)} />
           : null,
+        reactions: ephemeral.reactions,
+        raisedHands: ephemeral.raisedHands,
+        myHandRaised: ephemeral.myHandRaised,
+        isHost: isInitiator,
       }}
       actions={{
         activateAudio: () => room.startAudio().then(() => setNeedsAudio(false)),
@@ -539,6 +553,9 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         toggleLayout: () => setLayoutMode((current) => current === "focus" ? "balanced" : "focus"),
         leave: handleLeave,
         minimize: onMinimize,
+        sendReaction: ephemeral.sendReaction,
+        toggleHand: ephemeral.toggleHand,
+        lowerHand: ephemeral.lowerHand,
       }}
       chat={{
         isMobile,

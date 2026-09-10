@@ -5,6 +5,7 @@ import {
   CameraOff,
   Flashlight,
   FlashlightOff,
+  Hand,
   LayoutGrid,
   MessageSquare,
   Mic,
@@ -22,6 +23,9 @@ import { Track } from "livekit-client";
 import { playCallSound } from "./callSounds";
 import { DraggablePip } from "./DraggablePip";
 import { CallViewSwitcher } from "./CallViewSwitcher";
+import { CallReactionsOverlay } from "./CallReactionsOverlay";
+import { CallReactionButton } from "./CallReactionButton";
+import { RaisedHandsBar } from "./RaisedHandsBar";
 
 function formatDuration(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -57,6 +61,7 @@ function TrackRenderer({ participant, source, muted = false, mirror = false, fit
 function ParticipantTile({
   participant,
   isLocal,
+  handRaised = false,
   mirrorLocalCamera = true,
   className = "",
   preferSource = "auto",
@@ -97,6 +102,11 @@ function ParticipantTile({
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-violet-500/20 text-3xl font-semibold text-violet-100 ring-1 ring-violet-400/30">
             {name.slice(0, 1).toUpperCase()}
           </div>
+        </div>
+      )}
+      {handRaised && (
+        <div className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[11px] font-semibold text-amber-950">
+          <Hand className="h-3 w-3" /> Mano
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-8">
@@ -161,6 +171,10 @@ export function CallRoomLayout({ view, actions, chat }) {
     isDirectVideo,
     layoutMode,
     invitePanel = null,
+    reactions = [],
+    raisedHands = new Map(),
+    myHandRaised = false,
+    isHost = false,
   } = view;
 
   const {
@@ -174,12 +188,9 @@ export function CallRoomLayout({ view, actions, chat }) {
     panel: chatPanel = null,
     canShare = false,
     onShare = () => {},
-    hasGuests = false,
     pendingLobby = 0,
-    roster = null,
+    onOpenGuests = null,
   } = chat ?? {};
-
-  const showRoster = canShare && (hasGuests || pendingLobby > 0);
 
   const showChatColumn = !isMobile && chatExpanded;
   const showChatRail = !isMobile && !chatExpanded;
@@ -233,10 +244,11 @@ export function CallRoomLayout({ view, actions, chat }) {
           {canShare && (
             <button
               type="button"
-              onClick={onShare}
+              onClick={onOpenGuests ?? onShare}
+              title="Invitados"
               className="relative flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 hover:text-white"
             >
-              <UserPlus className="h-3.5 w-3.5" /> Invitar
+              <UserPlus className="h-3.5 w-3.5" /> Invitados
               {pendingLobby > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold ring-2 ring-slate-950">
                   {pendingLobby > 9 ? "9+" : pendingLobby}
@@ -297,6 +309,7 @@ export function CallRoomLayout({ view, actions, chat }) {
                 <ParticipantTile
                   participant={participant}
                   isLocal={isLocal}
+                  handRaised={raisedHands.has(participant?.identity)}
                   preferSource="camera"
                   mirrorLocalCamera={mirrorLocalCamera}
                   className="rounded-2xl"
@@ -306,12 +319,12 @@ export function CallRoomLayout({ view, actions, chat }) {
           </div>
         ) : useFocusLayout ? (
           <div className="relative mx-auto h-full max-w-6xl">
-            <ParticipantTile participant={remoteEntries[0].participant} isLocal={false} className="rounded-[1.5rem]" fit="contain" />
+            <ParticipantTile participant={remoteEntries[0].participant} isLocal={false} handRaised={raisedHands.has(remoteEntries[0].participant?.identity)} className="rounded-[1.5rem]" fit="contain" />
             <DraggablePip
               label={localEntry.participant?.name || "Tú"}
               initial={(localEntry.participant?.name || "T").slice(0, 1).toUpperCase()}
             >
-              <ParticipantTile participant={localEntry.participant} isLocal mirrorLocalCamera={mirrorLocalCamera} className="rounded-2xl" />
+              <ParticipantTile participant={localEntry.participant} isLocal handRaised={myHandRaised} mirrorLocalCamera={mirrorLocalCamera} className="rounded-2xl" />
             </DraggablePip>
           </div>
         ) : (
@@ -321,6 +334,7 @@ export function CallRoomLayout({ view, actions, chat }) {
                 key={participant.sid || participant.identity || "local-participant"}
                 participant={participant}
                 isLocal={isLocal}
+                handRaised={raisedHands.has(participant?.identity)}
                 mirrorLocalCamera={mirrorLocalCamera}
                 fit={participants.length <= 2 ? "contain" : "auto"}
               />
@@ -338,13 +352,10 @@ export function CallRoomLayout({ view, actions, chat }) {
             <div className="pointer-events-auto w-full max-w-sm">{invitePanel}</div>
           </div>
         )}
-      </main>
 
-      {showRoster && (
-        <div className="max-h-48 shrink-0 overflow-y-auto border-t border-white/10 bg-black/20">
-          {roster}
-        </div>
-      )}
+        <CallReactionsOverlay reactions={reactions} />
+        {isHost && <RaisedHandsBar raisedHands={raisedHands} onLower={actions.lowerHand} />}
+      </main>
 
       <footer
         className="flex shrink-0 flex-wrap items-center justify-center gap-1.5 border-t border-white/10 bg-black/30 pt-3 backdrop-blur-xl"
@@ -378,6 +389,10 @@ export function CallRoomLayout({ view, actions, chat }) {
             {torchEnabled ? <FlashlightOff className="h-5 w-5" /> : <Flashlight className="h-5 w-5" />}
           </Button>
         )}
+        <CallReactionButton onReact={actions.sendReaction} disabled={!engineReady} />
+        <Button type="button" variant={myHandRaised ? "default" : "secondary"} size="icon" disabled={!engineReady} className="h-11 w-11 rounded-full disabled:opacity-40" onClick={actions.toggleHand} title={!engineReady ? "Conectando..." : myHandRaised ? "Bajar la mano" : "Levantar la mano"}>
+          <Hand className="h-5 w-5" />
+        </Button>
         <Button type="button" variant={screenEnabled ? "default" : "secondary"} size="icon" disabled={!engineReady} className={`h-11 w-11 rounded-full disabled:opacity-40 ${screenShareSupported ? "" : "opacity-50"}`} onClick={actions.toggleScreen} aria-disabled={!screenShareSupported} title={!engineReady ? "Conectando..." : screenShareSupported ? (screenEnabled ? "Dejar de compartir" : "Compartir pantalla") : "Compartir pantalla no disponible en este navegador"}>
           {screenShareSupported ? <MonitorUp className="h-5 w-5" /> : <ScreenShareOff className="h-5 w-5" />}
         </Button>
