@@ -44,6 +44,18 @@ export function assignLayer(element, activeLayerId) {
   }
 }
 
+// Excalidraw tracks changes per element by an integer `version`. When WE mutate
+// an element outside Excalidraw (layer lock / opacity / move-to-layer), we must
+// bump it ourselves or the change never reconciles to other clients.
+export function bumpVersion(el) {
+  return {
+    ...el,
+    version: (el.version ?? 0) + 1,
+    versionNonce: (Math.random() * 2 ** 31) | 0,
+    updated: Date.now(),
+  }
+}
+
 function layerIndexById(layers) {
   const map = new Map()
   const sorted = [...layers].sort((a, b) => a.order - b.order)
@@ -97,13 +109,13 @@ export function setLayerOpacity(elements, layerId, opacity) {
     if (opacity >= 1) {
       const custom = { ...el.customData }
       delete custom.baseOpacity
-      return { ...el, opacity: base, customData: custom }
+      return bumpVersion({ ...el, opacity: base, customData: custom })
     }
-    return {
+    return bumpVersion({
       ...el,
       opacity: Math.round(base * opacity),
       customData: { ...el.customData, baseOpacity: base },
-    }
+    })
   })
 }
 
@@ -115,15 +127,24 @@ export function setLayerLocked(elements, layerId, locked) {
     if (el?.customData?.layerId !== layerId) return el
     if (locked) {
       if (el.locked) return el // already locked (by the user) — don't claim it
-      return { ...el, locked: true, customData: { ...el.customData, lockedByLayer: true } }
+      return bumpVersion({ ...el, locked: true, customData: { ...el.customData, lockedByLayer: true } })
     }
     if (el.customData?.lockedByLayer) {
       const custom = { ...el.customData }
       delete custom.lockedByLayer
-      return { ...el, locked: false, customData: custom }
+      return bumpVersion({ ...el, locked: false, customData: custom })
     }
     return el
   })
+}
+
+// Reassign the given element ids to a layer (used by "move selection to layer").
+export function moveElementsToLayer(elements, idSet, layerId) {
+  return elements.map((el) =>
+    idSet.has(el.id)
+      ? bumpVersion({ ...el, customData: { ...el.customData, layerId } })
+      : el,
+  )
 }
 
 // Move `layerId` so its order rank becomes `toIndex` (0 = back). Returns a

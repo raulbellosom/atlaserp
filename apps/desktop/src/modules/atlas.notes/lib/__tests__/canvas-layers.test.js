@@ -8,6 +8,8 @@ import {
   mergeVisibleBack,
   setLayerOpacity,
   setLayerLocked,
+  moveElementsToLayer,
+  bumpVersion,
   reorderLayer,
   mergeDown,
   duplicateLayer,
@@ -125,6 +127,29 @@ test('setLayerOpacity: dims elements and stashes baseOpacity; 100% restores', ()
   const restored = setLayerOpacity(dimmer, 'x', 1)
   assert.equal(restored[0].opacity, 80)
   assert.equal(restored[0].customData.baseOpacity, undefined)
+})
+
+test('bumpVersion: increments version and stamps updated', () => {
+  const out = bumpVersion({ id: 'a', version: 4 })
+  assert.equal(out.version, 5)
+  assert.equal(typeof out.versionNonce, 'number')
+  assert.equal(typeof out.updated, 'number')
+})
+
+test('setLayerOpacity bumps the version of changed elements (so it syncs)', () => {
+  const els = [E('a', 'x', { opacity: 100, version: 2 })]
+  const out = setLayerOpacity(els, 'x', 0.5)
+  assert.equal(out[0].version, 3)
+})
+
+test('moveElementsToLayer: reassigns layerId for the id set and bumps version', () => {
+  const els = [E('a', 'x', { version: 1 }), E('b', 'x', { version: 1 }), E('c', 'y', { version: 1 })]
+  const out = moveElementsToLayer(els, new Set(['a', 'c']), 'z')
+  assert.equal(out.find((e) => e.id === 'a').customData.layerId, 'z')
+  assert.equal(out.find((e) => e.id === 'a').version, 2)
+  assert.equal(out.find((e) => e.id === 'b').customData.layerId, 'x') // untouched
+  assert.equal(out.find((e) => e.id === 'b').version, 1)
+  assert.equal(out.find((e) => e.id === 'c').customData.layerId, 'z')
 })
 
 test('setLayerLocked: locks all in layer; unlock only releases layer-locked', () => {

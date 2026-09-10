@@ -17,6 +17,7 @@ import {
   mergeVisibleBack,
   setLayerOpacity,
   setLayerLocked,
+  moveElementsToLayer,
   mergeDown,
   duplicateLayer,
 } from '../lib/canvasLayers.js'
@@ -84,6 +85,8 @@ export function CanvasEditor({ note }) {
   const [ready, setReady] = useState(false)
   const [showLayers, setShowLayers] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [selectionCount, setSelectionCount] = useState(0)
+  const selectionRef = useRef(0)
 
   // The ONE frozen object handed to <Excalidraw>. Built once when the scene has
   // loaded; its identity must never change afterwards (see CanvasStage).
@@ -218,15 +221,35 @@ export function CanvasEditor({ note }) {
   // Stable — never re-created, so <CanvasStage> (memo) never re-renders.
   const handleExcalidrawAPI = useCallback((api) => {
     apiRef.current = api
+    // Make sure a reloaded drawing is actually in view (we deliberately don't
+    // persist scroll/zoom, so the viewport starts at the origin).
+    requestAnimationFrame(() => {
+      const els = api.getSceneElements?.() ?? []
+      if (els.length) {
+        try {
+          api.scrollToContent?.(els, { fitToContent: true, animate: false })
+        } catch {
+          /* older signature */
+          api.scrollToContent?.()
+        }
+      }
+    })
   }, [])
 
   const handleChange = useCallback(
-    async (elements) => {
+    async (elements, appState) => {
       const active = activeLayerIdRef.current ?? layersRef.current[0]?.id
       const withLayers = elements.map((el) => assignLayer(el, active))
       // Excalidraw only ever hands back visible-layer elements — merge the
       // hidden ones back so the source of truth stays whole.
       elementsRef.current = mergeVisibleBack(elementsRef.current, withLayers, layersRef.current)
+
+      const selCount = Object.keys(appState?.selectedElementIds ?? {}).length
+      if (selCount !== selectionRef.current) {
+        selectionRef.current = selCount
+        setSelectionCount(selCount)
+      }
+
       syncRef.current?.notifyLocalChange()
       persist()
 
@@ -298,6 +321,18 @@ export function CanvasEditor({ note }) {
       mutateLayers(layers.map((l) => (l.id === id ? { ...l, opacity } : l)))
     },
     onReorderList: (topFirst) => mutateLayers(orderFromTopFirst(topFirst)),
+    onMoveSelectionHere: (layerId) => {
+      const api = apiRef.current
+      const sel = api?.getAppState?.().selectedElementIds ?? {}
+      const idSet = new Set(Object.keys(sel).filter((k) => sel[k]))
+      if (!idSet.size) return
+      elementsRef.current = moveElementsToLayer(elementsRef.current, idSet, layerId)
+      api?.updateScene({ elements: deriveScene(elementsRef.current, layersRef.current) })
+      syncRef.current?.notifyLocalChange()
+      persist()
+      setActiveLayerId(layerId)
+      toast.success(`${idSet.size} elemento${idSet.size === 1 ? '' : 's'} movido${idSet.size === 1 ? '' : 's'}`)
+    },
     onDuplicate: (id) => {
       const { layers: nl, elements: ne } = duplicateLayer(layers, elementsRef.current, id)
       elementsRef.current = ne
@@ -428,6 +463,7 @@ export function CanvasEditor({ note }) {
         isMobile={isMobile}
         onAddLayer={addLayer}
         layers={layers}
+        selectionCount={selectionCount}
         {...layerCbs}
       />
     </div>

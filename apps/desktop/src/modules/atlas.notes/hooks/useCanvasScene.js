@@ -9,7 +9,14 @@ export function useCanvasScene(noteId) {
     queryKey: ['canvas-scene', noteId],
     queryFn: () => atlas.notes.getCanvas(noteId, token),
     enabled: Boolean(token && noteId),
-    staleTime: Infinity, // the realtime channel keeps it fresh; refetch only on remount
+    // Always pull a fresh scene on (re)mount. The app persists queries to
+    // IndexedDB for 24h, so `staleTime: Infinity` here would show a stale
+    // snapshot after a page reload — exactly the "I drew but it's gone on
+    // reload" bug. The realtime channel keeps the OPEN session in sync.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
   })
 }
 
