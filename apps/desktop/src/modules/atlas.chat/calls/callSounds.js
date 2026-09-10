@@ -1,8 +1,16 @@
+// The deployed SPA is served under a base path (VITE_BASE_PATH=/app/ in
+// infra/docker/web.Dockerfile), and nginx only has explicit rules for
+// /brand/ and /module-logos/ — a root-absolute "/sounds/..." falls through to
+// the public-website proxy and comes back as index.html, so decodeAudioData /
+// <audio>.play() fail and NO sound plays anywhere. Resolve against Vite's
+// BASE_URL so it becomes "/app/sounds/..." in prod and "/sounds/..." in dev.
+const BASE = import.meta.env?.BASE_URL || "/";
+
 export const CALL_SOUND_URLS = Object.freeze({
-  ringtone: "/sounds/calls/ringtone.mp3",
-  join: "/sounds/calls/join-call-sound.mp3",
-  exit: "/sounds/calls/exit-call-sound.mp3",
-  notification: "/sounds/notification.mp3",
+  ringtone: `${BASE}sounds/calls/ringtone.mp3`,
+  join: `${BASE}sounds/calls/join-call-sound.mp3`,
+  exit: `${BASE}sounds/calls/exit-call-sound.mp3`,
+  notification: `${BASE}sounds/notification.mp3`,
 });
 
 const SILENT_UNLOCK_WAV = "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
