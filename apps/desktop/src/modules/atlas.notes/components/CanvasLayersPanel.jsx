@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  DndContext, PointerSensor, KeyboardSensor, closestCenter, pointerWithin,
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, pointerWithin,
   useSensor, useSensors, useDraggable, useDroppable,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -132,7 +132,7 @@ function ChildRow({
       ref={setDropRef}
       className={[
         'group/child flex items-center gap-1 h-9 pr-1.5 rounded-md cursor-pointer transition-colors',
-        isDragging ? 'opacity-40' : selected ? '' : 'hover:bg-black/4 dark:hover:bg-white/5',
+        isDragging ? 'opacity-0' : selected ? '' : 'hover:bg-black/4 dark:hover:bg-white/5',
         isOver ? 'ring-2 ring-amber-400/70' : '',
       ].join(' ')}
       style={selected ? { backgroundColor: `${layerColor}22`, boxShadow: `inset 0 0 0 1.5px ${layerColor}` } : undefined}
@@ -222,7 +222,8 @@ function LayerRow({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={[
         isOver ? 'rounded-lg ring-2 ring-amber-400/70' : '',
-        isDragging ? 'opacity-50' : '',
+        // Hidden while dragged — the floating DragOverlay chip is the visual.
+        isDragging ? 'opacity-0' : '',
       ].join(' ')}
     >
       <div
@@ -370,6 +371,19 @@ function SortableLayerRow({ layer, ...rest }) {
   return <LayerRow layer={layer} sortable={sortable} {...rest} />
 }
 
+// The "lifted" chip that follows the pointer during a drag.
+function DragChip({ drag }) {
+  if (!drag) return null
+  const Icon = drag.type === 'layer' ? null : (TYPE_ICON[drag.elType] ?? Square)
+  return (
+    <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg glass-strong shadow-xl text-xs font-medium ring-1 ring-black/10 dark:ring-white/15">
+      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: drag.color }} />
+      {Icon && <Icon size={13} className="shrink-0 text-muted-foreground/80" />}
+      <span className="truncate max-w-40">{drag.label}</span>
+    </div>
+  )
+}
+
 function LayersBody({
   layers,
   activeLayerId,
@@ -393,6 +407,7 @@ function LayersBody({
   childHandlers,
 }) {
   const [confirmDel, setConfirmDel] = useState(null)
+  const [drag, setDrag] = useState(null)
   const topFirst = [...layers].sort((a, b) => b.order - a.order)
   // Long-press to start a drag: on touch a `distance` constraint fights the
   // scroll container and the drag never activates. `delay` + `tolerance` lets a
@@ -409,7 +424,27 @@ function LayersBody({
     return within.length ? within : closestCenter(args)
   }
 
+  function findChild(elId) {
+    for (const layer of layers) {
+      const el = (layerElements[layer.id] ?? []).find((e) => e.id === elId)
+      if (el) return { el, color: layer.color }
+    }
+    return null
+  }
+
+  function handleDragStart({ active }) {
+    const a = String(active.id)
+    if (a.startsWith('child:')) {
+      const hit = findChild(a.slice('child:'.length))
+      if (hit) setDrag({ type: 'child', label: elementLabel(hit.el), elType: hit.el.type, color: hit.color })
+    } else if (a.startsWith('layer:')) {
+      const l = layers.find((x) => `layer:${x.id}` === a)
+      if (l) setDrag({ type: 'layer', label: l.name, color: l.color })
+    }
+  }
+
   function handleDragEnd({ active, over }) {
+    setDrag(null)
     if (!over || active.id === over.id) return
     const a = String(active.id)
     const o = String(over.id)
@@ -428,7 +463,13 @@ function LayersBody({
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-0.5 px-1.5 pb-2 overflow-y-auto">
-      <DndContext sensors={sensors} collisionDetection={collision} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collision}
+        onDragStart={handleDragStart}
+        onDragCancel={() => setDrag(null)}
+        onDragEnd={handleDragEnd}
+      >
         <SortableContext items={topFirst.map((l) => `layer:${l.id}`)} strategy={verticalListSortingStrategy}>
           {topFirst.map((layer, idxFromTop) => (
             <SortableLayerRow
@@ -457,6 +498,9 @@ function LayersBody({
             />
           ))}
         </SortableContext>
+        <DragOverlay dropAnimation={{ duration: 160 }}>
+          <DragChip drag={drag} />
+        </DragOverlay>
       </DndContext>
       <ConfirmDialog
         open={Boolean(confirmDel)}
