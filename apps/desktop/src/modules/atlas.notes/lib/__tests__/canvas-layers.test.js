@@ -5,6 +5,9 @@ import {
   ensureLayers,
   assignLayer,
   deriveScene,
+  mergeVisibleBack,
+  setLayerOpacity,
+  setLayerLocked,
   reorderLayer,
   mergeDown,
   duplicateLayer,
@@ -58,16 +61,11 @@ test('deriveScene: hidden layer elements are omitted', () => {
   assert.deepEqual(out.map((e) => e.id), ['a'])
 })
 
-test('deriveScene: locked layer forces element.locked', () => {
-  const layers = [L('x', { order: 0, locked: true })]
-  const out = deriveScene([E('a', 'x', { locked: false })], layers)
-  assert.equal(out[0].locked, true)
-})
-
-test('deriveScene: layer opacity multiplies element opacity (0..100 scale)', () => {
-  const layers = [L('x', { order: 0, opacity: 0.5 })]
-  const out = deriveScene([E('a', 'x', { opacity: 80 })], layers)
-  assert.equal(out[0].opacity, 40)
+test('deriveScene: returns the same element object references (no clone)', () => {
+  const layers = [L('x', { order: 0, locked: true, opacity: 0.5 })]
+  const el = E('a', 'x', { opacity: 80, locked: false })
+  const out = deriveScene([el], layers)
+  assert.equal(out[0], el) // identity preserved — no lock/opacity mutation at derive time
 })
 
 test('deriveScene: z-order = layer order then element order within layer', () => {
@@ -90,6 +88,56 @@ test('deriveScene: does not mutate the input elements', () => {
   deriveScene([el], layers)
   assert.equal(el.locked, false)
   assert.equal(el.opacity, 80)
+})
+
+test('mergeVisibleBack: re-appends elements that live on hidden layers', () => {
+  const layers = [L('vis', { order: 0 }), L('hid', { order: 1, visible: false })]
+  const prevFull = [E('a', 'vis'), E('b', 'hid'), E('c', 'hid')]
+  // Excalidraw only ever hands back the visible-layer elements
+  const nextVisible = [E('a', 'vis', { x: 999 })]
+  const merged = mergeVisibleBack(prevFull, nextVisible, layers)
+  assert.deepEqual(merged.map((e) => e.id).sort(), ['a', 'b', 'c'])
+  assert.equal(merged.find((e) => e.id === 'a').x, 999) // the edit is kept
+})
+
+test('mergeVisibleBack: no hidden layers -> returns nextVisible unchanged', () => {
+  const layers = [L('a', { order: 0 })]
+  const nextVisible = [E('x', 'a')]
+  assert.equal(mergeVisibleBack([E('x', 'a')], nextVisible, layers), nextVisible)
+})
+
+test('mergeVisibleBack: an element moved out of a hidden layer is not duplicated', () => {
+  const layers = [L('vis', { order: 0 }), L('hid', { order: 1, visible: false })]
+  const prevFull = [E('b', 'hid')]
+  const nextVisible = [E('b', 'vis')] // user reassigned it via the panel
+  const merged = mergeVisibleBack(prevFull, nextVisible, layers)
+  assert.deepEqual(merged.map((e) => e.id), ['b'])
+})
+
+test('setLayerOpacity: dims elements and stashes baseOpacity; 100% restores', () => {
+  const els = [E('a', 'x', { opacity: 80 }), E('b', 'y', { opacity: 100 })]
+  const dim = setLayerOpacity(els, 'x', 0.5)
+  assert.equal(dim[0].opacity, 40)
+  assert.equal(dim[0].customData.baseOpacity, 80)
+  assert.equal(dim[1].opacity, 100) // other layer untouched
+  const dimmer = setLayerOpacity(dim, 'x', 0.25)
+  assert.equal(dimmer[0].opacity, 20) // computed from baseOpacity, not the dimmed value
+  const restored = setLayerOpacity(dimmer, 'x', 1)
+  assert.equal(restored[0].opacity, 80)
+  assert.equal(restored[0].customData.baseOpacity, undefined)
+})
+
+test('setLayerLocked: locks all in layer; unlock only releases layer-locked', () => {
+  const els = [
+    E('a', 'x', { locked: false }),
+    E('b', 'x', { locked: true, customData: { layerId: 'x', userLocked: true } }),
+  ]
+  const locked = setLayerLocked(els, 'x', true)
+  assert.equal(locked[0].locked, true)
+  assert.equal(locked[0].customData.lockedByLayer, true)
+  const unlocked = setLayerLocked(locked, 'x', false)
+  assert.equal(unlocked[0].locked, false) // was locked by the layer -> released
+  assert.equal(unlocked[1].locked, true) // user-locked -> stays locked
 })
 
 test('reorderLayer: moving a layer changes derived z-order', () => {

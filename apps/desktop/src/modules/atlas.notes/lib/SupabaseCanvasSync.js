@@ -115,6 +115,11 @@ export class SupabaseCanvasSync {
     if (!Array.isArray(incoming) || incoming.length === 0) return
     const local = this._getLocalElements?.() ?? []
     const reconciled = reconcileElements(local, incoming, {})
+    // Treat the reconciled state as already-broadcast so the onChange this
+    // triggers locally does not echo the same elements straight back out.
+    for (const el of reconciled) {
+      if (el && el.id != null) this._sentVersions.set(el.id, el.version ?? 0)
+    }
     this._onRemoteElements?.(reconciled)
   }
 

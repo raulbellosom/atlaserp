@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ErrorState } from '@atlas/ui'
 import { usePublicCanvasScene } from './hooks/useCanvasScene.js'
@@ -18,6 +18,20 @@ export default function PublicCanvasView({ slug }) {
   const layersRef = useRef([])
 
   const scene = data?.scene
+
+  const initialData = useMemo(() => {
+    if (!scene) return null
+    return {
+      elements: [],
+      appState: { ...(scene.appState ?? {}), collaborators: new Map() },
+      files: {},
+      scrollToContent: true,
+    }
+  }, [scene])
+
+  const handleExcalidrawAPI = useCallback((api) => {
+    apiRef.current = api
+  }, [])
 
   useEffect(() => {
     if (!scene) return undefined
@@ -95,13 +109,9 @@ export default function PublicCanvasView({ slug }) {
           }
         >
           <CanvasStage
-            initialElements={[]}
-            initialAppState={scene.appState}
-            initialFiles={{}}
+            initialData={initialData}
             viewModeEnabled
-            onExcalidrawAPI={(api) => {
-              apiRef.current = api
-            }}
+            onExcalidrawAPI={handleExcalidrawAPI}
           />
         </Suspense>
       </div>

@@ -8,6 +8,9 @@ import {
   defaultLayer,
   assignLayer,
   deriveScene,
+  mergeVisibleBack,
+  setLayerOpacity,
+  setLayerLocked,
   mergeDown,
   duplicateLayer,
 } from '../lib/canvasLayers.js'
@@ -27,8 +30,24 @@ function colorForUser(seed) {
   return PRESENCE_COLORS[h % PRESENCE_COLORS.length]
 }
 
-// Top-first list from the panel -> normalised ascending `order`
-// (index 0 in the panel is the frontmost layer = highest order).
+function filesArrayToMap(arr) {
+  const map = {}
+  for (const f of arr) map[f.id] = f
+  return map
+}
+
+function countByLayer(elements) {
+  const c = {}
+  for (const el of elements) {
+    if (el.isDeleted) continue
+    const id = el.customData?.layerId
+    if (id) c[id] = (c[id] ?? 0) + 1
+  }
+  return c
+}
+
+// Top-first list from the panel -> normalised ascending `order` (index 0 in the
+// panel is the frontmost layer = highest order).
 function orderFromTopFirst(topFirst) {
   const n = topFirst.length
   return topFirst.map((l, i) => ({ ...l, order: n - 1 - i }))
@@ -41,18 +60,27 @@ export function CanvasEditor({ note }) {
 
   const { data, isLoading, error } = useCanvasScene(noteId)
   const saveScene = useSaveCanvasScene(noteId)
+  const saveRef = useRef(saveScene)
+  saveRef.current = saveScene
 
-  const elementsRef = useRef([]) // full element list = source of truth
+  // ── source of truth (refs, never fed back into <Excalidraw> as props) ──
+  const elementsRef = useRef([])
+  const filesManifestRef = useRef({})
+  const appStateRef = useRef({})
   const [layers, setLayers] = useState([defaultLayer()])
   const layersRef = useRef(layers)
   layersRef.current = layers
   const [activeLayerId, setActiveLayerId] = useState(null)
-  const filesManifestRef = useRef({})
-  const appStateRef = useRef({})
+  const activeLayerIdRef = useRef(null)
+  activeLayerIdRef.current = activeLayerId
+
   const [ready, setReady] = useState(false)
   const [showLayers, setShowLayers] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [countsTick, setCountsTick] = useState(0)
+
+  // The ONE frozen object handed to <Excalidraw>. Built once when the scene has
+  // loaded; its identity must never change afterwards (see CanvasStage).
+  const initialDataRef = useRef(null)
 
   const apiRef = useRef(null)
   const syncRef = useRef(null)
@@ -66,28 +94,33 @@ export function CanvasEditor({ note }) {
     return () => mq.removeEventListener('change', on)
   }, [])
 
-  // Seed from the server scene once loaded.
+  // Seed from the server scene once loaded, then reveal the editor.
   useEffect(() => {
-    if (!data?.scene) return
+    if (!data?.scene || ready) return
     let cancelled = false
     ;(async () => {
       const s = data.scene
       elementsRef.current = Array.isArray(s.elements) ? s.elements : []
       const ls = ensureLayers(s.layers)
-      setLayers(ls)
       const topLayer = [...ls].sort((a, b) => b.order - a.order)[0]
-      setActiveLayerId(topLayer.id)
       filesManifestRef.current = s.files ?? {}
       appStateRef.current = s.appState ?? {}
-      const files = await hydrateImages(s.files)
+      const fileArr = await hydrateImages(s.files)
       if (cancelled) return
-      if (apiRef.current && files.length) apiRef.current.addFiles(files)
+      initialDataRef.current = {
+        elements: deriveScene(elementsRef.current, ls),
+        appState: { ...(s.appState ?? {}), collaborators: new Map() },
+        files: filesArrayToMap(fileArr),
+        scrollToContent: true,
+      }
+      setLayers(ls)
+      setActiveLayerId(topLayer.id)
       setReady(true)
     })()
     return () => {
       cancelled = true
     }
-  }, [data?.scene])
+  }, [data?.scene, ready])
 
   // Realtime provider — lifecycle keyed by note + token (see NoteEditor's engine).
   useEffect(() => {
@@ -111,16 +144,23 @@ export function CanvasEditor({ note }) {
       onRemoteElements: (reconciled) => {
         elementsRef.current = reconciled
         apiRef.current?.updateScene({ elements: deriveScene(reconciled, layersRef.current) })
-        setCountsTick((t) => t + 1)
       },
-      onRemoteSnapshot: (snap) => {
+      onRemoteSnapshot: async (snap) => {
         elementsRef.current = Array.isArray(snap.elements) ? snap.elements : elementsRef.current
         if (Array.isArray(snap.layers) && snap.layers.length) setLayers(ensureLayers(snap.layers))
         if (snap.appState) appStateRef.current = snap.appState
+        if (snap.files && typeof snap.files === 'object') {
+          filesManifestRef.current = snap.files
+          try {
+            const arr = await hydrateImages(snap.files)
+            if (arr.length) apiRef.current?.addFiles(arr)
+          } catch {
+            /* best effort */
+          }
+        }
         apiRef.current?.updateScene({
           elements: deriveScene(elementsRef.current, snap.layers ?? layersRef.current),
         })
-        setCountsTick((t) => t + 1)
       },
       onRemotePointer: (p) => {
         const map = new Map()
@@ -143,14 +183,13 @@ export function CanvasEditor({ note }) {
   const persist = useCallback(() => {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
-      saveScene.mutate({
+      saveRef.current.mutate({
         elements: elementsRef.current,
         appState: appStateRef.current,
         layers: layersRef.current,
         files: filesManifestRef.current,
       })
     }, AUTOSAVE_DELAY)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Flush once on unmount so a fast note switch never drops the last edits.
@@ -158,7 +197,7 @@ export function CanvasEditor({ note }) {
     () => () => {
       clearTimeout(saveTimer.current)
       if (elementsRef.current.length || Object.keys(filesManifestRef.current).length) {
-        saveScene.mutate({
+        saveRef.current.mutate({
           elements: elementsRef.current,
           appState: appStateRef.current,
           layers: layersRef.current,
@@ -166,24 +205,23 @@ export function CanvasEditor({ note }) {
         })
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 
+  // Stable — never re-created, so <CanvasStage> (memo) never re-renders.
+  const handleExcalidrawAPI = useCallback((api) => {
+    apiRef.current = api
+  }, [])
+
   const handleChange = useCallback(
-    async (elements, appState) => {
-      const active = activeLayerId ?? layersRef.current[0]?.id
+    async (elements) => {
+      const active = activeLayerIdRef.current ?? layersRef.current[0]?.id
       const withLayers = elements.map((el) => assignLayer(el, active))
-      elementsRef.current = withLayers
-      appStateRef.current = {
-        gridModeEnabled: appState?.gridModeEnabled,
-        gridSize: appState?.gridSize,
-        objectsSnapModeEnabled: appState?.objectsSnapModeEnabled,
-        viewBackgroundColor: appState?.viewBackgroundColor,
-      }
+      // Excalidraw only ever hands back visible-layer elements — merge the
+      // hidden ones back so the source of truth stays whole.
+      elementsRef.current = mergeVisibleBack(elementsRef.current, withLayers, layersRef.current)
       syncRef.current?.notifyLocalChange()
       persist()
-      setCountsTick((t) => t + 1)
 
       // Upload any freshly added images.
       const files = apiRef.current?.getFiles?.() ?? {}
@@ -202,7 +240,7 @@ export function CanvasEditor({ note }) {
         }
       }
     },
-    [activeLayerId, noteId, token, persist],
+    [noteId, token, persist],
   )
 
   const handlePointer = useCallback((payload) => {
@@ -211,21 +249,19 @@ export function CanvasEditor({ note }) {
     syncRef.current?.broadcastPointer({ x: p.x, y: p.y })
   }, [])
 
-  // Re-derive whenever layers change (visibility / lock / opacity / order).
+  // Re-derive whenever layers change (visibility / order). Lock and opacity are
+  // written imperatively in their callbacks, so this only needs layers.
   useEffect(() => {
     if (ready) apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
   }, [layers, ready])
 
-  const elementCounts = useMemo(() => {
-    const c = {}
-    for (const el of elementsRef.current) {
-      if (el.isDeleted) continue
-      const id = el.customData?.layerId
-      if (id) c[id] = (c[id] ?? 0) + 1
-    }
-    return c
+  const elementCounts = useMemo(
+    () => countByLayer(elementsRef.current),
+    // recompute when layers change or the panel opens (counts don't live-update
+    // while drawing with the panel open — acceptable for v1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers, countsTick])
+    [layers, showLayers],
+  )
 
   const mutateLayers = useCallback(
     (next) => {
@@ -242,22 +278,28 @@ export function CanvasEditor({ note }) {
     onRename: (id, name) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, name } : l))),
     onToggleVisible: (id) =>
       mutateLayers(layers.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))),
-    onToggleLocked: (id) =>
-      mutateLayers(layers.map((l) => (l.id === id ? { ...l, locked: !l.locked } : l))),
-    onOpacity: (id, opacity) =>
-      mutateLayers(layers.map((l) => (l.id === id ? { ...l, opacity } : l))),
+    onToggleLocked: (id) => {
+      const layer = layers.find((l) => l.id === id)
+      const nextLocked = !layer?.locked
+      elementsRef.current = setLayerLocked(elementsRef.current, id, nextLocked)
+      apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
+      mutateLayers(layers.map((l) => (l.id === id ? { ...l, locked: nextLocked } : l)))
+    },
+    onOpacity: (id, opacity) => {
+      elementsRef.current = setLayerOpacity(elementsRef.current, id, opacity)
+      apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
+      mutateLayers(layers.map((l) => (l.id === id ? { ...l, opacity } : l)))
+    },
     onReorderList: (topFirst) => mutateLayers(orderFromTopFirst(topFirst)),
     onDuplicate: (id) => {
       const { layers: nl, elements: ne } = duplicateLayer(layers, elementsRef.current, id)
       elementsRef.current = ne
       mutateLayers(nl)
-      setCountsTick((t) => t + 1)
     },
     onMergeDown: (id) => {
       const { layers: nl, elements: ne } = mergeDown(layers, elementsRef.current, id)
       elementsRef.current = ne
       mutateLayers(nl)
-      setCountsTick((t) => t + 1)
     },
     onDelete: (id) => {
       if (layers.length === 1) return
@@ -268,7 +310,6 @@ export function CanvasEditor({ note }) {
         .map((l, i) => ({ ...l, order: i }))
       if (activeLayerId === id) setActiveLayerId(nl[nl.length - 1].id)
       mutateLayers(nl)
-      setCountsTick((t) => t + 1)
     },
   }
 
@@ -281,7 +322,7 @@ export function CanvasEditor({ note }) {
 
   const doExport = (fn) =>
     fn({
-      elements: deriveScene(elementsRef.current, layers),
+      elements: deriveScene(elementsRef.current, layersRef.current),
       appState: appStateRef.current,
       files: apiRef.current?.getFiles?.() ?? {},
       title: note?.title,
@@ -339,12 +380,8 @@ export function CanvasEditor({ note }) {
               }
             >
               <CanvasStage
-                initialElements={deriveScene(elementsRef.current, layers)}
-                initialAppState={appStateRef.current}
-                initialFiles={{}}
-                onExcalidrawAPI={(api) => {
-                  apiRef.current = api
-                }}
+                initialData={initialDataRef.current}
+                onExcalidrawAPI={handleExcalidrawAPI}
                 onChange={handleChange}
                 onPointerUpdate={handlePointer}
               />

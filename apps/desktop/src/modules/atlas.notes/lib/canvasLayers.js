@@ -1,10 +1,19 @@
 // Layer model on top of Excalidraw's flat z-order.
 //
 // Excalidraw has no concept of layers: the paint order is the order of the
-// `elements` array. We keep the FULL element list as the source of truth in
-// CanvasEditor and feed <Excalidraw> a DERIVED scene: hidden layers omitted,
-// locked layers force element.locked, layer opacity multiplies element
-// opacity, and the array is sorted by (layer order, element order).
+// `elements` array. CanvasEditor keeps the FULL element list as the source of
+// truth and feeds <Excalidraw> a DERIVED scene: elements on hidden layers are
+// omitted, and the array is sorted by (layer order, element order).
+//
+// deriveScene never mutates or clones elements — it only filters and reorders —
+// so the objects handed to Excalidraw keep their identity and version, and a
+// re-render does not look like a scene change.
+//
+// Layer *lock* and *opacity* are NOT applied at derive time (that would corrupt
+// the source of truth when Excalidraw hands the derived scene back on change).
+// They are written onto the real elements imperatively via setLayerLocked /
+// setLayerOpacity, with the pre-change value remembered in customData so the
+// operation is reversible.
 //
 // Each element carries customData.layerId. `customData` is Excalidraw's
 // official extension point and survives updateScene / export / import.
@@ -42,32 +51,78 @@ function layerIndexById(layers) {
   return { map, sorted }
 }
 
-// Produces the scene handed to <Excalidraw>. Does NOT mutate inputs.
+// The scene handed to <Excalidraw>: hidden-layer elements removed, ordered by
+// (layer order, element order). Returns the SAME element object references.
 export function deriveScene(elements, layers) {
   const safeLayers = ensureLayers(layers)
   const { map, sorted } = layerIndexById(safeLayers)
   const fallbackId = sorted[0].id
 
   const withRank = elements
-    .filter((el) => el && !el.isDeleted)
     .map((el, elIndex) => {
-      const layerId = el.customData?.layerId
-      const hit = map.get(layerId) ?? map.get(fallbackId)
+      const hit = map.get(el?.customData?.layerId) ?? map.get(fallbackId)
       return { el, elIndex, layer: hit.layer, rank: hit.rank }
     })
-    .filter(({ layer }) => layer.visible !== false)
+    .filter(({ el, layer }) => el && layer.visible !== false)
 
   withRank.sort((a, b) => a.rank - b.rank || a.elIndex - b.elIndex)
+  return withRank.map(({ el }) => el)
+}
 
-  return withRank.map(({ el, layer }) => {
-    let next = el
-    if (layer.locked && !el.locked) next = { ...next, locked: true }
-    if (typeof layer.opacity === 'number' && layer.opacity < 1) {
-      const base = typeof el.opacity === 'number' ? el.opacity : 100
-      next = next === el ? { ...el } : next
-      next.opacity = Math.round(base * layer.opacity)
+// Merge Excalidraw's post-change list (which only ever contains visible-layer
+// elements) back into the full list by re-appending the elements that live on
+// currently-hidden layers. Order does not matter — deriveScene re-sorts.
+export function mergeVisibleBack(prevFull, nextVisible, layers) {
+  const hiddenLayerIds = new Set(
+    ensureLayers(layers)
+      .filter((l) => l.visible === false)
+      .map((l) => l.id),
+  )
+  if (hiddenLayerIds.size === 0) return nextVisible
+  const nextIds = new Set(nextVisible.map((el) => el.id))
+  const hidden = prevFull.filter(
+    (el) => hiddenLayerIds.has(el?.customData?.layerId) && !nextIds.has(el.id),
+  )
+  return hidden.length ? [...nextVisible, ...hidden] : nextVisible
+}
+
+// Write a layer's opacity onto its elements. `baseOpacity` (the element's own
+// opacity before any layer dimming) is stashed in customData so sliding back to
+// 100% restores the per-element values exactly.
+export function setLayerOpacity(elements, layerId, opacity) {
+  return elements.map((el) => {
+    if (el?.customData?.layerId !== layerId) return el
+    const base =
+      el.customData?.baseOpacity ?? (typeof el.opacity === 'number' ? el.opacity : 100)
+    if (opacity >= 1) {
+      const custom = { ...el.customData }
+      delete custom.baseOpacity
+      return { ...el, opacity: base, customData: custom }
     }
-    return next
+    return {
+      ...el,
+      opacity: Math.round(base * opacity),
+      customData: { ...el.customData, baseOpacity: base },
+    }
+  })
+}
+
+// Write a layer's locked state onto its elements. Unlocking only releases the
+// elements this layer locked (customData.lockedByLayer), never ones the user
+// locked individually.
+export function setLayerLocked(elements, layerId, locked) {
+  return elements.map((el) => {
+    if (el?.customData?.layerId !== layerId) return el
+    if (locked) {
+      if (el.locked) return el // already locked (by the user) — don't claim it
+      return { ...el, locked: true, customData: { ...el.customData, lockedByLayer: true } }
+    }
+    if (el.customData?.lockedByLayer) {
+      const custom = { ...el.customData }
+      delete custom.lockedByLayer
+      return { ...el, locked: false, customData: custom }
+    }
+    return el
   })
 }
 
