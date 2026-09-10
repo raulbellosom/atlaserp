@@ -36,6 +36,7 @@ import { expireStaleGuestSessions } from "./session-expiry-job.js";
 import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
 import { createChannelDirectoryService } from "./channel-directory-service.js";
 import { createChatSearchService } from "./chat-search-service.js";
+import { createChatMemberAvatarService } from "./chat-member-avatar-service.js";
 import { createChatMentionsService } from "./chat-mentions-service.js";
 import { createChatReactionsService, ChatReactionsError } from "./chat-reactions-service.js";
 import { createChatEntityReferencesService } from "./chat-entity-references-service.js";
@@ -89,6 +90,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   const reactionsService = createChatReactionsService({ prisma });
   const moderationService = createChatModerationService({ prisma });
   const chatSearchService = createChatSearchService({ prisma });
+  const memberAvatarService = createChatMemberAvatarService({ prisma, supabaseAdmin });
 
   // MeridIAn (AI assistant) — Spec 1.
   const visionService = createVisionService();
@@ -702,6 +704,24 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       return c.json({ data: result });
     } catch (err) {
       return handleError(c, err, "Error obteniendo URL del adjunto.");
+    }
+  });
+
+  // GET /chat/conversations/:id/members/:userId/avatar/signed-url
+  // Full-resolution avatar for a conversation member — the generic files
+  // endpoint 404s on identity avatar files and the identity endpoint needs a
+  // permission chat users lack, so chat signs it itself, gated on shared
+  // conversation membership. See chat-member-avatar-service.js.
+  internal.get("/conversations/:id/members/:userId/avatar/signed-url", requirePermission("chat.conversations.read"), async (c) => {
+    try {
+      const authUserId = c.get("authUserId");
+      const conversationId = c.req.param("id");
+      const targetUserId = c.req.param("userId");
+      const variant = c.req.query("variant") || "full";
+      const result = await memberAvatarService.getMemberAvatarSignedUrl({ conversationId, authUserId, targetUserId, variant });
+      return c.json({ data: result });
+    } catch (err) {
+      return handleError(c, err, "Error obteniendo la foto de perfil.");
     }
   });
 

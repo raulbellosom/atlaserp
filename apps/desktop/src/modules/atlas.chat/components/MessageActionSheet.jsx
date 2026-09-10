@@ -6,10 +6,26 @@ import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 import { computeActionSheetLayout } from "../lib/messageActionLayout";
 import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
 
+// CSS custom properties that live on the `.chat-glass-theme` root (not global)
+// and therefore have to be copied onto the lifted clone, which is portaled to
+// <body> — outside that root — so it keeps the real bubble's corner radius,
+// fonts and font-size preference.
+const THEME_VARS = [
+  "--chat-radius-bubble",
+  "--chat-radius-bubble-tail",
+  "--chat-radius-panel",
+  "--chat-radius-pill",
+  "--chat-font-display",
+  "--chat-font-mono",
+  "--chat-zoom",
+];
+
 // Unified action surface for a message — one popover for every trigger:
-//   - touch long-press: dimmed + blurred backdrop with a sharp "window" over
-//     the pressed bubble (WhatsApp/Telegram), reaction pill above, action card
-//     below; a short arm delay so the finger-lift doesn't activate an item.
+//   - touch long-press: dimmed + blurred backdrop with a pixel copy of the
+//     pressed bubble "lifted" onto the overlay (WhatsApp/Telegram), scaled down
+//     when the pill + bubble + card stack can't fit the safe area; reaction pill
+//     above, action card below; a short arm delay so the finger-lift doesn't
+//     activate an item.
 //   - mouse right-click: the same card anchored at the cursor with an invisible
 //     click-catcher for dismiss, live on the first click.
 // No Radix menu here — a programmatically-opened Radix DropdownMenu under the
@@ -18,13 +34,13 @@ export function MessageActionSheet({
   open,
   onOpenChange,
   anchorPoint,        // {x,y} — mouse right-click position
-  anchorRect,         // pressed message row's / attachment's DOMRect
+  anchorEl,           // the pressed bubble / attachment DOM element (measured live on open)
+  anchorRect,         // fallback rect captured at pointerdown, used only if anchorEl is gone
   attachment,         // the attachment tile that was pressed, if any
   isOwn = false,      // hug the bubble's side on touch
   actionProps,        // args for buildMessageActions (minus onReact)
   onQuickReact,       // (emoji) => void
   onOpenFullPicker,   // () => void
-  onBubbleShift,      // (dy:number) => void — ChatMessageBubble translates the row so the stack fits the safe area
 }) {
   const coarse = useCoarsePointer();
   const actions = buildMessageActions({ ...actionProps, onReact: undefined });
@@ -39,10 +55,16 @@ export function MessageActionSheet({
 
   const pillRef = useRef(null);
   const panelRef = useRef(null);
+  const cloneHostRef = useRef(null);
   const [pos, setPos] = useState(null);
+  // True once a real clone has been mounted into the host — the spotlight only
+  // renders when there's actually a bubble copy to show (a stale/detached
+  // anchor falls back to a plain menu, no empty lifted box).
+  const [lifted, setLifted] = useState(false);
 
   useLayoutEffect(() => {
-    if (!open) { setPos(null); onBubbleShift?.(0); return; }
+    const host = cloneHostRef.current;
+    if (!open) { setPos(null); setLifted(false); host?.replaceChildren(); return; }
     const panel = panelRef.current;
     const pill = pillRef.current;
     if (!panel || !pill) return;
@@ -54,10 +76,58 @@ export function MessageActionSheet({
     const pr = panel.getBoundingClientRect();
     const plr = pill.getBoundingClientRect();
 
+    // Live geometry of the actual bubble — never a rect snapshotted 450ms ago at
+    // pointerdown, which drifts out from under the spotlight when the list
+    // settles / scrolls / reflows between the press and the menu opening.
+    const liveEl = anchorEl && anchorEl.isConnected ? anchorEl : null;
+    const measured = liveEl ? liveEl.getBoundingClientRect() : (anchorRect ?? null);
+    const rect = measured
+      ? { top: measured.top, bottom: measured.bottom, left: measured.left, right: measured.right }
+      : null;
+
+    let chatZoom = 1;
+    if (coarse && host) {
+      // Build the lifted copy from the real DOM so it is pixel-identical
+      // (radius, colours, highlights, reactions, timestamp) with zero re-render.
+      host.replaceChildren();
+      if (liveEl) {
+        const cs = getComputedStyle(liveEl);
+        chatZoom = parseFloat(cs.getPropertyValue("--chat-zoom")) || 1;
+        for (const v of THEME_VARS) {
+          const val = cs.getPropertyValue(v);
+          if (val) host.style.setProperty(v, val.trim());
+        }
+        const clone = liveEl.cloneNode(true);
+        clone.removeAttribute("data-msg-bubble");
+        clone.removeAttribute("data-attachment-id");
+        clone.style.margin = "0";
+        // The real bubble's `max-w-[72%]` is 72% of the full-width message row;
+        // inside the fixed-width host that percentage would re-wrap the text.
+        // The host is already sized to the measured content width, so drop the
+        // cap and let the clone fill it — identical line breaks, identical height.
+        clone.style.maxWidth = "none";
+        clone.style.width = "100%";
+        for (const media of clone.querySelectorAll("video,audio")) {
+          media.removeAttribute("autoplay");
+          media.setAttribute("preload", "none");
+          try { media.pause?.(); } catch { /* detached node */ }
+        }
+        for (const withId of clone.querySelectorAll("[id]")) withId.removeAttribute("id");
+        // `.chat-scale-target` (an ancestor of the real bubble) applies
+        // `zoom: var(--chat-zoom)`, which getBoundingClientRect already baked
+        // into `rect`. Re-apply it here and pre-divide the width so the copy
+        // reflows to the same line breaks / height it had in place.
+        host.style.zoom = chatZoom === 1 ? "" : String(chatZoom);
+        host.style.width = rect ? `${(rect.right - rect.left) / chatZoom}px` : "";
+        host.appendChild(clone);
+      }
+    }
+    setLifted(Boolean(coarse && liveEl));
+
     const layout = computeActionSheetLayout({
       vw: window.innerWidth,
       vh: window.innerHeight,
-      rect: anchorRect ?? null,
+      rect,
       anchorPoint: (!coarse && anchorPoint) ? anchorPoint : null,
       pillSize: { width: plr.width, height: plr.height },
       panelSize: { width: pr.width, height: pr.height },
@@ -69,15 +139,8 @@ export function MessageActionSheet({
       margin: 8,
     });
 
-    setPos({
-      panelLeft: layout.panelLeft,
-      panelTop: layout.panelTop,
-      pillLeft: layout.pillLeft,
-      pillTop: layout.pillTop,
-      sRect: layout.sRect,
-    });
-    onBubbleShift?.(layout.shiftY);
-  }, [open, anchorRect, anchorPoint, isOwn, coarse, attachmentActions.length, primary.length, danger.length, onBubbleShift]);
+    setPos(layout);
+  }, [open, anchorEl, anchorRect, anchorPoint, isOwn, coarse, attachmentActions.length, primary.length, danger.length]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -110,9 +173,8 @@ export function MessageActionSheet({
 
   const surface = "glass-strong text-[hsl(var(--popover-foreground,var(--foreground)))] shadow-lg";
   const gate = armed ? "" : "pointer-events-none";
-
-  const r = pos?.sRect ?? anchorRect;
   const scrim = "bg-black/55 backdrop-blur-[3px]";
+  const spotlight = coarse && lifted && pos?.mode === "spotlight";
 
   const menuItem = (a, extra = "") => (
     <button
@@ -137,31 +199,39 @@ export function MessageActionSheet({
       aria-label="Acciones del mensaje"
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* Dismiss layer. Touch: dim + blur everything except a sharp window over
-          the pressed bubble. Mouse: an invisible full-screen click catcher. */}
-      {coarse && r ? (
-        <>
-          {/* Transparent catcher over the spotlighted bubble — WhatsApp
-              dismisses on a tap anywhere that isn't an action. */}
-          <button type="button" aria-label="Cerrar" onClick={close}
-            className="absolute"
-            style={{ top: r.top, left: r.left, width: Math.max(0, r.right - r.left), height: Math.max(0, r.bottom - r.top) }} />
-          <button type="button" aria-label="Cerrar" onClick={close}
-            className={["absolute left-0 right-0 top-0", scrim].join(" ")}
-            style={{ height: Math.max(0, r.top) }} />
-          <button type="button" aria-label="Cerrar" onClick={close}
-            className={["absolute left-0 right-0 bottom-0", scrim].join(" ")}
-            style={{ top: r.bottom }} />
-          <button type="button" aria-label="Cerrar" onClick={close}
-            className={["absolute left-0", scrim].join(" ")}
-            style={{ top: r.top, height: Math.max(0, r.bottom - r.top), width: Math.max(0, r.left) }} />
-          <button type="button" aria-label="Cerrar" onClick={close}
-            className={["absolute right-0", scrim].join(" ")}
-            style={{ top: r.top, height: Math.max(0, r.bottom - r.top), left: r.right }} />
-        </>
-      ) : (
-        <button type="button" aria-label="Cerrar" onClick={close}
-          className={["absolute inset-0", coarse ? scrim : ""].join(" ")} />
+      {/* Dismiss layer — full-screen. Touch: dim + blur everything (the real
+          bubble included); the lifted copy below sits on top, un-dimmed, so it
+          reads as the same bubble raised off the page. Mouse: an invisible
+          click catcher. */}
+      <button
+        type="button"
+        aria-label="Cerrar"
+        onClick={close}
+        className={["absolute inset-0", coarse ? scrim : ""].join(" ")}
+      />
+
+      {/* Lifted bubble copy (touch long-press only) — a pixel clone of the real
+          bubble raised above the scrim. Tapping it dismisses, like WhatsApp.
+          Rendered as soon as the sheet is open (so cloneHostRef exists for the
+          layout effect) and only revealed once positioned. Every descendant is
+          pointer-events:none so a cloned link/button can't swallow that tap. */}
+      {coarse && (
+        <div
+          role="button"
+          aria-label="Cerrar"
+          onClick={close}
+          className="fixed motion-safe:animate-in motion-safe:fade-in-0 duration-100"
+          style={{
+            left: pos?.cloneLeft ?? -9999,
+            top: pos?.cloneTop ?? -9999,
+            width: pos?.cloneWidth ?? 0,
+            transform: `scale(${pos?.scale ?? 1})`,
+            transformOrigin: "top left",
+            visibility: spotlight ? "visible" : "hidden",
+          }}
+        >
+          <div ref={cloneHostRef} className="pointer-events-none **:pointer-events-none" />
+        </div>
       )}
 
       {/* Quick-reaction pill */}
@@ -204,7 +274,7 @@ export function MessageActionSheet({
           top: pos?.panelTop ?? -9999,
           visibility: pos ? "visible" : "hidden",
         }}
-        className={["w-60 max-w-[calc(100vw-16px)] rounded-xl overflow-hidden py-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100", surface, gate].join(" ")}
+        className={["w-60 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] overflow-y-auto overflow-x-hidden rounded-xl py-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100", surface, gate].join(" ")}
       >
         {primary.map((a) => menuItem(a))}
         {attachmentActions.length > 0 && (

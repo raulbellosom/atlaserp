@@ -299,21 +299,19 @@ export function ChatMessageBubble({
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
-  const [actionSheet, setActionSheet] = useState({ open: false, point: null, rect: null, attachment: null });
-  // The action sheet reports how far it had to move the pill/card stack to keep
-  // it inside the safe area (notch / home indicator); the message row follows
-  // by the same amount so the spotlighted bubble stays aligned with the scrims.
-  const [bubbleShiftY, setBubbleShiftY] = useState(0);
+  const [actionSheet, setActionSheet] = useState({ open: false, point: null, el: null, rect: null, attachment: null });
   const lastTapRef = useRef(0);
   // Set the instant a long-press fires so the click/tap that lands when the
   // finger lifts is swallowed instead of activating whatever is under it
   // (previously it could hit the just-opened menu's "Seleccionar" item and
   // drop the whole list into selection mode).
   const suppressClickRef = useRef(false);
-  // Rect + attachment id captured at pointerdown, when e.currentTarget (the
-  // row) is still live — the deferred long-press callback can't rely on the
-  // event's target/currentTarget being usable ~450ms later.
-  const pressRef = useRef({ rect: null, attId: null });
+  // Anchor element (+ its rect as a fallback) and attachment id captured at
+  // pointerdown, when e.currentTarget (the row) is still live — the deferred
+  // long-press callback can't rely on the event's target/currentTarget being
+  // usable ~450ms later. The sheet re-measures `el` live on open; `rect` is
+  // only used if the element is gone by then.
+  const pressRef = useRef({ el: null, rect: null, attId: null });
   const coarse = useCoarsePointer();
   const isMobile = useIsMobile();
   // On touch, suppress the browser's native text selection / callout so a
@@ -351,13 +349,14 @@ export function ChatMessageBubble({
       if (!pressRef.current.attId && t?.closest?.("a,button,input,textarea,[role=button]")) return;
       suppressClickRef.current = true;
       try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ }
-      const { rect: r, attId } = pressRef.current;
+      const { el, rect: r, attId } = pressRef.current;
       const attachment = attId
         ? (message.attachments ?? []).find((a) => String(a.id) === attId) ?? null
         : null;
       setActionSheet({
         open: true,
         point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
+        el: el ?? null,
         rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
         attachment,
       });
@@ -419,6 +418,7 @@ export function ChatMessageBubble({
     setActionSheet({
       open: true,
       point: { x: e.clientX, y: e.clientY },
+      el: anchorEl ?? null,
       rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
       attachment,
     });
@@ -447,6 +447,7 @@ export function ChatMessageBubble({
       const anchorEl = attEl ?? e.target?.closest?.("[data-msg-bubble]") ?? e.currentTarget;
       const rect = anchorEl?.getBoundingClientRect?.() ?? null;
       pressRef.current = {
+        el: anchorEl ?? null,
         rect: rect && { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height },
         attId: attEl?.dataset?.attachmentId ?? null,
       };
@@ -469,14 +470,8 @@ export function ChatMessageBubble({
     onClickCapture: handleRowClickCapture,
     onContextMenu: handleRowContextMenu,
     style: {
-      transform: [
-        translateX ? `translateX(${translateX}px)` : "",
-        bubbleShiftY ? `translateY(${bubbleShiftY}px)` : "",
-      ].filter(Boolean).join(" ") || undefined,
-      // Snap (no transition) whenever the action-sheet shift is in play — the
-      // scrims around the spotlight snap, so a lagging bubble would misalign.
-      transition: (translateX || bubbleShiftY) ? "none" : "transform 0.18s ease-out",
-      willChange: bubbleShiftY ? "transform" : undefined,
+      transform: translateX ? `translateX(${translateX}px)` : undefined,
+      transition: translateX ? "none" : "transform 0.18s ease-out",
       // Let the browser own vertical scroll but hand horizontal drags to the
       // swipe handlers — without this the browser claims the gesture and
       // fires pointercancel mid-drag, so the swipe never completes.
@@ -645,6 +640,7 @@ export function ChatMessageBubble({
           open={actionSheet.open}
           onOpenChange={(o) => setActionSheet((s) => ({ ...s, open: o }))}
           anchorPoint={actionSheet.point}
+          anchorEl={actionSheet.el}
           anchorRect={actionSheet.rect}
           attachment={actionSheet.attachment}
           isOwn
@@ -656,7 +652,6 @@ export function ChatMessageBubble({
           }}
           onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
           onOpenFullPicker={() => setReactionPickerOpen(true)}
-          onBubbleShift={setBubbleShiftY}
         />
         <MessageReactionPicker
           open={reactionPickerOpen}
@@ -849,6 +844,7 @@ export function ChatMessageBubble({
         open={actionSheet.open}
         onOpenChange={(o) => setActionSheet((s) => ({ ...s, open: o }))}
         anchorPoint={actionSheet.point}
+        anchorEl={actionSheet.el}
         anchorRect={actionSheet.rect}
         attachment={actionSheet.attachment}
         isOwn={false}
@@ -860,7 +856,6 @@ export function ChatMessageBubble({
         }}
         onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
         onOpenFullPicker={() => setReactionPickerOpen(true)}
-        onBubbleShift={setBubbleShiftY}
       />
       {/* Avatar — invisible on non-last to keep column alignment */}
       <div className={["shrink-0", isLast ? "visible" : "invisible"].join(" ")}>

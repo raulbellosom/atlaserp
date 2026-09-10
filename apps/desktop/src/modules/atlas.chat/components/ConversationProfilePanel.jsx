@@ -1,11 +1,12 @@
 // apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Info, FolderOpen, Users, Bell, Settings, Shield, AlertTriangle, CalendarDays, Mail, Phone, Video, ChevronDown } from "lucide-react";
 import {
-  Button, ImageViewer, Tabs, TabsList, TabsTrigger, TabsContent,
+  Button, Tabs, TabsList, TabsTrigger, TabsContent,
   Accordion, AccordionItem, AccordionTrigger, AccordionContent,
 } from "@atlas/ui";
+import { AdvancedFileViewer } from "../../atlas.files/components/AdvancedFileViewer";
 import { ChannelGeneralTab } from "./ChannelGeneralTab";
 import { ChannelMembersTab } from "./ChannelMembersTab";
 import { ChannelRolesTab } from "./ChannelRolesTab";
@@ -154,15 +155,46 @@ export function ConversationProfilePanel({
   const description = detail?.description ?? conversation?.description ?? null;
 
   const { session } = useAuth();
-  const { data: fullAvatarUrl } = useQuery({
-    queryKey: ["chat-avatar-full-url", heroAvatarFileId],
-    queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(heroAvatarFileId, session?.access_token, { variant: "full" });
+
+  // Resolve a signed avatar URL at a given variant. Direct chats go through
+  // the chat-specific member-avatar endpoint — the generic files endpoint
+  // (atlas.files.getSignedUrl) 404s on identity avatar files, and the identity
+  // endpoint needs a permission chat users lack. Group/channel avatars are
+  // real company files, so those still resolve through atlas.files.
+  const resolveAvatarSignedUrl = useCallback(
+    async (variant) => {
+      const token = session?.access_token;
+      if (!token) return null;
+      if (type === "direct") {
+        if (!conversationId || !otherMemberForHero?.userId) return null;
+        const res = await atlas.chat.getMemberAvatarSignedUrl(
+          conversationId,
+          otherMemberForHero.userId,
+          token,
+          { variant },
+        );
+        return res?.data?.signedUrl ?? null;
+      }
+      if (!heroAvatarFileId) return null;
+      const res = await atlas.files.getSignedUrl(heroAvatarFileId, token, { variant });
       return res?.data?.signedUrl ?? null;
     },
-    enabled: Boolean(avatarViewerOpen && heroAvatarFileId && session?.access_token),
+    [type, conversationId, otherMemberForHero?.userId, heroAvatarFileId, session?.access_token],
+  );
+
+  // The hero circle would otherwise render the 40px `thumb` variant that
+  // batchSignAvatarUrls embeds into member/conversation rows — upgrade it to
+  // `card` (96px) so the 80px circle is crisp, matching ProfileScreen.
+  const { data: heroCrispUrl } = useQuery({
+    queryKey: ["chat-hero-avatar-card", type, conversationId, heroAvatarFileId, otherMemberForHero?.userId],
+    queryFn: () => resolveAvatarSignedUrl("card"),
+    enabled: Boolean(heroAvatarUrl && !avatarErr && session?.access_token),
     staleTime: 50 * 60 * 1000,
   });
+
+  // Stable identity so AdvancedFileViewer's fetch effect doesn't re-run on
+  // every parent render while the viewer is open.
+  const resolveFullAvatarUrl = useCallback(() => resolveAvatarSignedUrl("full"), [resolveAvatarSignedUrl]);
 
   const scrollRef = useRef(null);
 
@@ -197,7 +229,7 @@ export function ConversationProfilePanel({
           className="h-20 w-20 rounded-full overflow-hidden bg-[hsl(var(--muted))] flex items-center justify-center hover:opacity-90 transition-opacity"
         >
           <img
-            src={heroAvatarUrl}
+            src={heroCrispUrl ?? heroAvatarUrl}
             alt={displayName}
             className="h-full w-full object-cover"
             onError={() => setAvatarErr(true)}
@@ -236,14 +268,26 @@ export function ConversationProfilePanel({
     </div>
   );
 
-  const avatarViewer = (
-    <ImageViewer
-      src={fullAvatarUrl ?? heroAvatarUrl}
-      alt={displayName}
+  // Same viewer used for every other avatar in the app (ProfileScreen,
+  // UserEditorScreen) and for chat image attachments — not a bespoke modal.
+  const avatarViewer = heroAvatarUrl ? (
+    <AdvancedFileViewer
       open={avatarViewerOpen}
-      onClose={() => setAvatarViewerOpen(false)}
+      onOpenChange={setAvatarViewerOpen}
+      files={[
+        {
+          id: heroAvatarFileId ?? "avatar",
+          mimeType: "image/jpeg",
+          originalName: displayName ?? "Foto de perfil",
+          sizeBytes: 0,
+        },
+      ]}
+      activeIndex={0}
+      onIndexChange={() => {}}
+      onResolveSignedUrl={resolveFullAvatarUrl}
+      zIndex={10000}
     />
-  );
+  ) : null;
 
   const hasContactInfo = Boolean(otherMemberForHero?.email || otherMemberForHero?.phone || otherMemberForHero?.bio);
 

@@ -241,6 +241,13 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    // Full-resolution avatar for a member of a conversation the caller shares.
+    getMemberAvatarSignedUrl: (conversationId, userId, token, options = {}) =>
+      request(
+        `/chat/conversations/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(userId)}/avatar/signed-url${toQueryString({ variant: options.variant })}`,
+        { headers: withAuthHeaders(token) },
+      ),
+
     // Mint a WOPI/Office editor session for a chat attachment.
     createAttachmentOfficeSession: (attachmentId, mode = "auto", token) =>
       request(`/chat/attachments/${encodeURIComponent(attachmentId)}/office/session`, {
