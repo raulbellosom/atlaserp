@@ -300,8 +300,11 @@ function LayersBody({
 }) {
   const [confirmDel, setConfirmDel] = useState(null)
   const topFirst = [...layers].sort((a, b) => b.order - a.order)
+  // Long-press to start a drag: on touch a `distance` constraint fights the
+  // scroll container and the drag never activates. `delay` + `tolerance` lets a
+  // tap/scroll pass through and a hold begin the drag (standard mobile pattern).
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   )
 
