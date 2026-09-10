@@ -698,8 +698,14 @@ export const MessageComposer = forwardRef(function MessageComposer(
   }, [pendingFiles]);
 
   const handleKeyDown = useCallback(
-    (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } },
-    [handleSend],
+    (e) => {
+      // On touch devices Enter is a line break; sending is the send button
+      // (matches WhatsApp / Telegram / every mobile chat). Only Enter-to-send
+      // on a real keyboard.
+      if (coarse) return;
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    },
+    [handleSend, coarse],
   );
 
   function handleFileInputChange(e) {
