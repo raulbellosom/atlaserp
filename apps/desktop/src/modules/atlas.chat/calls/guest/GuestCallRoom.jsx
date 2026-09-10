@@ -38,8 +38,8 @@ function Tile({ participant, mirror, handRaised = false }) {
         </div>
       )}
       {handRaised && (
-        <div className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[11px] font-semibold text-amber-950">
-          <Hand className="h-3 w-3" /> Mano
+        <div className="absolute left-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 shadow-lg backdrop-blur-sm">
+          <Hand className="h-5 w-5 text-amber-300" />
         </div>
       )}
       <span className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">{name}</span>
