@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   DndContext, PointerSensor, KeyboardSensor, closestCenter, pointerWithin,
   useSensor, useSensors, useDraggable, useDroppable,
@@ -36,6 +36,59 @@ const TYPE_ICON = {
   frame: Frame,
 }
 
+// Tap once = fire `onTap` (activate layer / select shape on canvas). If `armed`
+// (already active/selected), tapping switches to an inline text input that
+// commits on blur / Enter and cancels on Escape.
+function EditableLabel({ value, armed, onTap, onRename, className, inputClassName }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!editing) setDraft(value)
+  }, [value, editing])
+  useEffect(() => {
+    if (editing) ref.current?.select()
+  }, [editing])
+
+  if (editing) {
+    return (
+      <input
+        ref={ref}
+        value={draft}
+        autoFocus
+        spellCheck={false}
+        onChange={(e) => setDraft(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onBlur={() => {
+          setEditing(false)
+          if (draft.trim() !== (value ?? '').trim()) onRename(draft)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+          if (e.key === 'Escape') { setDraft(value); setEditing(false) }
+        }}
+        className={inputClassName}
+      />
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        if (armed) setEditing(true)
+        else onTap()
+      }}
+      title={armed ? 'Toca de nuevo para renombrar' : 'Tocar para activar'}
+      className={className}
+    >
+      {value || 'Sin nombre'}
+    </button>
+  )
+}
+
 function ColorSwatch({ color, onPick }) {
   return (
     <DropdownMenu>
@@ -65,7 +118,10 @@ function ColorSwatch({ color, onPick }) {
   )
 }
 
-function ChildRow({ el, layerColor, onSelectElement, onToggleElementHidden, onToggleElementLocked, onDeleteElement }) {
+function ChildRow({
+  el, layerColor, selected,
+  onSelectElement, onToggleElementHidden, onToggleElementLocked, onDeleteElement, onRenameElement,
+}) {
   const Icon = TYPE_ICON[el.type] ?? Square
   const hidden = Boolean(el.customData?.hidden)
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id: `child:${el.id}` })
@@ -75,10 +131,11 @@ function ChildRow({ el, layerColor, onSelectElement, onToggleElementHidden, onTo
     <div
       ref={setDropRef}
       className={[
-        'group/child flex items-center gap-1 h-9 pr-1.5 rounded-md cursor-pointer',
-        isDragging ? 'opacity-40' : 'hover:bg-black/4 dark:hover:bg-white/5',
+        'group/child flex items-center gap-1 h-9 pr-1.5 rounded-md cursor-pointer transition-colors',
+        isDragging ? 'opacity-40' : selected ? '' : 'hover:bg-black/4 dark:hover:bg-white/5',
         isOver ? 'ring-2 ring-amber-400/70' : '',
       ].join(' ')}
+      style={selected ? { backgroundColor: `${layerColor}22`, boxShadow: `inset 0 0 0 1.5px ${layerColor}` } : undefined}
       onClick={() => onSelectElement(el.id)}
     >
       <span
@@ -92,11 +149,19 @@ function ChildRow({ el, layerColor, onSelectElement, onToggleElementHidden, onTo
       >
         <GripVertical size={14} />
       </span>
-      <span className="shrink-0 w-1 h-4 rounded-full" style={{ backgroundColor: layerColor }} />
-      <Icon size={13} className="shrink-0 text-muted-foreground/70" />
-      <span className={['flex-1 min-w-0 text-[11px] truncate', hidden ? 'text-muted-foreground/40 line-through' : 'text-foreground/70'].join(' ')}>
-        {elementLabel(el)}
-      </span>
+      <span className="shrink-0 w-1.5 h-4 rounded-full" style={{ backgroundColor: layerColor }} />
+      <Icon size={13} className="shrink-0" style={{ color: selected ? layerColor : undefined }} />
+      <EditableLabel
+        value={elementLabel(el)}
+        armed={selected}
+        onTap={() => onSelectElement(el.id)}
+        onRename={(name) => onRenameElement(el.id, name)}
+        className={[
+          'flex-1 min-w-0 text-left text-[11px] truncate',
+          hidden ? 'text-muted-foreground/40 line-through' : selected ? 'text-foreground font-medium' : 'text-foreground/70',
+        ].join(' ')}
+        inputClassName="flex-1 min-w-0 h-7 bg-transparent border-0 px-1 text-[11px] rounded focus:outline-none focus:ring-1 focus:ring-amber-400/60 focus:bg-black/4 dark:focus:bg-white/6"
+      />
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onToggleElementHidden(el.id) }}
@@ -131,6 +196,7 @@ function LayerRow({
   revealAll,
   expanded,
   childElements,
+  selectedIds,
   onToggleExpand,
   sortable,
   onSelect,
@@ -174,8 +240,24 @@ function LayerRow({
 
         <button
           type="button"
+          onClick={(e) => { e.stopPropagation(); onSelect(layer.id) }}
+          className="shrink-0 flex items-center justify-center w-8 h-9"
+          aria-label={isActive ? 'Capa activa' : 'Activar esta capa'}
+          title={isActive ? 'Capa activa (aqui se dibuja)' : 'Activar esta capa'}
+        >
+          <span
+            className="w-3.5 h-3.5 rounded-full border-2 transition-colors"
+            style={{
+              borderColor: layer.color,
+              backgroundColor: isActive ? layer.color : 'transparent',
+            }}
+          />
+        </button>
+
+        <button
+          type="button"
           onClick={(e) => { e.stopPropagation(); onToggleExpand(layer.id) }}
-          className="shrink-0 flex items-center justify-center w-8 h-9 rounded-md text-muted-foreground/70 hover:bg-black/6 dark:hover:bg-white/8"
+          className="shrink-0 flex items-center justify-center w-7 h-9 rounded-md text-muted-foreground/70 hover:bg-black/6 dark:hover:bg-white/8"
           aria-label={expanded ? 'Contraer capa' : 'Expandir capa'}
         >
           {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
@@ -211,16 +293,16 @@ function LayerRow({
           {layer.locked ? <Lock size={14} className="text-amber-500" /> : <LockOpen size={14} className="text-muted-foreground/50" />}
         </button>
 
-        <input
+        <EditableLabel
           value={layer.name}
-          onChange={(e) => onRename(layer.id, e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          spellCheck={false}
+          armed={isActive}
+          onTap={() => onSelect(layer.id)}
+          onRename={(name) => onRename(layer.id, name)}
           className={[
-            'flex-1 min-w-0 h-8 bg-transparent border-0 px-1 text-xs truncate',
-            'focus:outline-none focus:ring-1 focus:ring-amber-400/60 focus:bg-black/4 dark:focus:bg-white/6 rounded',
+            'flex-1 min-w-0 h-8 px-1 text-left text-xs truncate rounded',
             isActive ? 'text-foreground font-medium' : 'text-foreground/80',
           ].join(' ')}
+          inputClassName="flex-1 min-w-0 h-8 bg-transparent border-0 px-1 text-xs rounded focus:outline-none focus:ring-1 focus:ring-amber-400/60 focus:bg-black/4 dark:focus:bg-white/6"
         />
 
         {childCount > 0 && (
@@ -268,7 +350,13 @@ function LayerRow({
             <div className="pl-5 py-1.5 text-[11px] text-muted-foreground/40">Capa vacia</div>
           ) : (
             childElements.map((el) => (
-              <ChildRow key={el.id} el={el} layerColor={layer.color} {...childHandlers} />
+              <ChildRow
+                key={el.id}
+                el={el}
+                layerColor={layer.color}
+                selected={selectedIds?.has(el.id) ?? false}
+                {...childHandlers}
+              />
             ))
           )}
         </div>
@@ -286,6 +374,7 @@ function LayersBody({
   layers,
   activeLayerId,
   layerElements = {},
+  selectedIds,
   revealAll,
   expanded,
   onToggleExpand,
@@ -349,6 +438,7 @@ function LayersBody({
               revealAll={revealAll}
               expanded={expanded.has(layer.id)}
               childElements={layerElements[layer.id] ?? []}
+              selectedIds={selectedIds}
               onToggleExpand={onToggleExpand}
               onSelect={onSelect}
               onRename={onRename}

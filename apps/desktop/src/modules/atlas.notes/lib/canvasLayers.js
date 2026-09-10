@@ -129,6 +129,8 @@ const TYPE_LABEL = {
 
 export function elementLabel(el) {
   if (!el) return 'Elemento'
+  const custom = el.customData?.name
+  if (typeof custom === 'string' && custom.trim()) return custom.trim()
   if (el.type === 'text') {
     const t = (el.text ?? '').trim().replace(/\s+/g, ' ')
     return t ? `Texto: ${t.slice(0, 24)}${t.length > 24 ? '…' : ''}` : 'Texto'
@@ -137,6 +139,15 @@ export function elementLabel(el) {
 }
 
 // ── single-element operations (from the expanded layer view) ──────────────
+
+export function renameElement(elements, id, name) {
+  const clean = typeof name === 'string' ? name.trim() : ''
+  return elements.map((el) =>
+    el.id === id
+      ? bumpVersion({ ...el, customData: { ...el.customData, name: clean || undefined } })
+      : el,
+  )
+}
 
 export function setElementHidden(elements, id, hidden) {
   return elements.map((el) =>

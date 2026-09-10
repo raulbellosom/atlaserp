@@ -67,6 +67,17 @@ export default function PublicCanvasView({ slug }) {
           elements: deriveScene(elementsRef.current, layersRef.current),
         })
       },
+      onRemoteFiles: async (files) => {
+        try {
+          const arr = await hydrateImages(files)
+          if (arr.length) apiRef.current?.addFiles(arr)
+          apiRef.current?.updateScene({
+            elements: deriveScene(elementsRef.current, layersRef.current),
+          })
+        } catch {
+          /* best effort */
+        }
+      },
     })
     return () => {
       cancelled = true

@@ -16,6 +16,7 @@ export class SupabaseCanvasSync {
     getSnapshot, // () => ({ elements, layers, appState, files })
     onRemoteElements, // (reconciled: Element[]) => void
     onRemoteSnapshot, // ({ elements, layers, appState, files }) => void
+    onRemoteFiles, // (manifestSubset) => void
     onRemotePointer, // ({ senderId, x, y, selectedElementIds, user }) => void
     onPresence, // (list) => void
     onStatus, // (status) => void
@@ -28,6 +29,7 @@ export class SupabaseCanvasSync {
     this._getSnapshot = getSnapshot
     this._onRemoteElements = onRemoteElements
     this._onRemoteSnapshot = onRemoteSnapshot
+    this._onRemoteFiles = onRemoteFiles
     this._onRemotePointer = onRemotePointer
     this._onPresence = onPresence
     this._onStatus = onStatus
@@ -72,6 +74,9 @@ export class SupabaseCanvasSync {
         if (payload && this._onRemoteSnapshot) this._onRemoteSnapshot(payload)
       })
       .on('broadcast', { event: 'scene.request' }, () => this._answerRequest())
+      .on('broadcast', { event: 'scene.files' }, ({ payload }) => {
+        if (payload?.files && this._onRemoteFiles) this._onRemoteFiles(payload.files)
+      })
       .on('broadcast', { event: 'pointer' }, ({ payload }) => {
         if (payload && this._onRemotePointer) this._onRemotePointer(payload)
       })
@@ -141,6 +146,13 @@ export class SupabaseCanvasSync {
     this._sentVersions = nextMap
     if (changed.length === 0) return
     this._rawSend('scene.delta', { elements: changed, senderId: this._identity.id })
+  }
+
+  // Push newly-uploaded image manifest entries so peers (and the public view)
+  // can fetch and render them — deltas only carry elements, not file bytes.
+  broadcastFiles(manifestSubset) {
+    if (this._readOnly || !manifestSubset || !Object.keys(manifestSubset).length) return
+    this._rawSend('scene.files', { files: manifestSubset, senderId: this._identity.id })
   }
 
   // Called by CanvasEditor after every local onChange.

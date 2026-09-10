@@ -16,6 +16,7 @@ import {
   setElementHidden,
   setElementLocked,
   deleteElement,
+  renameElement,
   reorderLayer,
   mergeDown,
   duplicateLayer,
@@ -153,6 +154,18 @@ test('elementLabel: friendly names', () => {
   assert.equal(elementLabel({ type: 'freedraw' }), 'Trazo')
   assert.equal(elementLabel({ type: 'text', text: 'hola mundo' }), 'Texto: hola mundo')
   assert.equal(elementLabel({ type: 'text', text: '' }), 'Texto')
+})
+
+test('elementLabel: a custom customData.name wins', () => {
+  assert.equal(elementLabel({ type: 'rectangle', customData: { name: 'Caja principal' } }), 'Caja principal')
+})
+
+test('renameElement: sets customData.name + bump; empty clears it', () => {
+  const els = [E('a', 'x', { version: 1 }), E('b', 'x', { version: 1 })]
+  const named = renameElement(els, 'a', '  Marco  ')
+  assert.equal(named[0].customData.name, 'Marco')
+  assert.equal(named[0].version, 2)
+  assert.equal(renameElement(named, 'a', '')[0].customData.name, undefined)
 })
 
 test('setElementHidden / setElementLocked / deleteElement: target one id + bump version', () => {

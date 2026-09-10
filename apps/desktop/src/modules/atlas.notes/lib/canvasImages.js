@@ -10,6 +10,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 // The persisted scene never carries dataURLs — only this manifest.
 export async function syncNewImages({ files, manifest, noteId, token }) {
   const next = { ...manifest }
+  const uploadedIds = []
   for (const [fileId, file] of Object.entries(files ?? {})) {
     if (next[fileId]?.url) continue // already uploaded
     const dataURL = file?.dataURL
@@ -34,8 +35,15 @@ export async function syncNewImages({ files, manifest, noteId, token }) {
       url: presign.publicUrl,
       created: Date.now(),
     }
+    uploadedIds.push(fileId)
   }
-  return next
+  return { manifest: next, uploadedIds }
+}
+
+export function pickManifest(manifest, ids) {
+  const out = {}
+  for (const id of ids) if (manifest[id]) out[id] = manifest[id]
+  return out
 }
 
 // On load: fetch each manifest url and return an array shaped for

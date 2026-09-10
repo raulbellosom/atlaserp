@@ -23,11 +23,12 @@ import {
   setElementHidden,
   setElementLocked,
   deleteElement,
+  renameElement,
   mergeDown,
   duplicateLayer,
 } from '../lib/canvasLayers.js'
 import { SupabaseCanvasSync } from '../lib/SupabaseCanvasSync.js'
-import { syncNewImages, hydrateImages } from '../lib/canvasImages.js'
+import { syncNewImages, hydrateImages, pickManifest } from '../lib/canvasImages.js'
 import { exportCanvasPng, exportCanvasSvg } from '../lib/canvasExport.js'
 import { CanvasLayersPanel } from './CanvasLayersPanel.jsx'
 
@@ -83,7 +84,9 @@ export function CanvasEditor({ note }) {
   showLayersRef.current = showLayers
   const [isMobile, setIsMobile] = useState(false)
   const [selectionCount, setSelectionCount] = useState(0)
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
   const selectionRef = useRef(0)
+  const selKeyRef = useRef('')
   // Bumped (throttled) on element changes while the layers panel is open, so the
   // panel's per-layer shape list stays roughly live without re-rendering
   // <CanvasStage> (memoised — a CanvasEditor re-render never reaches it).
@@ -174,6 +177,18 @@ export function CanvasEditor({ note }) {
           elements: deriveScene(elementsRef.current, snap.layers ?? layersRef.current),
         })
       },
+      onRemoteFiles: async (files) => {
+        filesManifestRef.current = { ...filesManifestRef.current, ...files }
+        try {
+          const arr = await hydrateImages(files)
+          if (arr.length) apiRef.current?.addFiles(arr)
+          apiRef.current?.updateScene({
+            elements: deriveScene(elementsRef.current, layersRef.current),
+          })
+        } catch {
+          /* best effort */
+        }
+      },
       onRemotePointer: (p) => {
         const map = new Map()
         map.set(p.senderId, {
@@ -246,10 +261,16 @@ export function CanvasEditor({ note }) {
       // hidden ones back so the source of truth stays whole.
       elementsRef.current = mergeVisibleBack(elementsRef.current, withLayers, layersRef.current)
 
-      const selCount = Object.keys(appState?.selectedElementIds ?? {}).length
-      if (selCount !== selectionRef.current) {
-        selectionRef.current = selCount
-        setSelectionCount(selCount)
+      const selMap = appState?.selectedElementIds ?? {}
+      const selKeys = Object.keys(selMap).filter((k) => selMap[k])
+      if (selKeys.length !== selectionRef.current) {
+        selectionRef.current = selKeys.length
+        setSelectionCount(selKeys.length)
+      }
+      const selKey = selKeys.slice().sort().join(',')
+      if (showLayersRef.current && selKey !== selKeyRef.current) {
+        selKeyRef.current = selKey
+        setSelectedIds(new Set(selKeys))
       }
 
       if (showLayersRef.current && Date.now() - lastElementsBump.current > 400) {
@@ -260,20 +281,27 @@ export function CanvasEditor({ note }) {
       syncRef.current?.notifyLocalChange()
       persist()
 
-      // Upload any freshly added images.
+      // Upload any freshly added images, then persist + share the manifest so
+      // they survive a reload and reach other participants (deltas carry
+      // elements, not file bytes).
       const files = apiRef.current?.getFiles?.() ?? {}
       const hasNew = Object.keys(files).some((id) => !filesManifestRef.current[id]?.url)
       if (hasNew) {
         try {
-          filesManifestRef.current = await syncNewImages({
+          const { manifest, uploadedIds } = await syncNewImages({
             files,
             manifest: filesManifestRef.current,
             noteId,
             token,
           })
-          persist()
+          filesManifestRef.current = manifest
+          if (uploadedIds.length) {
+            syncRef.current?.broadcastFiles(pickManifest(manifest, uploadedIds))
+            persist()
+          }
         } catch (err) {
-          console.warn('[canvas] image upload failed:', err?.message)
+          console.warn('[canvas] image upload failed:', err?.message ?? err)
+          toast.error(err?.message ?? 'No se pudo subir la imagen al lienzo')
         }
       }
     },
@@ -291,6 +319,19 @@ export function CanvasEditor({ note }) {
   useEffect(() => {
     if (ready) apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
   }, [layers, ready])
+
+  // When the layers panel opens, pull the current canvas selection so the
+  // matching shape rows highlight without needing another canvas interaction.
+  useEffect(() => {
+    if (!showLayers) return
+    const sel = apiRef.current?.getAppState?.().selectedElementIds ?? {}
+    const keys = Object.keys(sel).filter((k) => sel[k])
+    selKeyRef.current = keys.slice().sort().join(',')
+    setSelectedIds(new Set(keys))
+    setSelectionCount(keys.length)
+    selectionRef.current = keys.length
+    setElementsVersion((v) => v + 1)
+  }, [showLayers])
 
   const layerElements = useMemo(
     () => groupElementsByLayer(elementsRef.current, layers),
@@ -349,6 +390,9 @@ export function CanvasEditor({ note }) {
     },
     onDeleteElement: (id) => {
       applyElements(deleteElement(elementsRef.current, id))
+    },
+    onRenameElement: (id, name) => {
+      applyElements(renameElement(elementsRef.current, id, name))
     },
   }
 
@@ -455,6 +499,8 @@ export function CanvasEditor({ note }) {
     return <div className="p-8 text-sm text-muted-foreground">No se pudo cargar el lienzo.</div>
   }
 
+  const activeLayer = layers.find((l) => l.id === activeLayerId)
+
   return (
     <div className="relative flex h-full min-h-0">
       <div className="flex-1 min-w-0 flex flex-col">
@@ -482,14 +528,22 @@ export function CanvasEditor({ note }) {
           <button
             type="button"
             onClick={() => setShowLayers((v) => !v)}
+            title={`Capa activa: ${activeLayer?.name ?? ''}`}
             className={[
-              'flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg',
+              'flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg max-w-[45%]',
               showLayers
                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                 : 'text-muted-foreground hover:bg-muted',
             ].join(' ')}
           >
-            <Layers size={13} /> <span className="hidden sm:inline">Capas</span>
+            <Layers size={13} className="shrink-0" />
+            {activeLayer && (
+              <span
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: activeLayer.color }}
+              />
+            )}
+            <span className="truncate">{activeLayer?.name ?? 'Capas'}</span>
           </button>
         </div>
         <div className="flex-1 min-h-0">
@@ -524,6 +578,7 @@ export function CanvasEditor({ note }) {
         onAddLayer={addLayer}
         layers={layers}
         selectionCount={selectionCount}
+        selectedIds={selectedIds}
         {...layerCbs}
       />
     </div>
