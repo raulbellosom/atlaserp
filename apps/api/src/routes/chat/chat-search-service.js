@@ -4,7 +4,11 @@ import { resolveUserProfileId } from "./chat-service.js";
 
 const MAX_TOKENS = 6;
 const MIN_TOKEN_LEN = 2;
-const SIMILARITY_THRESHOLD = 0.3; // word_similarity floor for typo tolerance; tunable
+// word_similarity floor for typo tolerance. 0.3 was too loose in practice —
+// e.g. "panel" fuzzily matched messages with no visible relation to it, so
+// the result list disagreed with the word-prefix highlight and read as
+// "buggy search". Raised so only near-misses (one typo/transposition) pass.
+const SIMILARITY_THRESHOLD = 0.45;
 // Typo tolerance (word_similarity) only kicks in from this length — on 2-3 char
 // tokens it just adds noise ("la" fuzzily matching "le"/"las"), so short
 // searches are exact word-prefix only, which is what makes them feel "concrete".
