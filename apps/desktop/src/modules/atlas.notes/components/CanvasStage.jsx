@@ -12,14 +12,22 @@ import '@excalidraw/excalidraw/index.css'
 // infinite onChange -> setState -> re-render loop. Every prop here must be
 // referentially stable for the life of the note.
 
-// Excalidraw's own shape "Library" (book icon) is not part of the Atlas UX and
-// renders with broken theming inside the embed. Hide it and the mobile menu
-// entry for it. Scoped under .excalidraw so it can't leak.
-const HIDE_LIBRARY_CSS = `
+// Scoped tweaks for the embed:
+//  - hide Excalidraw's own shape "Library" (book icon) — not part of the Atlas
+//    UX and renders with broken theming here.
+//  - on small screens Excalidraw reserves a big top inset assuming it owns the
+//    viewport top; our 44px toolbar sits above it, so pull its UI up.
+const EXCALIDRAW_TWEAKS_CSS = `
 .excalidraw .library-button,
 .excalidraw [data-testid="library-button"],
 .excalidraw button[aria-label="Library"],
 .excalidraw button[aria-label="Biblioteca"] { display: none !important; }
+
+@media (max-width: 640px) {
+  .excalidraw { --editor-container-padding: 0.5rem; }
+  .excalidraw .App-menu_top { padding-top: 0 !important; margin-top: -0.25rem; }
+  .excalidraw .mobile-misc-tools-container { top: calc(3.25rem - var(--editor-container-padding)) !important; }
+}
 `
 
 const CANVAS_ACTIONS = {
@@ -43,7 +51,7 @@ function CanvasStage({
 }) {
   return (
     <div className="h-full w-full">
-      <style>{HIDE_LIBRARY_CSS}</style>
+      <style>{EXCALIDRAW_TWEAKS_CSS}</style>
       <Excalidraw
         excalidrawAPI={onExcalidrawAPI}
         initialData={initialData}

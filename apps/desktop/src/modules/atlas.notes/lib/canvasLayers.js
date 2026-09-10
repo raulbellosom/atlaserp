@@ -26,13 +26,33 @@ function uid() {
   return `layer-${Date.now().toString(36)}-${_seq.toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+// Per-layer accent colour, Illustrator-style. Cycled by layer order.
+export const LAYER_PALETTE = [
+  '#3b82f6', '#ec4899', '#22c55e', '#f59e0b', '#a855f7',
+  '#06b6d4', '#ef4444', '#14b8a6', '#6366f1', '#eab308',
+]
+
+export function layerColorForOrder(order = 0) {
+  return LAYER_PALETTE[((order % LAYER_PALETTE.length) + LAYER_PALETTE.length) % LAYER_PALETTE.length]
+}
+
 export function defaultLayer(name = 'Capa 1', order = 0) {
-  return { id: uid(), name, visible: true, locked: false, opacity: 1, order }
+  return {
+    id: uid(),
+    name,
+    visible: true,
+    locked: false,
+    opacity: 1,
+    order,
+    color: layerColorForOrder(order),
+  }
 }
 
 export function ensureLayers(layers) {
-  if (Array.isArray(layers) && layers.length > 0) return layers
-  return [defaultLayer()]
+  if (!Array.isArray(layers) || layers.length === 0) return [defaultLayer()]
+  // Backfill `color` for scenes saved before per-layer colours existed.
+  if (layers.every((l) => l.color)) return layers
+  return layers.map((l, i) => (l.color ? l : { ...l, color: layerColorForOrder(l.order ?? i) }))
 }
 
 export function assignLayer(element, activeLayerId) {
@@ -75,10 +95,63 @@ export function deriveScene(elements, layers) {
       const hit = map.get(el?.customData?.layerId) ?? map.get(fallbackId)
       return { el, elIndex, layer: hit.layer, rank: hit.rank }
     })
-    .filter(({ el, layer }) => el && layer.visible !== false)
+    .filter(({ el, layer }) => el && layer.visible !== false && !el.customData?.hidden)
 
   withRank.sort((a, b) => a.rank - b.rank || a.elIndex - b.elIndex)
   return withRank.map(({ el }) => el)
+}
+
+// Elements grouped by their layer id (deleted ones dropped), preserving scene
+// order. Used by the layers panel to list a layer's shapes when expanded.
+export function groupElementsByLayer(elements, layers) {
+  const known = new Set(ensureLayers(layers).map((l) => l.id))
+  const fallbackId = [...ensureLayers(layers)].sort((a, b) => a.order - b.order)[0].id
+  const out = {}
+  for (const el of elements) {
+    if (!el || el.isDeleted) continue
+    const id = known.has(el.customData?.layerId) ? el.customData.layerId : fallbackId
+    ;(out[id] ??= []).push(el)
+  }
+  return out
+}
+
+const TYPE_LABEL = {
+  rectangle: 'Rectangulo',
+  ellipse: 'Elipse',
+  diamond: 'Diamante',
+  arrow: 'Flecha',
+  line: 'Linea',
+  freedraw: 'Trazo',
+  image: 'Imagen',
+  frame: 'Marco',
+  text: 'Texto',
+}
+
+export function elementLabel(el) {
+  if (!el) return 'Elemento'
+  if (el.type === 'text') {
+    const t = (el.text ?? '').trim().replace(/\s+/g, ' ')
+    return t ? `Texto: ${t.slice(0, 24)}${t.length > 24 ? '…' : ''}` : 'Texto'
+  }
+  return TYPE_LABEL[el.type] ?? (el.type ? el.type[0].toUpperCase() + el.type.slice(1) : 'Elemento')
+}
+
+// ── single-element operations (from the expanded layer view) ──────────────
+
+export function setElementHidden(elements, id, hidden) {
+  return elements.map((el) =>
+    el.id === id
+      ? bumpVersion({ ...el, customData: { ...el.customData, hidden: hidden || undefined } })
+      : el,
+  )
+}
+
+export function setElementLocked(elements, id, locked) {
+  return elements.map((el) => (el.id === id ? bumpVersion({ ...el, locked }) : el))
+}
+
+export function deleteElement(elements, id) {
+  return elements.map((el) => (el.id === id ? bumpVersion({ ...el, isDeleted: true }) : el))
 }
 
 // Merge Excalidraw's post-change list (which only ever contains visible-layer
@@ -90,12 +163,15 @@ export function mergeVisibleBack(prevFull, nextVisible, layers) {
       .filter((l) => l.visible === false)
       .map((l) => l.id),
   )
-  if (hiddenLayerIds.size === 0) return nextVisible
   const nextIds = new Set(nextVisible.map((el) => el.id))
-  const hidden = prevFull.filter(
-    (el) => hiddenLayerIds.has(el?.customData?.layerId) && !nextIds.has(el.id),
+  // Anything deriveScene omits (hidden layer OR individually hidden element) is
+  // absent from what Excalidraw hands back — carry those forward from prevFull.
+  const carried = prevFull.filter(
+    (el) =>
+      !nextIds.has(el.id) &&
+      (hiddenLayerIds.has(el?.customData?.layerId) || el?.customData?.hidden),
   )
-  return hidden.length ? [...nextVisible, ...hidden] : nextVisible
+  return carried.length ? [...nextVisible, ...carried] : nextVisible
 }
 
 // Write a layer's opacity onto its elements. `baseOpacity` (the element's own

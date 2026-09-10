@@ -18,6 +18,10 @@ import {
   setLayerOpacity,
   setLayerLocked,
   moveElementsToLayer,
+  groupElementsByLayer,
+  setElementHidden,
+  setElementLocked,
+  deleteElement,
   mergeDown,
   duplicateLayer,
 } from '../lib/canvasLayers.js'
@@ -41,16 +45,6 @@ function filesArrayToMap(arr) {
   const map = {}
   for (const f of arr) map[f.id] = f
   return map
-}
-
-function countByLayer(elements) {
-  const c = {}
-  for (const el of elements) {
-    if (el.isDeleted) continue
-    const id = el.customData?.layerId
-    if (id) c[id] = (c[id] ?? 0) + 1
-  }
-  return c
 }
 
 // Top-first list from the panel -> normalised ascending `order` (index 0 in the
@@ -84,9 +78,16 @@ export function CanvasEditor({ note }) {
 
   const [ready, setReady] = useState(false)
   const [showLayers, setShowLayers] = useState(false)
+  const showLayersRef = useRef(false)
+  showLayersRef.current = showLayers
   const [isMobile, setIsMobile] = useState(false)
   const [selectionCount, setSelectionCount] = useState(0)
   const selectionRef = useRef(0)
+  // Bumped (throttled) on element changes while the layers panel is open, so the
+  // panel's per-layer shape list stays roughly live without re-rendering
+  // <CanvasStage> (memoised — a CanvasEditor re-render never reaches it).
+  const [elementsVersion, setElementsVersion] = useState(0)
+  const lastElementsBump = useRef(0)
 
   // The ONE frozen object handed to <Excalidraw>. Built once when the scene has
   // loaded; its identity must never change afterwards (see CanvasStage).
@@ -250,6 +251,11 @@ export function CanvasEditor({ note }) {
         setSelectionCount(selCount)
       }
 
+      if (showLayersRef.current && Date.now() - lastElementsBump.current > 400) {
+        lastElementsBump.current = Date.now()
+        setElementsVersion((v) => v + 1)
+      }
+
       syncRef.current?.notifyLocalChange()
       persist()
 
@@ -285,12 +291,10 @@ export function CanvasEditor({ note }) {
     if (ready) apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
   }, [layers, ready])
 
-  const elementCounts = useMemo(
-    () => countByLayer(elementsRef.current),
-    // recompute when layers change or the panel opens (counts don't live-update
-    // while drawing with the panel open — acceptable for v1)
+  const layerElements = useMemo(
+    () => groupElementsByLayer(elementsRef.current, layers),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layers, showLayers],
+    [layers, showLayers, elementsVersion],
   )
 
   const mutateLayers = useCallback(
@@ -301,11 +305,53 @@ export function CanvasEditor({ note }) {
     [persist],
   )
 
+  // Apply an already-computed element list: update the ref, the visible scene,
+  // broadcast, persist, and refresh the panel's shape list.
+  const applyElements = useCallback(
+    (nextElements) => {
+      elementsRef.current = nextElements
+      apiRef.current?.updateScene({ elements: deriveScene(nextElements, layersRef.current) })
+      syncRef.current?.notifyLocalChange()
+      persist()
+      setElementsVersion((v) => v + 1)
+    },
+    [persist],
+  )
+
+  const childHandlers = {
+    onSelectElement: (id) => {
+      const api = apiRef.current
+      if (!api) return
+      const el = elementsRef.current.find((e) => e.id === id)
+      api.updateScene({ appState: { selectedElementIds: { [id]: true } } })
+      if (el) {
+        try {
+          api.scrollToContent?.([el], { fitToContent: true, animate: true })
+        } catch {
+          /* older signature */
+        }
+      }
+    },
+    onToggleElementHidden: (id) => {
+      const el = elementsRef.current.find((e) => e.id === id)
+      applyElements(setElementHidden(elementsRef.current, id, !el?.customData?.hidden))
+    },
+    onToggleElementLocked: (id) => {
+      const el = elementsRef.current.find((e) => e.id === id)
+      applyElements(setElementLocked(elementsRef.current, id, !el?.locked))
+    },
+    onDeleteElement: (id) => {
+      applyElements(deleteElement(elementsRef.current, id))
+    },
+  }
+
   const layerCbs = {
     activeLayerId,
-    elementCounts,
+    layerElements,
+    childHandlers,
     onSelect: setActiveLayerId,
     onRename: (id, name) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, name } : l))),
+    onSetColor: (id, color) => mutateLayers(layers.map((l) => (l.id === id ? { ...l, color } : l))),
     onToggleVisible: (id) =>
       mutateLayers(layers.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))),
     onToggleLocked: (id) => {

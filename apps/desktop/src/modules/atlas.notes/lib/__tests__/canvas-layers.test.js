@@ -10,12 +10,19 @@ import {
   setLayerLocked,
   moveElementsToLayer,
   bumpVersion,
+  groupElementsByLayer,
+  elementLabel,
+  setElementHidden,
+  setElementLocked,
+  deleteElement,
   reorderLayer,
   mergeDown,
   duplicateLayer,
 } from '../canvasLayers.js'
 
-const L = (id, over = {}) => ({ id, name: id, visible: true, locked: false, opacity: 1, order: 0, ...over })
+const L = (id, over = {}) => ({
+  id, name: id, visible: true, locked: false, opacity: 1, order: 0, color: '#111', ...over,
+})
 const E = (id, layerId, over = {}) => ({
   id,
   type: 'rectangle',
@@ -39,9 +46,19 @@ test('ensureLayers: empty -> one default layer', () => {
   assert.equal(out[0].name, 'Capa 1')
 })
 
-test('ensureLayers: keeps existing', () => {
+test('ensureLayers: keeps existing (when every layer already has a colour)', () => {
   const layers = [L('a', { order: 0 }), L('b', { order: 1 })]
   assert.equal(ensureLayers(layers), layers)
+})
+
+test('ensureLayers: backfills a colour on legacy layers without one', () => {
+  const out = ensureLayers([{ id: 'a', name: 'A', visible: true, locked: false, opacity: 1, order: 0 }])
+  assert.equal(typeof out[0].color, 'string')
+})
+
+test('defaultLayer: gets a palette colour by order', () => {
+  assert.equal(typeof defaultLayer('X', 0).color, 'string')
+  assert.notEqual(defaultLayer('X', 0).color, defaultLayer('X', 1).color)
 })
 
 test('assignLayer: element without layerId gets the active layer', () => {
@@ -106,6 +123,45 @@ test('mergeVisibleBack: no hidden layers -> returns nextVisible unchanged', () =
   const layers = [L('a', { order: 0 })]
   const nextVisible = [E('x', 'a')]
   assert.equal(mergeVisibleBack([E('x', 'a')], nextVisible, layers), nextVisible)
+})
+
+test('deriveScene: individually hidden elements (customData.hidden) are omitted', () => {
+  const layers = [L('x', { order: 0 })]
+  const els = [E('a', 'x'), E('b', 'x', { customData: { layerId: 'x', hidden: true } })]
+  assert.deepEqual(deriveScene(els, layers).map((e) => e.id), ['a'])
+})
+
+test('mergeVisibleBack: carries individually hidden elements forward', () => {
+  const layers = [L('x', { order: 0 })]
+  const prevFull = [E('a', 'x'), E('b', 'x', { customData: { layerId: 'x', hidden: true } })]
+  const nextVisible = [E('a', 'x', { x: 5 })]
+  const merged = mergeVisibleBack(prevFull, nextVisible, layers)
+  assert.deepEqual(merged.map((e) => e.id).sort(), ['a', 'b'])
+})
+
+test('groupElementsByLayer: buckets non-deleted elements, unknown layer -> first', () => {
+  const layers = [L('a', { order: 0 }), L('b', { order: 1 })]
+  const els = [E('1', 'a'), E('2', 'b'), E('3', 'ghost'), E('4', 'a', { isDeleted: true })]
+  const g = groupElementsByLayer(els, layers)
+  assert.deepEqual(g.a.map((e) => e.id).sort(), ['1', '3'])
+  assert.deepEqual(g.b.map((e) => e.id), ['2'])
+})
+
+test('elementLabel: friendly names', () => {
+  assert.equal(elementLabel({ type: 'rectangle' }), 'Rectangulo')
+  assert.equal(elementLabel({ type: 'freedraw' }), 'Trazo')
+  assert.equal(elementLabel({ type: 'text', text: 'hola mundo' }), 'Texto: hola mundo')
+  assert.equal(elementLabel({ type: 'text', text: '' }), 'Texto')
+})
+
+test('setElementHidden / setElementLocked / deleteElement: target one id + bump version', () => {
+  const els = [E('a', 'x', { version: 1 }), E('b', 'x', { version: 1 })]
+  assert.equal(setElementHidden(els, 'a', true)[0].customData.hidden, true)
+  assert.equal(setElementHidden(els, 'a', true)[0].version, 2)
+  assert.equal(setElementHidden(setElementHidden(els, 'a', true), 'a', false)[0].customData.hidden, undefined)
+  assert.equal(setElementLocked(els, 'b', true)[1].locked, true)
+  assert.equal(deleteElement(els, 'a')[0].isDeleted, true)
+  assert.ok(!deleteElement(els, 'a')[1].isDeleted)
 })
 
 test('mergeVisibleBack: an element moved out of a hidden layer is not duplicated', () => {
