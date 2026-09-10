@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { Button } from "@atlas/ui";
-import { Mic, MicOff, Camera, CameraOff, MonitorUp, PhoneOff, MessageSquare } from "lucide-react";
+import { Mic, MicOff, Camera, CameraOff, MonitorUp, PhoneOff, MessageSquare, Hand } from "lucide-react";
 import { GuestRoomChat } from "./GuestRoomChat";
+import { useCallEphemeral } from "../hooks/useCallEphemeral";
+import { CallReactionsOverlay } from "../CallReactionsOverlay";
+import { CallReactionButton } from "../CallReactionButton";
 
-function Tile({ participant, mirror }) {
+function Tile({ participant, mirror, handRaised = false }) {
   const ref = useRef(null);
   const camPub = participant?.getTrackPublication?.(Track.Source.Camera);
   const screenPub = participant?.getTrackPublication?.(Track.Source.ScreenShare);
@@ -32,6 +35,11 @@ function Tile({ participant, mirror }) {
       ) : (
         <div className="flex h-full items-center justify-center text-2xl font-semibold text-violet-100">
           {name.slice(0, 1).toUpperCase()}
+        </div>
+      )}
+      {handRaised && (
+        <div className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-full bg-amber-400/95 px-1.5 py-0.5 text-[11px] font-semibold text-amber-950">
+          <Hand className="h-3 w-3" /> Mano
         </div>
       )}
       <span className="absolute bottom-2 left-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">{name}</span>
@@ -113,6 +121,20 @@ export function GuestCallRoom({ fetchLivekitToken, messages, onSendMessage, onLe
     onSendMessage(body);
   }, [room, myName, onSendMessage]);
 
+  const publishSignal = useCallback((obj) => {
+    try {
+      room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify(obj)), { reliable: true });
+    } catch { /* not connected */ }
+  }, [room]);
+
+  const ephemeral = useCallEphemeral({
+    room,
+    publishData: publishSignal,
+    selfIdentity: room.localParticipant?.identity,
+    selfName: myName || "Invitado",
+    isHost: false,
+  });
+
   async function toggleMic() {
     try { const n = !mic; await room.localParticipant.setMicrophoneEnabled(n); setMic(n); } catch { /* noop */ }
   }
@@ -130,10 +152,18 @@ export function GuestCallRoom({ fetchLivekitToken, messages, onSendMessage, onLe
           <GuestRoomChat polled={messages} liveIncoming={live} onSend={publishChat} myName={myName} />
         ) : (
           <div className={`mx-auto grid h-full max-w-5xl gap-2 ${tiles.length <= 1 ? "grid-cols-1" : tiles.length === 2 ? "sm:grid-cols-2" : "grid-cols-2"}`}>
-            {tiles.map((p, i) => <Tile key={p?.sid || p?.identity || i} participant={p} mirror={p?.isLocal && cam} />)}
+            {tiles.map((p, i) => (
+              <Tile
+                key={p?.sid || p?.identity || i}
+                participant={p}
+                mirror={p?.isLocal && cam}
+                handRaised={ephemeral.raisedHands.has(p?.identity)}
+              />
+            ))}
           </div>
         )}
         {remote.map((p) => <RemoteAudio key={`a-${p.identity}`} participant={p} />)}
+        <CallReactionsOverlay reactions={ephemeral.reactions} />
       </main>
       <footer className="flex shrink-0 items-center justify-center gap-2 border-t border-white/10 bg-black/30 p-3">
         <Button variant={mic ? "secondary" : "destructive"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleMic}>
@@ -144,6 +174,10 @@ export function GuestCallRoom({ fetchLivekitToken, messages, onSendMessage, onLe
         </Button>
         <Button variant={screen ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={toggleScreen}>
           <MonitorUp className="h-5 w-5" />
+        </Button>
+        <CallReactionButton onReact={ephemeral.sendReaction} />
+        <Button variant={ephemeral.myHandRaised ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={ephemeral.toggleHand} title={ephemeral.myHandRaised ? "Bajar la mano" : "Levantar la mano"}>
+          <Hand className="h-5 w-5" />
         </Button>
         <Button variant={showChat ? "default" : "secondary"} size="icon" className="h-11 w-11 rounded-full" onClick={() => setShowChat((v) => !v)}>
           <MessageSquare className="h-5 w-5" />
