@@ -81,6 +81,12 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   // Bumped by CallsProvider from the "Ver solicitudes" toast action — only opens
   // the sheet in place, never navigates or unmounts the room.
   useEffect(() => { if (guestPanelNonce) setGuestSheetOpen(true); }, [guestPanelNonce]);
+  // Local (per-viewer) spotlight pin — not synced.
+  const [pinnedIdentity, setPinnedIdentity] = useState(null);
+  const setPinned = useCallback(
+    (id) => setPinnedIdentity((cur) => (id && cur === id ? null : id || null)),
+    [],
+  );
   const [liveMessages, setLiveMessages] = useState([]);
   const [aloneDeadline, setAloneDeadline] = useState(() => Date.now() + ALONE_LIMIT_MS);
   const [aloneSecondsLeft, setAloneSecondsLeft] = useState(0);
@@ -411,6 +417,12 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const remoteEntries = remoteParticipants.map((participant) => ({ participant, isLocal: false }));
   const participants = [localEntry, ...remoteEntries];
 
+  useEffect(() => {
+    if (pinnedIdentity && !participants.some((p) => p.participant?.identity === pinnedIdentity)) {
+      setPinnedIdentity(null);
+    }
+  }, [pinnedIdentity, participants]);
+
   const hasLiveTrack = (participant, source) => {
     const pub = participant?.getTrackPublication?.(source);
     return Boolean(pub?.track && !pub.isMuted);
@@ -546,6 +558,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         raisedHands: ephemeral.raisedHands,
         myHandRaised: ephemeral.myHandRaised,
         isHost: isInitiator,
+        pinnedIdentity,
+        myLocalIdentity: room.localParticipant?.identity,
       }}
       actions={{
         activateAudio: () => room.startAudio().then(() => setNeedsAudio(false)),
@@ -560,6 +574,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         sendReaction: ephemeral.sendReaction,
         toggleHand: ephemeral.toggleHand,
         lowerHand: ephemeral.lowerHand,
+        setPinned,
       }}
       chat={{
         isMobile,
