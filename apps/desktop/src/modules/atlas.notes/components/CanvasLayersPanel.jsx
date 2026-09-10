@@ -1,5 +1,10 @@
 import { useState } from 'react'
 import {
+  DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors, useDraggable,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   Eye, EyeOff, Lock, LockOpen, GripVertical, Plus, MoreVertical,
   ChevronRight, ChevronDown, Trash2, Square, Circle, Diamond, ArrowRight,
   Minus, Pencil, Type, Image as ImageIcon, Frame,
@@ -9,7 +14,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SortableList,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -38,7 +42,7 @@ function ColorSwatch({ color, onPick }) {
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          className="shrink-0 w-3 h-3 rounded-full ring-1 ring-black/15 dark:ring-white/20"
+          className="shrink-0 w-3.5 h-3.5 rounded-full ring-1 ring-black/15 dark:ring-white/20"
           style={{ backgroundColor: color }}
           aria-label="Color de la capa"
           title="Color de la capa"
@@ -60,41 +64,58 @@ function ColorSwatch({ color, onPick }) {
   )
 }
 
-function ChildRow({ el, onSelectElement, onToggleElementHidden, onToggleElementLocked, onDeleteElement }) {
+function ChildRow({ el, layerColor, onSelectElement, onToggleElementHidden, onToggleElementLocked, onDeleteElement }) {
   const Icon = TYPE_ICON[el.type] ?? Square
   const hidden = Boolean(el.customData?.hidden)
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `child:${el.id}` })
+
   return (
     <div
-      className="group/child flex items-center gap-1 h-8 pl-7 pr-1.5 rounded-md hover:bg-black/4 dark:hover:bg-white/5 cursor-pointer"
+      className={[
+        'group/child flex items-center gap-1 h-9 pl-6 pr-1.5 rounded-md cursor-pointer',
+        isDragging ? 'opacity-40' : 'hover:bg-black/4 dark:hover:bg-white/5',
+      ].join(' ')}
       onClick={() => onSelectElement(el.id)}
     >
-      <Icon size={12} className="shrink-0 text-muted-foreground/70" />
+      <span
+        ref={setNodeRef}
+        {...listeners}
+        {...attributes}
+        onClick={(e) => e.stopPropagation()}
+        className="shrink-0 flex items-center justify-center w-5 h-7 text-muted-foreground/40 cursor-grab active:cursor-grabbing touch-none"
+        aria-label="Arrastrar a otra capa"
+        title="Arrastra a otra capa"
+      >
+        <GripVertical size={12} />
+      </span>
+      <span className="shrink-0 w-1 h-4 rounded-full" style={{ backgroundColor: layerColor }} />
+      <Icon size={13} className="shrink-0 text-muted-foreground/70" />
       <span className={['flex-1 min-w-0 text-[11px] truncate', hidden ? 'text-muted-foreground/40 line-through' : 'text-foreground/70'].join(' ')}>
         {elementLabel(el)}
       </span>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onToggleElementHidden(el.id) }}
-        className="shrink-0 flex items-center justify-center w-5 h-6 rounded hover:bg-black/6 dark:hover:bg-white/8"
+        className="shrink-0 flex items-center justify-center w-6 h-7 rounded hover:bg-black/6 dark:hover:bg-white/8"
         aria-label={hidden ? 'Mostrar' : 'Ocultar'}
       >
-        {hidden ? <EyeOff size={12} className="text-muted-foreground/50" /> : <Eye size={12} />}
+        {hidden ? <EyeOff size={13} className="text-muted-foreground/50" /> : <Eye size={13} />}
       </button>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onToggleElementLocked(el.id) }}
-        className="shrink-0 flex items-center justify-center w-5 h-6 rounded hover:bg-black/6 dark:hover:bg-white/8"
+        className="shrink-0 flex items-center justify-center w-6 h-7 rounded hover:bg-black/6 dark:hover:bg-white/8"
         aria-label={el.locked ? 'Desbloquear' : 'Bloquear'}
       >
-        {el.locked ? <Lock size={11} className="text-amber-500" /> : <LockOpen size={11} className="text-muted-foreground/40" />}
+        {el.locked ? <Lock size={12} className="text-amber-500" /> : <LockOpen size={12} className="text-muted-foreground/40" />}
       </button>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onDeleteElement(el.id) }}
-        className="shrink-0 flex items-center justify-center w-5 h-6 rounded text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10"
+        className="shrink-0 flex items-center justify-center w-6 h-7 rounded text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10"
         aria-label="Eliminar"
       >
-        <Trash2 size={11} />
+        <Trash2 size={12} />
       </button>
     </div>
   )
@@ -107,7 +128,7 @@ function LayerRow({
   expanded,
   childElements,
   onToggleExpand,
-  dragHandleProps,
+  sortable,
   onSelect,
   onRename,
   onSetColor,
@@ -123,13 +144,21 @@ function LayerRow({
 }) {
   const hoverReveal = revealAll ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'
   const childCount = childElements.length
+  const { setNodeRef, transform, transition, isOver, isDragging } = sortable
 
   return (
-    <div>
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={[
+        isOver ? 'rounded-lg ring-2 ring-amber-400/70' : '',
+        isDragging ? 'opacity-50' : '',
+      ].join(' ')}
+    >
       <div
         className={[
-          'group relative flex items-center gap-1 pr-1.5 rounded-lg cursor-pointer transition-colors',
-          revealAll ? 'h-11' : 'h-10',
+          'group relative flex items-center gap-0.5 pr-1.5 rounded-lg cursor-pointer transition-colors',
+          revealAll ? 'h-12' : 'h-11',
           isActive ? 'glass-tinted' : 'hover:bg-black/4 dark:hover:bg-white/5',
         ].join(' ')}
         onClick={() => onSelect(layer.id)}
@@ -142,16 +171,17 @@ function LayerRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleExpand(layer.id) }}
-          className="shrink-0 flex items-center justify-center w-5 h-8 text-muted-foreground/60"
+          className="shrink-0 flex items-center justify-center w-8 h-9 rounded-md text-muted-foreground/70 hover:bg-black/6 dark:hover:bg-white/8"
           aria-label={expanded ? 'Contraer capa' : 'Expandir capa'}
         >
-          {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+          {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </button>
 
         <span
           className={['shrink-0 flex items-center justify-center w-3.5 h-8 text-muted-foreground/50 cursor-grab active:cursor-grabbing touch-none', hoverReveal].join(' ')}
           aria-label="Reordenar capa"
-          {...dragHandleProps}
+          {...sortable.attributes}
+          {...sortable.listeners}
           onClick={(e) => e.stopPropagation()}
         >
           <GripVertical size={13} />
@@ -162,19 +192,19 @@ function LayerRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleVisible(layer.id) }}
-          className="shrink-0 flex items-center justify-center w-6 h-8 rounded-md hover:bg-black/6 dark:hover:bg-white/8"
+          className="shrink-0 flex items-center justify-center w-7 h-8 rounded-md hover:bg-black/6 dark:hover:bg-white/8"
           aria-label={layer.visible ? 'Ocultar capa' : 'Mostrar capa'}
         >
-          {layer.visible ? <Eye size={14} /> : <EyeOff size={14} className="text-muted-foreground/60" />}
+          {layer.visible ? <Eye size={15} /> : <EyeOff size={15} className="text-muted-foreground/60" />}
         </button>
 
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleLocked(layer.id) }}
-          className="shrink-0 flex items-center justify-center w-6 h-8 rounded-md hover:bg-black/6 dark:hover:bg-white/8"
+          className="shrink-0 flex items-center justify-center w-7 h-8 rounded-md hover:bg-black/6 dark:hover:bg-white/8"
           aria-label={layer.locked ? 'Desbloquear capa' : 'Bloquear capa'}
         >
-          {layer.locked ? <Lock size={13} className="text-amber-500" /> : <LockOpen size={13} className="text-muted-foreground/50" />}
+          {layer.locked ? <Lock size={14} className="text-amber-500" /> : <LockOpen size={14} className="text-muted-foreground/50" />}
         </button>
 
         <input
@@ -209,11 +239,11 @@ function LayerRow({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="shrink-0 flex items-center justify-center w-6 h-8 rounded-md text-muted-foreground/70 hover:bg-black/6 dark:hover:bg-white/8 data-[state=open]:bg-black/6 dark:data-[state=open]:bg-white/8"
+              className="shrink-0 flex items-center justify-center w-7 h-8 rounded-md text-muted-foreground/70 hover:bg-black/6 dark:hover:bg-white/8 data-[state=open]:bg-black/6 dark:data-[state=open]:bg-white/8"
               onClick={(e) => e.stopPropagation()}
               aria-label="Acciones de capa"
             >
-              <MoreVertical size={14} />
+              <MoreVertical size={15} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -231,14 +261,21 @@ function LayerRow({
       {expanded && (
         <div className="mt-0.5 mb-1 flex flex-col gap-px">
           {childCount === 0 ? (
-            <div className="pl-7 py-1 text-[11px] text-muted-foreground/40">Capa vacia</div>
+            <div className="pl-8 py-1.5 text-[11px] text-muted-foreground/40">Capa vacia</div>
           ) : (
-            childElements.map((el) => <ChildRow key={el.id} el={el} {...childHandlers} />)
+            childElements.map((el) => (
+              <ChildRow key={el.id} el={el} layerColor={layer.color} {...childHandlers} />
+            ))
           )}
         </div>
       )}
     </div>
   )
+}
+
+function SortableLayerRow({ layer, ...rest }) {
+  const sortable = useSortable({ id: `layer:${layer.id}` })
+  return <LayerRow layer={layer} sortable={sortable} {...rest} />
 }
 
 function LayersBody({
@@ -255,6 +292,7 @@ function LayersBody({
   onToggleLocked,
   onOpacity,
   onReorderList,
+  onMoveElementToLayer,
   onDuplicate,
   onMergeDown,
   onDelete,
@@ -262,23 +300,39 @@ function LayersBody({
 }) {
   const [confirmDel, setConfirmDel] = useState(null)
   const topFirst = [...layers].sort((a, b) => b.order - a.order)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor),
+  )
+
+  function handleDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return
+    const a = String(active.id)
+    const o = String(over.id)
+    if (a.startsWith('child:') && o.startsWith('layer:')) {
+      onMoveElementToLayer(a.slice('child:'.length), o.slice('layer:'.length))
+      return
+    }
+    if (a.startsWith('layer:') && o.startsWith('layer:')) {
+      const from = topFirst.findIndex((l) => `layer:${l.id}` === a)
+      const to = topFirst.findIndex((l) => `layer:${l.id}` === o)
+      if (from !== -1 && to !== -1) onReorderList(arrayMove(topFirst, from, to))
+    }
+  }
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-0.5 px-1.5 pb-2 overflow-y-auto">
-      <SortableList
-        items={topFirst}
-        onReorder={(reordered) => onReorderList(reordered)}
-        renderItem={(layer, { dragHandleProps }) => {
-          const idxFromTop = topFirst.findIndex((l) => l.id === layer.id)
-          return (
-            <LayerRow
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={topFirst.map((l) => `layer:${l.id}`)} strategy={verticalListSortingStrategy}>
+          {topFirst.map((layer, idxFromTop) => (
+            <SortableLayerRow
+              key={layer.id}
               layer={layer}
               isActive={layer.id === activeLayerId}
               revealAll={revealAll}
               expanded={expanded.has(layer.id)}
               childElements={layerElements[layer.id] ?? []}
               onToggleExpand={onToggleExpand}
-              dragHandleProps={dragHandleProps}
               onSelect={onSelect}
               onRename={onRename}
               onSetColor={onSetColor}
@@ -294,9 +348,9 @@ function LayersBody({
               canDelete={layers.length > 1}
               childHandlers={childHandlers}
             />
-          )
-        }}
-      />
+          ))}
+        </SortableContext>
+      </DndContext>
       <ConfirmDialog
         open={Boolean(confirmDel)}
         onOpenChange={(o) => !o && setConfirmDel(null)}

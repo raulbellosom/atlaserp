@@ -323,14 +323,20 @@ export function CanvasEditor({ note }) {
       const api = apiRef.current
       if (!api) return
       const el = elementsRef.current.find((e) => e.id === id)
-      api.updateScene({ appState: { selectedElementIds: { [id]: true } } })
-      if (el) {
+      if (!el || el.customData?.hidden) return
+      // A drawing tool being active hides the selection UI — force the pointer
+      // tool first, then assert the selection on the next frame so it survives
+      // any in-flight updateScene.
+      try { api.setActiveTool({ type: 'selection' }) } catch { /* noop */ }
+      requestAnimationFrame(() => {
+        api.updateScene({
+          appState: { selectedElementIds: { [id]: true } },
+          captureUpdate: 'IMMEDIATELY',
+        })
         try {
-          api.scrollToContent?.([el], { fitToContent: true, animate: true })
-        } catch {
-          /* older signature */
-        }
-      }
+          api.scrollToContent([el], { fitToContent: true, animate: true })
+        } catch { /* older signature */ }
+      })
     },
     onToggleElementHidden: (id) => {
       const el = elementsRef.current.find((e) => e.id === id)
@@ -342,6 +348,10 @@ export function CanvasEditor({ note }) {
     },
     onDeleteElement: (id) => {
       applyElements(deleteElement(elementsRef.current, id))
+    },
+    onMoveElementToLayer: (elementId, layerId) => {
+      applyElements(moveElementsToLayer(elementsRef.current, new Set([elementId]), layerId))
+      setActiveLayerId(layerId)
     },
   }
 

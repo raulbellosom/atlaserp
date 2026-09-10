@@ -23,6 +23,12 @@ const EXCALIDRAW_TWEAKS_CSS = `
 .excalidraw button[aria-label="Library"],
 .excalidraw button[aria-label="Biblioteca"] { display: none !important; }
 
+/* We are embedded below the app chrome, never at the true viewport edge, so
+   Excalidraw must NOT add the device safe-area inset to its top toolbar (that
+   was the big empty gap above the toolbar on iPhone; Android reports ~0). */
+.excalidraw { --sat: 0px !important; --sar: 0px !important; --sal: 0px !important; }
+.excalidraw .FixedSideContainer { padding-top: 0 !important; }
+
 @media (max-width: 640px) {
   .excalidraw { --editor-container-padding: 0.5rem; }
   .excalidraw .App-menu_top { padding-top: 0 !important; margin-top: -0.25rem; }
