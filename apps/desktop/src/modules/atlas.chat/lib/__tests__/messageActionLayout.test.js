@@ -28,6 +28,9 @@ describe("computeActionSheetLayout — touch spotlight", () => {
     assert.equal(out.scale, 1);
     assert.equal(out.cloneTop, 380, "clone stays exactly over the real bubble");
     assert.equal(out.cloneLeft, 12);
+    // origin echoes the real bubble so the raise transition is a no-op here
+    assert.equal(out.originTop, 380);
+    assert.equal(out.originLeft, 12);
   });
 
   it("scales the copy down when pill + bubble + card can't fit the safe area", () => {
@@ -97,6 +100,31 @@ describe("computeActionSheetLayout — touch spotlight", () => {
     assert.equal(out.cloneLeft, 14);
     assert.ok(out.pillLeft >= base.margin);
     assert.ok(out.panelLeft >= base.margin);
+  });
+  it("pins the card to the bubble's own edge instead of overlapping a huge message", () => {
+    // 2200px-tall content: even minScale can't shrink it into the safe area.
+    const ownOut = computeActionSheetLayout({
+      ...base,
+      coarse: true,
+      isOwn: true,
+      anchorPoint: null,
+      rect: { top: 100, bottom: 2300, left: 40, right: 378 },
+    });
+    assert.equal(ownOut.scale, 0.55, "clamped to minScale");
+    // Pinned near the top-right edge — clear of the centered bubble copy.
+    assert.ok(ownOut.panelLeft + base.panelSize.width <= base.vw - base.margin + 0.5);
+    assert.ok(ownOut.panelLeft >= base.vw - base.margin - base.panelSize.width - 0.5);
+    assert.ok(ownOut.panelTop >= mTop - 0.5);
+
+    const receivedOut = computeActionSheetLayout({
+      ...base,
+      coarse: true,
+      isOwn: false,
+      anchorPoint: null,
+      rect: { top: 100, bottom: 2300, left: 12, right: 320 },
+    });
+    // Pinned near the top-left edge for a received message.
+    assert.ok(receivedOut.panelLeft <= base.margin + 0.5);
   });
 });
 

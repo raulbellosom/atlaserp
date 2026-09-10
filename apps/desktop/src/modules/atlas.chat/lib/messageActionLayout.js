@@ -78,27 +78,42 @@ export function computeActionSheetLayout({
   // Vertical: prefer leaving the copy exactly where the real bubble is, then
   // clamp so the pill clears the top inset and the card clears the bottom one.
   const stackH = pillH + gap + ch + gap + ph;
+  // Even at minScale the full pill+bubble+card stack can't fit the safe area
+  // (a very tall image/attachment message) — no vertical position avoids the
+  // card overlapping the bubble in that case, so it's detached entirely and
+  // pinned to a screen corner instead of tracking the bubble's position.
+  const sideOverflow = stackH > safeH;
   let cloneTop;
-  if (stackH <= safeH) {
+  if (!sideOverflow) {
     const minTop = mTop + pillH + gap;
     const maxTop = vh - mBottom - ph - gap - ch;
     cloneTop = Math.max(minTop, Math.min(r.top, maxTop));
   } else {
-    // Even at minScale the full stack can't fit — center the copy and let the
-    // card overflow (it scrolls) rather than shrink the bubble to nothing.
     cloneTop = Math.max(mTop + pillH + gap, Math.round((vh - ch) / 2));
   }
 
   const alignRight = Boolean(isOwn);
-  const pillLeft = alignRight ? clampX(cloneLeft + cw - pillW, pillW) : clampX(cloneLeft, pillW);
-  const panelLeft = alignRight ? clampX(cloneLeft + cw - pw, pw) : clampX(cloneLeft, pw);
 
-  const belowTop = cloneTop + ch + gap;
-  const flip = belowTop + ph > vh - mBottom;
-  const panelTop = flip
-    ? Math.max(mTop + pillH + gap, cloneTop - gap - ph)
-    : belowTop;
-  const pillTop = Math.max(mTop, cloneTop - gap - pillH);
+  let pillLeft, panelLeft, panelTop, pillTop;
+  if (sideOverflow) {
+    // Pin pill + card to the same edge the bubble hugs — own (right-aligned)
+    // messages open their menu on the right, received (left-aligned) ones on
+    // the left — near the top of the safe area, well clear of the (still
+    // centered, possibly full-height) bubble copy below.
+    pillLeft = alignRight ? clampX(vw - margin - pillW, pillW) : clampX(margin, pillW);
+    panelLeft = alignRight ? clampX(vw - margin - pw, pw) : clampX(margin, pw);
+    pillTop = mTop;
+    panelTop = mTop + pillH + gap;
+  } else {
+    pillLeft = alignRight ? clampX(cloneLeft + cw - pillW, pillW) : clampX(cloneLeft, pillW);
+    panelLeft = alignRight ? clampX(cloneLeft + cw - pw, pw) : clampX(cloneLeft, pw);
+    const belowTop = cloneTop + ch + gap;
+    const flip = belowTop + ph > vh - mBottom;
+    panelTop = flip
+      ? Math.max(mTop + pillH + gap, cloneTop - gap - ph)
+      : belowTop;
+    pillTop = Math.max(mTop, cloneTop - gap - pillH);
+  }
 
   return {
     mode: "spotlight",
@@ -107,6 +122,11 @@ export function computeActionSheetLayout({
     cloneTop,
     cloneWidth: bw,      // component sets width:bw and transform:scale(scale), origin top-left
     cloneHeight: bh,
+    // Where the real bubble actually sits — the lifted copy animates FROM here
+    // TO (cloneLeft, cloneTop) so it reads as the message itself rising, not a
+    // separate card sliding in.
+    originLeft: r.left,
+    originTop: r.top,
     panelLeft,
     panelTop,
     pillLeft,

@@ -250,7 +250,16 @@ function HighlightedText({ text, query }) {
 // when isMergeableMediaMessage(attachments) and there is a caption.
 function MediaCaptionBubble({ radiusClass, isOwn, body, searchQuery, replyTo, onJumpToMessage, attachmentsBlockProps }) {
   return (
-    <div className={[radiusClass, "overflow-hidden mt-1", isOwn ? "bg-(--brand-primary)" : "bg-[hsl(var(--muted))]"].join(" ")}>
+    <div
+      className={[
+        radiusClass,
+        // Hard width cap so a captioned image never spans the whole bubble
+        // (72% of the row on a wide desktop was ~650px) — WhatsApp-style:
+        // ~288px, or 72vw on a phone, with the caption wrapping to match.
+        "w-[min(18rem,72vw)] overflow-hidden mt-1",
+        isOwn ? "bg-(--brand-primary)" : "bg-[hsl(var(--muted))]",
+      ].join(" ")}
+    >
       <AttachmentsBlock {...attachmentsBlockProps} merged />
       <div className="px-3 py-2 text-sm leading-relaxed">
         {replyTo && (
@@ -314,6 +323,15 @@ export function ChatMessageBubble({
   const pressRef = useRef({ el: null, rect: null, attId: null });
   const coarse = useCoarsePointer();
   const isMobile = useIsMobile();
+  // A media message that carries a caption renders as one merged bubble. On
+  // TOUCH we treat a long-press on it like a long-press on a text message —
+  // spotlight the whole bubble, show only the message actions, drop the
+  // per-image "copiar imagen / descargar / abrir" items (viewing the images
+  // is the job of a tap, which opens the gallery viewer). Desktop keeps the
+  // image actions on right-click.
+  const isCaptionedMedia =
+    Boolean(String(message.body ?? "").trim()) && isMergeableMediaMessage(message.attachments ?? []);
+  const simplifyMediaMenu = coarse && isCaptionedMedia;
   // On touch, suppress the browser's native text selection / callout so a
   // long-press opens OUR menu instead of starting a text selection that the
   // user then drags across several bubbles. `chat-msg-row` also gets a
@@ -350,14 +368,20 @@ export function ChatMessageBubble({
       suppressClickRef.current = true;
       try { window.getSelection()?.removeAllRanges(); } catch { /* no-op */ }
       const { el, rect: r, attId } = pressRef.current;
-      const attachment = attId
+      // Captioned media on touch: no per-image actions, and spotlight the whole
+      // merged bubble (walk up from the pressed tile) rather than just the tile.
+      const attachment = (attId && !simplifyMediaMenu)
         ? (message.attachments ?? []).find((a) => String(a.id) === attId) ?? null
         : null;
+      const anchorEl = simplifyMediaMenu
+        ? (el?.closest?.("[data-msg-bubble]") ?? el ?? null)
+        : (el ?? null);
+      const anchorR = simplifyMediaMenu ? (anchorEl?.getBoundingClientRect?.() ?? r) : r;
       setActionSheet({
         open: true,
         point: e && Number.isFinite(e.clientX) ? { x: e.clientX, y: e.clientY } : null,
-        el: el ?? null,
-        rect: r ? { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height } : null,
+        el: anchorEl,
+        rect: anchorR ? { top: anchorR.top, bottom: anchorR.bottom, left: anchorR.left, right: anchorR.right, width: anchorR.width, height: anchorR.height } : null,
         attachment,
       });
     },

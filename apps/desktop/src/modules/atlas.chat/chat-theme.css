@@ -160,3 +160,20 @@
   100%    { background-color: transparent; }
 }
 .chat-msg-flash { animation: chat-msg-flash 2s ease-out; }
+
+/* Long-press spotlight: the lifted bubble copy fades + pops from its centre so
+   it reads as the message rising off the page. Pure opacity + a tiny uniform
+   scale — NO translate — so it never appears to slide in from a corner. The
+   copy's final position/size is set statically by MessageActionSheet on the
+   wrapper; this only animates the inner clone host. */
+@keyframes chat-spotlight-rise {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.chat-spotlight-rise {
+  animation: chat-spotlight-rise 150ms cubic-bezier(0.2, 0.9, 0.25, 1);
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-spotlight-rise { animation: none; }
+}

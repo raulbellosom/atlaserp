@@ -90,6 +90,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
   onChange,
   onBlur,
   onKeyDown: onKeyDownProp,
+  onPaste,
   members = [],
   placeholder,
   rows = 3,
@@ -300,6 +301,7 @@ const MentionTextarea = forwardRef(function MentionTextarea({
         value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onPaste={onPaste}
         onBlur={onBlur}
         placeholder={placeholder}
         rows={rows}

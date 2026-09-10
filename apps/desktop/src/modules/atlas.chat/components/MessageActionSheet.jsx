@@ -6,11 +6,16 @@ import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
 import { computeActionSheetLayout } from "../lib/messageActionLayout";
 import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
 
-// CSS custom properties that live on the `.chat-glass-theme` root (not global)
-// and therefore have to be copied onto the lifted clone, which is portaled to
-// <body> — outside that root — so it keeps the real bubble's corner radius,
-// fonts and font-size preference.
+// CSS custom properties that are overridden on the `.chat-glass-theme` root
+// (per-user accent preset, font-size preset, chat radii/fonts) and therefore
+// have to be copied onto the lifted clone, which is portaled to <body> —
+// outside that root — so the copy is styled exactly like the real bubble
+// (same accent colour the user picked, same corner radius, same text size).
 const THEME_VARS = [
+  "--brand-primary",
+  "--brand-primary-foreground",
+  "--brand-primary-hover",
+  "--brand-primary-on-dark",
   "--chat-radius-bubble",
   "--chat-radius-bubble-tail",
   "--chat-radius-panel",
@@ -175,6 +180,12 @@ export function MessageActionSheet({
   const gate = armed ? "" : "pointer-events-none";
   const scrim = "bg-black/55 backdrop-blur-[3px]";
   const spotlight = coarse && lifted && pos?.mode === "spotlight";
+  // Touch: pill + card ride the spotlight rise with a soft fade+zoom. Mouse
+  // right-click: the menu must appear the instant you click, exactly where you
+  // clicked — no zoom/slide entrance (that read as "opening left-to-right").
+  const menuAnim = coarse
+    ? "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100"
+    : "";
 
   const menuItem = (a, extra = "") => (
     <button
@@ -207,20 +218,24 @@ export function MessageActionSheet({
         type="button"
         aria-label="Cerrar"
         onClick={close}
-        className={["absolute inset-0", coarse ? scrim : ""].join(" ")}
+        className={["absolute inset-0", coarse ? `${scrim} motion-safe:animate-in motion-safe:fade-in-0 duration-150` : ""].join(" ")}
       />
 
       {/* Lifted bubble copy (touch long-press only) — a pixel clone of the real
           bubble raised above the scrim. Tapping it dismisses, like WhatsApp.
           Rendered as soon as the sheet is open (so cloneHostRef exists for the
-          layout effect) and only revealed once positioned. Every descendant is
-          pointer-events:none so a cloned link/button can't swallow that tap. */}
+          layout effect) and only revealed once positioned. The wrapper's
+          position + scale are set STATICALLY from `pos` (no transition, so it
+          can never appear to slide/teleport between frames); the entrance
+          motion is a pure fade+pop on the inner host via .chat-spotlight-rise.
+          Every descendant is pointer-events:none so a cloned link/button can't
+          swallow the dismiss tap. */}
       {coarse && (
         <div
           role="button"
           aria-label="Cerrar"
           onClick={close}
-          className="fixed motion-safe:animate-in motion-safe:fade-in-0 duration-100"
+          className="fixed"
           style={{
             left: pos?.cloneLeft ?? -9999,
             top: pos?.cloneTop ?? -9999,
@@ -230,7 +245,13 @@ export function MessageActionSheet({
             visibility: spotlight ? "visible" : "hidden",
           }}
         >
-          <div ref={cloneHostRef} className="pointer-events-none **:pointer-events-none" />
+          <div
+            ref={cloneHostRef}
+            className={[
+              "pointer-events-none **:pointer-events-none drop-shadow-[0_10px_28px_rgb(0_0_0/0.3)]",
+              spotlight ? "chat-spotlight-rise" : "",
+            ].join(" ")}
+          />
         </div>
       )}
 
@@ -243,7 +264,7 @@ export function MessageActionSheet({
           top: pos?.pillTop ?? -9999,
           visibility: pos ? "visible" : "hidden",
         }}
-        className={["rounded-full px-1 flex items-center gap-0.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100", surface, gate].join(" ")}
+        className={["rounded-full px-1 flex items-center gap-0.5", menuAnim, surface, gate].join(" ")}
       >
         {QUICK_REACTIONS.map((emoji) => (
           <button
@@ -274,7 +295,7 @@ export function MessageActionSheet({
           top: pos?.panelTop ?? -9999,
           visibility: pos ? "visible" : "hidden",
         }}
-        className={["w-60 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] overflow-y-auto overflow-x-hidden rounded-xl py-1 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-100", surface, gate].join(" ")}
+        className={["w-60 max-w-[calc(100vw-16px)] max-h-[calc(100dvh-16px)] overflow-y-auto overflow-x-hidden rounded-xl py-1", menuAnim, surface, gate].join(" ")}
       >
         {primary.map((a) => menuItem(a))}
         {attachmentActions.length > 0 && (
