@@ -499,8 +499,9 @@ export function AudioCard({ att, isOwn }) {
   const playColor = isOwn ? "white"                  : "var(--brand-primary-foreground)";
   const barPlayed = isOwn ? "rgba(255,255,255,0.95)" : "var(--brand-primary)";
   // `hsl(var(--border))` is near-invisible on a light received bubble — use a
-  // muted-foreground tint so the idle waveform reads in both themes.
-  const barRest   = isOwn ? "rgba(255,255,255,0.30)" : "hsl(var(--muted-foreground) / 0.4)";
+  // muted-foreground tint so the idle waveform reads in both themes. 0.4 was
+  // still too faint against the light theme's near-white muted bubble bg.
+  const barRest   = isOwn ? "rgba(255,255,255,0.30)" : "hsl(var(--muted-foreground) / 0.55)";
   const metaColor = isOwn ? "rgba(255,255,255,0.70)" : "hsl(var(--muted-foreground))";
 
   // Keep the player visible and retryable even when URL resolution fails.
@@ -533,6 +534,22 @@ export function AudioCard({ att, isOwn }) {
           onTimeUpdate={(e) => {
             const t = e.currentTarget.currentTime;
             if (!isFinite(t)) return;
+            // Some recorded voice-note blobs (notably iOS Safari's audio/mp4
+            // MediaRecorder output) carry a broken/absent container duration,
+            // so the element never reaches a real end-of-stream and `ended`
+            // never fires — playback just continues past the real audio in
+            // silence forever. serverDuration is measured wall-clock at
+            // record time and is always correct, so once playback reaches it
+            // treat that as the end instead of waiting on the native event.
+            if (serverDuration > 0 && t >= serverDuration - 0.15) {
+              const audio = e.currentTarget;
+              audio.pause();
+              audio.currentTime = 0;
+              setPlaying(false);
+              setStarted(false);
+              setCurrentTime(0);
+              return;
+            }
             setCurrentTime(t);
             if (t > 0) setStarted(true);
           }}
