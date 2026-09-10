@@ -1,11 +1,11 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Shapes } from 'lucide-react'
 import { NoteIcon } from '../noteIcons.jsx'
 
 export function NoteCard({ note, isSelected, onClick, onTrash }) {
   const excerpt = (() => {
-    if (!note.content) return ''
+    if (!note.content || typeof note.content !== 'string') return ''
     // Block tags become spaces so text from separate lines doesn't glue together
     const plainText = note.content
       .replace(/<(p|div|h[1-6]|li|br)[^>]*>/gi, ' ')
@@ -35,13 +35,18 @@ export function NoteCard({ note, isSelected, onClick, onTrash }) {
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            {note.icon && (
+            {note.note_type === 'canvas' ? (
+              <Shapes
+                size={13}
+                className={isSelected ? 'text-amber-500 shrink-0' : 'text-muted-foreground shrink-0'}
+              />
+            ) : note.icon ? (
               <NoteIcon
                 name={note.icon}
                 size={13}
                 className={isSelected ? 'text-amber-500 shrink-0' : 'text-muted-foreground shrink-0'}
               />
-            )}
+            ) : null}
             <h3 className={[
               'text-sm truncate',
               isSelected
@@ -55,6 +60,11 @@ export function NoteCard({ note, isSelected, onClick, onTrash }) {
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{excerpt}</p>
           )}
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+            {note.note_type === 'canvas' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                Lienzo
+              </span>
+            )}
             {note.tags?.slice(0, 2).map(tag => (
               <span
                 key={tag.id}

@@ -1,10 +1,14 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   Plus, ArrowLeft,
-  Settings2, Share2, RotateCcw, Trash2, PenLine
+  Settings2, Share2, RotateCcw, Trash2, PenLine,
+  FileText, Shapes
 } from 'lucide-react'
-import { ConfirmDialog } from '@atlas/ui'
+import {
+  ConfirmDialog,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@atlas/ui'
 import { NoteIcon } from './noteIcons.jsx'
 import { useNotes, useCreateNote } from './hooks/useNotes.js'
 import { useNote, useUpdateNote, useTrashNote, useRestoreNote, usePermanentDeleteNote } from './hooks/useNote.js'
@@ -15,6 +19,11 @@ import { NotesList } from './components/NotesList.jsx'
 import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteSettingsPanel } from './components/NoteSettingsPanel.jsx'
 import { NoteShareModal } from './components/NoteShareModal.jsx'
+
+// Lazy so the Excalidraw bundle only loads when a canvas note is opened.
+const CanvasEditor = lazy(() =>
+  import('./components/CanvasEditor.jsx').then((m) => ({ default: m.CanvasEditor })),
+)
 
 function viewFromPath(pathname) {
   if (pathname.endsWith('/notes/recent')) return 'recent'
@@ -81,9 +90,13 @@ export default function NotesScreen() {
     })
   }
 
-  function handleCreateNote() {
+  function handleCreateNote(noteType = 'document') {
     createNote.mutate(
-      { title: 'Nueva nota', content: '' },
+      {
+        title: noteType === 'canvas' ? 'Nuevo lienzo' : 'Nueva nota',
+        content: '',
+        noteType,
+      },
       {
         onSuccess: (res) => {
           if (res?.note) {
@@ -152,14 +165,25 @@ export default function NotesScreen() {
             {folderId ? 'Carpeta' : VIEW_LABELS[activeView]}
           </span>
           {!isTrashView && (
-            <button
-              onClick={handleCreateNote}
-              disabled={createNote.isPending}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 shadow-sm"
-            >
-              <Plus size={13} />
-              <span>Nueva</span>
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  disabled={createNote.isPending}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  <Plus size={13} />
+                  <span>Nueva</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onSelect={() => handleCreateNote('document')}>
+                  <FileText size={13} className="mr-2" /> Documento
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleCreateNote('canvas')}>
+                  <Shapes size={13} className="mr-2" /> Lienzo
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
 
@@ -245,7 +269,7 @@ export default function NotesScreen() {
         </div>
 
         {!selectedNote ? (
-          <EmptyEditor onCreateNote={!isTrashView ? handleCreateNote : undefined} isTrash={isTrashView} />
+          <EmptyEditor onCreateNote={!isTrashView ? () => handleCreateNote('document') : undefined} isTrash={isTrashView} />
         ) : rightPanel === 'settings' ? (
           <NoteSettingsPanel
             note={selectedNote}
@@ -254,6 +278,12 @@ export default function NotesScreen() {
             onUnpublish={() => unpublishNote.mutate(selectedNote.id, { onSuccess: r => r?.note && setSelectedNote(r.note) })}
             onTrash={() => handleTrash(selectedNote)}
           />
+        ) : (!isTrashView && selectedNote.note_type === 'canvas') ? (
+          <Suspense fallback={
+            <div className="h-full grid place-items-center text-sm text-muted-foreground">Cargando lienzo...</div>
+          }>
+            <CanvasEditor note={selectedNote} />
+          </Suspense>
         ) : (
           <NoteEditor note={selectedNote} readOnly={isTrashView} />
         )}
