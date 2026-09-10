@@ -2323,6 +2323,20 @@ export function createAtlasClient({ baseUrl }) {
           headers: withAuthHeaders(token),
           body: JSON.stringify({ state: stateBase64 }),
         }),
+      getCanvas: (id, token) =>
+        request(`/notes/${encodeURIComponent(id)}/canvas`, {
+          headers: withAuthHeaders(token),
+        }),
+      saveCanvas: (id, scene, token) =>
+        request(`/notes/${encodeURIComponent(id)}/canvas`, {
+          method: "PUT",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(scene),
+        }),
+      getPublicCanvas: (slug) =>
+        request(`/public/notes/${encodeURIComponent(slug)}/canvas`, {
+          method: "GET",
+        }),
       listFolders: (token) =>
         request("/notes/folders", {
           headers: withAuthHeaders(token),
