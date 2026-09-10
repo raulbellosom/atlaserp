@@ -58,7 +58,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
   // Create
   // ------------------------------------------------------------------
 
-  async function createNote({ userId, companyId, folderId, title, content, icon, backgroundColor }) {
+  async function createNote({ userId, companyId, folderId, title, content, icon, backgroundColor, noteType }) {
+    const type = noteType === 'canvas' ? 'canvas' : 'document';
     const rows = await prisma.$queryRaw`
       INSERT INTO notes (
         owner_user_id,
@@ -67,7 +68,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
         title,
         content,
         icon,
-        background_color
+        background_color,
+        note_type
       )
       VALUES (
         ${userId},
@@ -76,7 +78,8 @@ export function createNotesService({ prisma, broadcaster = null }) {
         ${title ?? "Sin titulo"},
         ${JSON.stringify(content ?? '')}::jsonb,
         ${icon ?? ''},
-        ${backgroundColor ?? null}
+        ${backgroundColor ?? null},
+        ${type}::text
       )
       RETURNING *
     `;
@@ -227,6 +230,7 @@ export function createNotesService({ prisma, broadcaster = null }) {
       GROUP BY
         a.id,
         a.owner_user_id,
+        a.note_type,
         a.company_id,
         a.folder_id,
         a.title,

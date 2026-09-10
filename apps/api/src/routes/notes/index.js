@@ -4,6 +4,7 @@ import { createFoldersService } from './folders-service.js'
 import { createTagsService } from './tags-service.js'
 import { createSharesService } from './shares-service.js'
 import { createYDocService } from './ydoc-service.js'
+import { createCanvasService } from './canvas-service.js'
 
 export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }) {
   const app = new Hono()
@@ -12,6 +13,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   const tags = createTagsService({ prisma })
   const shares = createSharesService({ prisma, broadcaster, notificationService })
   const ydoc = createYDocService({ prisma })
+  const canvas = createCanvasService({ prisma })
 
   // ----------------------------------------------------------------
   // All /notes/* routes — dedicated internal router with auth
@@ -203,8 +205,8 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
     try {
       const { userId, companyId } = getAuth(c)
       const body = await c.req.json()
-      const { title, content, folderId, icon, backgroundColor } = body
-      const note = await notes.createNote({ userId, companyId, title, content, folderId, icon, backgroundColor })
+      const { title, content, folderId, icon, backgroundColor, noteType } = body
+      const note = await notes.createNote({ userId, companyId, title, content, folderId, icon, backgroundColor, noteType })
       return c.json({ note }, 201)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
@@ -309,6 +311,35 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const { state } = body
       const data = await ydoc.saveState(noteId, userId, state)
       return c.json(data)
+    } catch (e) {
+      return c.json({ error: e.message }, e.status ?? 500)
+    }
+  })
+
+  // ==============================================================
+  // CANVAS SCENE
+  // ==============================================================
+
+  // GET /notes/:id/canvas
+  internal.get('/:id/canvas', requirePermission('notes.notes.read'), async (c) => {
+    try {
+      const { userId } = getAuth(c)
+      const noteId = c.req.param('id')
+      const scene = await canvas.getScene(noteId, userId)
+      return c.json({ scene })
+    } catch (e) {
+      return c.json({ error: e.message }, e.status ?? 500)
+    }
+  })
+
+  // PUT /notes/:id/canvas
+  internal.put('/:id/canvas', requirePermission('notes.notes.update'), async (c) => {
+    try {
+      const { userId } = getAuth(c)
+      const noteId = c.req.param('id')
+      const body = await c.req.json()
+      const result = await canvas.saveScene(noteId, userId, body)
+      return c.json(result)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
     }
