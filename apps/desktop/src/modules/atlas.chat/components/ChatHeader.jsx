@@ -142,21 +142,25 @@ export function ChatHeader({
                   : "Sin resultados"}
           </span>
         )}
-        <button
-          type="button"
-          onClick={onPrevMatch}
-          disabled={!hasMatches}
-          className={[headerBtnCls, !hasMatches ? "opacity-30 cursor-not-allowed" : ""].join(" ")}
-          title="Anterior"
-        >
-          <ChevronUp className="h-4 w-4" />
-        </button>
+        {/* Results are ordered newest-first, so 1/N is the bottom-most match and
+            navigation runs bottom -> top: the UP chevron advances to the next
+            (older, higher-up) match, the DOWN chevron goes back toward the
+            newest. */}
         <button
           type="button"
           onClick={onNextMatch}
           disabled={!hasMatches}
           className={[headerBtnCls, !hasMatches ? "opacity-30 cursor-not-allowed" : ""].join(" ")}
-          title="Siguiente"
+          title="Coincidencia mas arriba"
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onPrevMatch}
+          disabled={!hasMatches}
+          className={[headerBtnCls, !hasMatches ? "opacity-30 cursor-not-allowed" : ""].join(" ")}
+          title="Coincidencia mas abajo"
         >
           <ChevronDown className="h-4 w-4" />
         </button>

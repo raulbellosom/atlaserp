@@ -5,6 +5,10 @@ import { resolveUserProfileId } from "./chat-service.js";
 const MAX_TOKENS = 6;
 const MIN_TOKEN_LEN = 2;
 const SIMILARITY_THRESHOLD = 0.3; // word_similarity floor for typo tolerance; tunable
+// Typo tolerance (word_similarity) only kicks in from this length — on 2-3 char
+// tokens it just adds noise ("la" fuzzily matching "le"/"las"), so short
+// searches are exact word-prefix only, which is what makes them feel "concrete".
+const FUZZY_MIN_TOKEN_LEN = 4;
 const MAX_LIMIT = 50;
 const MAX_OFFSET = 300;
 
@@ -34,21 +38,35 @@ function escapeLike(token) {
   return token.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
 
+function escapeRegex(token) {
+  return token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// A token matches at the START OF A WORD, not anywhere inside one — "la" hits
+// "La cancion" / "las" but not "michael" or "cancion". Keeps short in-chat
+// searches concrete instead of lighting up half the conversation. `\m` (SQL) /
+// `\b<tok>` (JS) are the equivalent "word-start" anchors on the accent-stripped
+// lowercased text.
+function wordPrefixSql(column, token) {
+  return Prisma.sql`${column} ~ ${"\\m" + escapeRegex(token)}`;
+}
+
 // Compute [start,end] match ranges on the ORIGINAL body by scanning its
-// normalised form for each token. Returns [] if normalisation changed the
-// string length (defensive — see normalizeForSearch), so the caller shows the
-// plain snippet instead of a mis-aligned highlight.
+// normalised form for each token AT WORD STARTS (mirrors the SQL predicate).
+// Returns [] if normalisation changed the string length (defensive — see
+// normalizeForSearch), so the caller shows the plain snippet instead of a
+// mis-aligned highlight.
 export function computeMatchRanges(body, tokens) {
   const norm = normalizeForSearch(body);
   if (norm.length !== (body ?? "").length) return [];
   const ranges = [];
   for (const tok of tokens) {
-    let from = 0;
-    let idx = norm.indexOf(tok, from);
-    while (idx !== -1) {
-      ranges.push([idx, idx + tok.length]);
-      from = idx + tok.length;
-      idx = norm.indexOf(tok, from);
+    if (!tok) continue;
+    const re = new RegExp("\\b" + escapeRegex(tok), "g");
+    let m;
+    while ((m = re.exec(norm)) !== null) {
+      ranges.push([m.index, m.index + tok.length]);
+      if (re.lastIndex === m.index) re.lastIndex += 1; // guard against zero-width
     }
   }
   if (!ranges.length) return [];
@@ -78,34 +96,37 @@ export function createChatSearchService({ prisma }) {
 
     const profileId = await resolveUserProfileId(prisma, authUserId);
 
-    // Per-token predicate: substring OR typo-similarity, against body / sender
-    // name / any attachment file name. AND across tokens => order-independent.
+    // Per-token predicate: word-PREFIX match (not "anywhere inside a word"),
+    // plus typo-similarity for tokens long enough to make that meaningful.
+    // Matched against body / sender name / any attachment file name. AND across
+    // tokens => order-independent.
     const tokenConds = tokens.map((tok) => {
-      const like = `%${escapeLike(tok)}%`;
+      const fuzzy = tok.length >= FUZZY_MIN_TOKEN_LEN;
+      const bodySim = fuzzy ? Prisma.sql` OR word_similarity(${tok}, m.body_norm) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
+      const nameSim = fuzzy ? Prisma.sql` OR word_similarity(${tok}, up.name_norm) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
+      const fileSim = fuzzy ? Prisma.sql` OR word_similarity(${tok}, atlas_unaccent(lower(a.file_name))) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
       return Prisma.sql`(
-        m.body_norm ILIKE ${like}
-        OR word_similarity(${tok}, m.body_norm) > ${SIMILARITY_THRESHOLD}
-        OR up.name_norm ILIKE ${like}
-        OR word_similarity(${tok}, up.name_norm) > ${SIMILARITY_THRESHOLD}
+        ${wordPrefixSql(Prisma.sql`m.body_norm`, tok)}${bodySim}
+        OR ${wordPrefixSql(Prisma.sql`up.name_norm`, tok)}${nameSim}
         OR EXISTS (
           SELECT 1 FROM chat_attachments a
           WHERE a.message_id = m.id
             AND (
-              atlas_unaccent(lower(a.file_name)) ILIKE ${like}
-              OR word_similarity(${tok}, atlas_unaccent(lower(a.file_name))) > ${SIMILARITY_THRESHOLD}
+              ${wordPrefixSql(Prisma.sql`atlas_unaccent(lower(a.file_name))`, tok)}${fileSim}
             )
         )
       )`;
     });
     const whereTokens = Prisma.join(tokenConds, " AND ");
 
-    // score = sum over tokens of GREATEST(substring hit ? 1 : 0, word_similarity)
-    const scoreTerms = tokens.map(
-      (tok) => Prisma.sql`GREATEST(
-        CASE WHEN m.body_norm ILIKE ${`%${escapeLike(tok)}%`} THEN 1.0 ELSE 0 END,
-        word_similarity(${tok}, m.body_norm)
-      )`,
-    );
+    // score = sum over tokens of GREATEST(word-prefix hit ? 1 : 0, word_similarity)
+    // — the fuzzy term only for tokens long enough to use it (matches the WHERE).
+    const scoreTerms = tokens.map((tok) => {
+      const hit = Prisma.sql`CASE WHEN ${wordPrefixSql(Prisma.sql`m.body_norm`, tok)} THEN 1.0 ELSE 0 END`;
+      return tok.length >= FUZZY_MIN_TOKEN_LEN
+        ? Prisma.sql`GREATEST(${hit}, word_similarity(${tok}, m.body_norm))`
+        : hit;
+    });
     const scoreExpr = Prisma.join(scoreTerms, " + ");
 
     const convFilter = conversationId

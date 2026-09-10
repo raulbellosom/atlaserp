@@ -13,15 +13,29 @@ const PROFILE_ID = "01900000-0000-7000-8000-0000000000p1";
 
 beforeEach(() => _resetProfileIdCacheForTests());
 
+// Reconstruct the full SQL text of a tagged-template call, recursing into any
+// nested Prisma.sql fragments (which arrive as values, not in `strings`).
+function renderTaggedSql(strings, values) {
+  let out = "";
+  strings.forEach((chunk, i) => {
+    out += chunk;
+    if (i < values.length) {
+      const v = values[i];
+      out += v && Array.isArray(v.strings) ? renderTaggedSql(v.strings, v.values ?? []) : "?";
+    }
+  });
+  return out;
+}
+
 // call #1 is resolveUserProfileId's SELECT; call #2 is the search SELECT.
-// `capture.sql` holds the search SELECT's template text (strings joined by "?").
+// `capture.sql` holds the search SELECT's full reconstructed SQL.
 function mockPrisma(searchRows = [], capture = {}) {
   let call = 0;
   return {
-    $queryRaw: async (strings) => {
+    $queryRaw: async (strings, ...values) => {
       call += 1;
       if (call === 1) return [{ id: PROFILE_ID }];
-      capture.sql = Array.isArray(strings) ? strings.join("?") : String(strings ?? "");
+      capture.sql = Array.isArray(strings) ? renderTaggedSql(strings, values) : String(strings ?? "");
       return searchRows;
     },
   };
@@ -85,6 +99,12 @@ describe("computeMatchRanges", () => {
   it("returns [] when no token matches", () => {
     assert.deepEqual(computeMatchRanges("hello world", ["zzz"]), []);
   });
+  it("only matches at word starts — 'la' hits the word, not the 'la' inside 'Hola'", () => {
+    assert.deepEqual(computeMatchRanges("Hola la mesa", ["la"]), [[5, 7]]);
+  });
+  it("word-prefix still matches longer words: 'la' inside 'La lampara'", () => {
+    assert.deepEqual(computeMatchRanges("La lampara", ["la"]), [[0, 2], [3, 5]]);
+  });
 });
 
 describe("searchMessages", () => {
@@ -132,6 +152,27 @@ describe("searchMessages", () => {
     assert.doesNotMatch(capture.sql, /\bp\.avatar_url\b/, "user_profile p has no avatar_url column");
     assert.doesNotMatch(capture.sql, /dm_avatar_url/);
     assert.match(capture.sql, /dm\.display_name/, "still resolves the DM peer name");
+  });
+
+  it("matches at word starts (regex ~), not 'anywhere inside a word' (ILIKE %tok%)", async () => {
+    const capture = {};
+    const svc = createChatSearchService({ prisma: mockPrisma([], capture) });
+    await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "la", conversationId: "01a083a9-122d-73b7-822f-bd3048f003d3" });
+    assert.match(capture.sql, /body_norm ~ \?/, "word-prefix regex predicate");
+    assert.doesNotMatch(capture.sql, /body_norm ILIKE/, "no bare substring match on the body");
+  });
+
+  it("skips typo-similarity for short tokens (2-3 chars stay exact word-prefix)", async () => {
+    const cShort = {};
+    await createChatSearchService({ prisma: mockPrisma([], cShort) })
+      .searchMessages({ authUserId: AUTH_USER_ID, q: "la" });
+    assert.doesNotMatch(cShort.sql, /word_similarity/, "no fuzzy match for a 2-char token");
+
+    _resetProfileIdCacheForTests(); // else the 2nd mock's profile lookup is skipped (cached)
+    const cLong = {};
+    await createChatSearchService({ prisma: mockPrisma([], cLong) })
+      .searchMessages({ authUserId: AUTH_USER_ID, q: "factura" });
+    assert.match(cLong.sql, /word_similarity/, "fuzzy match kept for a real word");
   });
 
   it("flags truncated when the DB returns limit+1 rows", async () => {

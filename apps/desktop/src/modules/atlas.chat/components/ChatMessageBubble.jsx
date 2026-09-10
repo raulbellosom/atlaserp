@@ -195,13 +195,27 @@ function MessageActions({
 // is "" whenever the user isn't actively searching. So mention-chip rendering
 // has to live HERE (composed with the existing substring highlight), not in a
 // separate "plain" render path — there isn't one for real messages.
+// Highlights the query only at WORD STARTS (mirrors the server's `\m<tok>`
+// predicate) so a common short query like "la" marks the word, not the "la"
+// inside "Michael" / "canción" — which is what made the count and the visible
+// marks disagree.
+function highlightRegex(query) {
+  const escaped = String(query).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!escaped) return null;
+  try {
+    return new RegExp("\\b" + escaped, "gi");
+  } catch {
+    return null;
+  }
+}
+
 function HighlightedText({ text, query }) {
   if (!text) return null;
   const mentionParts = renderMentionText(text);
   const parts = Array.isArray(mentionParts) ? mentionParts : [mentionParts ?? text];
-  if (!query) return <>{parts}</>;
+  const re = query ? highlightRegex(query) : null;
+  if (!re) return <>{parts}</>;
 
-  const q = query.toLowerCase();
   const highlighted = [];
   let key = 0;
   for (const part of parts) {
@@ -211,18 +225,18 @@ function HighlightedText({ text, query }) {
       highlighted.push(part);
       continue;
     }
-    const lower = part.toLowerCase();
+    re.lastIndex = 0;
     let lastIndex = 0;
-    let idx = lower.indexOf(q, lastIndex);
-    while (idx !== -1) {
-      if (idx > lastIndex) highlighted.push(part.slice(lastIndex, idx));
+    let m;
+    while ((m = re.exec(part)) !== null) {
+      if (m.index > lastIndex) highlighted.push(part.slice(lastIndex, m.index));
       highlighted.push(
         <mark key={`hl-${key++}`} className="bg-yellow-300 text-black rounded-xs px-0.5">
-          {part.slice(idx, idx + q.length)}
-        </mark>
+          {m[0]}
+        </mark>,
       );
-      lastIndex = idx + q.length;
-      idx = lower.indexOf(q, lastIndex);
+      lastIndex = m.index + m[0].length;
+      if (re.lastIndex === m.index) re.lastIndex += 1; // zero-width guard
     }
     if (lastIndex < part.length) highlighted.push(part.slice(lastIndex));
   }
