@@ -82,6 +82,7 @@ import { createChatRouter } from "./routes/chat/index.js";
 import { createCallsRouter } from "./routes/calls/index.js";
 import { createNotesRouter } from "./routes/notes/index.js";
 import { createSharesService as createNotesSharesService } from "./routes/notes/shares-service.js";
+import { createCanvasService as createNotesCanvasService } from "./routes/notes/canvas-service.js";
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -883,11 +884,24 @@ app.get("/brand/:filename", async (c) => {
 
 // Public notes — no auth. Registered early so it's never wrapped by auth middleware.
 const _publicNotesShares = createNotesSharesService({ prisma, broadcaster });
+const _publicNotesCanvas = createNotesCanvasService({ prisma });
 app.get("/public/notes/:slug", async (c) => {
   try {
     const slug = c.req.param("slug");
     const note = await _publicNotesShares.getPublicNote(slug);
     return c.json({ note });
+  } catch (e) {
+    return c.json({ error: e.message }, e.status ?? 500);
+  }
+});
+
+// Public canvas scene — no auth. Sibling of GET /public/notes/:slug above;
+// registered here so it is never wrapped by auth middleware.
+app.get("/public/notes/:slug/canvas", async (c) => {
+  try {
+    const slug = c.req.param("slug");
+    const scene = await _publicNotesCanvas.getPublicScene(slug);
+    return c.json({ scene });
   } catch (e) {
     return c.json({ error: e.message }, e.status ?? 500);
   }
