@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Zap,
 } from "lucide-react";
+import { classifyError } from "../lib/classifyError.js";
 
 // ─── Atlas isotype (inline, no external dependency needed) ───────────────────
 const TOP_FACE = "M 18 38  L 50 10  L 82 38  L 66 46  L 50 26  L 34 46 Z";
@@ -34,53 +35,6 @@ function AtlasIsotype({ size = 40, muted = false }) {
       <path d={RIGHT_FACE} fill={muted ? "rgba(33,199,255,0.55)" : "#21C7FF"} />
     </svg>
   );
-}
-
-// ─── Error classification ─────────────────────────────────────────────────────
-function classifyError(error) {
-  if (!error) return { type: "unknown", code: null };
-
-  const msg = (error.message ?? "").toLowerCase();
-  const name = (error.name ?? "").toLowerCase();
-  const status = error.status ?? null;
-
-  // Network / connection refused
-  if (
-    name === "typeerror" ||
-    msg.includes("failed to fetch") ||
-    msg.includes("network") ||
-    msg.includes("econnrefused") ||
-    msg.includes("net::") ||
-    msg.includes("fetch")
-  ) {
-    return { type: "network", code: null };
-  }
-
-  // Resolve numeric HTTP code from message like "Atlas API error 503"
-  const codeFromStatus = typeof status === "number" ? status : null;
-  const codeFromMsg = (() => {
-    const m = msg.match(/\b([45]\d{2})\b/);
-    return m ? parseInt(m[1], 10) : null;
-  })();
-  const code = codeFromStatus ?? codeFromMsg;
-
-  if (code === 401) return { type: "unauthorized", code };
-  if (code === 403) return { type: "forbidden", code };
-  if (code === 404) return { type: "not_found", code };
-  if (code === 408) return { type: "timeout", code };
-  if (code === 422) return { type: "validation", code };
-  if (code === 429) return { type: "rate_limit", code };
-  if (code === 500) return { type: "server_error", code };
-  if (code === 502) return { type: "bad_gateway", code };
-  if (code === 503) return { type: "unavailable", code };
-  if (code >= 500) return { type: "server_error", code };
-  if (code >= 400) return { type: "client_error", code };
-
-  if (msg.includes("timeout") || msg.includes("timed out")) {
-    return { type: "timeout", code: 408 };
-  }
-
-  return { type: "unknown", code: null };
 }
 
 // ─── Per-type config ──────────────────────────────────────────────────────────

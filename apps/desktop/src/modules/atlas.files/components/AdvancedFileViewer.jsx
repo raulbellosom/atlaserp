@@ -231,7 +231,7 @@ export function AdvancedFileViewer({
   // Resolve real thumbnails for video files within +/-3 of the active index.
   const THUMB_WINDOW = 3;
   useEffect(() => {
-    if (!filmstripOpen || !onResolveSignedUrl || (files?.length ?? 0) <= 1) return;
+    if (!open || !filmstripOpen || !onResolveSignedUrl || (files?.length ?? 0) <= 1) return;
     const start = Math.max(0, activeIndex - THUMB_WINDOW);
     const end = Math.min(files.length - 1, activeIndex + THUMB_WINDOW);
     for (let i = start; i <= end; i++) {
@@ -239,7 +239,11 @@ export function AdvancedFileViewer({
       if (!f || getFileKind(f) !== "video") continue;
       if (videoThumbUrls[f.id] || videoThumbFetching.current.has(f.id)) continue;
       videoThumbFetching.current.add(f.id);
-      onResolveSignedUrl(f)
+      // onResolveSignedUrl may be sync (a blob-URL resolver) or async — normalise
+      // before chaining so a plain string / null return never throws
+      // ".then of null/undefined" out of this effect (which the app-level
+      // ErrorBoundary would surface as a full-screen "SIN CONEXION").
+      Promise.resolve(onResolveSignedUrl(f))
         .then((url) => {
           if (url) setVideoThumbUrls((prev) => ({ ...prev, [f.id]: url }));
         })
@@ -251,7 +255,7 @@ export function AdvancedFileViewer({
     // already-fetched guard, and videoThumbFetching's ref-based in-flight
     // guard is what actually prevents duplicate requests.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, files, filmstripOpen, onResolveSignedUrl]);
+  }, [open, activeIndex, files, filmstripOpen, onResolveSignedUrl]);
 
   const nudgeZoom = useCallback((direction) => {
     setZoom((value) =>

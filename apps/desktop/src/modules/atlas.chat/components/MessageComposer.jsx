@@ -1095,7 +1095,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
         attachments={mapPendingToViewerFiles(pendingFiles)}
         activeIndex={attView.index}
         onIndexChange={(i) => setAttView((v) => ({ ...v, index: i }))}
-        resolveUrl={(f) => f.url ?? null}
+        resolveUrl={async (f) => f.url ?? null}
         canOpenInOffice={() => false}
         onOpenInOffice={() => {}}
       />
