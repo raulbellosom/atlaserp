@@ -252,6 +252,20 @@ body,
   height: 100%;
 }
 
+/* iOS Safari: `100dvh` on a position:fixed root can resolve to the SHORT
+   viewport and fail to grow when the browser toolbar auto-hides, leaving a
+   band of page background below the content (most visible under the chat
+   composer). `-webkit-fill-available` tracks the real visible height there.
+   Detector: -webkit-touch-callout is Safari/iOS-only; ignored elsewhere so the
+   `h-dvh` utility keeps applying. */
+@supports (-webkit-touch-callout: none) {
+  @media (pointer: coarse) {
+    .app-shell-root {
+      height: -webkit-fill-available;
+    }
+  }
+}
+
 /* ── Badge variant overrides (light mode: solid; dark mode: glass) ──────────
    These are defined here — not in the ui package — to guarantee Tailwind
    always emits the rules regardless of package-boundary scanning. */

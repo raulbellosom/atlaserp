@@ -199,7 +199,7 @@ export function AtlasApp() {
             resolving in WebKit (full-height module screens — notes/chat/pfm —
             fall back to content height and make <main> double-scroll).
             With height set, `bottom:0` is ignored as over-constrained. */}
-        <div className="fixed inset-x-0 top-0 h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+        <div className="app-shell-root fixed inset-x-0 top-0 h-dvh overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
       <Topbar
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
