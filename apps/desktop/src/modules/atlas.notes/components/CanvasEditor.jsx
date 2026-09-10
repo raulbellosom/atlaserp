@@ -1,7 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Layers, FileDown } from 'lucide-react'
+import { toast } from 'sonner'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { supabase } from '../../../lib/supabase'
+import { useIsDark } from '../hooks/useIsDark.js'
 import { useCanvasScene, useSaveCanvasScene } from '../hooks/useCanvasScene.js'
 import {
   ensureLayers,
@@ -57,6 +63,7 @@ export function CanvasEditor({ note }) {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
   const noteId = note?.id
+  const isDark = useIsDark()
 
   const { data, isLoading, error } = useCanvasScene(noteId)
   const saveScene = useSaveCanvasScene(noteId)
@@ -320,13 +327,34 @@ export function CanvasEditor({ note }) {
     mutateLayers(nl)
   }
 
-  const doExport = (fn) =>
-    fn({
-      elements: deriveScene(elementsRef.current, layersRef.current),
-      appState: appStateRef.current,
-      files: apiRef.current?.getFiles?.() ?? {},
-      title: note?.title,
-    })
+  const exportScoped = useCallback(
+    async (scope, format) => {
+      const api = apiRef.current
+      let elements
+      if (scope === 'selection') {
+        const sel = api?.getAppState?.().selectedElementIds ?? {}
+        elements = (api?.getSceneElements?.() ?? []).filter((e) => sel[e.id])
+        if (!elements.length) {
+          toast.info('No hay elementos seleccionados')
+          return
+        }
+      } else {
+        elements = deriveScene(elementsRef.current, layersRef.current)
+      }
+      const args = {
+        elements,
+        appState: appStateRef.current,
+        files: api?.getFiles?.() ?? {},
+        title: note?.title,
+      }
+      try {
+        await (format === 'png' ? exportCanvasPng(args) : exportCanvasSvg(args))
+      } catch (err) {
+        toast.error(err?.message ?? 'No se pudo exportar')
+      }
+    },
+    [note?.title],
+  )
 
   if (error) {
     return <div className="p-8 text-sm text-muted-foreground">No se pudo cargar el lienzo.</div>
@@ -336,22 +364,25 @@ export function CanvasEditor({ note }) {
     <div className="flex h-full min-h-0">
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-center gap-1 px-3 h-11 border-b border-border shrink-0">
-          <button
-            type="button"
-            onClick={() => doExport(exportCanvasPng)}
-            className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg"
-            title="Exportar PNG"
-          >
-            <FileDown size={13} /> PNG
-          </button>
-          <button
-            type="button"
-            onClick={() => doExport(exportCanvasSvg)}
-            className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg"
-            title="Exportar SVG"
-          >
-            <FileDown size={13} /> SVG
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted rounded-lg"
+              >
+                <FileDown size={13} /> Exportar
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Todo el lienzo</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => exportScoped('all', 'png')}>PNG</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportScoped('all', 'svg')}>SVG</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Seleccion</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => exportScoped('selection', 'png')}>PNG</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportScoped('selection', 'svg')}>SVG</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="flex-1" />
           <button
             type="button"
@@ -381,6 +412,7 @@ export function CanvasEditor({ note }) {
             >
               <CanvasStage
                 initialData={initialDataRef.current}
+                theme={isDark ? 'dark' : 'light'}
                 onExcalidrawAPI={handleExcalidrawAPI}
                 onChange={handleChange}
                 onPointerUpdate={handlePointer}

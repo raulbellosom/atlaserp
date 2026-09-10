@@ -35,7 +35,7 @@ function LayerRow({
   return (
     <div
       className={[
-        'flex items-center gap-2 px-2 py-2 border-b border-border min-h-[44px] cursor-pointer',
+        'flex items-center gap-2 px-2 py-2 border-b border-border min-h-11 cursor-pointer',
         isActive ? 'bg-amber-50 dark:bg-amber-950/30' : 'hover:bg-muted',
       ].join(' ')}
       onClick={() => onSelect(layer.id)}
@@ -174,22 +174,28 @@ function LayersBody({
 
 export function CanvasLayersPanel({ open, onOpenChange, isMobile, onAddLayer, ...body }) {
   const header = (
-    <div className="flex items-center justify-between px-3 h-11 border-b border-border">
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Capas</span>
-      <button
-        type="button"
-        onClick={onAddLayer}
-        className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
-      >
-        <Plus size={13} /> Nueva capa
-      </button>
+    <div className="border-b border-border bg-card">
+      <div className="flex items-center justify-between px-3 h-11">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Capas</span>
+        <button
+          type="button"
+          onClick={onAddLayer}
+          className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
+        >
+          <Plus size={13} /> Nueva capa
+        </button>
+      </div>
+      <p className="px-3 pb-2 text-[11px] leading-snug text-muted-foreground">
+        Cada forma vive en una capa. Arrastra <GripVertical size={11} className="inline -mt-0.5" /> para
+        reordenar, el ojo muestra u oculta, el candado bloquea, y el deslizador ajusta la opacidad.
+      </p>
     </div>
   )
 
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto p-0">
+        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto p-0 bg-card">
           <SheetHeader className="sr-only">
             <SheetTitle>Capas</SheetTitle>
           </SheetHeader>
@@ -202,7 +208,7 @@ export function CanvasLayersPanel({ open, onOpenChange, isMobile, onAddLayer, ..
 
   if (!open) return null
   return (
-    <div className="w-72 shrink-0 border-l border-border flex flex-col bg-background overflow-y-auto">
+    <div className="w-72 shrink-0 border-l border-border flex flex-col bg-card overflow-y-auto">
       {header}
       <LayersBody {...body} />
     </div>

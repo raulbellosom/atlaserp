@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react'
-import { Copy, Check, NotebookPen, X } from 'lucide-react'
+import { Copy, Check, NotebookPen, X, FileDown } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '../../../auth/AuthProvider'
+import { atlas } from '../../../lib/atlas'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
 import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
@@ -19,6 +22,8 @@ function SectionLabel({ children }) {
 }
 
 export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTrash }) {
+  const { session } = useAuth()
+  const [exporting, setExporting] = useState(false)
   const { data: foldersData } = useNoteFolders()
   const { data: tagsData } = useNoteTags()
   const createFolder = useCreateNoteFolder()
@@ -55,6 +60,40 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
   }, [publicUrl])
 
   const activeBg = note?.background_color ?? null
+  const isCanvas = note?.note_type === 'canvas'
+
+  // Canvas export from the settings panel: the whole scene, images included.
+  // Dynamic-imports keep the heavy Excalidraw export utils out of this always-
+  // loaded panel's chunk.
+  const handleCanvasExport = useCallback(
+    async (format) => {
+      if (!note?.id || exporting) return
+      setExporting(true)
+      try {
+        const [{ scene }, exportMod, imgMod, layerMod] = await Promise.all([
+          atlas.notes.getCanvas(note.id, session?.access_token),
+          import('../lib/canvasExport.js'),
+          import('../lib/canvasImages.js'),
+          import('../lib/canvasLayers.js'),
+        ])
+        const fileArr = await imgMod.hydrateImages(scene.files)
+        const files = {}
+        for (const f of fileArr) files[f.id] = f
+        const args = {
+          elements: layerMod.deriveScene(scene.elements ?? [], scene.layers ?? []),
+          appState: scene.appState ?? {},
+          files,
+          title: note.title,
+        }
+        await (format === 'png' ? exportMod.exportCanvasPng(args) : exportMod.exportCanvasSvg(args))
+      } catch (err) {
+        toast.error(err?.message ?? 'No se pudo exportar')
+      } finally {
+        setExporting(false)
+      }
+    },
+    [note?.id, note?.title, session?.access_token, exporting],
+  )
 
   function handleAddTag(tagId) {
     if (!tagId || noteTagIds.includes(tagId)) return
@@ -122,6 +161,31 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
         onChange={e => onUpdate({ title: e.target.value })}
         placeholder="Titulo de la nota"
       />
+
+      {/* ── Exportar (solo lienzo) ───────────────────────── */}
+      {isCanvas && (
+        <div>
+          <SectionLabel>Exportar lienzo</SectionLabel>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={() => handleCanvasExport('png')}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+            >
+              <FileDown size={13} /> PNG
+            </button>
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={() => handleCanvasExport('svg')}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+            >
+              <FileDown size={13} /> SVG
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Carpeta ──────────────────────────────────────── */}
       <CreatableComboboxField

@@ -19,6 +19,7 @@ import { NotesList } from './components/NotesList.jsx'
 import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteSettingsPanel } from './components/NoteSettingsPanel.jsx'
 import { NoteShareModal } from './components/NoteShareModal.jsx'
+import { NoteTitleEditor } from './components/NoteTitleEditor.jsx'
 
 // Lazy so the Excalidraw bundle only loads when a canvas note is opened.
 const CanvasEditor = lazy(() =>
@@ -237,12 +238,16 @@ export default function NotesScreen() {
             <ArrowLeft size={15} />
           </button>
 
-          <span className="flex-1 flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground truncate">
-            {selectedNote?.icon && (
-              <NoteIcon name={selectedNote.icon} size={13} className="text-amber-500 shrink-0" />
-            )}
-            {selectedNote ? (selectedNote.title || 'Sin titulo') : ''}
-          </span>
+          {selectedNote && !isTrashView && selectedNote.note_type === 'canvas' ? (
+            <NoteTitleEditor note={selectedNote} onUpdate={handleUpdateNote} />
+          ) : (
+            <span className="flex-1 flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground truncate">
+              {selectedNote?.icon && (
+                <NoteIcon name={selectedNote.icon} size={13} className="text-amber-500 shrink-0" />
+              )}
+              {selectedNote ? (selectedNote.title || 'Sin titulo') : ''}
+            </span>
+          )}
 
           {selectedNote && (
             <div className="flex items-center gap-0.5">
