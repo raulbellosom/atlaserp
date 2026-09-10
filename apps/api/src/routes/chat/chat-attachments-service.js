@@ -38,7 +38,24 @@ export function createChatAttachmentsService({
     ];
     const allowed = ALLOWED_MIME.some(re => re.test(mimeType));
     if (!allowed) throw new ChatServiceError("Tipo de archivo no permitido.", 422);
-    if (sizeBytes > 50 * 1024 * 1024) throw new ChatServiceError("Archivo demasiado grande (max 50 MB).", 422);
+    // 50MB is also the self-hosted Supabase Storage service's own global
+    // upload ceiling (the `FILE_SIZE_LIMIT` env var on the storage
+    // container) — no per-bucket setting can exceed it, so this check can't
+    // be raised for video/audio without a VPS-side config change + storage
+    // container restart. Phone camera video clips routinely exceed 50MB even
+    // for a few seconds of footage, which is why video/audio uploads fail
+    // far more often than photos/docs — the message below says so explicitly
+    // instead of a generic "error subiendo archivo".
+    const MAX_BYTES = 50 * 1024 * 1024;
+    if (sizeBytes > MAX_BYTES) {
+      const isMedia = /^(audio|video)\//.test(mimeType);
+      throw new ChatServiceError(
+        isMedia
+          ? "Archivo demasiado grande (max 50 MB). Los videos del celular suelen pesar mas — prueba grabar en menor calidad o recortarlo antes de enviarlo."
+          : "Archivo demasiado grande (max 50 MB).",
+        422,
+      );
+    }
 
     const ext = fileName.split(".").pop()?.toLowerCase() ?? "bin";
     const objectKey = `conversations/${conversationId}/${crypto.randomUUID()}.${ext}`;
