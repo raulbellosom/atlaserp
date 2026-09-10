@@ -44,7 +44,7 @@ export default function PublicNoteScreen() {
           <div className="min-h-screen grid place-items-center text-sm text-gray-400">Cargando...</div>
         }
       >
-        <PublicCanvasView slug={slug} />
+        <PublicCanvasView key={slug} slug={slug} />
       </Suspense>
     )
   }

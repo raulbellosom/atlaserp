@@ -287,7 +287,7 @@ export default function NotesScreen() {
           <Suspense fallback={
             <div className="h-full grid place-items-center text-sm text-muted-foreground">Cargando lienzo...</div>
           }>
-            <CanvasEditor note={selectedNote} />
+            <CanvasEditor key={selectedNote.id} note={selectedNote} />
           </Suspense>
         ) : (
           <NoteEditor note={selectedNote} readOnly={isTrashView} />

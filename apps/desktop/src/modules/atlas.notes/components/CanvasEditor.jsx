@@ -29,7 +29,7 @@ import {
 } from '../lib/canvasLayers.js'
 import { SupabaseCanvasSync } from '../lib/SupabaseCanvasSync.js'
 import { syncNewImages, hydrateImages, pickManifest } from '../lib/canvasImages.js'
-import { exportCanvasPng, exportCanvasSvg } from '../lib/canvasExport.js'
+import { exportCanvasPng, exportCanvasSvg, exportCanvasPdf } from '../lib/canvasExport.js'
 import { CanvasLayersPanel } from './CanvasLayersPanel.jsx'
 
 const CanvasStage = lazy(() => import('./CanvasStage.jsx'))
@@ -502,8 +502,10 @@ export function CanvasEditor({ note }) {
         files: api?.getFiles?.() ?? {},
         title: note?.title,
       }
+      const fn =
+        format === 'png' ? exportCanvasPng : format === 'svg' ? exportCanvasSvg : exportCanvasPdf
       try {
-        await (format === 'png' ? exportCanvasPng(args) : exportCanvasSvg(args))
+        await fn(args)
       } catch (err) {
         toast.error(err?.message ?? 'No se pudo exportar')
       }
@@ -534,10 +536,12 @@ export function CanvasEditor({ note }) {
               <DropdownMenuLabel>Todo el lienzo</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => exportScoped('all', 'png')}>PNG</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => exportScoped('all', 'svg')}>SVG</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportScoped('all', 'pdf')}>PDF</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Seleccion</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => exportScoped('selection', 'png')}>PNG</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => exportScoped('selection', 'svg')}>SVG</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => exportScoped('selection', 'pdf')}>PDF</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex-1" />

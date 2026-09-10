@@ -85,7 +85,13 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
           files,
           title: note.title,
         }
-        await (format === 'png' ? exportMod.exportCanvasPng(args) : exportMod.exportCanvasSvg(args))
+        const fn =
+          format === 'png'
+            ? exportMod.exportCanvasPng
+            : format === 'svg'
+              ? exportMod.exportCanvasSvg
+              : exportMod.exportCanvasPdf
+        await fn(args)
       } catch (err) {
         toast.error(err?.message ?? 'No se pudo exportar')
       } finally {
@@ -182,6 +188,14 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
               className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors disabled:opacity-50"
             >
               <FileDown size={13} /> SVG
+            </button>
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={() => handleCanvasExport('pdf')}
+              className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+            >
+              <FileDown size={13} /> PDF
             </button>
           </div>
         </div>

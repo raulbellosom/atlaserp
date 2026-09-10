@@ -64,6 +64,7 @@
     "country-state-city": "^3.2.1",
     "date-fns": "^4.3.0",
     "emoji-picker-react": "^4.19.1",
+    "jspdf": "4.2.1",
     "lib0": "^0.2.117",
     "livekit-client": "2.21.0",
     "lucide-react": "latest",
