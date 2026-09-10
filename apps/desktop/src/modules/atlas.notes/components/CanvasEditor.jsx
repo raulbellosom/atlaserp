@@ -361,7 +361,7 @@ export function CanvasEditor({ note }) {
   }
 
   return (
-    <div className="flex h-full min-h-0">
+    <div className="relative flex h-full min-h-0">
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-center gap-1 px-3 h-11 border-b border-border shrink-0">
           <DropdownMenu>
