@@ -295,6 +295,7 @@ export function createSharesService({ prisma, broadcaster, notificationService }
     const rows = await prisma.$queryRaw`
       SELECT
         notes.id,
+        notes.note_type,
         notes.title,
         notes.content,
         notes.content_text,

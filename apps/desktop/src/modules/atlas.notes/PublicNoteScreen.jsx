@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { atlas } from '../../lib/atlas'
 import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteIcon } from './noteIcons.jsx'
 import { ErrorState } from '@atlas/ui'
+
+const PublicCanvasView = lazy(() => import('./PublicCanvasView.jsx'))
 
 export default function PublicNoteScreen() {
   const { slug } = useParams()
@@ -34,6 +36,18 @@ export default function PublicNoteScreen() {
   })
 
   const note = data?.note
+
+  if (note?.note_type === 'canvas') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen grid place-items-center text-sm text-gray-400">Cargando...</div>
+        }
+      >
+        <PublicCanvasView slug={slug} />
+      </Suspense>
+    )
+  }
 
   if (isLoading) {
     return (
