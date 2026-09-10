@@ -307,7 +307,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   // then the profile panel, then the files view. Dialog/Sheet-based overlays
   // (ForwardMessageModal, PinnedMessagesSheet, ThreadPanel, ConfirmDialog)
   // already close on Escape via Radix's own built-in handling and don't need
-  // anything here.
+  // anything here. When nothing is layered on top, Escape backs out of the
+  // conversation itself (onClose) — but a first press only blurs a non-empty
+  // composer so a half-typed message isn't lost to a stray keystroke.
   useEffect(() => {
     function onKeyDown(e) {
       if (e.key !== "Escape") return;
@@ -315,10 +317,19 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       if (searchMode) { setSearchMode(false); setSearchQuery(""); return; }
       if (membersView) { closeProfile(); return; }
       if (filesView) { setFilesView(false); return; }
+      if (!conversation || e.defaultPrevented || !onClose) return;
+      // A Radix overlay / the message action menu owns Escape while open.
+      if (document.querySelector(
+        '[role="dialog"],[role="alertdialog"],[data-radix-popper-content-wrapper],[data-radix-menu-content],[data-msg-action-menu]',
+      )) return;
+      const ae = document.activeElement;
+      const editable = ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT" || ae.isContentEditable);
+      if (editable && String(ae.value ?? ae.textContent ?? "").trim()) { ae.blur(); return; }
+      onClose();
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectionMode, searchMode, membersView, filesView, exitSelectionMode, closeProfile]);
+  }, [selectionMode, searchMode, membersView, filesView, exitSelectionMode, closeProfile, onClose, conversation]);
 
   const toggleSelectMessage = useCallback((msgId) => {
     setSelectedMsgIds((prev) => {
