@@ -468,5 +468,26 @@ Por tamano (backend + frontend, > 10 tareas), se divide en:
   `PublicCanvasView.jsx`, ediciones de `NotesScreen` / `PublicNoteScreen` /
   `NotesList` / `NoteCard` / `noteIcons` / `useNotes`, imagenes, export, grid,
   movil, tests desktop, QA responsive.
+  Code-complete: 2026-09-10 (node:test desktop 66/66; `@excalidraw/excalidraw`
+  0.18.1 pineado y 100% lazy — sin referencias en los chunks de entrada;
+  `pnpm build` completo incluida la compilacion Tauri + instaladores; eslint
+  limpio). PENDIENTE de QA interactiva (Task 13 pasos 1-5 del plan): edicion
+  entre dos navegadores, capas, grid/export, enlace publico en vivo, tactil a
+  390px y 1440px. Realtime broadcast/presence y el binding a Excalidraw
+  (`reconcileElements`) no se pueden ejercitar sin navegador.
 
 Plan B depende de Plan A.
+
+## 15. Decisiones de implementacion (2026-09-10)
+
+- Motor de sync: opcion B (broadcast de deltas de Excalidraw + `reconcileElements`,
+  sin Yjs), confirmada por el usuario.
+- Reorden de capas: `SortableList` de `@atlas/ui` (dnd-kit, pointer sensor -> ok
+  tactil) en vez de HTML5 drag hand-rolled.
+- El smoke de imports de Excalidraw es estatico (parsea el `.d.ts` publico): el
+  bundle prod de Excalidraw usa resolucion solo-bundler (import de `roughjs` sin
+  extension) y `await import()` falla bajo Node puro aunque Vite lo resuelve.
+- `getPublicNote` (shares-service) ahora tambien devuelve `note_type` para que
+  `PublicNoteScreen` pueda ramificar.
+- La vista de papelera sigue mostrando `NoteEditor` de solo lectura para notas
+  lienzo (no hay modo papelera de `CanvasEditor` en v1).
