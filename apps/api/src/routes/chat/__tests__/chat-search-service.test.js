@@ -14,12 +14,14 @@ const PROFILE_ID = "01900000-0000-7000-8000-0000000000p1";
 beforeEach(() => _resetProfileIdCacheForTests());
 
 // call #1 is resolveUserProfileId's SELECT; call #2 is the search SELECT.
-function mockPrisma(searchRows = []) {
+// `capture.sql` holds the search SELECT's template text (strings joined by "?").
+function mockPrisma(searchRows = [], capture = {}) {
   let call = 0;
   return {
-    $queryRaw: async () => {
+    $queryRaw: async (strings) => {
       call += 1;
       if (call === 1) return [{ id: PROFILE_ID }];
+      capture.sql = Array.isArray(strings) ? strings.join("?") : String(strings ?? "");
       return searchRows;
     },
   };
@@ -104,7 +106,7 @@ describe("searchMessages", () => {
     assert.equal(out.truncated, false);
   });
 
-  it("resolves the other participant for a direct conversation with no stored title", async () => {
+  it("resolves the other participant's NAME for a direct conversation with no stored title", async () => {
     const svc = createChatSearchService({
       prisma: mockPrisma([
         row({
@@ -112,13 +114,24 @@ describe("searchMessages", () => {
           conversation_title: null,
           conversation_avatar_url: null,
           dm_name: "Luar Medbe",
-          dm_avatar_url: "https://cdn/luar.jpg",
         }),
       ]),
     });
     const out = await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "factura" });
     assert.equal(out.data[0].conversation.title, "Luar Medbe");
-    assert.equal(out.data[0].conversation.avatarUrl, "https://cdn/luar.jpg");
+    // No DM avatar — user_profile has no avatar_url column; result list falls
+    // back to initials from the name.
+    assert.equal(out.data[0].conversation.avatarUrl, null);
+  });
+
+  it("the search SQL never references user_profile.avatar_url (regression: 42703 → 500 on every search)", async () => {
+    const capture = {};
+    const svc = createChatSearchService({ prisma: mockPrisma([], capture) });
+    await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "yo", conversationId: "01a083a9-122d-73b7-822f-bd3048f003d3" });
+    assert.ok(capture.sql, "search SELECT was issued");
+    assert.doesNotMatch(capture.sql, /\bp\.avatar_url\b/, "user_profile p has no avatar_url column");
+    assert.doesNotMatch(capture.sql, /dm_avatar_url/);
+    assert.match(capture.sql, /dm\.display_name/, "still resolves the DM peer name");
   });
 
   it("flags truncated when the DB returns limit+1 rows", async () => {
