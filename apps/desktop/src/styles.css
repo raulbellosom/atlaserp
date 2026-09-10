@@ -264,6 +264,16 @@ body,
       height: -webkit-fill-available;
     }
   }
+  /* In an iOS Safari TAB (not an installed PWA) -webkit-fill-available already
+     stops above the home indicator, so a `.safe-bottom` element (the chat
+     composer) would tack on env(safe-area-inset-bottom) of dead space below the
+     input. In a standalone PWA the fill height IS the full screen, so keep the
+     inset there. */
+  @media (pointer: coarse) and (display-mode: browser) {
+    .app-shell-root .safe-bottom {
+      padding-bottom: 0 !important;
+    }
+  }
 }
 
 /* ── Badge variant overrides (light mode: solid; dark mode: glass) ──────────
