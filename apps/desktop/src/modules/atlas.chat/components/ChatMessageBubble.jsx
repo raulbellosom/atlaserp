@@ -409,7 +409,9 @@ export function ChatMessageBubble({
     e.preventDefault();
     e.stopPropagation();
     suppressClickRef.current = true;
-    const anchorEl = attEl ?? e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
+    // Prefer the tight message-content box so the long-press "spotlight" frames
+    // just the bubble, not the full-width row (which is padded and edge-to-edge).
+    const anchorEl = attEl ?? e.target?.closest?.("[data-msg-bubble]") ?? e.currentTarget ?? e.target?.closest?.("[data-msg-id]");
     const r = anchorEl?.getBoundingClientRect?.();
     const attachment = attEl
       ? (message.attachments ?? []).find((a) => String(a.id) === attEl.dataset.attachmentId) ?? null
@@ -440,7 +442,9 @@ export function ChatMessageBubble({
       if (fromMenu(e)) return;
       // Capture the anchor now, while e.currentTarget (the row) is live.
       const attEl = e.target?.closest?.("[data-attachment-id]");
-      const anchorEl = attEl ?? e.currentTarget;
+      // Anchor to the tight message-content box (not the padded, edge-to-edge
+      // row) so the long-press spotlight frames just the bubble.
+      const anchorEl = attEl ?? e.target?.closest?.("[data-msg-bubble]") ?? e.currentTarget;
       const rect = anchorEl?.getBoundingClientRect?.() ?? null;
       pressRef.current = {
         rect: rect && { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height },
@@ -660,7 +664,7 @@ export function ChatMessageBubble({
           onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
           anchorAlign="end"
         >
-          <div className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
+          <div data-msg-bubble className="flex flex-col items-end max-w-[72%] sm:max-w-[65%]">
             {forwardedMark}
             {/* Quote sits INSIDE the text bubble (below) when there's a body,
                 tinted to match it; only floats on its own when the reply has
@@ -887,7 +891,7 @@ export function ChatMessageBubble({
         onPick={(emoji) => onToggleReaction?.(message.id, emoji)}
         anchorAlign="start"
       >
-        <div className="flex flex-col items-start max-w-[72%] sm:max-w-[65%]">
+        <div data-msg-bubble className="flex flex-col items-start max-w-[72%] sm:max-w-[65%]">
           {isFirst && (
             <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] mb-1 ml-1 truncate max-w-full">
               {senderName}

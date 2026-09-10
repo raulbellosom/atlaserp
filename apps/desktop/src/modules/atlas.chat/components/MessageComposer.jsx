@@ -15,7 +15,7 @@ import {
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIcon, Link2, User, Landmark, IdCard,
 } from "lucide-react";
-import EmojiPicker, { EmojiStyle } from "emoji-picker-react";
+import { ThemedEmojiPicker } from "./ThemedEmojiPicker";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
 import { MERIDIAN_MENTION_ID } from "../lib/meridian";
@@ -1007,18 +1007,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
                 style={{ maxHeight: "var(--radix-popover-content-available-height, 360px)" }}
                 onOpenAutoFocus={(e) => e.preventDefault()}
               >
-                <EmojiPicker
+                <ThemedEmojiPicker
                   onEmojiClick={insertEmoji}
-                  theme="dark"
-                  // Native OS emoji — consistent with reaction pills and message
-                  // text (see MessageReactionPicker.jsx for the same note).
-                  emojiStyle={EmojiStyle.NATIVE}
                   width={compact ? "min(230px, calc(100vw - 1rem))" : "min(300px, calc(100vw - 1.5rem))"}
                   height={compact ? 280 : 360}
-                  searchPlaceholder="Buscar emoji..."
-                  lazyLoadEmojis
-                  skinTonesDisabled
-                  autoFocusSearch={false}
                 />
               </PopoverContent>
             </Popover>
@@ -1027,23 +1019,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
                 from the "+" in the quick strip. Immune to the Sheet-anchor
                 clipping that could push the Popover off-screen on mobile. */}
             <Dialog open={emojiModalOpen} onOpenChange={setEmojiModalOpen}>
-              <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-md p-0 overflow-hidden">
-                <DialogHeader className="px-4 pt-4">
-                  <DialogTitle>Emojis</DialogTitle>
+              <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-md p-0 overflow-hidden bg-[hsl(var(--popover,var(--background)))]">
+                <DialogHeader className="px-4 pt-4 pb-1">
+                  <DialogTitle className="text-sm">Emojis</DialogTitle>
                 </DialogHeader>
-                <div className="p-2">
-                  <EmojiPicker
-                    onEmojiClick={(ed) => { insertEmoji(ed); setEmojiModalOpen(false); }}
-                    theme="dark"
-                    emojiStyle={EmojiStyle.NATIVE}
-                    width="100%"
-                    height={360}
-                    searchPlaceholder="Buscar emoji..."
-                    lazyLoadEmojis
-                    skinTonesDisabled
-                    autoFocusSearch={false}
-                  />
-                </div>
+                <ThemedEmojiPicker
+                  className="px-1.5 pb-1.5"
+                  onEmojiClick={(ed) => { insertEmoji(ed); setEmojiModalOpen(false); }}
+                  width="100%"
+                  height={360}
+                />
               </DialogContent>
             </Dialog>
 
