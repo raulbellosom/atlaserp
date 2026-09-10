@@ -459,7 +459,9 @@ Por tamano (backend + frontend, > 10 tareas), se divide en:
 - **Plan A — API y datos:** migracion (`notes.note_type` + `note_canvas_scene`),
   `canvas-service.js`, rutas en `routes/notes/index.js`, ruta publica en
   `index.js`, `noteType` en `createNote` / `listNotes` / validators, cliente SDK,
-  tests API.
+  tests API. Verified: 2026-09-10 (node:test 28/28 + DB smoke: note_type persist,
+  version bump, appState whitelist, content_text extraction; both public routes
+  return 404 not 401).
 - **Plan B — Desktop:** dependencia Excalidraw, `CanvasEditor.jsx`,
   `SupabaseCanvasSync.js` + `canvasSync.js`, `canvasLayers.js`,
   `CanvasLayersPanel.jsx`, `canvasExport.js`, `hooks/useCanvasScene.js`,
