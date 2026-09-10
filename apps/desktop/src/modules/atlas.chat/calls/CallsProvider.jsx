@@ -57,6 +57,9 @@ export function CallsProvider({ children }) {
   const startingCallRef = useRef(false);
   const busyNoticeRef = useRef(new Set());
   const [pendingGuestCount, setPendingGuestCount] = useState(0);
+  // Bumped by the lobby toast's "Ver solicitudes" action; CallRoom watches it
+  // and opens the guest sheet in place (no navigation, no unmount).
+  const [guestPanelNonce, setGuestPanelNonce] = useState(0);
   const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
@@ -424,7 +427,12 @@ export function CallsProvider({ children }) {
       on("chat.call.guest_waiting", (p) => {
         bump();
         if (activeRef.current?.call?.id === p?.callId) {
-          toast.message(`${p?.name ?? "Un invitado"} quiere unirse a la llamada.`);
+          toast.message(`${p?.name ?? "Un invitado"} quiere unirse a la llamada.`, {
+            action: {
+              label: "Ver solicitudes",
+              onClick: () => setGuestPanelNonce((n) => n + 1),
+            },
+          });
         }
       }),
       on("chat.call.guest_admitted", clear),
@@ -437,6 +445,7 @@ export function CallsProvider({ children }) {
   useEffect(() => {
     if (!activeSession) {
       setPendingGuestCount(0);
+      setGuestPanelNonce(0);
       setMinimized(false);
     }
   }, [activeSession]);
@@ -476,6 +485,7 @@ export function CallsProvider({ children }) {
             minimized={minimized}
             onMinimize={minimizeCall}
             onRestore={restoreCall}
+            guestPanelNonce={guestPanelNonce}
           />
         </Suspense>
       )}

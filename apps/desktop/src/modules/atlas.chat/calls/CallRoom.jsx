@@ -6,12 +6,12 @@ import { useChatMessages } from "../hooks/useChatMessages";
 import { playCallSound, playCallEndSound } from "./callSounds";
 import { nextCallView } from "./lib/callChat";
 import { CallChatPanel } from "./CallChatPanel";
-import { CallGuestRoster } from "./CallGuestRoster";
 import { CallShareDialog } from "./CallShareDialog";
 import { CallInvitePanel } from "./CallInvitePanel";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { useCallGuests } from "./hooks/useCallGuests";
 import { useCallEphemeral } from "./hooks/useCallEphemeral";
+import { CallGuestSheet } from "./CallGuestSheet";
 import { CallRoomLayout } from "./CallRoomLayout";
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
@@ -37,7 +37,7 @@ function writeChatCollapsedPref(collapsed) {
   }
 }
 
-export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, minimized = false, onMinimize, onRestore }) {
+export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, minimized = false, onMinimize, onRestore, guestPanelNonce = 0 }) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
@@ -77,6 +77,10 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const guestsApi = useCallGuests(session.call.id, { enabled: isInitiator });
   const hasGuests = guestsApi.guests.some((g) => g.status === "ADMITTED" || g.status === "LOBBY");
   const [shareOpen, setShareOpen] = useState(false);
+  const [guestSheetOpen, setGuestSheetOpen] = useState(false);
+  // Bumped by CallsProvider from the "Ver solicitudes" toast action — only opens
+  // the sheet in place, never navigates or unmounts the room.
+  useEffect(() => { if (guestPanelNonce) setGuestSheetOpen(true); }, [guestPanelNonce]);
   const [liveMessages, setLiveMessages] = useState([]);
   const [aloneDeadline, setAloneDeadline] = useState(() => Date.now() + ALONE_LIMIT_MS);
   const [aloneSecondsLeft, setAloneSecondsLeft] = useState(0);
@@ -566,15 +570,22 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         chatUnread,
         hasScreenShare,
         panel: chatPanelNode,
-        hasGuests,
         canShare: isInitiator,
         onShare: () => setShareOpen(true),
         pendingLobby: guestsApi.lobby.length,
-        roster: isInitiator ? <CallGuestRoster guestsApi={guestsApi} /> : null,
+        onOpenGuests: isInitiator ? () => setGuestSheetOpen(true) : null,
       }}
     />
     {isInitiator && (
-      <CallShareDialog open={shareOpen} onOpenChange={setShareOpen} conversationId={conversationId} />
+      <>
+        <CallShareDialog open={shareOpen} onOpenChange={setShareOpen} conversationId={conversationId} />
+        <CallGuestSheet
+          open={guestSheetOpen}
+          onOpenChange={setGuestSheetOpen}
+          guestsApi={guestsApi}
+          onShare={() => { setGuestSheetOpen(false); setShareOpen(true); }}
+        />
+      </>
     )}
     <AloneWarningDialog
       open={aloneSecondsLeft > 0}
