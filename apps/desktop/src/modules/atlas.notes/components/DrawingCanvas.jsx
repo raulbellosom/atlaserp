@@ -1,10 +1,13 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import { useRef, useState, useEffect } from 'react'
+import { X } from 'lucide-react'
+import { ConfirmDialog } from '@atlas/ui'
 
 const COLORS = ['#1a1a1a', '#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ffffff']
+const BACKGROUNDS = ['#ffffff', '#f3f4f6', '#fef9c3', '#dbeafe', '#dcfce7', '#1a1a1a']
 const SIZES = [2, 4, 8, 14, 20]
 
-export function DrawingCanvas({ node, updateAttributes, editor }) {
+export function DrawingCanvas({ node, updateAttributes, editor, deleteNode }) {
   const canvasRef = useRef(null)
   const isDrawing = useRef(false)
   const currentStroke = useRef([])
@@ -13,6 +16,7 @@ export function DrawingCanvas({ node, updateAttributes, editor }) {
   const [color, setColor] = useState('#1a1a1a')
   const [size, setSize] = useState(4)
   const [strokeCount, setStrokeCount] = useState(strokesRef.current.length)
+  const [confirmClose, setConfirmClose] = useState(false)
 
   useEffect(() => {
     strokesRef.current = JSON.parse(node.attrs.strokes || '[]')
@@ -121,9 +125,23 @@ export function DrawingCanvas({ node, updateAttributes, editor }) {
                 </button>
               ))}
             </div>
+            <div className="h-4 w-px bg-[hsl(var(--border))]" />
+            <div className="flex gap-1 items-center">
+              <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Fondo</span>
+              {BACKGROUNDS.map(bg => (
+                <button key={bg} onClick={() => updateAttributes({ backgroundColor: bg })}
+                  aria-label={`Fondo ${bg}`}
+                  className={`w-5 h-5 rounded-full border-2 ${node.attrs.backgroundColor === bg ? 'border-amber-500 scale-110' : 'border-[hsl(var(--border))]'}`}
+                  style={{ backgroundColor: bg }} />
+              ))}
+            </div>
             <div className="ml-auto flex gap-1">
               <button onClick={undoLast} disabled={strokeCount === 0} className="px-2 py-1 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] rounded disabled:opacity-30">Deshacer</button>
               <button onClick={clearAll} disabled={strokeCount === 0} className="px-2 py-1 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded disabled:opacity-30">Limpiar</button>
+              <button onClick={() => setConfirmClose(true)} title="Eliminar lienzo de dibujo" aria-label="Eliminar lienzo de dibujo"
+                className="flex items-center justify-center w-6 h-6 text-[hsl(var(--muted-foreground))] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded">
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         )}
@@ -144,6 +162,14 @@ export function DrawingCanvas({ node, updateAttributes, editor }) {
           }}
         />
       </div>
+      <ConfirmDialog
+        open={confirmClose}
+        onOpenChange={setConfirmClose}
+        title="Eliminar lienzo de dibujo"
+        description="Se eliminara este lienzo y todo lo dibujado en el de la nota. Esta accion se puede deshacer con Ctrl+Z."
+        confirmLabel="Eliminar"
+        onConfirm={() => { setConfirmClose(false); deleteNode?.() }}
+      />
     </NodeViewWrapper>
   )
 }
