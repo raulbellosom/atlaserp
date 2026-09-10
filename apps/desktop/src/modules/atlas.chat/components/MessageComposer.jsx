@@ -293,6 +293,9 @@ export const MessageComposer = forwardRef(function MessageComposer(
   const recorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
+  const recordMimeRef = useRef(null);
+  const recordStartedAtRef = useRef(0);
+  const stopWatchdogRef = useRef(null);
   const voiceAutoSendRef = useRef(false);
   const handleSendRef = useRef(null);
   const mentionTaRef = useRef(null);
@@ -437,37 +440,19 @@ export const MessageComposer = forwardRef(function MessageComposer(
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
-      let startedAt = 0;
+      recordMimeRef.current = mimeType;
+      recordStartedAtRef.current = 0;
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
 
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        clearInterval(recordTimerRef.current);
-        const ext = mimeToExt(mimeType);
-        const baseMime = mimeType.split(";")[0];
-        const blob = new Blob(audioChunksRef.current, { type: baseMime });
-        const now = new Date();
-        const ts = `${now.getHours().toString().padStart(2,"0")}-${now.getMinutes().toString().padStart(2,"0")}-${now.getSeconds().toString().padStart(2,"0")}`;
-        const file = new File([blob], `nota_de_voz_${ts}.${ext}`, { type: baseMime });
-        // Real length, wall-clock — the only reliable source (webm/opus blobs
-        // report no duration). Rides along on the File to presign as durationMs.
-        const durationMs = startedAt ? Math.max(0, Math.round(performance.now() - startedAt)) : null;
-        if (durationMs != null) {
-          try { file.voiceDurationMs = durationMs; } catch { /* File expando unsupported */ }
-        }
-        setRecording(false);
-        setRecordSeconds(0);
-        voiceAutoSendRef.current = true;
-        addFilesToQueue([file]);
-      };
+      recorder.onstop = () => finalizeRecording(stream);
 
       // No timeslice: some mobile browsers (iOS Safari) emit corrupt fragments
       // when MediaRecorder is chunked — one valid container on stop plays back
       // cleanly.
-      startedAt = performance.now();
+      recordStartedAtRef.current = performance.now();
       recorder.start();
       recorderRef.current = recorder;
       setRecording(true);
@@ -483,8 +468,34 @@ export const MessageComposer = forwardRef(function MessageComposer(
     }
   }
 
+  // Shared by the normal recorder.onstop path and the watchdog fallback below
+  // (both end up with the same chunks/mimeType/startedAt in refs).
+  function finalizeRecording(stream) {
+    stream?.getTracks().forEach((t) => t.stop());
+    clearInterval(recordTimerRef.current);
+    const mimeType = recordMimeRef.current;
+    const ext = mimeToExt(mimeType);
+    const baseMime = mimeType.split(";")[0];
+    const blob = new Blob(audioChunksRef.current, { type: baseMime });
+    const now = new Date();
+    const ts = `${now.getHours().toString().padStart(2,"0")}-${now.getMinutes().toString().padStart(2,"0")}-${now.getSeconds().toString().padStart(2,"0")}`;
+    const file = new File([blob], `nota_de_voz_${ts}.${ext}`, { type: baseMime });
+    // Real length, wall-clock — the only reliable source (webm/opus blobs
+    // report no duration). Rides along on the File to presign as durationMs.
+    const startedAt = recordStartedAtRef.current;
+    const durationMs = startedAt ? Math.max(0, Math.round(performance.now() - startedAt)) : null;
+    if (durationMs != null) {
+      try { file.voiceDurationMs = durationMs; } catch { /* File expando unsupported */ }
+    }
+    setRecording(false);
+    setRecordSeconds(0);
+    voiceAutoSendRef.current = true;
+    addFilesToQueue([file]);
+  }
+
   function stopRecording(discard = false) {
     clearInterval(recordTimerRef.current);
+    clearTimeout(stopWatchdogRef.current);
     const recorder = recorderRef.current;
     if (!recorder) return;
     if (discard) {
@@ -495,13 +506,36 @@ export const MessageComposer = forwardRef(function MessageComposer(
         setRecordSeconds(0);
       };
     }
+    // iOS Safari's MediaRecorder has a known bug where stop() can silently
+    // never fire `onstop` (and never releases the mic) unless a pending
+    // internal buffer is flushed first — requestData() forces that flush.
+    try { if (recorder.state === "recording") recorder.requestData(); } catch { /* unsupported */ }
     recorder.stop();
+    // Watchdog: if `onstop` still never arrives, the UI was previously stuck
+    // showing "recording" indefinitely — the mic only actually released (with
+    // its stop chime) when the OS backgrounded the app and force-killed the
+    // stream. Force the same cleanup onstop would have done after a short
+    // grace period instead of waiting on a browser event that may never come.
+    stopWatchdogRef.current = setTimeout(() => {
+      if (recorderRef.current !== recorder || recorder.state === "inactive") return;
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (discard) {
+        recorder.stream?.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        setRecordSeconds(0);
+      } else {
+        finalizeRecording(recorder.stream);
+      }
+    }, 1500);
   }
 
   useEffect(() => {
     return () => {
       clearInterval(recordTimerRef.current);
+      clearTimeout(stopWatchdogRef.current);
       if (recorderRef.current?.state !== "inactive") {
+        recorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
         recorderRef.current?.stop();
       }
     };
@@ -671,6 +705,26 @@ export const MessageComposer = forwardRef(function MessageComposer(
   function handleFileInputChange(e) {
     if (e.target.files?.length) addFilesToQueue(Array.from(e.target.files));
     e.target.value = "";
+  }
+
+  // Paste an image straight from the clipboard (screenshot, "copy image", a
+  // copied file) into the composer — same queue as the picker and drag-drop.
+  // Only swallow the paste when it actually carried files; a normal text paste
+  // still lands in the textarea.
+  function handlePaste(e) {
+    const dt = e.clipboardData;
+    if (!dt) return;
+    const files = [];
+    for (const item of dt.items ?? []) {
+      if (item.kind === "file") {
+        const file = item.getAsFile();
+        if (file && file.size > 0) files.push(file);
+      }
+    }
+    if (files.length === 0 && dt.files?.length) files.push(...Array.from(dt.files));
+    if (files.length === 0) return;
+    e.preventDefault();
+    addFilesToQueue(files);
   }
 
   // ChatWindow.jsx wraps the whole message area (composer included) in its
@@ -852,6 +906,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
               value={body}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               members={mentionMembers}
               placeholder={placeholder}
               // Rests at 1 line now (was a fixed 3, always tall even empty)
