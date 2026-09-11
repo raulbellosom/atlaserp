@@ -81,7 +81,10 @@ function buildListWhere({ userId, companyId, query }) {
 }
 
 export function createNotificationService({ prisma, broadcaster = null }) {
-  async function resolveCompanyContext(authUserId) {
+  // activeCompanyId: the caller's validated active company, resolved by the
+  // API's tenant middleware and threaded down from routes/notifications.js.
+  // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+  async function resolveCompanyContext(authUserId, activeCompanyId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
       select: { id: true },
@@ -92,6 +95,10 @@ export function createNotificationService({ prisma, broadcaster = null }) {
         404,
         "profile_not_found",
       );
+    }
+
+    if (activeCompanyId) {
+      return { profileId: profile.id, companyId: activeCompanyId };
     }
 
     const membership = await prisma.membership.findFirst({
@@ -113,9 +120,9 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     };
   }
 
-  async function list({ authUserId, query }) {
+  async function list({ authUserId, companyId: activeCompanyId, query }) {
     const parsed = notificationListQuerySchema.parse(query ?? {});
-    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const where = buildListWhere({ userId: profileId, companyId, query: parsed });
 
     const take = parsed.limit + 1;
@@ -144,8 +151,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     };
   }
 
-  async function getOwnedNotification({ authUserId, id }) {
-    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+  async function getOwnedNotification({ authUserId, companyId: activeCompanyId, id }) {
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const row = await prisma.notification.findFirst({
       where: {
         id,
@@ -163,8 +170,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return row;
   }
 
-  async function markRead({ authUserId, id }) {
-    const row = await getOwnedNotification({ authUserId, id });
+  async function markRead({ authUserId, companyId: activeCompanyId, id }) {
+    const row = await getOwnedNotification({ authUserId, companyId: activeCompanyId, id });
     if (row.readAt) return toNotificationView(row);
 
     const updated = await prisma.notification.update({
@@ -174,8 +181,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return toNotificationView(updated);
   }
 
-  async function markAllRead({ authUserId }) {
-    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+  async function markAllRead({ authUserId, companyId: activeCompanyId }) {
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const result = await prisma.notification.updateMany({
       where: {
         userId: profileId,
@@ -232,8 +239,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return Boolean(row);
   }
 
-  async function markReadBySource({ authUserId, sourceType, sourceId }) {
-    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+  async function markReadBySource({ authUserId, companyId: activeCompanyId, sourceType, sourceId }) {
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const result = await prisma.notification.updateMany({
       where: {
         userId: profileId,
@@ -366,13 +373,13 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return publishResult;
   }
 
-  async function publishFromContext({ authUserId, input }) {
-    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+  async function publishFromContext({ authUserId, companyId: activeCompanyId, input }) {
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     return publish({ companyId, actorId: profileId, input });
   }
 
-  async function listPreferences({ authUserId }) {
-    const { profileId } = await resolveCompanyContext(authUserId);
+  async function listPreferences({ authUserId, companyId: activeCompanyId }) {
+    const { profileId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const rows = await prisma.notificationPreference.findMany({
       where: { userId: profileId },
       orderBy: [{ eventType: "asc" }],
@@ -380,9 +387,9 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return { data: rows };
   }
 
-  async function upsertPreference({ authUserId, input }) {
+  async function upsertPreference({ authUserId, companyId: activeCompanyId, input }) {
     const parsed = notificationPreferenceUpsertSchema.parse(input ?? {});
-    const { profileId } = await resolveCompanyContext(authUserId);
+    const { profileId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const row = await prisma.notificationPreference.upsert({
       where: {
         userId_eventType: {
@@ -408,9 +415,9 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return { data: row };
   }
 
-  async function subscribeWebPush({ authUserId, input, userAgent = null }) {
+  async function subscribeWebPush({ authUserId, companyId: activeCompanyId, input, userAgent = null }) {
     const parsed = webPushSubscriptionSchema.parse(input ?? {});
-    const { profileId, companyId } = await resolveCompanyContext(authUserId);
+    const { profileId, companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const row = await prisma.pushSubscription.upsert({
       where: { endpoint: parsed.endpoint },
       create: {
@@ -459,8 +466,8 @@ export function createNotificationService({ prisma, broadcaster = null }) {
     return { data: row };
   }
 
-  async function unsubscribeWebPush({ authUserId, id }) {
-    const { profileId } = await resolveCompanyContext(authUserId);
+  async function unsubscribeWebPush({ authUserId, companyId: activeCompanyId, id }) {
+    const { profileId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const sub = await prisma.pushSubscription.findFirst({
       where: { id, userId: profileId },
       select: { id: true },

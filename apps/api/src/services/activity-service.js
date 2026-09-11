@@ -47,7 +47,10 @@ function buildWhere({ companyId, filters }) {
 }
 
 export function createActivityService({ prisma }) {
-  async function resolveCompanyContext(authUserId) {
+  // activeCompanyId: the caller's validated active company, resolved by the
+  // API's tenant middleware and threaded down from routes/activity.js. See
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+  async function resolveCompanyContext(authUserId, activeCompanyId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
       select: { id: true },
@@ -58,6 +61,9 @@ export function createActivityService({ prisma }) {
         404,
         "profile_not_found",
       );
+    }
+    if (activeCompanyId) {
+      return { companyId: activeCompanyId, actorProfileId: profile.id };
     }
     const membership = await prisma.membership.findFirst({
       where: { userId: profile.id, enabled: true },
@@ -125,9 +131,9 @@ export function createActivityService({ prisma }) {
     return prisma.activity.create({ data });
   }
 
-  async function publishFromContext({ authUserId, input }) {
+  async function publishFromContext({ authUserId, companyId: activeCompanyId, input }) {
     const { companyId, actorProfileId } =
-      await resolveCompanyContext(authUserId);
+      await resolveCompanyContext(authUserId, activeCompanyId);
     if (input.companyId && input.companyId !== companyId) {
       throw new ActivityServiceError(
         "No puedes publicar actividad en otra empresa.",
@@ -142,8 +148,8 @@ export function createActivityService({ prisma }) {
     });
   }
 
-  async function list({ authUserId, query }) {
-    const { companyId } = await resolveCompanyContext(authUserId);
+  async function list({ authUserId, companyId: activeCompanyId, query }) {
+    const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 25;
     const where = buildWhere({ companyId, filters: query });
@@ -173,8 +179,8 @@ export function createActivityService({ prisma }) {
     return { data: items, pagination: { page, pageSize, total } };
   }
 
-  async function recent({ authUserId, limit = 20 }) {
-    const { companyId } = await resolveCompanyContext(authUserId);
+  async function recent({ authUserId, companyId: activeCompanyId, limit = 20 }) {
+    const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const items = await prisma.activity.findMany({
       where: { companyId },
@@ -197,11 +203,12 @@ export function createActivityService({ prisma }) {
 
   async function listForEntity({
     authUserId,
+    companyId: activeCompanyId,
     entityType,
     entityId,
     limit = 50,
   }) {
-    const { companyId } = await resolveCompanyContext(authUserId);
+    const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
     const items = await prisma.activity.findMany({
       where: { companyId, entityType, entityId },

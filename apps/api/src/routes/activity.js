@@ -31,7 +31,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
       const authUserId = c.get("authUserId");
       const raw = Object.fromEntries(new URL(c.req.url).searchParams);
       const query = activityListQuerySchema.parse(raw);
-      const result = await service.list({ authUserId, query });
+      const result = await service.list({ authUserId, companyId: c.get("companyId"), query });
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "GET /activity");
@@ -42,7 +42,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
     try {
       const authUserId = c.get("authUserId");
       const limit = Number(c.req.query("limit") ?? 20);
-      const result = await service.recent({ authUserId, limit });
+      const result = await service.recent({ authUserId, companyId: c.get("companyId"), limit });
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "GET /activity/recent");
@@ -60,6 +60,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
         const limit = Number(c.req.query("limit") ?? 50);
         const result = await service.listForEntity({
           authUserId,
+          companyId: c.get("companyId"),
           entityType,
           entityId,
           limit,
@@ -78,6 +79,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
       activityPublishSchema.parse(body);
       const activity = await service.publishFromContext({
         authUserId,
+        companyId: c.get("companyId"),
         input: body,
       });
       if (!activity) {
@@ -95,7 +97,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
     async (c) => {
       try {
         const authUserId = c.get("authUserId");
-        const { companyId } = await service.resolveCompanyContext(authUserId);
+        const { companyId } = await service.resolveCompanyContext(authUserId, c.get("companyId"));
         const auth =
           c.req.header("authorization") ?? c.req.header("Authorization");
         const token =
@@ -132,7 +134,7 @@ export function createActivityRouter({ prisma, requirePermission }) {
             5000,
           ),
         });
-        const result = await service.list({ authUserId, query });
+        const result = await service.list({ authUserId, companyId: c.get("companyId"), query });
         const rows = result?.data ?? [];
 
         const workbook = new ExcelJS.Workbook();

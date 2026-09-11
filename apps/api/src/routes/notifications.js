@@ -28,7 +28,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
       try {
         const authUserId = c.get("authUserId");
         const raw = Object.fromEntries(new URL(c.req.url).searchParams);
-        const result = await service.list({ authUserId, query: raw });
+        const result = await service.list({ authUserId, companyId: c.get("companyId"), query: raw });
         return c.json(result);
       } catch (err) {
         return handleError(c, err, "GET /notifications");
@@ -42,7 +42,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
     async (c) => {
       try {
         const authUserId = c.get("authUserId");
-        const result = await service.markAllRead({ authUserId });
+        const result = await service.markAllRead({ authUserId, companyId: c.get("companyId") });
         return c.json({ data: result });
       } catch (err) {
         return handleError(c, err, "PATCH /notifications/read-all");
@@ -57,7 +57,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
       try {
         const authUserId = c.get("authUserId");
         const id = c.req.param("id");
-        const result = await service.markRead({ authUserId, id });
+        const result = await service.markRead({ authUserId, companyId: c.get("companyId"), id });
         return c.json({ data: result });
       } catch (err) {
         return handleError(c, err, "PATCH /notifications/:id/read");
@@ -76,7 +76,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
         if (!sourceType || !sourceId) {
           return c.json({ error: "sourceType y sourceId son requeridos" }, 400);
         }
-        const result = await service.markReadBySource({ authUserId, sourceType, sourceId });
+        const result = await service.markReadBySource({ authUserId, companyId: c.get("companyId"), sourceType, sourceId });
         return c.json({ data: result });
       } catch (err) {
         return handleError(c, err, "PATCH /notifications/read-by-source");
@@ -93,6 +93,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
         const body = await c.req.json();
         const result = await service.publishFromContext({
           authUserId,
+          companyId: c.get("companyId"),
           input: body,
         });
         return c.json(
@@ -116,7 +117,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
     async (c) => {
       try {
         const authUserId = c.get("authUserId");
-        const result = await service.listPreferences({ authUserId });
+        const result = await service.listPreferences({ authUserId, companyId: c.get("companyId") });
         return c.json(result);
       } catch (err) {
         return handleError(c, err, "GET /notifications/preferences");
@@ -133,6 +134,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
         const body = await c.req.json();
         const result = await service.upsertPreference({
           authUserId,
+          companyId: c.get("companyId"),
           input: body,
         });
         return c.json(result);
@@ -181,6 +183,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
         const body = await c.req.json();
         const result = await service.subscribeWebPush({
           authUserId,
+          companyId: c.get("companyId"),
           input: body,
           userAgent,
         });
@@ -198,7 +201,7 @@ export function createNotificationsRouter({ prisma, requirePermission }) {
       try {
         const authUserId = c.get("authUserId");
         const id = c.req.param("id");
-        const result = await service.unsubscribeWebPush({ authUserId, id });
+        const result = await service.unsubscribeWebPush({ authUserId, companyId: c.get("companyId"), id });
         return c.json(result);
       } catch (err) {
         return handleError(

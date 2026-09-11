@@ -177,13 +177,20 @@ const SYNC_MODULE_REGISTRY = {
 }
 
 export function createSyncService({ prisma }) {
-  async function resolveCompanyContext(authUserId) {
+  // activeCompanyId: the caller's validated active company, resolved by the
+  // API's tenant middleware and threaded down from routes/sync.js — never
+  // re-derived here. See
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+  async function resolveCompanyContext(authUserId, activeCompanyId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
       select: { id: true },
     })
     if (!profile) {
       throw new SyncServiceError('Perfil de usuario no encontrado.', 404, 'profile_not_found')
+    }
+    if (activeCompanyId) {
+      return { companyId: activeCompanyId, userId: profile.id }
     }
     const membership = await prisma.membership.findFirst({
       where: { userId: profile.id, enabled: true },
@@ -196,12 +203,12 @@ export function createSyncService({ prisma }) {
     return { companyId: membership.companyId, userId: profile.id }
   }
 
-  async function pull({ authUserId, modules, cursor }) {
+  async function pull({ authUserId, companyId: activeCompanyId, modules, cursor }) {
     if (!modules || modules.length === 0) {
       return { records: [], nextCursor: cursor ?? null, hasMore: false }
     }
 
-    const { companyId, userId } = await resolveCompanyContext(authUserId)
+    const { companyId, userId } = await resolveCompanyContext(authUserId, activeCompanyId)
     const records = []
     let hasMore = false
 
@@ -228,8 +235,8 @@ export function createSyncService({ prisma }) {
     return { records, nextCursor, hasMore }
   }
 
-  async function getStatus({ authUserId }) {
-    const { companyId } = await resolveCompanyContext(authUserId)
+  async function getStatus({ authUserId, companyId: activeCompanyId }) {
+    const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId)
     const cursors = await prisma.syncCursor.findMany({
       where: { companyId },
       orderBy: [{ moduleKey: 'asc' }, { entityType: 'asc' }],

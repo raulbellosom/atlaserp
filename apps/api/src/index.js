@@ -4970,7 +4970,7 @@ mountWithAuth(
   app,
   createDocumentsRouter({ prisma, supabaseAdmin, requirePermission }),
 );
-mountWithAuth(app, createSyncRouter({ prisma }));
+mountWithAuth(app, createSyncRouter({ prisma, getUserContext: getOrLoadUserContext, resolveTenantContext }));
 mountWithAuth(
   app,
   createInventoryRouter({

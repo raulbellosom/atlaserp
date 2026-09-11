@@ -59,13 +59,20 @@ const PUSH_MODULE_REGISTRY = {
 
 export function createSyncPushService({ prisma, registry }) {
   const moduleRegistry = registry ?? PUSH_MODULE_REGISTRY
-  async function resolveContext(authUserId) {
+  // activeCompanyId: the caller's validated active company, resolved by the
+  // API's tenant middleware and threaded down from routes/sync.js — never
+  // re-derived here. See
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+  async function resolveContext(authUserId, activeCompanyId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
       select: { id: true },
     })
     if (!profile) {
       throw new SyncPushServiceError('Perfil de usuario no encontrado.', 404, 'profile_not_found')
+    }
+    if (activeCompanyId) {
+      return { companyId: activeCompanyId, userId: profile.id }
     }
     const membership = await prisma.membership.findFirst({
       where: { userId: profile.id, enabled: true },
@@ -78,12 +85,12 @@ export function createSyncPushService({ prisma, registry }) {
     return { companyId: membership.companyId, userId: profile.id }
   }
 
-  async function push({ authUserId, mutations }) {
+  async function push({ authUserId, companyId: activeCompanyId, mutations }) {
     if (!mutations || mutations.length === 0) {
       return { results: [] }
     }
 
-    const { companyId, userId } = await resolveContext(authUserId)
+    const { companyId, userId } = await resolveContext(authUserId, activeCompanyId)
     const results = []
 
     for (const mutation of mutations) {
