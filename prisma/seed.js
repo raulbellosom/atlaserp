@@ -9,6 +9,22 @@ const prismaConnectionString = process.env.DATABASE_URL ?? process.env.DIRECT_UR
 const prismaAdapter = new PrismaPg({ connectionString: prismaConnectionString })
 const prisma = new PrismaClient({ adapter: prismaAdapter })
 
+// Prisma does not accept `null` inside a compound-unique `where`
+// ({ companyId_key: { companyId: null, key } }) for upsert/findUnique, even
+// though companyId is nullable at the DB level — so system roles
+// (companyId IS NULL, e.g. atlas.admin/system.admin) are upserted by hand via
+// findFirst + create/update.
+async function upsertSystemRole({ key, name, description, system = true, enabled = true }) {
+  const existing = await prisma.role.findFirst({ where: { companyId: null, key } })
+  if (existing) {
+    return prisma.role.update({
+      where: { id: existing.id },
+      data: { name, description, enabled },
+    })
+  }
+  return prisma.role.create({ data: { key, name, description, system, enabled } })
+}
+
 async function upsertModule(manifest) {
   const isCore = manifest.core === true;
   const lifecycleConfig = manifest.lifecycle ?? null;
@@ -129,28 +145,25 @@ async function main() {
     })
   }
 
-  await prisma.role.upsert({
-    where: { key: 'atlas.admin' },
-    update: { enabled: true },
-    create: {
-      key: 'atlas.admin',
-      name: 'Atlas Admin',
-      description: 'Full system access',
-      system: true,
-      enabled: true
-    }
+  // Prisma does not accept `null` as a value inside a compound-unique `where`
+  // (e.g. { companyId_key: { companyId: null, key } }) for upsert/findUnique,
+  // even though companyId is nullable at the DB level — so system roles
+  // (companyId IS NULL) are upserted by hand via findFirst + create/update
+  // instead of prisma.role.upsert().
+  await upsertSystemRole({
+    key: 'atlas.admin',
+    name: 'Atlas Admin',
+    description: 'Full system access',
+    system: true,
+    enabled: true,
   })
 
-  await prisma.role.upsert({
-    where: { key: 'system.admin' },
-    update: { enabled: true },
-    create: {
-      key: 'system.admin',
-      name: 'System Admin',
-      description: 'Full system access',
-      system: true,
-      enabled: true
-    }
+  await upsertSystemRole({
+    key: 'system.admin',
+    name: 'System Admin',
+    description: 'Full system access',
+    system: true,
+    enabled: true,
   })
 
   const adminRoles = await prisma.role.findMany({
@@ -176,11 +189,7 @@ async function main() {
     { key: 'storefront_client', name: 'Cliente (Storefront)', description: 'Usuario final registrado desde una app externa', system: true },
     { key: 'storefront_vendor', name: 'Vendedor (Storefront)', description: 'Proveedor registrado desde una app externa', system: true },
   ]) {
-    await prisma.role.upsert({
-      where: { key: roleData.key },
-      update: { name: roleData.name, description: roleData.description },
-      create: roleData,
-    })
+    await upsertSystemRole(roleData)
   }
 
   // Storefront registrable roles config

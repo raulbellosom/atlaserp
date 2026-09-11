@@ -644,22 +644,23 @@ async function syncAdminRolesPermissions(db) {
 }
 
 async function ensureSetupAdminRole(db) {
-  return db.role.upsert({
-    where: { key: "atlas.admin" },
-    update: {
-      enabled: true,
-      system: true,
-      name: "Atlas Admin",
-      description: "Acceso total del sistema",
-    },
-    create: {
-      key: "atlas.admin",
-      name: "Atlas Admin",
-      description: "Acceso total del sistema",
-      system: true,
-      enabled: true,
-    },
+  // Role.key is no longer globally unique (Role is now company-scoped, see
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §9.3).
+  // Prisma rejects `null` inside a compound-unique where (companyId_key), so
+  // this system role (companyId IS NULL) is upserted by hand via findFirst.
+  const existing = await db.role.findFirst({
+    where: { companyId: null, key: "atlas.admin" },
   });
+  const data = {
+    enabled: true,
+    system: true,
+    name: "Atlas Admin",
+    description: "Acceso total del sistema",
+  };
+  if (existing) {
+    return db.role.update({ where: { id: existing.id }, data });
+  }
+  return db.role.create({ data: { key: "atlas.admin", ...data } });
 }
 
 async function getSignedUrlByFileId(fileId, variant = "full") {
