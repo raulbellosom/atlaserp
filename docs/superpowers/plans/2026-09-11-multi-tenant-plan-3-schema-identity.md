@@ -678,7 +678,7 @@ app.get(
 app.patch(
   "/companies/:companyId/modules/:moduleId",
   authMiddleware,
-  requirePermission("core.modules.manage"),
+  requirePermission("core.modules.update"),
   async (c) => {
     const tenant = c.get("tenantContext");
     if (!tenant.isSystemAdmin) {
@@ -695,26 +695,17 @@ app.patch(
     if (moduleRow.core && !body.enabled) {
       return c.json({ error: "Los modulos core no se pueden deshabilitar por empresa." }, 400);
     }
+    // No cache to bust here: runtime:modules:raw / blueprints:raw cache the
+    // instance-wide AtlasModule/Blueprint rows, which this toggle never
+    // changes — per-company enablement is read fresh from CompanyModule on
+    // every request.
     const result = await companyModuleService.setEnabled({ companyId, moduleId, enabled: body.enabled });
-    cacheDelByPrefix("runtime:modules:raw");
-    cacheDelByPrefix("blueprints:raw");
     return c.json({ data: result });
   },
 );
 ```
 
-`core.modules.manage` does not exist yet in `apps/api/src/permission-catalog.js` (only `core.modules.read` was confirmed to exist in Plan 1's research) — check the catalog file and add it if missing, following the existing entries' shape exactly (same file, alongside `core.modules.read`):
-
-```javascript
-"core.modules.manage": {
-  displayNameEs: "Administrar modulos por empresa",
-  descriptionEs: "Permite habilitar o deshabilitar modulos instalados para una empresa especifica.",
-  groupKey: "core",
-  order: 41,
-},
-```
-
-This also needs seeding into the `Permission` table — check `prisma/seed.js` for how `core.modules.read` (or a similarly-shaped existing key) gets seeded and add `core.modules.manage` the same way, then re-run `pnpm db:seed` (idempotent, safe to re-run).
+No new permission key is needed: `core.modules.update` already exists in `apps/api/src/permission-catalog.js` ("Actualizar estado de modulos de core... Permite habilitar o deshabilitar modulos existentes") and is the instance-wide equivalent of this exact action — reusing it avoids a near-duplicate catalog entry, since *scope* (instance-wide vs. one company) is what the separate `tenant.isSystemAdmin` check in the handler enforces, not the permission key itself.
 
 The toggle is gated at `isSystemAdmin` only (not company-admin self-service) — deliberately, per this plan's stated scope: which modules a company is *entitled to* is a platform-level decision for now, consistent with the spec's SaaS-readiness framing (plans/billing will eventually govern this; building a separate "entitled vs. self-toggled" distinction now would be speculative).
 

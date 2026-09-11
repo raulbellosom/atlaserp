@@ -53,6 +53,7 @@ import {
   CompanyServiceError,
 } from "./services/company-service.js";
 import { createHrService, HrServiceError } from "./services/hr-service.js";
+import { createCompanyModuleService } from "./services/company-module-service.js";
 import { verifySupabaseJwt } from "./services/jwt-verification.js";
 import { createInventoryService, InventoryServiceError } from "./services/inventory-service.js";
 import { createInventoryNotificationService } from "./services/inventory-notification-service.js";
@@ -183,6 +184,7 @@ const officeService = createOfficeService({ prisma, supabaseAdmin, broadcaster }
 const companyService = createCompanyService({ prisma, supabaseAdmin });
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const hrService = createHrService({ prisma });
+const companyModuleService = createCompanyModuleService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin });
 const notificationService = createNotificationService({ prisma, broadcaster });
 const distServeService = createDistServeService({ prisma, supabaseAdmin });
@@ -3229,8 +3231,14 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
     cacheSet("runtime:modules:raw", modulesRaw, TTL.BLUEPRINTS);
   }
 
+  let visibleModules = modulesRaw;
+  if (tenant.companyId) {
+    const disabledIds = await companyModuleService.listDisabledModuleIds(tenant.companyId);
+    visibleModules = modulesRaw.filter((m) => m.core || !disabledIds.has(m.id));
+  }
+
   return c.json({
-    data: serializeModulesForResponse(modulesRaw, tenant, {
+    data: serializeModulesForResponse(visibleModules, tenant, {
       filterByPermission: true,
       filterNavigation: true,
     }),
@@ -3261,6 +3269,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
       prisma.atlasModule.findMany({
         where: { status: "INSTALLED", enabled: true },
         select: {
+          id: true,
           key: true,
           name: true,
           status: true,
@@ -3268,6 +3277,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
           version: true,
           manifest: true,
           hasBundle: true,
+          core: true,
         },
       }),
     ]);
@@ -3285,10 +3295,14 @@ app.get("/blueprints", authMiddleware, async (c) => {
   const moduleRowsByKey = new Map(
     installedModuleRows.map((row) => [row.key, row]),
   );
+  const disabledModuleIds = tenant.companyId
+    ? await companyModuleService.listDisabledModuleIds(tenant.companyId)
+    : new Set();
   const mergedByKey = new Map();
 
   for (const blueprint of blueprints) {
     if (!userCanAccessModule(tenant, blueprint.module)) continue;
+    if (blueprint.module && !blueprint.module.core && disabledModuleIds.has(blueprint.module.id)) continue;
     mergedByKey.set(blueprint.key, {
       ...blueprint,
       source: "blueprint",
@@ -3305,6 +3319,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
     const moduleRow = moduleRowsByKey.get(view.moduleKey);
     if (!moduleRow) continue;
     if (!userCanAccessModule(tenant, moduleRow)) continue;
+    if (!moduleRow.core && disabledModuleIds.has(moduleRow.id)) continue;
 
     mergedByKey.set(view.key, {
       id: view.id,
@@ -3327,6 +3342,75 @@ app.get("/blueprints", authMiddleware, async (c) => {
 
   return c.json({ data: [...mergedByKey.values()] });
 });
+
+app.get(
+  "/companies/:companyId/modules",
+  authMiddleware,
+  requireAnyPermission(["core.modules.read"]),
+  async (c) => {
+    const tenant = c.get("tenantContext");
+    const companyId = c.req.param("companyId");
+    if (!tenant.isSystemAdmin && companyId !== tenant.companyId) {
+      return c.json({ error: "No autorizado." }, 403);
+    }
+    const [modules, companyModules] = await Promise.all([
+      prisma.atlasModule.findMany({
+        where: { status: "INSTALLED" },
+        select: { id: true, key: true, name: true, core: true },
+      }),
+      companyModuleService.listForCompany(companyId),
+    ]);
+    const byModuleId = new Map(companyModules.map((cm) => [cm.moduleId, cm]));
+    return c.json({
+      data: modules.map((m) => ({
+        moduleId: m.id,
+        key: m.key,
+        name: m.name,
+        core: m.core,
+        enabled: m.core ? true : (byModuleId.get(m.id)?.enabled ?? true),
+      })),
+    });
+  },
+);
+
+app.patch(
+  "/companies/:companyId/modules/:moduleId",
+  authMiddleware,
+  requirePermission("core.modules.update"),
+  async (c) => {
+    const tenant = c.get("tenantContext");
+    if (!tenant.isSystemAdmin) {
+      return c.json(
+        { error: "Solo un administrador de plataforma puede cambiar los modulos de una empresa." },
+        403,
+      );
+    }
+    const companyId = c.req.param("companyId");
+    const moduleId = c.req.param("moduleId");
+    const body = await c.req.json().catch(() => ({}));
+    if (typeof body.enabled !== "boolean") {
+      return c.json({ error: "El campo enabled es obligatorio." }, 422);
+    }
+    const moduleRow = await prisma.atlasModule.findUnique({
+      where: { id: moduleId },
+      select: { core: true },
+    });
+    if (!moduleRow) return c.json({ error: "Modulo no encontrado." }, 404);
+    if (moduleRow.core && !body.enabled) {
+      return c.json({ error: "Los modulos core no se pueden deshabilitar por empresa." }, 400);
+    }
+    // No cache to bust here: runtime:modules:raw / blueprints:raw cache the
+    // instance-wide AtlasModule/Blueprint rows, which this toggle never
+    // changes — per-company enablement is read fresh from CompanyModule on
+    // every request (see companyModuleService.listDisabledModuleIds above).
+    const result = await companyModuleService.setEnabled({
+      companyId,
+      moduleId,
+      enabled: body.enabled,
+    });
+    return c.json({ data: result });
+  },
+);
 
 const publicWebsiteRouter = createPublicWebsiteRouter({
   prisma,
