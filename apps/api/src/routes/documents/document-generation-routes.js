@@ -13,11 +13,7 @@ import {
 } from "./document-validators.js";
 
 function companyId(c) {
-  return (
-    c.get("companyId") ??
-    c.get("userContext")?.memberships?.[0]?.companyId ??
-    null
-  );
+  return c.get("companyId") ?? null;
 }
 
 function actorId(c) {

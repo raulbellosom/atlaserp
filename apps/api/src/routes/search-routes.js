@@ -12,7 +12,12 @@ function clampLimit(raw) {
   return Math.min(parsed, MAX_LIMIT);
 }
 
-export function createSearchRouter({ prisma, getUserContext }) {
+// resolveTenantContext: the same X-Atlas-Company-Id-validating resolver
+// requirePermission/requireAnyPermission use, injected rather than imported
+// (index.js imports this router — importing back from index.js would be
+// circular). See
+// docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+export function createSearchRouter({ prisma, getUserContext, resolveTenantContext }) {
   const app = new Hono();
 
   app.get("/search", async (c) => {
@@ -26,7 +31,16 @@ export function createSearchRouter({ prisma, getUserContext }) {
       return c.json({ query: q, groups: [] });
     }
 
-    const companyId = context.memberships?.[0]?.companyId ?? null;
+    // Non-strict: /search has no dedicated permission gate of its own (it
+    // filters providers per-provider below), so a multi-company user with no
+    // active-company header yet still gets a (permission-less, hence empty)
+    // response instead of a hard 400 — matches /runtime/modules' bootstrap
+    // treatment, not requirePermission's strict one.
+    const resolved = await resolveTenantContext(c, context, { strict: false });
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
+
+    const companyId = tenant.companyId;
     if (!companyId) {
       return c.json({ query: q, groups: [] });
     }
@@ -34,7 +48,7 @@ export function createSearchRouter({ prisma, getUserContext }) {
     const limit = clampLimit(c.req.query("limit"));
     const allowed = SEARCH_PROVIDERS.filter(
       (provider) =>
-        context.isAdmin || context.permissionSet?.has(provider.permission),
+        tenant.isAdmin || tenant.permissionSet?.has(provider.permission),
     );
 
     const settled = await Promise.allSettled(

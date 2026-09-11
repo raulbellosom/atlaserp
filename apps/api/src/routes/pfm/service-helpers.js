@@ -8,8 +8,13 @@ export class PfmServiceError extends Error {
   }
 }
 
+// Reads the tenant middleware's already-validated active company
+// (c.set("companyId", ...) in requirePermission/requireAnyPermission, see
+// docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5)
+// instead of re-deriving it from memberships[0] — the latter ignored the
+// caller's active-company selection entirely for a multi-company user.
 export function getCompanyId(c) {
-  const id = c.get("userContext")?.memberships?.[0]?.companyId;
+  const id = c.get("companyId");
   return typeof id === "string" && id.trim() ? id.trim() : null;
 }
 

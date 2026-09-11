@@ -1988,8 +1988,10 @@ export function createModulesRouter({
       try {
         const key = c.req.param("key");
         const actorId = c.get("userContext")?.profile?.id ?? null;
-        const context = c.get("userContext");
-        const companyId = context?.memberships?.[0]?.companyId ?? null;
+        // Tenant middleware's already-validated active company, not
+        // re-derived from memberships[0]. See
+        // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+        const companyId = c.get("companyId") ?? null;
         const result = await svc.uninstallModule({
           key,
           mode: "preserve-data",
@@ -2037,8 +2039,10 @@ export function createModulesRouter({
         const mode = parsed.success
           ? (parsed.data.mode ?? defaultUninstallModeForKey(key))
           : defaultUninstallModeForKey(key);
-        const context = c.get("userContext");
-        const companyId = context?.memberships?.[0]?.companyId ?? null;
+        // Tenant middleware's already-validated active company, not
+        // re-derived from memberships[0]. See
+        // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+        const companyId = c.get("companyId") ?? null;
         const result = await svc.dryRunUninstall({ key, mode, companyId });
         return c.json({ data: result });
       } catch (err) {
@@ -2069,8 +2073,10 @@ export function createModulesRouter({
           );
         }
         const actorId = c.get("userContext")?.profile?.id ?? null;
-        const context = c.get("userContext");
-        const companyId = context?.memberships?.[0]?.companyId ?? null;
+        // Tenant middleware's already-validated active company, not
+        // re-derived from memberships[0]. See
+        // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+        const companyId = c.get("companyId") ?? null;
         const mode = parsed.data.mode ?? defaultUninstallModeForKey(key);
         const result = await svc.uninstallModule({
           key,
@@ -2115,8 +2121,10 @@ export function createModulesRouter({
     async (c) => {
       try {
         const key = c.req.param("key");
-        const context = c.get("userContext");
-        const companyId = context?.memberships?.[0]?.companyId ?? null;
+        // Tenant middleware's already-validated active company, not
+        // re-derived from memberships[0]. See
+        // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+        const companyId = c.get("companyId") ?? null;
         const result = await svc.dryRunReset({ key, companyId });
         return c.json({ data: result });
       } catch (err) {
@@ -2147,8 +2155,10 @@ export function createModulesRouter({
           );
         }
         const actorId = c.get("userContext")?.profile?.id ?? null;
-        const context = c.get("userContext");
-        const companyId = context?.memberships?.[0]?.companyId ?? null;
+        // Tenant middleware's already-validated active company, not
+        // re-derived from memberships[0]. See
+        // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+        const companyId = c.get("companyId") ?? null;
         const result = await svc.resetModule({ key, companyId, actorId });
         await safeBuildBundle(key, { force: true });
         cacheDel("blueprints:raw");

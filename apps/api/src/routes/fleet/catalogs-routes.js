@@ -20,8 +20,11 @@ function getValidationErrorMessage(error) {
   return path ? `Datos invalidos en ${path}: ${issue.message}` : `Datos invalidos: ${issue.message}`
 }
 
+// Reads the tenant middleware's already-validated active company instead of
+// re-deriving it from memberships[0]. See
+// docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
 function getCompanyIdFromContext(c) {
-  const companyId = c.get('userContext')?.memberships?.[0]?.companyId
+  const companyId = c.get('companyId')
   return typeof companyId === 'string' && companyId.trim() ? companyId.trim() : null
 }
 

@@ -23,10 +23,14 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   const internal = new Hono()
   internal.use('*', authMiddleware)
 
-  // Helper — extract userId and companyId from Hono context
+  // Helper — extract userId and companyId from Hono context. companyId
+  // comes from the tenant middleware's already-validated active company
+  // (c.set("companyId", ...) in requirePermission), not re-derived from
+  // memberships[0]. See
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
   function getAuth(c) {
     const userId = c.get('userContext')?.profile?.id ?? c.get('userId')
-    const companyId = c.get('userContext')?.memberships?.[0]?.companyId ?? null
+    const companyId = c.get('companyId') ?? null
     return { userId, companyId }
   }
 

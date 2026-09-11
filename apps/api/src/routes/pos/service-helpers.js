@@ -24,13 +24,14 @@ export function assertEditableOrder(order) {
   }
 }
 
+// Reads the tenant middleware's already-validated active company
+// (c.set("companyId", ...) in requirePermission/requireAnyPermission, see
+// docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5).
+// The memberships[0]-style fallbacks this used to have were already dead in
+// practice (c.get("companyId") is always set by the time a route handler
+// runs) and are removed rather than kept as a false safety net.
 export function getCompanyId(c) {
-  return (
-    c.get("companyId") ??
-    c.get("userContext")?.membership?.companyId ??
-    c.get("userContext")?.memberships?.[0]?.companyId ??
-    null
-  );
+  return c.get("companyId") ?? null;
 }
 
 export function getActorId(c) {

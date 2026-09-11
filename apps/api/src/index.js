@@ -443,7 +443,7 @@ async function getOrLoadUserContext(c) {
 // — used by bootstrap-time endpoints (requireModuleAccess, /runtime/modules,
 // /blueprints, /user/me) that must stay reachable before the frontend has
 // necessarily chosen a company yet.
-async function resolveTenantContext(c, context, { strict = true } = {}) {
+export async function resolveTenantContext(c, context, { strict = true } = {}) {
   const requestedCompanyId = c.req.header("X-Atlas-Company-Id") || null;
   const result = resolveActiveMembership({
     memberships: context.memberships,
@@ -4957,7 +4957,7 @@ mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmi
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, filesService, notificationService }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission }));
-mountWithAuth(app, createSearchRouter({ prisma, getUserContext: getOrLoadUserContext }));
+mountWithAuth(app, createSearchRouter({ prisma, getUserContext: getOrLoadUserContext, resolveTenantContext }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));
 mountWithAuth(app, createPosRouter({ prisma, requirePermission, broadcaster }));

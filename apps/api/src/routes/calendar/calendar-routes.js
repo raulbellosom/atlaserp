@@ -26,7 +26,7 @@ function getUserId(c) {
 }
 
 function getCompanyId(c) {
-  return c.get('companyId') ?? c.get('userContext')?.memberships?.[0]?.companyId ?? null
+  return c.get('companyId') ?? null
 }
 
 function handleError(c, err, fallback) {
