@@ -1273,6 +1273,9 @@ app.get("/user/me", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
     if (!context?.profile) return c.json({ error: "Profile not found" }, 404);
+    const resolved = await resolveTenantContext(c, context, { strict: false });
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
     const avatarUrl = await getSignedUrlByFileId(
       context.profile.avatarFileId,
       "card",
@@ -1284,11 +1287,11 @@ app.get("/user/me", authMiddleware, async (c) => {
       displayName: context.profile.displayName,
       email: context.profile.email,
       avatarUrl,
-      role: context.roleKey,
-      isAdmin: context.isAdmin,
-      permissions: context.permissions,
+      role: tenant.role?.key ?? null,
+      isAdmin: tenant.isAdmin,
+      permissions: [...tenant.permissionSet].sort(),
       colony: context.profile.colony,
-      companyId: context.memberships?.[0]?.companyId ?? null,
+      companyId: tenant.companyId,
       availableForChat: context.profile.availableForChat ?? false,
     });
   } catch {
