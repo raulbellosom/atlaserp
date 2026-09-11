@@ -78,7 +78,7 @@ export function createStorefrontFilesService({ prisma, supabaseAdmin }) {
     return { id: asset.id, url, originalName: asset.originalName, mimeType: asset.mimeType, sizeBytes: asset.sizeBytes }
   }
 
-  async function getUrl(id) {
+  async function getUrl(id, { requesterId } = {}) {
     const asset = await prisma.fileAsset.findUnique({ where: { id } })
     if (!asset || !asset.enabled) {
       throw Object.assign(new Error('Archivo no encontrado'), { code: 'NOT_FOUND', status: 404 })
@@ -87,6 +87,15 @@ export function createStorefrontFilesService({ prisma, supabaseAdmin }) {
     if (asset.bucket === STOREFRONT_BUCKET) {
       const { data } = supabaseAdmin.storage.from(asset.bucket).getPublicUrl(asset.objectKey)
       return { url: data.publicUrl, type: 'public' }
+    }
+
+    // Private-bucket asset (visibility: PRIVATE) — a signed URL must never be
+    // minted for an unauthenticated caller or for anyone but the uploader.
+    // This branch previously had no check at all: any caller who knew (or
+    // guessed) a fileId could fetch a 1-hour signed URL into the private
+    // atlas-files bucket via the unauthenticated GET /:id/url route.
+    if (!requesterId || asset.uploadedById !== requesterId) {
+      throw Object.assign(new Error('Sin permiso para acceder a este archivo'), { code: 'FORBIDDEN', status: 403 })
     }
 
     const { data, error } = await supabaseAdmin.storage

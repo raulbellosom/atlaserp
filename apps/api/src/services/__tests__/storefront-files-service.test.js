@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveFileLimits, resolveBucket } from '../storefront-files-service.js'
+import { resolveFileLimits, resolveBucket, createStorefrontFilesService } from '../storefront-files-service.js'
 
 describe('resolveFileLimits', () => {
   it('returns 5MB limit and image-only for storefront_client', () => {
@@ -32,5 +32,65 @@ describe('resolveBucket', () => {
 
   it('defaults to PUBLIC', () => {
     assert.equal(resolveBucket(undefined), 'atlas-storefront')
+  })
+})
+
+describe('getUrl — private asset authorization', () => {
+  // Regression tests for a real unauthenticated-disclosure bug: GET /:id/url
+  // previously minted a signed URL into the private atlas-files bucket for
+  // ANY fileId, with no requesterId check at all.
+
+  function makeService({ asset }) {
+    const prisma = {
+      fileAsset: {
+        findUnique: async () => asset,
+      },
+    }
+    const supabaseAdmin = {
+      storage: {
+        from: () => ({
+          getPublicUrl: () => ({ data: { publicUrl: 'https://cdn.example/public.png' } }),
+          createSignedUrl: async () => ({ data: { signedUrl: 'https://cdn.example/signed.png' }, error: null }),
+        }),
+      },
+    }
+    return createStorefrontFilesService({ prisma, supabaseAdmin })
+  }
+
+  it('returns a public URL for a PUBLIC (atlas-storefront bucket) asset with no requesterId at all', async () => {
+    const service = makeService({
+      asset: { id: 'f1', enabled: true, bucket: 'atlas-storefront', objectKey: 'k', uploadedById: 'owner-1' },
+    })
+    const result = await service.getUrl('f1', {})
+    assert.equal(result.type, 'public')
+  })
+
+  it('rejects a PRIVATE (atlas-files bucket) asset when no requesterId is provided', async () => {
+    const service = makeService({
+      asset: { id: 'f2', enabled: true, bucket: 'atlas-files', objectKey: 'k', uploadedById: 'owner-1' },
+    })
+    await assert.rejects(
+      () => service.getUrl('f2', {}),
+      (err) => err.code === 'FORBIDDEN' && err.status === 403,
+    )
+  })
+
+  it('rejects a PRIVATE asset when requesterId does not match the uploader', async () => {
+    const service = makeService({
+      asset: { id: 'f3', enabled: true, bucket: 'atlas-files', objectKey: 'k', uploadedById: 'owner-1' },
+    })
+    await assert.rejects(
+      () => service.getUrl('f3', { requesterId: 'someone-else' }),
+      (err) => err.code === 'FORBIDDEN' && err.status === 403,
+    )
+  })
+
+  it('returns a signed URL for a PRIVATE asset when requesterId matches the uploader', async () => {
+    const service = makeService({
+      asset: { id: 'f4', enabled: true, bucket: 'atlas-files', objectKey: 'k', uploadedById: 'owner-1' },
+    })
+    const result = await service.getUrl('f4', { requesterId: 'owner-1' })
+    assert.equal(result.type, 'signed');
+    assert.ok(result.signedUrl);
   })
 })

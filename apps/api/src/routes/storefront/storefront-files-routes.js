@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 
-export function createStorefrontFilesRoutes({ filesService, storefrontAuthMiddleware }) {
+export function createStorefrontFilesRoutes({ filesService, storefrontAuthMiddleware, resolveAuthenticatedProfile }) {
   const app = new Hono()
 
   app.post('/upload', storefrontAuthMiddleware, async (c) => {
@@ -37,8 +37,21 @@ export function createStorefrontFilesRoutes({ filesService, storefrontAuthMiddle
 
   app.get('/:id/url', async (c) => {
     const { id } = c.req.param()
+    // Deliberately unauthenticated at the route level — PUBLIC storefront
+    // assets (product images etc.) must stay reachable by anonymous
+    // visitors. requesterId is resolved on a best-effort basis: a missing
+    // or invalid token is treated as anonymous, not as an error, so a stale
+    // token never blocks loading a public asset. filesService.getUrl is what
+    // actually enforces that a PRIVATE asset requires requesterId to match
+    // its uploader.
+    let requesterId = null
     try {
-      const result = await filesService.getUrl(id)
+      requesterId = await resolveAuthenticatedProfile(c)
+    } catch {
+      requesterId = null
+    }
+    try {
+      const result = await filesService.getUrl(id, { requesterId })
       return c.json({ data: result })
     } catch (err) {
       return c.json({ error: err.message }, err.status ?? 500)

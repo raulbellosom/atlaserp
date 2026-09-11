@@ -50,7 +50,7 @@ export function createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon }) 
   }
 
   app.route('/auth', createStorefrontAuthRoutes({ authService, storefrontAuthMiddleware, anyAuthMiddleware }))
-  app.route('/files', createStorefrontFilesRoutes({ filesService, storefrontAuthMiddleware }))
+  app.route('/files', createStorefrontFilesRoutes({ filesService, storefrontAuthMiddleware, resolveAuthenticatedProfile }))
   app.route('/v1', createStorefrontCaptureRoutes({
     captureService,
     resolveAuthenticatedProfile,
