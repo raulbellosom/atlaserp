@@ -233,6 +233,7 @@ export function createHrService({ prisma, activityBridge }) {
 
     const linked = await prisma.hrEmployee.findFirst({
       where: {
+        companyId,
         userProfileId,
         ...(currentEmployeeId ? { id: { not: currentEmployeeId } } : {}),
       },
