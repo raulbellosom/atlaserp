@@ -2036,13 +2036,33 @@ app.get(
   },
 );
 
+// A role is editable/deletable/listable-in-detail by: (a) a system admin, for
+// any role, or (b) a company-scoped caller, only for a role that belongs to
+// THEIR OWN company. System roles (companyId === null, e.g.
+// atlas.admin/system.admin) are never touchable by a company-scoped caller,
+// even one holding identity.roles.*/identity.permissions.* -- those
+// permissions govern a company's own custom roles, not the platform's shared
+// catalog. Returns null (→ 404 at the call site) rather than throwing, so
+// existence is never confirmed/denied differently for an out-of-scope role.
+async function loadCompanyEditableRole(id, tenant) {
+  const role = await prisma.role.findUnique({ where: { id } });
+  if (!role) return null;
+  if (tenant?.isSystemAdmin) return role;
+  if (role.companyId && role.companyId === tenant?.companyId) return role;
+  return null;
+}
+
 app.get(
   "/identity/roles",
   authMiddleware,
   requirePermission("identity.roles.read"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const roles = await prisma.role.findMany({
+        where: tenant.isSystemAdmin
+          ? {}
+          : { OR: [{ companyId: null }, { companyId: tenant.companyId }] },
         include: {
           permissions: {
             select: {
@@ -2074,6 +2094,10 @@ app.post(
   requirePermission("identity.roles.create"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
+      if (!tenant.companyId) {
+        return c.json({ error: "Selecciona una empresa activa para crear un rol." }, 400);
+      }
       const body = await c.req.json();
       const key = String(body.key ?? "").trim();
       const name = String(body.name ?? "").trim();
@@ -2081,12 +2105,8 @@ app.post(
       if (!key || !name)
         return c.json({ error: "key y name son obligatorios." }, 400);
       const role = await prisma.role.create({
-        data: { key, name, description, system: false, enabled: true },
+        data: { key, name, description, system: false, enabled: true, companyId: tenant.companyId },
       });
-      if (["atlas.admin", "system.admin"].includes(role.key)) {
-        await syncAdminRolesPermissions(prisma);
-        cacheDelByPrefix("user_ctx:");
-      }
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "identity.role.create",
@@ -2108,7 +2128,10 @@ app.put(
   requirePermission("identity.roles.update"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const id = c.req.param("id");
+      const existing = await loadCompanyEditableRole(id, tenant);
+      if (!existing) return c.json({ error: "Rol no encontrado." }, 404);
       const body = await c.req.json();
       const name = String(body.name ?? "").trim();
       const description = String(body.description ?? "").trim() || null;
@@ -2139,7 +2162,10 @@ app.patch(
   requirePermission("identity.roles.update"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const id = c.req.param("id");
+      const existing = await loadCompanyEditableRole(id, tenant);
+      if (!existing) return c.json({ error: "Rol no encontrado." }, 404);
       const body = await c.req.json();
       const enabled = Boolean(body.enabled);
       const role = await prisma.role.update({
@@ -2169,11 +2195,9 @@ app.delete(
   requirePermission("identity.roles.delete"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const id = c.req.param("id");
-      const role = await prisma.role.findUnique({
-        where: { id },
-        select: { id: true, system: true, key: true },
-      });
+      const role = await loadCompanyEditableRole(id, tenant);
       if (!role) return c.json({ error: "Rol no encontrado." }, 404);
       if (role.system || ADMIN_ROLE_KEYS.has(role.key)) {
         return c.json(
@@ -2204,7 +2228,10 @@ app.patch(
   requirePermission("identity.permissions.update"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const id = c.req.param("id");
+      const existing = await loadCompanyEditableRole(id, tenant);
+      if (!existing) return c.json({ error: "Rol no encontrado." }, 404);
       const body = await c.req.json();
       const permissionKeys = Array.isArray(body.permissionKeys)
         ? body.permissionKeys
