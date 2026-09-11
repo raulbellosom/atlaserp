@@ -91,11 +91,10 @@ pnpm tauri dev     # native window with hot-reload
 
 Requires Rust toolchain + Windows SDK. Not available inside Docker containers.
 
-## Per-company deployment model
+## Multi-tenant model
 
-Each company deployment:
-- Own Atlas ERP instance (API + worker + desktop)
-- Own `.env` with company-specific DATABASE_URL and credentials
-- Own Supabase stack (strong isolation) OR shared Supabase with company-scoped data (future multi-company mode using existing Company/Membership schema)
+Atlas ERP is a true multi-tenant application: one API/database/instance can securely serve multiple companies at once. `Company` is the tenant root and `Membership` is the join to `UserProfile`; the active company for a request is resolved server-side (never trusted from the client) via the `X-Atlas-Company-Id` header, validated against the caller's memberships by `resolveTenantContext` (`apps/api/src/index.js`). Effective permissions are a pure function of `(User, ActiveCompany)` — a user who is admin in one company and a viewer (or non-member) in another never gets admin rights when the other company is active. See `docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md` for the full design and `apps/api/src/__tests__/cross-tenant/` for the opt-in live cross-tenant security suite (`RUN_CROSS_TENANT_TESTS=1`) that verifies this end-to-end.
 
-Current priority: single-company per deployment.
+Two supported deployment shapes, chosen per client, not per code path:
+- **Shared instance, multiple companies** — one Atlas ERP deployment (API + worker + desktop) and one Supabase stack serve several companies, isolated at the data layer via `Company`/`Membership` + `resolveTenantContext`. This is the default and requires no extra setup.
+- **Dedicated instance per company** — a client who wants full infrastructure isolation (separate VPS, separate Supabase stack, separate `.env`/`DATABASE_URL`) can still get one; the application code is the same either way, this only changes how many `Company` rows exist in that deployment's database (typically one).
