@@ -35,6 +35,13 @@ import {
   groupPermissionsForUi,
 } from "./permission-catalog.js";
 import {
+  resolveActiveMembership,
+  computeScopedPermissions,
+  isSystemAdminMembership,
+  createPermissionKeysCache,
+  COMPANY_ADMIN_ROLE_KEYS,
+} from "./lib/tenant-context.js";
+import {
   createContactsService,
   ContactsServiceError,
 } from "./services/contacts-service.js";
@@ -145,6 +152,13 @@ pgPool.on("error", (err) => {
 });
 const prismaAdapter = new PrismaPg(pgPool);
 const prisma = new PrismaClient({ adapter: prismaAdapter });
+
+const getAllActivePermissionKeys = createPermissionKeysCache({
+  prisma,
+  cacheGet,
+  cacheSet,
+  ttlSeconds: TTL.PERMISSIONS,
+});
 const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
 const contactsService = createContactsService({ prisma });
@@ -408,6 +422,72 @@ async function getOrLoadUserContext(c) {
     if (err?.stack) console.error(err.stack);
     return null;
   }
+}
+
+// Resolves the single active company for THIS request from the
+// X-Atlas-Company-Id header, validated against the caller's own memberships,
+// and computes permissions scoped to only that company. See
+// docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+//
+// strict=true (default): ambiguous multi-company requests with no header are
+// a 400 — used by requirePermission/requireAnyPermission, the gate in front
+// of actual tenant-scoped business data.
+// strict=false: ambiguous resolves to "no active company" instead of erroring
+// — used by bootstrap-time endpoints (requireModuleAccess, /runtime/modules,
+// /blueprints, /user/me) that must stay reachable before the frontend has
+// necessarily chosen a company yet.
+async function resolveTenantContext(c, context, { strict = true } = {}) {
+  const requestedCompanyId = c.req.header("X-Atlas-Company-Id") || null;
+  const result = resolveActiveMembership({
+    memberships: context.memberships,
+    requestedCompanyId,
+    strict,
+  });
+  if (!result.ok) {
+    return {
+      ok: false,
+      response: c.json({ error: result.code, message: result.message }, result.status),
+    };
+  }
+
+  const activeMembership = result.membership;
+  const isSystemAdmin = isSystemAdminMembership(context.memberships);
+  const roleKey = activeMembership?.role?.key ?? null;
+  const isCompanyAdminRole = Boolean(roleKey && COMPANY_ADMIN_ROLE_KEYS.has(roleKey));
+
+  let grantKeysForCompany = [];
+  if (activeMembership) {
+    const set = context.grantsByCompany?.get(activeMembership.companyId);
+    if (set) grantKeysForCompany = [...set];
+  }
+
+  const allPermissionKeys =
+    isSystemAdmin || isCompanyAdminRole ? await getAllActivePermissionKeys() : [];
+
+  const { permissionSet, isCompanyAdmin } = computeScopedPermissions({
+    activeMembership,
+    grantKeysForCompany,
+    allPermissionKeys,
+    basePermissionKeys: [...BASE_PERMISSION_KEYS],
+    isSystemAdmin,
+  });
+
+  return {
+    ok: true,
+    tenant: {
+      companyId: activeMembership?.companyId ?? null,
+      membership: activeMembership,
+      role: activeMembership?.role ?? null,
+      permissionSet,
+      isCompanyAdmin,
+      isSystemAdmin,
+      // Deprecated alias kept for the Plan 1/2 migration window — every
+      // function that still reads context.isAdmin for an authorization
+      // decision (userCanAccessModule, filterModuleNavigation) accepts this
+      // same shape. See spec §5.2.
+      isAdmin: isCompanyAdmin || isSystemAdmin,
+    },
+  };
 }
 
 function forbiddenMessage(permissionKey) {
@@ -844,9 +924,9 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Atlas-Company"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Atlas-Company", "X-Atlas-Company-Id"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["X-Atlas-Company"],
+    exposeHeaders: ["X-Atlas-Company", "X-Atlas-Company-Id"],
   }),
 );
 
