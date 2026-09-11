@@ -40,8 +40,12 @@ export function RealtimeProvider({ children }) {
   useEffect(() => {
     if (!userProfile?.id || !session?.access_token) return
     const client = getSupabaseClient()
+    // private: true enables Realtime Authorization — the server checks the
+    // user_events_receive RLS policy (migration
+    // 20260911140000_chat_company_realtime_authorization), so only this
+    // exact user can ever join their own events channel.
     const channel = client
-      .channel(`user:${userProfile.id}:events`)
+      .channel(`user:${userProfile.id}:events`, { config: { private: true } })
       .on('broadcast', { event: 'notification.new' }, ({ payload }) => {
         queryClient.invalidateQueries({ queryKey: ['notifications'] })
         dispatch('notification.new', payload)
@@ -157,9 +161,11 @@ export function RealtimeProvider({ children }) {
     if (!userProfile?.id || !activeCompanyId) return
     const client = getSupabaseClient()
 
+    // private: true — company_presence_receive/send RLS policies restrict
+    // this to actual enabled members of activeCompanyId.
     const channel = client
       .channel(`company:${activeCompanyId}:presence`, {
-        config: { presence: { key: userProfile.id } },
+        config: { presence: { key: userProfile.id }, private: true },
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState()
@@ -200,8 +206,9 @@ export function RealtimeProvider({ children }) {
   useEffect(() => {
     if (!userProfile?.id || !activeCompanyId) return
     const client = getSupabaseClient()
+    // private: true — company_events_receive RLS policy, same member check.
     const channel = client
-      .channel(`company:${activeCompanyId}:events`)
+      .channel(`company:${activeCompanyId}:events`, { config: { private: true } })
       .on('broadcast', { event: 'pos.order.updated' }, () => {
         queryClient.invalidateQueries({ queryKey: ['pos'] })
       })

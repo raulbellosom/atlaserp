@@ -32,6 +32,18 @@ export function subscribeToMessages(conversationId, onMessage) {
   return () => client.removeChannel(channel);
 }
 
+// chat:conv:<id> is deliberately excluded from private-channel authorization
+// (migration 20260911140000_chat_company_realtime_authorization) — the
+// anonymous storefront guest widget subscribes to that exact topic with no
+// Supabase Auth session at all, so there is no per-guest identity to check
+// today. private: true is safe (and enforced) for every other topic prefix
+// these helpers are actually called with (chat:presence:*, chat:company:*).
+const PRIVATE_TOPIC_PREFIXES = ["chat:presence:", "chat:company:"];
+
+function isPrivateTopic(channelName) {
+  return PRIVATE_TOPIC_PREFIXES.some((prefix) => channelName.startsWith(prefix));
+}
+
 /**
  * Subscribe to a single broadcast event on a channel.
  * Returns an unsubscribe function.
@@ -42,7 +54,7 @@ export function subscribeToBroadcast(channelName, event, onEvent) {
   if (stale) client.removeChannel(stale);
 
   const channel = client
-    .channel(channelName)
+    .channel(channelName, isPrivateTopic(channelName) ? { config: { private: true } } : undefined)
     .on("broadcast", { event }, (payload) => onEvent(payload))
     .subscribe();
 
@@ -61,7 +73,7 @@ export function subscribeToMultiBroadcast(channelName, handlers) {
   const stale = client.getChannels().find((ch) => ch.topic === `realtime:${channelName}`);
   if (stale) client.removeChannel(stale);
 
-  let ch = client.channel(channelName);
+  let ch = client.channel(channelName, isPrivateTopic(channelName) ? { config: { private: true } } : undefined);
   for (const [event, fn] of Object.entries(handlers)) {
     ch = ch.on("broadcast", { event }, (payload) => fn(payload));
   }
@@ -77,7 +89,7 @@ export function subscribeToMultiBroadcast(channelName, handlers) {
 export function createPresenceChannel(channelName, userPresenceData, { onPresenceSync, onTyping } = {}) {
   const client = getSupabaseClient();
   const channel = client.channel(channelName, {
-    config: { presence: { key: userPresenceData.userId } },
+    config: { presence: { key: userPresenceData.userId }, ...(isPrivateTopic(channelName) ? { private: true } : {}) },
   });
 
   if (onPresenceSync) {
