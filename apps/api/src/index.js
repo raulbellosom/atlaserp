@@ -751,12 +751,21 @@ function hasProtectedIdentityAdminRole(user) {
   });
 }
 
-function buildIdentityUsersWhere({ search, enabled }) {
+function buildIdentityUsersWhere({ search, enabled, companyId }) {
   // Bot profiles (e.g. the per-company MeridIAn assistant, is_bot = true) have no
   // login and are not administrable users — never list them in the users screen
   // or in any user picker that reads this endpoint (chat "Anadir miembros",
   // CreateChatModal, etc.).
-  const where = { isBot: false };
+  //
+  // memberships.some({ companyId }) scopes every result to the caller's
+  // active company — this is what actually enforces the tenant boundary.
+  // When companyId is null (the zero-membership admin edge case) this can
+  // never match any row (Membership.companyId is NOT NULL), so the query
+  // safely returns zero users instead of every instance user.
+  const where = {
+    isBot: false,
+    memberships: { some: { enabled: true, companyId } },
+  };
   if (typeof enabled === "boolean") {
     where.enabled = enabled;
   }
@@ -770,6 +779,7 @@ function buildIdentityUsersWhere({ search, enabled }) {
         memberships: {
           some: {
             enabled: true,
+            companyId,
             role: { name: { contains: search, mode: "insensitive" } },
           },
         },
@@ -777,6 +787,30 @@ function buildIdentityUsersWhere({ search, enabled }) {
     ];
   }
   return where;
+}
+
+// Returns true only if `id` names a UserProfile with an enabled Membership
+// in `companyId`. Every /identity/users/:id* route must call this before
+// reading or mutating a specific user — without it, a caller with
+// identity.users.* in Company A could act on any user UUID in the instance.
+async function assertUserInCompany(id, companyId) {
+  if (!companyId || !id) return false;
+  const row = await prisma.userProfile.findFirst({
+    where: { id, memberships: { some: { enabled: true, companyId } } },
+    select: { id: true },
+  });
+  return Boolean(row);
+}
+
+// Same check, batched: returns only the subset of `ids` that belong to
+// companyId. Used by the bulk endpoints instead of erroring one at a time.
+async function filterUserIdsInCompany(ids, companyId) {
+  if (!ids.length || !companyId) return [];
+  const rows = await prisma.userProfile.findMany({
+    where: { id: { in: ids }, memberships: { some: { enabled: true, companyId } } },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
 }
 
 async function buildAvatarUrlMapByFileIds(fileIds, variant = "thumb") {
@@ -2284,7 +2318,8 @@ app.get(
   async (c) => {
     try {
       const normalizedQuery = normalizeIdentityUsersQuery(c.req.query());
-      const where = buildIdentityUsersWhere(normalizedQuery);
+      const tenant = c.get("tenantContext");
+      const where = buildIdentityUsersWhere({ ...normalizedQuery, companyId: tenant.companyId });
       const orderBy = toIdentitySortOrder(
         normalizedQuery.sortBy,
         normalizedQuery.sortDir,
@@ -2352,14 +2387,25 @@ app.post(
       }
       const authUserId = authData.user.id;
 
-      const context = c.get("userContext");
-      const companyId = context.memberships[0]?.companyId;
+      const tenant = c.get("tenantContext");
+      const companyId = tenant.companyId;
       if (!companyId) {
         await supabaseAdmin.auth.admin.deleteUser(authUserId);
         return c.json(
           { error: "No se pudo determinar la empresa activa." },
           400,
         );
+      }
+
+      if (fields.roleId) {
+        const role = await prisma.role.findUnique({
+          where: { id: fields.roleId },
+          select: { companyId: true },
+        });
+        if (!role || (role.companyId !== null && role.companyId !== companyId)) {
+          await supabaseAdmin.auth.admin.deleteUser(authUserId);
+          return c.json({ error: "El rol seleccionado no pertenece a esta empresa." }, 400);
+        }
       }
 
       try {
@@ -2413,6 +2459,7 @@ app.patch(
   requirePermission("identity.users.update"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const body = await c.req.json();
       const ids = parseIdentityUserIds(body?.ids);
       const enabled = body?.enabled;
@@ -2425,8 +2472,12 @@ app.patch(
       if (typeof enabled !== "boolean") {
         return c.json({ error: "El campo enabled es obligatorio." }, 400);
       }
+      const validIds = await filterUserIdsInCompany(ids, tenant.companyId);
+      if (validIds.length !== ids.length) {
+        return c.json({ error: "Uno o mas usuarios no pertenecen a tu empresa." }, 403);
+      }
       const result = await prisma.userProfile.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: validIds } },
         data: { enabled },
       });
       const { actorName } = getActivityContext(c);
@@ -2454,6 +2505,7 @@ app.delete(
   requirePermission("identity.users.delete"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const body = await c.req.json();
       const ids = parseIdentityUserIds(body?.ids);
       if (!ids.length) {
@@ -2468,8 +2520,13 @@ app.delete(
         return c.json({ error: "No puedes eliminar tu propia cuenta." }, 400);
       }
 
+      const validIds = await filterUserIdsInCompany(ids, tenant.companyId);
+      if (validIds.length !== ids.length) {
+        return c.json({ error: "Uno o mas usuarios no pertenecen a tu empresa." }, 403);
+      }
+
       const users = await prisma.userProfile.findMany({
-        where: { id: { in: ids } },
+        where: { id: { in: validIds } },
         select: {
           id: true,
           authUserId: true,
@@ -2538,7 +2595,8 @@ app.post(
       const body = await c.req.json().catch(() => ({}));
       const ids = parseIdentityUserIds(body?.ids);
       const normalizedQuery = normalizeIdentityUsersQuery(c.req.query());
-      const where = buildIdentityUsersWhere(normalizedQuery);
+      const tenant = c.get("tenantContext");
+      const where = buildIdentityUsersWhere({ ...normalizedQuery, companyId: tenant.companyId });
       if (ids.length) where.id = { in: ids };
 
       const users = await prisma.userProfile.findMany({
@@ -2638,7 +2696,8 @@ app.post(
       const body = await c.req.json().catch(() => ({}));
       const ids = parseIdentityUserIds(body?.ids);
       const normalizedQuery = normalizeIdentityUsersQuery(c.req.query());
-      const where = buildIdentityUsersWhere(normalizedQuery);
+      const tenant = c.get("tenantContext");
+      const where = buildIdentityUsersWhere({ ...normalizedQuery, companyId: tenant.companyId });
       if (ids.length) where.id = { in: ids };
 
       const users = await prisma.userProfile.findMany({
@@ -2740,9 +2799,10 @@ app.post(
   requirePermission("identity.users.update"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const id = c.req.param("id");
-      const target = await prisma.userProfile.findUnique({
-        where: { id },
+      const target = await prisma.userProfile.findFirst({
+        where: { id, memberships: { some: { enabled: true, companyId: tenant.companyId } } },
         select: { id: true, authUserId: true },
       });
       if (!target) return c.json({ error: "Usuario no encontrado." }, 404);
@@ -2778,9 +2838,10 @@ app.get(
   requirePermission("identity.users.read"),
   async (c) => {
     try {
+      const tenant = c.get("tenantContext");
       const id = c.req.param("id");
-      const target = await prisma.userProfile.findUnique({
-        where: { id },
+      const target = await prisma.userProfile.findFirst({
+        where: { id, memberships: { some: { enabled: true, companyId: tenant.companyId } } },
         select: { avatarFileId: true },
       });
       if (!target) return c.json({ error: "Usuario no encontrado." }, 404);
@@ -2804,9 +2865,13 @@ app.delete(
     try {
       const id = c.req.param("id");
       const context = c.get("userContext");
+      const tenant = c.get("tenantContext");
 
       if (id === context.profile.id) {
         return c.json({ error: "No puedes eliminar tu propia cuenta." }, 400);
+      }
+      if (!(await assertUserInCompany(id, tenant.companyId))) {
+        return c.json({ error: "Usuario no encontrado." }, 404);
       }
 
       const targetUser = await prisma.userProfile.findUnique({
@@ -2857,6 +2922,10 @@ app.patch(
   async (c) => {
     try {
       const id = c.req.param("id");
+      const tenant = c.get("tenantContext");
+      if (!(await assertUserInCompany(id, tenant.companyId))) {
+        return c.json({ error: "Usuario no encontrado." }, 404);
+      }
       const body = await c.req.json();
       const patch = {};
 
