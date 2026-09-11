@@ -61,10 +61,17 @@ export class SupabaseCanvasSync {
       }
     }
 
+    // private: true enables Supabase Realtime Authorization — the server
+    // evaluates the note_canvas_receive/note_canvas_send RLS policies
+    // (migration 20260911130000_notes_realtime_authorization_fix), which
+    // allow the public read-only view through for a published note and
+    // otherwise require ownership/a share, instead of relying on the note's
+    // UUID being unguessable.
     this._channel = this._supabase.channel(this._topic, {
       config: {
         broadcast: { self: false, ack: false },
         presence: { key: this._identity.id },
+        private: true,
       },
     })
 

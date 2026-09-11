@@ -105,9 +105,14 @@ export class SupabaseYjsProvider {
       }
     }
 
-    // 3. Subscribe to the realtime broadcast channel
+    // 3. Subscribe to the realtime broadcast channel. private: true enables
+    // Supabase Realtime Authorization — the server evaluates the
+    // note_ydoc_receive/note_ydoc_send RLS policies (migration
+    // 20260911130000_notes_realtime_authorization_fix) before letting this
+    // client join or send at all, instead of "unguessable UUID" being the
+    // only thing standing between a stranger and someone else's note.
     this._channel = this._supabase.channel(this._topic, {
-      config: { broadcast: { self: false, ack: false } },
+      config: { broadcast: { self: false, ack: false }, private: true },
     })
 
     this._channel
