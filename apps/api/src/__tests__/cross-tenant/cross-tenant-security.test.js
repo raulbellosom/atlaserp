@@ -206,4 +206,54 @@ describe("cross-tenant security", { skip: !RUN && "set RUN_CROSS_TENANT_TESTS=1 
     });
     assert.equal(status, 404);
   });
+
+  it("User A (admin, Company A active) cannot view permission-grants for User B, who is not a member of Company A", async () => {
+    // loadUserGrantContext used to derive the TARGET user's own "most
+    // admin-like" membership instead of scoping to the ACTOR's active
+    // company — this proves the target is now resolved against the active
+    // company, not any company the target happens to belong to.
+    const { status } = await callApi({
+      authUserId: fixture.userA.authUserId,
+      companyId: fixture.companyA.id,
+      path: `/identity/users/${fixture.userB.id}/permission-grants`,
+    });
+    assert.equal(status, 404);
+  });
+
+  it("User AB (admin in A, only hr/files reader in B) cannot GET permission-grants with B active", async () => {
+    // The permission-grants route used to authorize off the raw
+    // union-across-all-companies context (context.isAdmin/permissionSet),
+    // so an admin in Company A could manage grants regardless of which
+    // company was active. With the fix, admin rights from A must not leak
+    // into a request scoped to B.
+    const { status } = await callApi({
+      authUserId: fixture.userAB.authUserId,
+      companyId: fixture.companyB.id,
+      path: `/identity/users/${fixture.userAB.id}/permission-grants`,
+    });
+    assert.equal(status, 403);
+  });
+
+  it("User AB (admin in A, only hr/files reader in B) cannot PUT permission-grants with B active", async () => {
+    const { status } = await callApi({
+      authUserId: fixture.userAB.authUserId,
+      companyId: fixture.companyB.id,
+      method: "PUT",
+      path: `/identity/users/${fixture.userAB.id}/permission-grants`,
+      body: { permissionKeys: ["hr.employee.read"] },
+    });
+    assert.equal(status, 403);
+  });
+
+  it("User A (admin, Company A active) CAN view permission-grants for a legitimate Company A peer", async () => {
+    // Positive-path control: the hardening above must not have broken the
+    // legitimate same-company case.
+    const { status, json } = await callApi({
+      authUserId: fixture.userA.authUserId,
+      companyId: fixture.companyA.id,
+      path: `/identity/users/${fixture.userAB.id}/permission-grants`,
+    });
+    assert.equal(status, 200);
+    assert.ok(Array.isArray(json?.data?.grantedKeys));
+  });
 });

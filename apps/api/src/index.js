@@ -3135,16 +3135,17 @@ function canManageUserGrants(context) {
   );
 }
 
-// Resolves the target user's active memberships, the company a grant is scoped
-// to (same precedence as _loadUserContext: an admin-role membership, else the
-// first active one), and the set of permission keys the user already inherits
-// from their role(s).
-async function loadUserGrantContext(userId) {
+// Resolves the target user's membership in ONE specific company (the actor's
+// server-resolved active company — never derived from the target's own "most
+// admin-like" membership, which could be a DIFFERENT company than the one the
+// actor is currently acting in) and the set of permission keys the target
+// already inherits from their role in that company.
+async function loadUserGrantContext(userId, companyId) {
   const target = await prisma.userProfile.findUnique({
     where: { id: userId },
     include: {
       memberships: {
-        where: { enabled: true },
+        where: { enabled: true, companyId },
         include: {
           role: {
             include: {
@@ -3160,8 +3161,6 @@ async function loadUserGrantContext(userId) {
   });
   if (!target) return null;
   const activeMs = target.memberships.filter((m) => m.role?.enabled);
-  const adminMs = activeMs.find((m) => ADMIN_ROLE_KEYS.has(m.role?.key));
-  const companyId = (adminMs ?? activeMs[0])?.companyId ?? null;
   const roleKeys = new Set();
   for (const m of activeMs) {
     for (const rp of m.role?.permissions ?? []) {
@@ -3174,18 +3173,21 @@ async function loadUserGrantContext(userId) {
 app.get("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
-    if (!canManageUserGrants(context)) {
+    const resolved = await resolveTenantContext(c, context, { strict: true });
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
+    if (!canManageUserGrants(tenant)) {
       return c.json({ error: "No autorizado." }, 403);
     }
     const id = c.req.param("id");
-    const grantCtx = await loadUserGrantContext(id);
+    if (!(await assertUserInCompany(id, tenant.companyId))) {
+      return c.json({ error: "Usuario no encontrado." }, 404);
+    }
+    const grantCtx = await loadUserGrantContext(id, tenant.companyId);
     if (!grantCtx) return c.json({ error: "Usuario no encontrado." }, 404);
 
     const grants = await prisma.userPermissionGrant.findMany({
-      where: {
-        userId: id,
-        ...(grantCtx.companyId ? { companyId: grantCtx.companyId } : {}),
-      },
+      where: { userId: id, companyId: tenant.companyId },
       include: { permission: { select: { key: true, active: true } } },
     });
     const grantedKeys = grants
@@ -3205,7 +3207,10 @@ app.get("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
 app.put("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
   try {
     const context = await getOrLoadUserContext(c);
-    if (!canManageUserGrants(context)) {
+    const resolved = await resolveTenantContext(c, context, { strict: true });
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
+    if (!canManageUserGrants(tenant)) {
       return c.json({ error: "No autorizado." }, 403);
     }
     const id = c.req.param("id");
@@ -3217,11 +3222,11 @@ app.put("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
       return c.json({ error: "permissionKeys debe ser un arreglo." }, 422);
     }
 
-    const grantCtx = await loadUserGrantContext(id);
-    if (!grantCtx) return c.json({ error: "Usuario no encontrado." }, 404);
-    if (!grantCtx.companyId) {
-      return c.json({ error: "El usuario no tiene una empresa asignada." }, 400);
+    if (!(await assertUserInCompany(id, tenant.companyId))) {
+      return c.json({ error: "Usuario no encontrado." }, 404);
     }
+    const grantCtx = await loadUserGrantContext(id, tenant.companyId);
+    if (!grantCtx) return c.json({ error: "Usuario no encontrado." }, 404);
 
     // Only active permissions can be granted.
     const activePerms = await prisma.permission.findMany({
@@ -3235,11 +3240,12 @@ app.put("/identity/users/:id/permission-grants", authMiddleware, async (c) => {
     });
 
     // Privilege-escalation guard: a non-admin manager can only hand out
-    // permissions they themselves already hold. Admins are unrestricted.
+    // permissions they themselves already hold IN THIS SAME ACTIVE COMPANY.
+    // Admins are unrestricted.
     const escalating = findEscalatingKeys({
       targetKeys,
-      actorHeldKeys: context.permissionSet ?? new Set(),
-      actorIsAdmin: context.isAdmin,
+      actorHeldKeys: tenant.permissionSet ?? new Set(),
+      actorIsAdmin: tenant.isAdmin,
     });
     if (escalating.length) {
       return c.json(
