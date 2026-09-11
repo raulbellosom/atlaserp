@@ -4,12 +4,14 @@ import { createDocumentsDomain } from "./domains/documents.js";
 import { createChatDomain } from "./domains/chat.js";
 import { createCallsDomain } from "./domains/calls.js";
 
-export function createAtlasClient({ baseUrl }) {
+export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
   let _offlineTransport = null;
 
   function withAuthHeaders(token, headers = {}) {
-    if (!token) return headers;
-    return { ...headers, Authorization: `Bearer ${token}` };
+    const merged = token ? { ...headers, Authorization: `Bearer ${token}` } : { ...headers };
+    const companyId = typeof getActiveCompanyId === "function" ? getActiveCompanyId() : null;
+    if (companyId) merged["X-Atlas-Company-Id"] = companyId;
+    return merged;
   }
 
   function toQueryString(query) {
