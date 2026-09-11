@@ -30,7 +30,7 @@ import { createModerationRoutes } from "./moderation-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
 import { createChatOfficeRoutes } from "./chat-office-routes.js";
-import { createGuestChatService, GuestChatServiceError } from "./guest-service.js";
+import { createGuestChatService, GuestChatServiceError, mintGuestRealtimeToken } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
 import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
@@ -1063,6 +1063,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
           conversationId: conv.conversation_id,
           trackingCode: conv.tracking_code,
           resumed: true,
+          realtimeToken: mintGuestRealtimeToken(conv.session_id),
         },
       });
     } catch (err) {

@@ -1,6 +1,34 @@
 import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { stripMentionTokens } from "../../lib/mention-utils.js";
+import { signHs256Jwt } from "../../services/jwt-verification.js";
+
+// How long a minted Realtime auth token for a guest session stays valid.
+// Matches chat_guest_sessions' own idle-expiry window (bumped by the same
+// amount on every guest message, see sendGuestMessage) — the token is
+// re-minted and returned alongside the session's own activity, so it never
+// needs its own separate refresh loop on the client.
+const GUEST_REALTIME_TOKEN_TTL_SECS = 30 * 60;
+
+// Mints a short-lived JWT identifying a chat_guest_sessions row for Supabase
+// Realtime Authorization (private channels on chat:conv:<id> — see migration
+// 20260911180000_chat_guest_realtime_authorization). The guest never has a
+// real Supabase Auth session, so this is a self-signed token verified with
+// the same SUPABASE_JWT_SECRET Realtime already trusts for real Supabase-
+// issued tokens. role: "authenticated" is safe here: every existing
+// authenticated-role RLS policy in this schema keys off auth.uid() resolving
+// to a real user_profile.auth_user_id, and this token's `sub` (the guest
+// session id) can never match one — the new chat_guest_is_member policy is
+// the only thing that reads the custom guest_session_id claim.
+export function mintGuestRealtimeToken(guestSessionId) {
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret || !guestSessionId) return null;
+  return signHs256Jwt(
+    { sub: guestSessionId, role: "authenticated", guest_session_id: guestSessionId },
+    secret,
+    GUEST_REALTIME_TOKEN_TTL_SECS,
+  );
+}
 
 export class GuestChatServiceError extends Error {
   constructor(message, status = 400) {
@@ -142,6 +170,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
           conversationId: existing[0].conversation_id,
           trackingCode: existing[0].tracking_code ?? null,
           resumed: true,
+          realtimeToken: mintGuestRealtimeToken(existing[0].id),
         };
       }
     }
@@ -241,6 +270,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       trackingCode,
       assignedUserId,
       resumed: false,
+      realtimeToken: mintGuestRealtimeToken(session.id),
     };
   }
 
@@ -301,6 +331,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       trackingCode: convRows[0]?.tracking_code ?? null,
       idleExpiresAt: session.idle_expires_at,
       absoluteExpiresAt: session.absolute_expires_at,
+      realtimeToken: mintGuestRealtimeToken(session.id),
     };
   }
 
@@ -450,7 +481,12 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       });
     }
 
-    return { messageId: msg.id, conversationId, createdAt: msg.created_at };
+    return {
+      messageId: msg.id,
+      conversationId,
+      createdAt: msg.created_at,
+      realtimeToken: mintGuestRealtimeToken(session.id),
+    };
   }
 
   async function listGuestMessages({ rawToken, limit = 40, before = null }) {

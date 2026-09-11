@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
-import { verifySupabaseJwt } from "../jwt-verification.js";
+import { verifySupabaseJwt, signHs256Jwt } from "../jwt-verification.js";
 
 // Minimal local HS256 JWT signer, deliberately mirroring the exact parsing logic
 // in verifySupabaseJwt (header.payload.signature, '.'-joined base64url segments,
@@ -59,4 +59,25 @@ test("accepts a token with no exp field", () => {
 
   assert.ok(payload, "expected token without exp to be accepted");
   assert.equal(payload.sub, "user-1");
+});
+
+test("signHs256Jwt round-trips through verifySupabaseJwt with the given claims and a future exp", () => {
+  const token = signHs256Jwt({ sub: "guest-session-1", role: "authenticated", guest_session_id: "guest-session-1" }, SECRET, 1800);
+
+  const payload = verifySupabaseJwt(token, SECRET);
+
+  assert.ok(payload, "expected the freshly signed token to verify");
+  assert.equal(payload.sub, "guest-session-1");
+  assert.equal(payload.role, "authenticated");
+  assert.equal(payload.guest_session_id, "guest-session-1");
+  const now = Math.floor(Date.now() / 1000);
+  assert.ok(payload.exp > now + 1700 && payload.exp <= now + 1800, "expected exp roughly 1800s in the future");
+});
+
+test("signHs256Jwt output is rejected by verifySupabaseJwt under a different secret", () => {
+  const token = signHs256Jwt({ sub: "guest-session-1" }, SECRET, 1800);
+
+  const payload = verifySupabaseJwt(token, "a-different-secret");
+
+  assert.equal(payload, null);
 });

@@ -1,6 +1,21 @@
 export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
   // Cached Supabase client for realtime — created once, reused across subscriptions.
   let _realtimeClient = null
+  // The guest never has a real Supabase Auth session (see
+  // apps/api/src/routes/chat/guest-service.js mintGuestRealtimeToken) — this
+  // short-lived, self-signed token is what lets it join the private
+  // chat:conv:<id> Realtime channel (migration
+  // 20260911180000_chat_guest_realtime_authorization). Re-applied to the
+  // client every time a REST call returns a fresh one (createSession,
+  // getSession, resumeByCode, sendMessage) — no separate refresh loop needed,
+  // it just rides along with normal guest activity.
+  let _realtimeToken = null
+
+  function _applyRealtimeToken(token) {
+    if (!token) return
+    _realtimeToken = token
+    if (_realtimeClient) _realtimeClient.realtime.setAuth(token)
+  }
 
   async function _getRealtimeClient() {
     if (_realtimeClient) return _realtimeClient
@@ -16,20 +31,24 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
     _realtimeClient = createClient(url, key, {
       auth: { storageKey: 'atlas-guest-chat', persistSession: false },
     })
+    if (_realtimeToken) _realtimeClient.realtime.setAuth(_realtimeToken)
     return _realtimeClient
   }
   async function createSession(data = {}) {
     const res = await request('POST', '/public/chat/session', data)
+    _applyRealtimeToken(res.data?.realtimeToken)
     return res.data
   }
 
   async function getSession(token) {
     const res = await request('GET', `/public/chat/session/${token}`)
+    _applyRealtimeToken(res.data?.realtimeToken)
     return res.data
   }
 
   async function sendMessage(token, body, messageType = 'text') {
     const res = await request('POST', `/public/chat/session/${token}/messages`, { body, messageType })
+    _applyRealtimeToken(res.data?.realtimeToken)
     return res.data
   }
 
@@ -93,8 +112,13 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
       }
       if (cancelled) return
 
+      // private: true — chat_conv_receive RLS policy (migration
+      // 20260911180000_chat_guest_realtime_authorization) requires the
+      // realtime token applied above (via _applyRealtimeToken) to actually
+      // join; an unauthenticated/wrong-guest client is rejected at the
+      // server, not just left to the topic string being unguessable.
       channel = client
-        .channel(`chat:conv:${conversationId}`)
+        .channel(`chat:conv:${conversationId}`, { config: { private: true } })
         .on('broadcast', { event: 'new_operator_message' }, ({ payload }) => {
           onMessage?.(payload)
         })
@@ -139,6 +163,7 @@ export function createGuestChatDomain(request, supabaseUrl, supabaseAnonKey) {
 
   async function resumeByCode(trackingCode, email) {
     const res = await request('POST', '/public/chat/session/resume-by-code', { trackingCode, email })
+    _applyRealtimeToken(res.data?.realtimeToken)
     return res.data
   }
 

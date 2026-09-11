@@ -58,3 +58,29 @@ test("subscribeToReplies accepts an options object", () => {
   assert.equal(typeof unsub, "function");
   unsub();
 });
+
+test("createSession forwards realtimeToken from the response without throwing (no realtime client constructed yet)", async () => {
+  const request = async () => ({ data: { token: "sess-tok", conversationId: "conv-1", realtimeToken: "rt-token-1" } });
+  const d = createGuestChatDomain(request, "http://x", "anon");
+  const res = await d.createSession({ email: "a@b.com" });
+  assert.equal(res.realtimeToken, "rt-token-1");
+});
+
+test("getSession and sendMessage both forward realtimeToken from the response without throwing", async () => {
+  const request = async (method, path) => {
+    if (path.endsWith("/messages")) return { data: { messageId: "m1", realtimeToken: "rt-2" } };
+    return { data: { sessionId: "s1", realtimeToken: "rt-1" } };
+  };
+  const d = createGuestChatDomain(request, "http://x", "anon");
+  const sessionRes = await d.getSession("tok");
+  assert.equal(sessionRes.realtimeToken, "rt-1");
+  const msgRes = await d.sendMessage("tok", "hola");
+  assert.equal(msgRes.realtimeToken, "rt-2");
+});
+
+test("resumeByCode forwards realtimeToken from the response", async () => {
+  const request = async () => ({ data: { token: "resume-tok", conversationId: "conv-1", realtimeToken: "rt-3" } });
+  const d = createGuestChatDomain(request, "http://x", "anon");
+  const res = await d.resumeByCode("CHAT-000001", "a@b.com");
+  assert.equal(res.realtimeToken, "rt-3");
+});

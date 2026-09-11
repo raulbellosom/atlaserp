@@ -32,13 +32,13 @@ export function subscribeToMessages(conversationId, onMessage) {
   return () => client.removeChannel(channel);
 }
 
-// chat:conv:<id> is deliberately excluded from private-channel authorization
-// (migration 20260911140000_chat_company_realtime_authorization) — the
-// anonymous storefront guest widget subscribes to that exact topic with no
-// Supabase Auth session at all, so there is no per-guest identity to check
-// today. private: true is safe (and enforced) for every other topic prefix
-// these helpers are actually called with (chat:presence:*, chat:company:*).
-const PRIVATE_TOPIC_PREFIXES = ["chat:presence:", "chat:company:"];
+// chat:conv:<id> is now covered too (migration
+// 20260911180000_chat_guest_realtime_authorization, chat_conv_receive
+// policy): the operator side here is a real authenticated user, so
+// chat_is_member alone authorizes it — no extra token needed, unlike the
+// anonymous storefront guest widget (packages/storefront-sdk), which mints
+// and applies its own short-lived guest token separately.
+const PRIVATE_TOPIC_PREFIXES = ["chat:presence:", "chat:company:", "chat:conv:"];
 
 function isPrivateTopic(channelName) {
   return PRIVATE_TOPIC_PREFIXES.some((prefix) => channelName.startsWith(prefix));
