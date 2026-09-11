@@ -605,6 +605,9 @@ describe("createCallService.inviteMembersToLiveCall", () => {
         if (sql.includes("chat_conversation_members")) {
           return existingMemberIds.map((userId) => ({ userId }));
         }
+        if (sql.includes("FROM chat_conversations")) {
+          return [{ companyId: "co-1" }];
+        }
         return [];
       },
       $executeRaw: async (strings) => {

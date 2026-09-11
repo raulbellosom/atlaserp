@@ -213,13 +213,16 @@ export function createCallGuestService({
     if (notificationService?.publish && status === "LOBBY") {
       setImmediate(async () => {
         try {
-          const membership = await prisma.membership.findFirst({
-            where: { userId: call.initiatedByUserId, enabled: true },
-            orderBy: { createdAt: "desc" }, select: { companyId: true },
-          });
-          if (!membership?.companyId) return;
+          // The conversation's own company, not re-derived from the
+          // initiator's memberships — see call-links-service.js's
+          // sendInvites for why.
+          const [conversationRow] = await prisma.$queryRaw`
+            SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1
+          `;
+          const companyId = conversationRow?.companyId ?? null;
+          if (!companyId) return;
           await notificationService.publish({
-            companyId: membership.companyId,
+            companyId,
             input: {
               eventType: "chat.call.guest_waiting",
               title: "Invitado esperando en la llamada",

@@ -160,13 +160,17 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
 
     const normalized = [...new Set(emails.map((e) => e.toLowerCase().trim()).filter(Boolean))];
 
+    // The relevant company is the CALL'S OWN company (via its conversation),
+    // never re-derived from the inviter's memberships — a multi-company
+    // inviter's "most recently created membership" is not necessarily the
+    // company this call actually belongs to. See
+    // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
     const companyRows = await prisma.$queryRaw`
       SELECT up.id AS "userId", lower(up.email) AS email
       FROM user_profile up
       JOIN membership mem ON mem.user_id = up.id AND mem.enabled = true
       WHERE mem.company_id = (
-        SELECT company_id FROM membership WHERE user_id = ${profileId} AND enabled = true
-        ORDER BY created_at DESC LIMIT 1
+        SELECT company_id FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
       )
       AND lower(up.email) = ANY(${normalized}::text[])
     `;

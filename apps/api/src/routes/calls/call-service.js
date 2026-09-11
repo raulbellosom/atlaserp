@@ -259,14 +259,15 @@ export function createCallService({
     if (!notificationService?.publish || !recipientIds?.length) return;
     setImmediate(async () => {
       try {
-        const membership = await prisma.membership.findFirst({
-          where: { userId: profile.id, enabled: true },
-          orderBy: { createdAt: "desc" },
-          select: { companyId: true },
-        });
-        if (!membership?.companyId) return;
+        // The conversation's own company, not re-derived from profile's
+        // memberships — see call-links-service.js's sendInvites for why.
+        const [conversationRow] = await prisma.$queryRaw`
+          SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+        `;
+        const companyId = conversationRow?.companyId ?? null;
+        if (!companyId) return;
         await notificationService.publish({
-          companyId: membership.companyId,
+          companyId,
           actorId: profile.id,
           input: {
             eventType: "chat.call.busy_attempt",
@@ -454,14 +455,15 @@ export function createCallService({
     if (notificationService?.publish) {
       setImmediate(async () => {
         try {
-          const membership = await prisma.membership.findFirst({
-            where: { userId: profile.id, enabled: true },
-            orderBy: { createdAt: "desc" },
-            select: { companyId: true },
-          });
-          if (!membership?.companyId) return;
+          // The conversation's own company, not re-derived from profile's
+          // memberships — see call-links-service.js's sendInvites for why.
+          const [conversationRow] = await prisma.$queryRaw`
+            SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+          `;
+          const companyId = conversationRow?.companyId ?? null;
+          if (!companyId) return;
           const published = await notificationService.publish({
-            companyId: membership.companyId,
+            companyId,
             actorId: profile.id,
             input: {
               eventType: "chat.call.incoming",
@@ -685,12 +687,14 @@ export function createCallService({
     if (!targets.length) return { notified: [], addedMembers: [], addedParticipants: [] };
     const targetIds = targets.map((u) => u.userId);
 
-    const membership = await prisma.membership.findFirst({
-      where: { userId: inviterProfileId, enabled: true },
-      orderBy: { createdAt: "desc" },
-      select: { companyId: true },
-    });
-    const companyId = membership?.companyId ?? null;
+    // The relevant company is the conversation's own company, not re-derived
+    // from the inviter's memberships — see call-links-service.js's sendInvites
+    // for why (a multi-company inviter's "most recent membership" is not
+    // necessarily this call's company).
+    const [conversationRow] = await prisma.$queryRaw`
+      SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+    `;
+    const companyId = conversationRow?.companyId ?? null;
 
     const [inviter] = await prisma.$queryRaw`
       SELECT display_name AS "displayName" FROM user_profile WHERE id = ${inviterProfileId} LIMIT 1
