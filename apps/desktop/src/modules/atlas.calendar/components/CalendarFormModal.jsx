@@ -10,6 +10,7 @@ import {
 } from "@atlas/ui";
 import { useCreateCalendar, useUpdateCalendar } from "../hooks/useCalendarData";
 import { CALENDAR_ICONS } from "../calendarIcons";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { toast } from "sonner";
 
 const COLORS = [
@@ -37,6 +38,7 @@ export default function CalendarFormModal({ calendar, onClose }) {
   const isEdit = Boolean(calendar?.id);
   const createCalendar = useCreateCalendar();
   const updateCalendar = useUpdateCalendar();
+  const { activeCompany } = useActiveCompany();
   const [name, setName] = useState(calendar?.name ?? "");
   const [color, setColor] = useState(calendar?.color ?? COLORS[0]);
   const [icon, setIcon] = useState(calendar?.icon ?? null);
@@ -99,6 +101,26 @@ export default function CalendarFormModal({ calendar, onClose }) {
             onChange={(e) => setName(e.target.value)}
             autoFocus
           />
+
+          {/* Company — read-only. Assigned automatically from the active
+              company at creation (never editable here), so this is purely
+              informational: which company this calendar's reminders/events
+              are attributed to. */}
+          {isEdit ? (
+            calendar?.company?.name ? (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Empresa: <span className="font-medium">{calendar.company.name}</span>
+              </p>
+            ) : (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Calendario personal (sin empresa asignada)
+              </p>
+            )
+          ) : activeCompany?.name ? (
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              Se asignará a: <span className="font-medium">{activeCompany.name}</span>
+            </p>
+          ) : null}
 
           {/* Color picker */}
           <div>

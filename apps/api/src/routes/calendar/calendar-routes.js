@@ -195,7 +195,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
     async (c) => {
       try {
         const userId = getUserId(c);
-        await svc.ensureDefaultCalendar(userId);
+        await svc.ensureDefaultCalendar(userId, getCompanyId(c));
         const result = await svc.listCalendars(userId);
         return c.json(result);
       } catch (err) {
@@ -211,7 +211,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
       try {
         const userId = getUserId(c);
         const body = await c.req.json();
-        const calendar = await svc.createCalendar(userId, body);
+        const calendar = await svc.createCalendar(userId, body, getCompanyId(c));
         const { actorName } = getActivityContext(c);
         await publishActivityFromContext(prisma, c, {
           type: "calendar.calendar.create",

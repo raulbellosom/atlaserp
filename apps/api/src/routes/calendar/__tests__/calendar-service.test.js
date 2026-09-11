@@ -65,6 +65,38 @@ describe('createCalendarService', () => {
       const result = await svc.createCalendar('user-1', { name: 'Test' })
       assert.equal(result.color, '#6B46C1')
     })
+
+    it('attaches the caller-supplied companyId (the active company, resolved by the route)', async () => {
+      const svc = createCalendarService({ prisma: makePrisma() })
+      const result = await svc.createCalendar('user-1', { name: 'Test' }, 'company-active')
+      assert.equal(result.companyId, 'company-active')
+    })
+
+    it('defaults companyId to null when the caller is company-less', async () => {
+      const svc = createCalendarService({ prisma: makePrisma() })
+      const result = await svc.createCalendar('user-1', { name: 'Test' })
+      assert.equal(result.companyId, null)
+    })
+  })
+
+  describe('ensureDefaultCalendar', () => {
+    it('creates the default calendar with the given companyId when none exists yet', async () => {
+      const svc = createCalendarService({ prisma: makePrisma() })
+      const result = await svc.ensureDefaultCalendar('user-1', 'company-active')
+      assert.equal(result.companyId, 'company-active')
+      assert.equal(result.isDefault, true)
+    })
+
+    it('returns the existing default calendar as-is, never retroactively assigning a company', async () => {
+      const existing = { id: 'cal-existing', ownerId: 'user-1', companyId: null, isDefault: true, enabled: true }
+      const prisma = makePrisma({
+        calendarCalendar: { findFirst: async () => existing },
+      })
+      const svc = createCalendarService({ prisma })
+      const result = await svc.ensureDefaultCalendar('user-1', 'company-active')
+      assert.equal(result, existing)
+      assert.equal(result.companyId, null)
+    })
   })
 
   describe('deleteCalendar', () => {

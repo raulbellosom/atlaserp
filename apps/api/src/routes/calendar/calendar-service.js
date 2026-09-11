@@ -44,7 +44,13 @@ export function createCalendarService({ prisma }) {
     }
   }
 
-  async function ensureDefaultCalendar(userId) {
+  // companyId: the requester's server-resolved active company (never
+  // client-supplied). Every calendar is created with the active company
+  // attached — including the auto-created default one — so a "which company
+  // does this calendar belong to" answer exists for anyone created going
+  // forward. Omitted (e.g. a company-less caller), the calendar stays
+  // personal-only (company: null), matching the original behavior.
+  async function ensureDefaultCalendar(userId, companyId = null) {
     const existing = await prisma.calendarCalendar.findFirst({
       where: { ownerId: userId, isDefault: true, enabled: true },
     });
@@ -52,6 +58,7 @@ export function createCalendarService({ prisma }) {
     return prisma.calendarCalendar.create({
       data: {
         ownerId: userId,
+        companyId,
         name: "Mi calendario",
         color: "#6B46C1",
         isDefault: true,
@@ -59,11 +66,14 @@ export function createCalendarService({ prisma }) {
     });
   }
 
+  const CALENDAR_COMPANY_SELECT = { select: { id: true, name: true } };
+
   async function listCalendars(userId) {
     const owned = await prisma.calendarCalendar.findMany({
       where: { ownerId: userId, enabled: true },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
       include: {
+        company: CALENDAR_COMPANY_SELECT,
         shares: {
           include: {
             user: {
@@ -80,7 +90,7 @@ export function createCalendarService({ prisma }) {
     });
     const shared = await prisma.calendarShare.findMany({
       where: { userId },
-      include: { calendar: true },
+      include: { calendar: { include: { company: CALENDAR_COMPANY_SELECT } } },
     });
     const sharedCalendars = shared
       .filter((s) => s.calendar?.enabled && s.calendar?.ownerId !== userId)
@@ -88,16 +98,18 @@ export function createCalendarService({ prisma }) {
     return { owned, shared: sharedCalendars };
   }
 
-  async function createCalendar(userId, { name, color, icon }) {
+  async function createCalendar(userId, { name, color, icon }, companyId = null) {
     if (!name?.trim())
       throw new CalendarServiceError("El nombre es requerido.", 400);
     return prisma.calendarCalendar.create({
       data: {
         ownerId: userId,
+        companyId,
         name: name.trim(),
         color: color ?? "#6B46C1",
         icon: icon || null,
       },
+      include: { company: CALENDAR_COMPANY_SELECT },
     });
   }
 

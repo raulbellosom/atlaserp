@@ -348,6 +348,8 @@ model Company {
   hrDepartments  HrDepartment[]
   hrJobTitles    HrJobTitle[]
 
+  calendars      CalendarCalendar[]
+
   invCategories   InvCategory[]    @relation("CompanyInvCategories")
   invBrands       InvBrand[]       @relation("CompanyInvBrands")
   invLocations    InvLocation[]    @relation("CompanyInvLocations")
@@ -1884,6 +1886,7 @@ model GoogleCalendarEventLink {
 model CalendarCalendar {
   id        String   @id @default(uuid(7)) @db.Uuid
   ownerId   String   @db.Uuid @map("owner_id")
+  companyId String?  @db.Uuid @map("company_id")
   name      String
   color     String   @default("#6B46C1")
   icon      String?
@@ -1893,11 +1896,13 @@ model CalendarCalendar {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   owner        UserProfile           @relation("CalendarOwner", fields: [ownerId], references: [id])
+  company      Company?              @relation(fields: [companyId], references: [id], onDelete: SetNull)
   shares       CalendarShare[]
   events       CalendarEvent[]
   googleSource GoogleCalendarSource?
 
   @@index([ownerId])
+  @@index([companyId])
   @@map("calendar_calendar")
 }
 

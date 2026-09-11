@@ -76,7 +76,16 @@ export function createCalendarNotificationService({ prisma }) {
     const pendingReminders = await prisma.calendarReminder.findMany({
       where: { sentAt: null },
       include: {
-        event: { select: { id: true, title: true, startAt: true, allDay: true, enabled: true } },
+        event: {
+          select: {
+            id: true,
+            title: true,
+            startAt: true,
+            allDay: true,
+            enabled: true,
+            calendar: { select: { companyId: true, company: { select: { name: true } } } },
+          },
+        },
       },
     })
 
@@ -115,18 +124,32 @@ export function createCalendarNotificationService({ prisma }) {
     let published = 0
     for (const reminder of toFire) {
       try {
-        const membership = await prisma.membership.findFirst({
-          where: { userId: reminder.userId, enabled: true },
-          select: { companyId: true },
-        })
-        if (!membership?.companyId) continue
+        // Prefer the event's own calendar's company (set explicitly when the
+        // calendar was created) over an arbitrary membership guess — a
+        // calendar tied to a specific company should always route its
+        // reminders (and name that company in the notification) there,
+        // regardless of which other companies the recipient also belongs to.
+        // Falls back to the old "some company this user belongs to" pick
+        // only for calendars with no company of their own (personal
+        // calendars, unchanged from prior behavior).
+        let companyId = reminder.event?.calendar?.companyId ?? null
+        const companyName = reminder.event?.calendar?.company?.name ?? null
+        if (!companyId) {
+          const membership = await prisma.membership.findFirst({
+            where: { userId: reminder.userId, enabled: true },
+            select: { companyId: true },
+          })
+          companyId = membership?.companyId ?? null
+        }
+        if (!companyId) continue
         const title = reminder.event?.title ?? 'Evento'
+        const notifTitle = companyName ? `Recordatorio (${companyName}): ${title}` : `Recordatorio: ${title}`
         await notificationSvc.publish({
-          companyId: membership.companyId,
+          companyId,
           actorId: null,
           input: {
             eventType: 'calendar.event.reminder',
-            title: `Recordatorio: ${title}`,
+            title: notifTitle,
             body: `Tu evento comienza pronto (${reminder.minutesBefore} min antes).`,
             link: `/app/m/atlas.calendar?open=event:${reminder.eventId}`,
             recipients: { userIds: [reminder.userId] },

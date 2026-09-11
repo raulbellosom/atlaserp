@@ -67,5 +67,52 @@ describe("createCalendarNotificationService", () => {
         `expected link to contain ?open=event:${EVENT_ID}, got: ${link}`,
       );
     });
+
+    it("uses the event's own calendar company (not an arbitrary membership) and names it in the title when the calendar has one", async () => {
+      const CALENDAR_COMPANY_ID = "01971a2b-0000-7000-8000-000000000004";
+      const prisma = buildPrismaMock();
+      prisma.calendarReminder.findMany = async () => [
+        {
+          id: "rem-1",
+          userId: USER_ID,
+          eventId: EVENT_ID,
+          minutesBefore: 15,
+          sentAt: null,
+          event: {
+            id: EVENT_ID,
+            title: "Reunion de equipo",
+            startAt: new Date(Date.now() + 10 * 60 * 1000),
+            allDay: false,
+            enabled: true,
+            calendar: { companyId: CALENDAR_COMPANY_ID, company: { name: "Acme Corp" } },
+          },
+        },
+      ];
+      let membershipCalled = false;
+      prisma.membership.findFirst = async () => {
+        membershipCalled = true;
+        return { companyId: COMPANY_ID };
+      };
+      const svc = createCalendarNotificationService({ prisma });
+
+      await svc.processReminders();
+
+      assert.equal(membershipCalled, false, "should not fall back to an arbitrary membership when the calendar has its own company");
+      assert.equal(prisma._published.length, 1);
+      assert.equal(prisma._published[0].companyId, CALENDAR_COMPANY_ID);
+      assert.equal(prisma._published[0].title, "Recordatorio (Acme Corp): Reunion de equipo");
+    });
+
+    it("falls back to an arbitrary membership and omits the company name when the calendar has no company (personal calendar)", async () => {
+      const prisma = buildPrismaMock();
+      // Default mock reminder's event.calendar is undefined (personal calendar).
+      const svc = createCalendarNotificationService({ prisma });
+
+      await svc.processReminders();
+
+      assert.equal(prisma._published.length, 1);
+      assert.equal(prisma._published[0].companyId, COMPANY_ID);
+      assert.equal(prisma._published[0].title, "Recordatorio: Reunion de equipo");
+    });
   });
 });
