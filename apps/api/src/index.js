@@ -505,9 +505,13 @@ function requirePermission(permissionKey) {
         401,
       );
     }
-    c.set("companyId", context.memberships?.[0]?.companyId ?? null);
+    const resolved = await resolveTenantContext(c, context);
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
+    c.set("companyId", tenant.companyId);
+    c.set("tenantContext", tenant);
     c.set("userId", context.profile.id);
-    if (context.isAdmin || context.permissionSet.has(permissionKey)) {
+    if (tenant.isAdmin || tenant.permissionSet.has(permissionKey)) {
       await next();
       return;
     }
@@ -524,14 +528,18 @@ function requireAnyPermission(permissionKeys = []) {
         401,
       );
     }
-    c.set("companyId", context.memberships?.[0]?.companyId ?? null);
+    const resolved = await resolveTenantContext(c, context);
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
+    c.set("companyId", tenant.companyId);
+    c.set("tenantContext", tenant);
     c.set("userId", context.profile.id);
-    if (context.isAdmin) {
+    if (tenant.isAdmin) {
       await next();
       return;
     }
     const keys = Array.isArray(permissionKeys) ? permissionKeys : [];
-    const allowed = keys.some((key) => context.permissionSet.has(key));
+    const allowed = keys.some((key) => tenant.permissionSet.has(key));
     if (!allowed) {
       return c.json({ error: forbiddenMessage(keys.join(" o ")) }, 403);
     }
