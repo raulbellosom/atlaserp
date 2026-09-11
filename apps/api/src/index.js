@@ -301,7 +301,7 @@ async function _loadUserContext(authUserId, cacheKey) {
   const memberships = await prisma.membership.findMany({
     where: { userId: profile.id, enabled: true },
     include: {
-      company: { select: { id: true, name: true, slug: true } },
+      company: { select: { id: true, name: true, slug: true, enabled: true } },
       role: {
         include: {
           permissions: {
@@ -339,7 +339,14 @@ async function _loadUserContext(authUserId, cacheKey) {
   // never subtracts. Scoped to the companies of the active memberships, active
   // permissions only. See
   // docs/superpowers/specs/2026-09-08-per-user-permission-grants.md
+  //
+  // grantsByCompany additionally keeps the SAME rows broken out per company
+  // (not merged), so a per-request tenant resolution (see resolveTenantContext,
+  // apps/api/src/lib/tenant-context.js) can apply only the active company's
+  // grants instead of this file's own legacy cross-company union below.
+  // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md
   const grantKeySet = new Set();
+  const grantsByCompany = new Map();
   const grantCompanyIds = [...new Set(activeMemberships.map((m) => m.companyId).filter(Boolean))];
   if (grantCompanyIds.length) {
     const grants = await prisma.userPermissionGrant.findMany({
@@ -352,7 +359,11 @@ async function _loadUserContext(authUserId, cacheKey) {
     });
     for (const g of grants) {
       const key = g.permission?.key;
-      if (key) { permissionSet.add(key); grantKeySet.add(key); }
+      if (!key) continue;
+      permissionSet.add(key);
+      grantKeySet.add(key);
+      if (!grantsByCompany.has(g.companyId)) grantsByCompany.set(g.companyId, new Set());
+      grantsByCompany.get(g.companyId).add(key);
     }
   }
 
@@ -370,6 +381,7 @@ async function _loadUserContext(authUserId, cacheKey) {
   const context = {
     profile,
     memberships: activeMemberships,
+    grantsByCompany,
     roleKey,
     isAdmin,
     permissions: [...permissionSet].sort(),
