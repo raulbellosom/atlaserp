@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import { useActiveCompany } from '../company/ActiveCompanyProvider'
 import { getSupabaseClient } from '../lib/supabase'
 import { isTauriRuntime, showSystemNotification } from '../lib/systemNotifications'
 import { toast } from 'sonner'
@@ -14,6 +15,7 @@ const RealtimeContext = createContext(null)
 
 export function RealtimeProvider({ children }) {
   const { userProfile, session } = useAuth()
+  const { activeCompanyId } = useActiveCompany()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const listenersRef = useRef({})
@@ -152,11 +154,11 @@ export function RealtimeProvider({ children }) {
 
   // Company presence channel — tracks who is online across the whole company
   useEffect(() => {
-    if (!userProfile?.id || !userProfile?.companyId) return
+    if (!userProfile?.id || !activeCompanyId) return
     const client = getSupabaseClient()
 
     const channel = client
-      .channel(`company:${userProfile.companyId}:presence`, {
+      .channel(`company:${activeCompanyId}:presence`, {
         config: { presence: { key: userProfile.id } },
       })
       .on('presence', { event: 'sync' }, () => {
@@ -192,14 +194,14 @@ export function RealtimeProvider({ children }) {
       })
 
     return () => { client.removeChannel(channel) }
-  }, [userProfile?.id, userProfile?.companyId, userProfile?.displayName, userProfile?.email, userProfile?.avatarUrl])
+  }, [userProfile?.id, activeCompanyId, userProfile?.displayName, userProfile?.email, userProfile?.avatarUrl])
 
   // Company events channel — receives broadcast events for POS, Calendar, and other company-wide modules
   useEffect(() => {
-    if (!userProfile?.id || !userProfile?.companyId) return
+    if (!userProfile?.id || !activeCompanyId) return
     const client = getSupabaseClient()
     const channel = client
-      .channel(`company:${userProfile.companyId}:events`)
+      .channel(`company:${activeCompanyId}:events`)
       .on('broadcast', { event: 'pos.order.updated' }, () => {
         queryClient.invalidateQueries({ queryKey: ['pos'] })
       })
@@ -208,7 +210,7 @@ export function RealtimeProvider({ children }) {
       })
       .subscribe()
     return () => { client.removeChannel(channel) }
-  }, [userProfile?.id, userProfile?.companyId, queryClient])
+  }, [userProfile?.id, activeCompanyId, queryClient])
 
   // Postgres Changes on the notification table — fires when the API inserts a notification
   // for the current user. This is a reliable backup when the REST broadcast is unavailable.
