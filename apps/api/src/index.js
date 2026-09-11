@@ -987,7 +987,13 @@ app.use(
 
 await routeLoader.initialize(app);
 await bundlerService.restoreModuleBundlesOnBoot();
-bundlerService.startDevWatcher();
+// The dev watcher holds an open fs.watch handle that keeps the process alive
+// indefinitely — desired for `node --watch src/index.js`, but it would
+// prevent the opt-in cross-tenant test suite (which imports this module,
+// see ATLAS_API_TEST_MODE above) from ever exiting after its tests finish.
+if (process.env.ATLAS_API_TEST_MODE !== "1") {
+  bundlerService.startDevWatcher();
+}
 
 ensureBuckets();
 
@@ -4216,7 +4222,11 @@ app.get(
       const ids = idsParam
         ? idsParam.split(",").map((s) => s.trim()).filter(Boolean)
         : null;
-      const rows = await hrService.listEmployeesForExport({ authUserId, ids });
+      const rows = await hrService.listEmployeesForExport({
+        authUserId,
+        companyId: c.get("companyId"),
+        ids,
+      });
       const buffer = await buildEmployeesExcelBuffer({ rows });
       c.header(
         "Content-Type",
@@ -4247,7 +4257,11 @@ app.get(
       const ids = idsParam
         ? idsParam.split(",").map((s) => s.trim()).filter(Boolean)
         : null;
-      const rows = await hrService.listEmployeesForExport({ authUserId, ids });
+      const rows = await hrService.listEmployeesForExport({
+        authUserId,
+        companyId: c.get("companyId"),
+        ids,
+      });
       const {
         resolveCompanyBranding, resolvePdfDocumentCtor,
         toSafeText, compact, normalizeHexColor, lightenHex,
@@ -4400,6 +4414,7 @@ app.get(
 
       const result = await hrService.listEmployees({
         authUserId,
+        companyId: c.get("companyId"),
         search,
         status,
         enabled,
@@ -4440,7 +4455,7 @@ app.get(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const row = await hrService.getEmployee({ authUserId, id });
+      const row = await hrService.getEmployee({ authUserId, companyId: c.get("companyId"), id });
       return c.json({ data: row });
     } catch (err) {
       if (err instanceof HrServiceError) {
@@ -4467,6 +4482,7 @@ app.post(
       }
       const row = await hrService.createEmployee({
         authUserId,
+        companyId: c.get("companyId"),
         payload: parsed.data,
       });
       return c.json({ data: row }, 201);
@@ -4496,6 +4512,7 @@ app.put(
       }
       const row = await hrService.updateEmployee({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         payload: parsed.data,
       });
@@ -4523,6 +4540,7 @@ app.patch(
       }
       const row = await hrService.setEmployeeEnabled({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         enabled: parsed.data.enabled,
       });
@@ -4545,7 +4563,12 @@ app.get(
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
       const limit = c.req.query("limit");
-      const rows = await hrService.getEmployeeAudit({ authUserId, id, limit });
+      const rows = await hrService.getEmployeeAudit({
+        authUserId,
+        companyId: c.get("companyId"),
+        id,
+        limit,
+      });
       return c.json({ data: rows });
     } catch (err) {
       if (err instanceof HrServiceError) {
@@ -4570,6 +4593,7 @@ app.get(
       const limit = c.req.query("limit");
       const rows = await hrService.listDepartments({
         authUserId,
+        companyId: c.get("companyId"),
         search: q,
         enabled,
         limit,
@@ -4600,6 +4624,7 @@ app.post(
       }
       const row = await hrService.createDepartment({
         authUserId,
+        companyId: c.get("companyId"),
         payload: parsed.data,
       });
       return c.json({ data: row }, 201);
@@ -4629,6 +4654,7 @@ app.put(
       }
       const row = await hrService.updateDepartment({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         payload: parsed.data,
       });
@@ -4656,6 +4682,7 @@ app.patch(
       }
       const row = await hrService.setDepartmentEnabled({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         enabled: parsed.data.enabled,
       });
@@ -4686,6 +4713,7 @@ app.get(
       const limit = c.req.query("limit");
       const rows = await hrService.listJobTitles({
         authUserId,
+        companyId: c.get("companyId"),
         search: q,
         enabled,
         limit,
@@ -4716,6 +4744,7 @@ app.post(
       }
       const row = await hrService.createJobTitle({
         authUserId,
+        companyId: c.get("companyId"),
         payload: parsed.data,
       });
       return c.json({ data: row }, 201);
@@ -4745,6 +4774,7 @@ app.put(
       }
       const row = await hrService.updateJobTitle({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         payload: parsed.data,
       });
@@ -4772,6 +4802,7 @@ app.patch(
       }
       const row = await hrService.setJobTitleEnabled({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         enabled: parsed.data.enabled,
       });
@@ -4800,6 +4831,7 @@ app.get(
       const enabled = enabledRaw === undefined ? true : enabledRaw === "true";
       const chart = await hrService.getOrgChart({
         authUserId,
+        companyId: c.get("companyId"),
         rootEmployeeId,
         enabled,
       });
@@ -4862,6 +4894,7 @@ app.get(
       const limit = c.req.query("limit");
       const rows = await hrService.listUserOptions({
         authUserId,
+        companyId: c.get("companyId"),
         search: q,
         limit,
       });

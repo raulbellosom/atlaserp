@@ -94,13 +94,33 @@ export function createHrService({ prisma, activityBridge }) {
       prisma,
       activityService: createActivityService({ prisma }),
     });
-  async function getUserContext(authUserId) {
+  // activeCompanyId: the caller's validated active company, resolved by the
+  // API's tenant middleware (c.get("companyId"), see
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md
+  // §5) and threaded down from each route handler. When provided, THIS is
+  // the company every HR operation runs against — never re-derived. Without
+  // it (any caller that hasn't been updated to pass it yet), falls back to
+  // the pre-existing "most recently created membership" heuristic, which is
+  // wrong for a multi-company user but preserves behavior for anything not
+  // yet migrated.
+  async function getUserContext(authUserId, activeCompanyId) {
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
       select: { id: true },
     });
     if (!profile) {
       throw new HrServiceError("Perfil de usuario no encontrado.", 404);
+    }
+
+    if (activeCompanyId) {
+      const membership = await prisma.membership.findFirst({
+        where: { userId: profile.id, companyId: activeCompanyId, enabled: true },
+        select: { companyId: true },
+      });
+      if (!membership?.companyId) {
+        throw new HrServiceError("No tienes acceso a esta empresa.", 403);
+      }
+      return { actorId: profile.id, companyId: membership.companyId };
     }
 
     const membership = await prisma.membership.findFirst({
@@ -303,6 +323,7 @@ export function createHrService({ prisma, activityBridge }) {
   return {
     async listEmployees({
       authUserId,
+      companyId: activeCompanyId,
       search,
       status,
       enabled,
@@ -312,7 +333,7 @@ export function createHrService({ prisma, activityBridge }) {
       sortBy,
       sortDir,
     }) {
-      const { companyId } = await getUserContext(authUserId);
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
 
       // Paginated path (used by AtlasTable)
       if (page !== undefined || pageSize !== undefined) {
@@ -387,8 +408,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async listEmployeesForExport({ authUserId, ids }) {
-      const { companyId } = await getUserContext(authUserId);
+    async listEmployeesForExport({ authUserId, companyId: activeCompanyId, ids }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const where = { companyId, enabled: true };
       if (ids?.length) where.id = { in: ids };
       return prisma.hrEmployee.findMany({
@@ -397,8 +418,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async getEmployee({ authUserId, id }) {
-      const { companyId } = await getUserContext(authUserId);
+    async getEmployee({ authUserId, companyId: activeCompanyId, id }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const row = await prisma.hrEmployee.findFirst({
         where: { id, companyId },
         include: {
@@ -426,8 +447,8 @@ export function createHrService({ prisma, activityBridge }) {
       return row;
     },
 
-    async createEmployee({ authUserId, payload }) {
-      const { actorId, companyId } = await getUserContext(authUserId);
+    async createEmployee({ authUserId, companyId: activeCompanyId, payload }) {
+      const { actorId, companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrEmployeeCreateSchema.parse(payload);
       const normalized = normalizeEmployeePayload(parsed);
 
@@ -482,8 +503,8 @@ export function createHrService({ prisma, activityBridge }) {
       return created;
     },
 
-    async updateEmployee({ authUserId, id, payload }) {
-      const { actorId, companyId } = await getUserContext(authUserId);
+    async updateEmployee({ authUserId, companyId: activeCompanyId, id, payload }) {
+      const { actorId, companyId } = await getUserContext(authUserId, activeCompanyId);
       await assertEmployee({ id, companyId });
       const before = await prisma.hrEmployee.findUnique({ where: { id } });
       const parsed = hrEmployeeUpdateSchema.parse(payload);
@@ -545,8 +566,8 @@ export function createHrService({ prisma, activityBridge }) {
       return updated;
     },
 
-    async setEmployeeEnabled({ authUserId, id, enabled }) {
-      const { actorId, companyId } = await getUserContext(authUserId);
+    async setEmployeeEnabled({ authUserId, companyId: activeCompanyId, id, enabled }) {
+      const { actorId, companyId } = await getUserContext(authUserId, activeCompanyId);
       await assertEmployee({ id, companyId });
       const before = await prisma.hrEmployee.findUnique({ where: { id } });
       const updated = await prisma.hrEmployee.update({
@@ -573,8 +594,8 @@ export function createHrService({ prisma, activityBridge }) {
       return updated;
     },
 
-    async getEmployeeAudit({ authUserId, id, limit }) {
-      const { companyId } = await getUserContext(authUserId);
+    async getEmployeeAudit({ authUserId, companyId: activeCompanyId, id, limit }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       await assertEmployee({ id, companyId });
       const take = normalizeLimit(limit, 50, 200);
       return prisma.auditLog.findMany({
@@ -597,8 +618,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async listUserOptions({ authUserId, search, limit }) {
-      const { companyId } = await getUserContext(authUserId);
+    async listUserOptions({ authUserId, companyId: activeCompanyId, search, limit }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const take = normalizeLimit(limit, 40, 100);
       const query = String(search ?? "").trim();
       const memberships = await prisma.membership.findMany({
@@ -639,8 +660,8 @@ export function createHrService({ prisma, activityBridge }) {
         }));
     },
 
-    async listDepartments({ authUserId, search, enabled, limit }) {
-      const { companyId } = await getUserContext(authUserId);
+    async listDepartments({ authUserId, companyId: activeCompanyId, search, enabled, limit }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const take = normalizeLimit(limit, 100, 300);
       const query = String(search ?? "").trim();
       return prisma.hrDepartment.findMany({
@@ -654,8 +675,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async createDepartment({ authUserId, payload }) {
-      const { companyId } = await getUserContext(authUserId);
+    async createDepartment({ authUserId, companyId: activeCompanyId, payload }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrCatalogCreateSchema.parse(payload);
       const data = mapCatalogPayload(parsed);
 
@@ -677,8 +698,8 @@ export function createHrService({ prisma, activityBridge }) {
       }
     },
 
-    async updateDepartment({ authUserId, id, payload }) {
-      const { companyId } = await getUserContext(authUserId);
+    async updateDepartment({ authUserId, companyId: activeCompanyId, id, payload }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrCatalogUpdateSchema.parse(payload);
       const data = mapCatalogPayload(parsed);
 
@@ -706,8 +727,8 @@ export function createHrService({ prisma, activityBridge }) {
       }
     },
 
-    async setDepartmentEnabled({ authUserId, id, enabled }) {
-      const { companyId } = await getUserContext(authUserId);
+    async setDepartmentEnabled({ authUserId, companyId: activeCompanyId, id, enabled }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrCatalogEnabledSchema.parse({ enabled });
       const current = await prisma.hrDepartment.findFirst({
         where: { id, companyId },
@@ -722,8 +743,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async listJobTitles({ authUserId, search, enabled, limit }) {
-      const { companyId } = await getUserContext(authUserId);
+    async listJobTitles({ authUserId, companyId: activeCompanyId, search, enabled, limit }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const take = normalizeLimit(limit, 100, 300);
       const query = String(search ?? "").trim();
       return prisma.hrJobTitle.findMany({
@@ -737,8 +758,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async createJobTitle({ authUserId, payload }) {
-      const { companyId } = await getUserContext(authUserId);
+    async createJobTitle({ authUserId, companyId: activeCompanyId, payload }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrCatalogCreateSchema.parse(payload);
       const data = mapCatalogPayload(parsed);
 
@@ -757,8 +778,8 @@ export function createHrService({ prisma, activityBridge }) {
       }
     },
 
-    async updateJobTitle({ authUserId, id, payload }) {
-      const { companyId } = await getUserContext(authUserId);
+    async updateJobTitle({ authUserId, companyId: activeCompanyId, id, payload }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrCatalogUpdateSchema.parse(payload);
       const data = mapCatalogPayload(parsed);
 
@@ -783,8 +804,8 @@ export function createHrService({ prisma, activityBridge }) {
       }
     },
 
-    async setJobTitleEnabled({ authUserId, id, enabled }) {
-      const { companyId } = await getUserContext(authUserId);
+    async setJobTitleEnabled({ authUserId, companyId: activeCompanyId, id, enabled }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const parsed = hrCatalogEnabledSchema.parse({ enabled });
       const current = await prisma.hrJobTitle.findFirst({
         where: { id, companyId },
@@ -799,8 +820,8 @@ export function createHrService({ prisma, activityBridge }) {
       });
     },
 
-    async getOrgChart({ authUserId, rootEmployeeId = null, enabled = true }) {
-      const { companyId } = await getUserContext(authUserId);
+    async getOrgChart({ authUserId, companyId: activeCompanyId, rootEmployeeId = null, enabled = true }) {
+      const { companyId } = await getUserContext(authUserId, activeCompanyId);
       const employees = await prisma.hrEmployee.findMany({
         where: {
           companyId,
