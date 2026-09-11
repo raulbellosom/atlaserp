@@ -148,7 +148,7 @@ export function Topbar({
           />
           {token && (
             <span className="hidden md:contents">
-              <CompanySwitcher token={token} />
+              <CompanySwitcher />
             </span>
           )}
           {/* ThemeToggle — hidden on mobile, accessible via UserMenu */}
