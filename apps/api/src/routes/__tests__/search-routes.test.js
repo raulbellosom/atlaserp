@@ -38,8 +38,20 @@ function makeContext({ isAdmin = false, permissions = [] } = {}) {
   };
 }
 
+// Minimal stand-in for index.js's real resolveTenantContext: derives the
+// tenant view straight from the flat makeContext() shape these tests already
+// use (isAdmin/permissionSet/memberships[0]), rather than pulling in the
+// full nested-membership permission computation.
+async function resolveTenantContext(c, context) {
+  const companyId = context.memberships?.[0]?.companyId ?? null;
+  return {
+    ok: true,
+    tenant: { companyId, isAdmin: context.isAdmin, permissionSet: context.permissionSet },
+  };
+}
+
 function makeApp(context, prisma = makePrisma()) {
-  return createSearchRouter({ prisma, getUserContext: async () => context });
+  return createSearchRouter({ prisma, getUserContext: async () => context, resolveTenantContext });
 }
 
 async function get(app, path) {

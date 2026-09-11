@@ -27,7 +27,16 @@ export function createChatConversationsWriteService({
   notifyMembersAdded,
   getConversation,
 }) {
-  async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null }) {
+  // companyId: the requester's active company (resolved server-side by
+  // requirePermission's tenant middleware, never client-supplied). When
+  // provided, both the peer-eligibility guard and the new conversation's own
+  // company_id are pinned to it — a multi-company creator must not be able
+  // to pull in a peer who only shares a DIFFERENT company with them, nor
+  // land the new conversation in whichever company their most-recently-
+  // created membership happens to be. Omitted (e.g. existing tests calling
+  // the service directly), this falls back to the old union-of-all-
+  // companies / most-recent-membership behavior.
+  async function createConversation({ authUserId, type, title, memberUserIds, metadata = {}, isPublic = false, slug = null, description = null, linkedModule = null, linkedEntityId = null, companyId: requestedCompanyId = null }) {
     if (channelLinksService) channelLinksService.assertBothOrNeither(linkedModule, linkedEntityId);
     const creatorProfileId = await getUserProfileId(authUserId);
 
@@ -37,7 +46,7 @@ export function createChatConversationsWriteService({
     // conversation with them — the frontend picker is already company-scoped,
     // but the API must not trust that.
     const requestedMemberIds = [...new Set((memberUserIds ?? []).filter(Boolean))];
-    const validMemberIds = await filterCompanyPeers(creatorProfileId, requestedMemberIds);
+    const validMemberIds = await filterCompanyPeers(creatorProfileId, requestedMemberIds, requestedCompanyId);
     if (validMemberIds.length !== requestedMemberIds.length) {
       throw new ChatServiceError("Uno o mas usuarios no pertenecen a tu empresa.", 403);
     }
@@ -76,12 +85,15 @@ export function createChatConversationsWriteService({
       await channelLinksService.assertLinkAvailable(linkedModule, linkedEntityId);
     }
 
-    const membership = await prisma.membership.findFirst({
-      where: { userId: creatorProfileId.toString(), enabled: true },
-      orderBy: { createdAt: "desc" },
-      select: { companyId: true },
-    });
-    const companyId = membership?.companyId ?? null;
+    let companyId = requestedCompanyId;
+    if (!companyId) {
+      const membership = await prisma.membership.findFirst({
+        where: { userId: creatorProfileId.toString(), enabled: true },
+        orderBy: { createdAt: "desc" },
+        select: { companyId: true },
+      });
+      companyId = membership?.companyId ?? null;
+    }
 
     if (type === "channel" && slug) {
       // IS NOT DISTINCT FROM (not =) because company_id can be NULL for a creator
@@ -274,9 +286,15 @@ export function createChatConversationsWriteService({
 
     // Same cross-tenant guard as createConversation — reject any userId that
     // doesn't share a company with the caller rather than silently adding a
-    // foreign-company user to this conversation.
+    // foreign-company user to this conversation. Scoped to THIS conversation's
+    // own company (not the caller's full membership union) — a multi-company
+    // member adding people to a Company A channel must not be able to pull in
+    // someone who only shares Company B with them.
+    const [convCompanyRow] = await prisma.$queryRaw`
+      SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+    `;
     const requestedUserIds = [...new Set((userIds ?? []).filter(Boolean))];
-    const validUserIds = await filterCompanyPeers(profileId, requestedUserIds);
+    const validUserIds = await filterCompanyPeers(profileId, requestedUserIds, convCompanyRow?.companyId ?? null);
     if (validUserIds.length !== requestedUserIds.length) {
       throw new ChatServiceError("Uno o mas usuarios no pertenecen a tu empresa.", 403);
     }

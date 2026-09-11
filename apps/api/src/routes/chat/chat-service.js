@@ -214,14 +214,27 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // pattern as calendar-event-service.js's filterCompanyPeers. Without this,
   // createConversation/addMembers would trust a client-supplied user id as-is
   // and could add a user from a different company into a private conversation.
-  async function filterCompanyPeers(actingProfileId, candidateIds) {
+  // companyId: when passed (the conversation's/action's actual active
+  // company, resolved by the caller), scopes strictly to that one company
+  // instead of the union of every company actingProfileId belongs to — a
+  // multi-company actor adding members to a conversation being created in
+  // Company A must not be able to add a peer who only shares Company B with
+  // them. Omitted, this keeps the old union-of-all-companies behavior for
+  // any caller not yet passing it. See
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+  async function filterCompanyPeers(actingProfileId, candidateIds, companyId) {
     const ids = [...new Set((candidateIds ?? []).filter(Boolean))];
     if (ids.length === 0) return [];
-    const ownerMemberships = await prisma.membership.findMany({
-      where: { userId: actingProfileId.toString(), enabled: true },
-      select: { companyId: true },
-    });
-    const companyIds = ownerMemberships.map((m) => m.companyId);
+    let companyIds;
+    if (companyId) {
+      companyIds = [companyId];
+    } else {
+      const ownerMemberships = await prisma.membership.findMany({
+        where: { userId: actingProfileId.toString(), enabled: true },
+        select: { companyId: true },
+      });
+      companyIds = ownerMemberships.map((m) => m.companyId);
+    }
     if (companyIds.length === 0) {
       // Acting user has no active company membership — a platform admin. This
       // guard exists to stop a COMPANY user smuggling in a foreign-company
@@ -811,12 +824,15 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     if (notificationService) {
       setImmediate(async () => {
         try {
-          const senderMembership = await prisma.membership.findFirst({
-            where: { userId: profileId.toString(), enabled: true },
-            orderBy: { createdAt: "desc" },
-            select: { companyId: true },
-          });
-          const companyId = senderMembership?.companyId;
+          // The conversation's own company, not re-derived from the
+          // sender's memberships — a multi-company sender's "most recently
+          // created membership" is not necessarily this conversation's
+          // company. See
+          // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+          const [conversationRow] = await prisma.$queryRaw`
+            SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+          `;
+          const companyId = conversationRow?.companyId;
           if (!companyId) return;
 
           const otherMembers = await prisma.$queryRaw`

@@ -40,6 +40,15 @@ function buildPrisma(queryRawResults = []) {
     Array.isArray(v) &&
     (v.length === 0 ||
       (v[0] && typeof v[0] === "object" && Object.prototype.hasOwnProperty.call(v[0], "type")));
+  // addMembers also now probes the conversation's own company_id to scope
+  // filterCompanyPeers to that one company (rather than the caller's full
+  // membership union). Every test conversation here belongs to COMPANY_A —
+  // answered out-of-band, same as the type probe, so it never disturbs the
+  // fixed-sequence queue.
+  const isConvCompanyProbe = (strings) =>
+    /SELECT\s+company_id\s+AS\s+"companyId"\s+FROM\s+chat_conversations/i.test(
+      Array.isArray(strings) ? strings.join("?") : String(strings ?? ""),
+    );
   return {
     $queryRaw: async (strings) => {
       if (isConvTypeProbe(strings)) {
@@ -48,6 +57,9 @@ function buildPrisma(queryRawResults = []) {
           ? queryRawResults[qIdx++]
           : [{ type: "__nonmeridian__" }];
         return convTypeAnswer;
+      }
+      if (isConvCompanyProbe(strings)) {
+        return [{ companyId: COMPANY_A }];
       }
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
@@ -120,9 +132,11 @@ describe("chat-service — cross-tenant member guard", () => {
     );
   });
 
-  it("addMembers: a company-less platform admin is NOT blocked by the peer guard", async () => {
+  it("addMembers: a company-less platform admin can add a member of the conversation's own company", async () => {
     _resetProfileIdCacheForTests();
     // ADMIN_PROFILE_ID is absent from membershipByUser -> no company membership.
+    // PROFILE_ID belongs to COMPANY_A, the conversation's own company (per the
+    // isConvCompanyProbe stub), so this is a legitimate same-company add.
     const ADMIN_PROFILE_ID = "01900000-0000-7000-8000-0000000000ad";
     const prisma = buildPrisma([
       [{ id: ADMIN_PROFILE_ID }], // resolveUserProfileId
@@ -140,9 +154,35 @@ describe("chat-service — cross-tenant member guard", () => {
         svc.addMembers({
           conversationId: CONV_ID,
           authUserId: AUTH_USER_ID,
-          userIds: [FOREIGN_PROFILE_ID],
+          userIds: [PROFILE_ID],
         }),
       (err) => !(err instanceof ChatServiceError && err.status === 403),
+    );
+  });
+
+  it("addMembers: a company-less platform admin is still rejected for a user outside the conversation's own company", async () => {
+    _resetProfileIdCacheForTests();
+    // Tightened behavior: a company-less admin's broader instance-wide reach
+    // does not extend to adding a peer from a DIFFERENT company than the
+    // conversation itself belongs to (COMPANY_A) — otherwise a system admin
+    // managing one company's channel could smuggle in any user from any other
+    // company, which is exactly the cross-tenant leak this guard exists to stop.
+    const ADMIN_PROFILE_ID = "01900000-0000-7000-8000-0000000000ad";
+    const prisma = buildPrisma([
+      [{ id: ADMIN_PROFILE_ID }], // resolveUserProfileId
+      [{ id: "member-row" }], // assertMember
+      [{ type: "group" }], // conversation type lookup
+    ]);
+    const permissionsService = { assertChannelPermission: async () => {} };
+    const svc = createChatService({ prisma, permissionsService });
+    await assert.rejects(
+      () =>
+        svc.addMembers({
+          conversationId: CONV_ID,
+          authUserId: AUTH_USER_ID,
+          userIds: [FOREIGN_PROFILE_ID],
+        }),
+      (err) => err instanceof ChatServiceError && err.status === 403,
     );
   });
 

@@ -1,15 +1,25 @@
 import { resolveUserProfileId, ChatServiceError } from "./chat-service.js";
 
 export function createChannelDirectoryService({ prisma }) {
-  async function listChannelDirectory({ authUserId, cursor = null, limit = 30 }) {
+  // activeCompanyId: the requester's server-resolved active company (from
+  // requirePermission's tenant middleware). When provided, it is used
+  // directly instead of re-deriving "some company this user belongs to" from
+  // their most-recently-created membership — a multi-company user's public-
+  // channel directory must reflect the company they're currently acting as,
+  // not an arbitrary one. Omitted (e.g. existing tests calling the service
+  // directly), this falls back to the old most-recent-membership behavior.
+  async function listChannelDirectory({ authUserId, cursor = null, limit = 30, activeCompanyId = null }) {
     const profileId = await resolveUserProfileId(prisma, authUserId);
 
-    const membership = await prisma.membership.findFirst({
-      where: { userId: profileId.toString(), enabled: true },
-      orderBy: { createdAt: "desc" },
-      select: { companyId: true },
-    });
-    const companyId = membership?.companyId ?? null;
+    let companyId = activeCompanyId;
+    if (!companyId) {
+      const membership = await prisma.membership.findFirst({
+        where: { userId: profileId.toString(), enabled: true },
+        orderBy: { createdAt: "desc" },
+        select: { companyId: true },
+      });
+      companyId = membership?.companyId ?? null;
+    }
     if (!companyId) return { data: [], nextCursor: null };
 
     const rows = await prisma.$queryRaw`
@@ -31,19 +41,25 @@ export function createChannelDirectoryService({ prisma }) {
     return { data: rows, nextCursor };
   }
 
-  async function joinChannel({ conversationId, authUserId }) {
+  async function joinChannel({ conversationId, authUserId, activeCompanyId = null }) {
     const profileId = await resolveUserProfileId(prisma, authUserId);
 
     // Company-scoped on purpose: a channel ID alone (not routed through the
     // directory, which is already company-filtered) must not let a user from a
     // different company join — UUIDv7 IDs are not secrets anywhere else in this
     // codebase, so this check is the only thing preventing a cross-tenant join.
-    const membership = await prisma.membership.findFirst({
-      where: { userId: profileId.toString(), enabled: true },
-      orderBy: { createdAt: "desc" },
-      select: { companyId: true },
-    });
-    const companyId = membership?.companyId ?? null;
+    // Same activeCompanyId fast path as listChannelDirectory — prefer the
+    // requester's server-resolved active company over their most-recent
+    // membership when the caller (the route) provides it.
+    let companyId = activeCompanyId;
+    if (!companyId) {
+      const membership = await prisma.membership.findFirst({
+        where: { userId: profileId.toString(), enabled: true },
+        orderBy: { createdAt: "desc" },
+        select: { companyId: true },
+      });
+      companyId = membership?.companyId ?? null;
+    }
     // A companyless caller must not match a companyless channel row: company_id
     // CAN legitimately be NULL (createConversation leaves it NULL when the
     // creator has no active membership — see chat-service.js), and without this

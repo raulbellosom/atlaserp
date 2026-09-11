@@ -267,7 +267,10 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const authUserId = c.get("authUserId");
       const body = await c.req.json();
       const data = chatCreateConversationSchema.parse(body);
-      const result = await chatService.createConversation({ authUserId, ...data });
+      // companyId is the server-resolved active company, applied AFTER the
+      // spread so a client-supplied field of the same name (there isn't one
+      // in the schema today, but never trust it) cannot override it.
+      const result = await chatService.createConversation({ authUserId, ...data, companyId: c.get("companyId") });
       return c.json({ data: result }, 201);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
@@ -536,7 +539,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const authUserId = c.get("authUserId");
       const body = await c.req.json();
       const data = chatCreateChannelSchema.parse(body);
-      const result = await chatService.createConversation({ authUserId, type: "channel", ...data });
+      const result = await chatService.createConversation({ authUserId, type: "channel", ...data, companyId: c.get("companyId") });
       return c.json({ data: result }, 201);
     } catch (err) {
       if (err?.name === "ZodError") return c.json({ error: (err.errors ?? err.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
@@ -553,6 +556,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
         authUserId,
         cursor: cursor || null,
         limit: limit ? Math.min(parseInt(limit, 10), 100) : 30,
+        activeCompanyId: c.get("companyId"),
       });
       return c.json(result);
     } catch (err) {
@@ -582,7 +586,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     try {
       const authUserId = c.get("authUserId");
       const conversationId = c.req.param("id");
-      const result = await channelDirectoryService.joinChannel({ conversationId, authUserId });
+      const result = await channelDirectoryService.joinChannel({ conversationId, authUserId, activeCompanyId: c.get("companyId") });
       return c.json({ data: result }, 201);
     } catch (err) {
       return handleError(c, err, "Error uniendote al canal.");

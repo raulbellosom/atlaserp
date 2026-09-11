@@ -44,6 +44,15 @@ function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
     Array.isArray(v) &&
     (v.length === 0 ||
       (v[0] && typeof v[0] === "object" && Object.prototype.hasOwnProperty.call(v[0], "type")));
+  // addMembers also now probes the conversation's own company_id to scope
+  // filterCompanyPeers to that one company. Every fixture conversation here
+  // belongs to MOCK_COMPANY_ID (matching the membership.findMany default
+  // above) — answered out-of-band, same as the type probe, so it never
+  // disturbs the fixed-sequence queue.
+  const isConvCompanyProbe = (strings) =>
+    /SELECT\s+company_id\s+AS\s+"companyId"\s+FROM\s+chat_conversations/i.test(
+      Array.isArray(strings) ? strings.join("?") : String(strings ?? ""),
+    );
   const client = {
     _transactionCallCount: 0,
     _executeRawCallCount: 0,
@@ -54,6 +63,9 @@ function buildPrismaMock(queryRawResults = [], executeRawResults = []) {
           ? queryRawResults[qIdx++]
           : [{ type: "__nonmeridian__" }];
         return convTypeAnswer;
+      }
+      if (isConvCompanyProbe(strings)) {
+        return [{ companyId: MOCK_COMPANY_ID }];
       }
       if (qIdx >= queryRawResults.length) throw new Error(`Unexpected $queryRaw call #${qIdx + 1}`);
       return queryRawResults[qIdx++];
