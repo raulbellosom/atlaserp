@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Building2, ChevronDown, Check } from "lucide-react";
 import {
   DropdownMenu,
@@ -9,23 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@atlas/ui";
-import { atlas } from "../lib/atlas";
-
-const STORAGE_KEY = "atlas-active-company";
-
-function getStoredCompanyId() {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function storeCompanyId(id) {
-  try {
-    localStorage.setItem(STORAGE_KEY, String(id));
-  } catch {}
-}
+import { useActiveCompany } from "../company/ActiveCompanyProvider";
 
 function CompanyLogo({ company, size = 20 }) {
   const initials = (company?.name ?? "E")
@@ -61,23 +43,8 @@ function CompanyLogo({ company, size = 20 }) {
   );
 }
 
-export function CompanySwitcher({ token }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["memberships-me", token],
-    queryFn: () => atlas.memberships.me(token),
-    enabled: Boolean(token),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Normalize: API may return { data: [...] } or a plain array
-  const memberships = Array.isArray(data) ? data : (data?.data ?? []);
-  const companies = memberships
-    .map((m) => m.company ?? m)
-    .filter((c) => c && c.name);
-
-  const [activeId, setActiveId] = useState(getStoredCompanyId);
-  const activeCompany =
-    companies.find((c) => String(c.id) === activeId) ?? companies[0];
+export function CompanySwitcher() {
+  const { companies, activeCompany, isLoading, setActiveCompany } = useActiveCompany();
 
   if (isLoading) {
     return (
@@ -128,10 +95,7 @@ export function CompanySwitcher({ token }) {
         {companies.map((company) => (
           <DropdownMenuItem
             key={company.id}
-            onClick={() => {
-              setActiveId(String(company.id));
-              storeCompanyId(company.id);
-            }}
+            onClick={() => setActiveCompany(company.id)}
             className="gap-2 cursor-pointer"
           >
             <CompanyLogo company={company} size={18} />
