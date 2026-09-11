@@ -160,7 +160,12 @@ const getAllActivePermissionKeys = createPermissionKeysCache({
   cacheSet,
   ttlSeconds: TTL.PERMISSIONS,
 });
-const app = new Hono();
+// Exported so opt-in integration tests (see
+// apps/api/src/__tests__/cross-tenant/) can call app.request(...) in-process
+// against the real Hono app + real Prisma client, without needing to bind an
+// actual TCP port. This export has no effect on normal `node src/index.js`
+// execution — the server still boots exactly as before, below.
+export const app = new Hono();
 const port = Number(process.env.ATLAS_API_PORT ?? 4010);
 const contactsService = createContactsService({ prisma });
 
@@ -4984,11 +4989,18 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
   }
 });
 
-const server = serve({ fetch: app.fetch, port });
-console.log(`Atlas API running on http://localhost:${port}`);
+// ATLAS_API_TEST_MODE=1 is set only by the opt-in cross-tenant integration
+// suite (apps/api/src/__tests__/cross-tenant/run.mjs), which imports this
+// module for app.request(...) and must never also bind the real port —
+// nothing else in the codebase sets this variable, and it defaults to
+// starting the server exactly as before.
+if (process.env.ATLAS_API_TEST_MODE !== "1") {
+  const server = serve({ fetch: app.fetch, port });
+  console.log(`Atlas API running on http://localhost:${port}`);
 
-process.on("SIGTERM", () => server.close(() => process.exit(0)));
-process.on("SIGINT", () => server.close(() => process.exit(0)));
+  process.on("SIGTERM", () => server.close(() => process.exit(0)));
+  process.on("SIGINT", () => server.close(() => process.exit(0)));
+}
 
 // Prevent stale-connection errors from the Prisma pg pool from crashing the
 // API process. These are transient and Prisma will reconnect on the next query.
