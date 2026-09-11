@@ -46,6 +46,14 @@ export async function createCrossTenantFixture(prisma) {
       "Seeded hr.employee.read permission not found — run `pnpm db:seed` before running this suite.",
     );
   }
+  const filesReadPermission = await prisma.permission.findUnique({
+    where: { key: "files.assets.read" },
+  });
+  if (!filesReadPermission) {
+    throw new Error(
+      "Seeded files.assets.read permission not found — run `pnpm db:seed` before running this suite.",
+    );
+  }
 
   const stamp = Date.now();
   const companyA = await prisma.company.create({
@@ -90,12 +98,12 @@ export async function createCrossTenantFixture(prisma) {
     },
   });
 
-  // A minimal company-scoped role for Company B with ONLY hr.employee.read —
-  // not admin. Used by userAB's Company B membership so it can prove the
-  // deeper bug: a caller who legitimately holds hr.employee.read in BOTH
-  // companies (not blocked by the permission gate in either) must still only
-  // ever see the ACTIVE company's employees, never fall back to whichever
-  // membership was created most recently.
+  // A minimal company-scoped role for Company B with ONLY hr.employee.read +
+  // files.assets.read — not admin. Used by userAB's Company B membership so
+  // it can prove the deeper bug: a caller who legitimately holds these
+  // permissions in BOTH companies (not blocked by the permission gate in
+  // either) must still only ever see the ACTIVE company's records, never
+  // fall back to whichever membership was created most recently.
   const hrReaderRoleB = await prisma.role.create({
     data: {
       companyId: companyB.id,
@@ -105,8 +113,11 @@ export async function createCrossTenantFixture(prisma) {
       enabled: true,
     },
   });
-  await prisma.rolePermission.create({
-    data: { roleId: hrReaderRoleB.id, permissionId: hrReadPermission.id },
+  await prisma.rolePermission.createMany({
+    data: [
+      { roleId: hrReaderRoleB.id, permissionId: hrReadPermission.id },
+      { roleId: hrReaderRoleB.id, permissionId: filesReadPermission.id },
+    ],
   });
 
   await prisma.membership.create({
@@ -131,6 +142,25 @@ export async function createCrossTenantFixture(prisma) {
     },
   });
 
+  // accessScope: "COMPANY" — readable by any Company A member (via
+  // access.readWhere), not just the uploader, so the test isolates the
+  // entityId/companyId boundary specifically, not file-sharing rules.
+  const fileA = await prisma.fileAsset.create({
+    data: {
+      bucket: "atlas-files",
+      objectKey: `${PREFIX}/${stamp}/dummy.txt`,
+      originalName: `${PREFIX}-file-a.txt`,
+      mimeType: "text/plain",
+      sizeBytes: 11,
+      accessScope: "COMPANY",
+      visibility: "PRIVATE",
+      moduleKey: "atlas.files",
+      entityType: "AtlasFile",
+      entityId: companyA.id,
+      uploadedById: userA.id,
+    },
+  });
+
   return {
     companyA,
     companyB,
@@ -138,6 +168,7 @@ export async function createCrossTenantFixture(prisma) {
     userB,
     userAB,
     employeeA,
+    fileA,
     atlasAdminRoleId: atlasAdminRole.id,
     hrReaderRoleBId: hrReaderRoleB.id,
   };
@@ -150,6 +181,7 @@ export async function destroyCrossTenantFixture(prisma, fixture) {
 
   if (companyIds.length) {
     await prisma.hrEmployee.deleteMany({ where: { companyId: { in: companyIds } } });
+    await prisma.fileAsset.deleteMany({ where: { entityId: { in: companyIds } } });
     await prisma.role.deleteMany({ where: { companyId: { in: companyIds } } });
     await prisma.membership.deleteMany({ where: { companyId: { in: companyIds } } });
   }

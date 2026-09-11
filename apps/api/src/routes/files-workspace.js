@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createFilesWorkspace } from "../services/files/workspace.js";
 import { FileAccessError } from "../services/files/access.js";
 import { FilesServiceError } from "../services/files-service.js";
+import { tenantActiveContext } from "../lib/active-context.js";
 
 export function createFilesWorkspaceRouter({
   prisma,
@@ -54,6 +55,7 @@ export function createFilesWorkspaceRouter({
         {
           data: await service.create({
             authUserId: c.get("authUserId"),
+            activeContext: tenantActiveContext(c),
             ...createSchema.parse(await c.req.json()),
           }),
         },
@@ -68,6 +70,7 @@ export function createFilesWorkspaceRouter({
       c.json(
         await service.invitations({
           authUserId: c.get("authUserId"),
+          activeContext: tenantActiveContext(c),
           page: c.req.query("page"),
         }),
       ),
@@ -80,6 +83,7 @@ export function createFilesWorkspaceRouter({
       c.json({
         data: await service.respond({
           authUserId: c.get("authUserId"),
+          activeContext: tenantActiveContext(c),
           invitationId: id.parse(c.req.param("id")),
           ...z.strictObject({ accept: z.boolean() }).parse(await c.req.json()),
         }),
@@ -93,6 +97,7 @@ export function createFilesWorkspaceRouter({
       c.json({
         data: await service.sharing({
           authUserId: c.get("authUserId"),
+          activeContext: tenantActiveContext(c),
           fileId: id.parse(c.req.param("id")),
         }),
       }),
@@ -105,6 +110,7 @@ export function createFilesWorkspaceRouter({
       c.json({
         data: await service.members({
           authUserId: c.get("authUserId"),
+          activeContext: tenantActiveContext(c),
           fileId: id.parse(c.req.param("id")),
           q: c.req.query("q"),
         }),
@@ -118,6 +124,7 @@ export function createFilesWorkspaceRouter({
       c.json({
         data: await service.changeSharing({
           authUserId: c.get("authUserId"),
+          activeContext: tenantActiveContext(c),
           fileId: id.parse(c.req.param("id")),
           ...accessSchema.parse(await c.req.json()),
         }),

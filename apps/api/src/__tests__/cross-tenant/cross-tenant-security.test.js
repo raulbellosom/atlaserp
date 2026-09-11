@@ -111,6 +111,33 @@ describe("cross-tenant security", { skip: !RUN && "set RUN_CROSS_TENANT_TESTS=1 
     assert.equal(status, 404);
   });
 
+  it("User B (member only of Company B) cannot GET Company A's file by known id", async () => {
+    const { status } = await callApi({
+      authUserId: fixture.userB.authUserId,
+      path: `/files/${fixture.fileA.id}`,
+    });
+    assert.equal(status, 404);
+  });
+
+  it("User B cannot get a signed URL for Company A's file by known id", async () => {
+    const { status } = await callApi({
+      authUserId: fixture.userB.authUserId,
+      path: `/files/${fixture.fileA.id}/signed-url`,
+    });
+    assert.equal(status, 404);
+  });
+
+  it("User AB, who legitimately holds files.assets.read in BOTH companies, still cannot see Company A's file with B active", async () => {
+    // Same shape as the HR gap above, for files-service.js's
+    // getUserCompanyContext / ensureFileBelongsToCompany.
+    const { status } = await callApi({
+      authUserId: fixture.userAB.authUserId,
+      companyId: fixture.companyB.id,
+      path: `/files/${fixture.fileA.id}`,
+    });
+    assert.equal(status, 404);
+  });
+
   it("User B cannot DELETE Company A's user (User A) by known id", async () => {
     const { status } = await callApi({
       authUserId: fixture.userB.authUserId,

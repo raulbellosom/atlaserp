@@ -72,8 +72,8 @@ export function createFilesWorkspace({
     if (!can(context, key))
       throw new FileAccessError("No tienes permiso para realizar esta acción.");
   }
-  async function contextFor(authUserId) {
-    const context = await filesService.getUserCompanyContext(authUserId);
+  async function contextFor(authUserId, activeContext) {
+    const context = await filesService.getUserCompanyContext(authUserId, activeContext);
     requireCapability(context, "files.assets.read");
     return context;
   }
@@ -119,8 +119,8 @@ export function createFilesWorkspace({
       },
     });
   }
-  async function create({ authUserId, name, format, requestKey }) {
-    const context = await contextFor(authUserId);
+  async function create({ authUserId, activeContext, name, format, requestKey }) {
+    const context = await contextFor(authUserId, activeContext);
     requireCapability(context, "files.assets.create");
     requireCapability(context, "files.assets.update");
     if (
@@ -216,9 +216,9 @@ export function createFilesWorkspace({
       throw error;
     }
   }
-  async function sharing({ authUserId, fileId }) {
-    const context = await contextFor(authUserId);
-    const file = await filesService.getById({ authUserId, id: fileId });
+  async function sharing({ authUserId, activeContext, fileId }) {
+    const context = await contextFor(authUserId, activeContext);
+    const file = await filesService.getById({ authUserId, activeContext, id: fileId });
     let canManage = false;
     try {
       await manageable(context, fileId);
@@ -253,8 +253,8 @@ export function createFilesWorkspace({
       })),
     };
   }
-  async function members({ authUserId, fileId, q = "" }) {
-    const context = await contextFor(authUserId);
+  async function members({ authUserId, activeContext, fileId, q = "" }) {
+    const context = await contextFor(authUserId, activeContext);
     await manageable(context, fileId);
     const rows = await prisma.membership.findMany({
       where: {
@@ -291,13 +291,14 @@ export function createFilesWorkspace({
   }
   async function changeSharing({
     authUserId,
+    activeContext,
     fileId,
     scope,
     userId,
     role,
     revoke = false,
   }) {
-    const context = await contextFor(authUserId);
+    const context = await contextFor(authUserId, activeContext);
     return prisma.$transaction(async (db) => {
       await db.$queryRaw`SELECT id FROM file_asset WHERE id = ${fileId}::uuid FOR UPDATE`;
       const file = await manageable(context, fileId, db);
@@ -379,8 +380,8 @@ export function createFilesWorkspace({
       return { ok: true };
     });
   }
-  async function invitations({ authUserId, page = 1 }) {
-    const context = await contextFor(authUserId);
+  async function invitations({ authUserId, activeContext, page = 1 }) {
+    const context = await contextFor(authUserId, activeContext);
     const where = {
       userId: context.profileId,
       status: "PENDING",
@@ -412,8 +413,8 @@ export function createFilesWorkspace({
       },
     };
   }
-  async function respond({ authUserId, invitationId, accept }) {
-    const context = await contextFor(authUserId);
+  async function respond({ authUserId, activeContext, invitationId, accept }) {
+    const context = await contextFor(authUserId, activeContext);
     const result = await prisma.fileAssetShare.updateMany({
       where: {
         id: invitationId,

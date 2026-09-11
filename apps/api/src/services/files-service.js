@@ -173,12 +173,33 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     });
   }
 
-  async function getCompanyAssets({ authUserId, fileIds }) {
-    const context = await getUserCompanyContext(authUserId);
+  async function getCompanyAssets({ authUserId, activeContext, fileIds }) {
+    const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
     return prisma.fileAsset.findMany({ where: { id: { in: fileIds }, entityId: companyId, enabled: true, entityType: { in: ALLOWED_FILE_ENTITY_TYPES }, AND: [access.readWhere(context)] }, select: { id: true, bucket: true, objectKey: true } });
   }
-  async function getUserCompanyContext(authUserId) {
+  // activeContext: { profileId, companyId, isAdmin, permissionSet } already
+  // resolved by the API's tenant middleware (c.get("userId") /
+  // c.get("companyId") / c.get("tenantContext"), see
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md
+  // §5) and threaded down from each route handler. When provided, this is
+  // used directly — no extra DB round-trip, and critically, no re-deriving
+  // (and potentially mis-deriving, for a multi-company user) which company
+  // or which admin/permission set applies. Falls back to the old
+  // self-derived behavior only for a caller that doesn't pass one yet.
+  async function getUserCompanyContext(authUserId, activeContext) {
+    if (activeContext?.companyId && activeContext?.profileId) {
+      return {
+        profileId: activeContext.profileId,
+        companyId: activeContext.companyId,
+        admin: Boolean(activeContext.isAdmin),
+        permissions:
+          activeContext.permissionSet instanceof Set
+            ? activeContext.permissionSet
+            : new Set(activeContext.permissionSet ?? []),
+      };
+    }
+
     const profile = await prisma.userProfile.findUnique({
       where: { authUserId },
       select: { id: true, enabled: true },
@@ -300,8 +321,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
   }
 
   return {
-    async upload({ authUserId, file, fields = {} }) {
-      const context = await getUserCompanyContext(authUserId);
+    async upload({ authUserId, activeContext, file, fields = {} }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
 
       if (!(file instanceof File) || file.size <= 0) {
         throw new FilesServiceError("Selecciona un archivo válido.", 400);
@@ -378,8 +399,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       return asset;
     },
 
-    async list({ authUserId, query = {} }) {
-      const context = await getUserCompanyContext(authUserId);
+    async list({ authUserId, activeContext, query = {} }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const { page, pageSize, skip, take } = normalizePagination(query);
 
@@ -463,21 +484,21 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async getById({ authUserId, id }) {
-      const context = await getUserCompanyContext(authUserId);
+    async getById({ authUserId, activeContext, id }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       return ensureFileBelongsToCompany({ fileId: id, companyId, context });
     },
 
-    async rename({ authUserId, id, originalName }) {
-      const context = await getUserCompanyContext(authUserId);
+    async rename({ authUserId, activeContext, id, originalName }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const file = await ensureFileBelongsToCompany({ fileId: id, companyId, context });
       if (file.accessScope === "RESTRICTED") await access.assertAccess(file, context, "manage");
       return mutateUnlockedFile(id, { originalName: String(originalName).trim() });
     },
 
-    async bulkDownload({ authUserId, fileIds, mode }) {
+    async bulkDownload({ authUserId, activeContext, fileIds, mode }) {
       if (!Array.isArray(fileIds) || fileIds.length === 0) {
         throw new FilesServiceError(
           "Solicitud de descarga masiva invalida.",
@@ -507,7 +528,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
         );
       }
 
-      const context = await getUserCompanyContext(authUserId);
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const uniqueRequestedFileIds = [...new Set(requestedFileIds)];
 
@@ -642,8 +663,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async getSignedUrl({ authUserId, id, variant = "full" }) {
-      const context = await getUserCompanyContext(authUserId);
+    async getSignedUrl({ authUserId, activeContext, id, variant = "full" }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const file = await ensureFileBelongsToCompany({
         fileId: id,
@@ -678,16 +699,16 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async setEnabled({ authUserId, id, enabled }) {
-      const context = await getUserCompanyContext(authUserId);
+    async setEnabled({ authUserId, activeContext, id, enabled }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const file = await ensureFileBelongsToCompany({ fileId: id, companyId, context });
       if (file.accessScope === "RESTRICTED") await access.assertAccess(file, context, "manage");
       return mutateUnlockedFile(id, { enabled: Boolean(enabled) });
     },
 
-    async delete({ authUserId, id }) {
-      const context = await getUserCompanyContext(authUserId);
+    async delete({ authUserId, activeContext, id }) {
+      const context = await getUserCompanyContext(authUserId, activeContext);
       const { companyId } = context;
       const file = await ensureFileBelongsToCompany({
         fileId: id,

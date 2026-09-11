@@ -1,6 +1,7 @@
 // apps/api/src/routes/pfm/receipts-routes.js
 import { Hono } from "hono";
 import { FilesServiceError } from "../../services/files-service.js";
+import { tenantActiveContext } from "../../lib/active-context.js";
 import { confirmReceiptSchema } from "./validators.js";
 import {
   PfmServiceError,
@@ -81,6 +82,7 @@ export function createReceiptsRouter({
       const authUserId = c.get("authUserId");
       const asset = await filesService.upload({
         authUserId,
+        activeContext: tenantActiveContext(c),
         file,
         fields: { moduleKey: "atlas.pfm", entityType: "PfmReceipt", visibility: "PRIVATE" },
       });

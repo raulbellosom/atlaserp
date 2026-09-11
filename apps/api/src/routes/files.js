@@ -4,6 +4,7 @@ import { fileBulkDownloadSchema, fileRenameSchema } from "@atlas/validators";
 import { FilesServiceError } from "../services/files-service.js";
 import { FileAccessError } from "../services/files/access.js";
 import { getActivityContext, publishActivityFromContext } from "../services/activity-publisher.js";
+import { tenantActiveContext } from "../lib/active-context.js";
 
 export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
   const app = new Hono();
@@ -20,6 +21,7 @@ app.post(
       const file = body.file;
       const asset = await filesService.upload({
         authUserId,
+        activeContext: tenantActiveContext(c),
         file,
         fields: {
           moduleKey: body.moduleKey,
@@ -91,6 +93,7 @@ app.get(
       const authUserId = c.get("authUserId");
       const result = await filesService.list({
         authUserId,
+        activeContext: tenantActiveContext(c),
         query: {
           q: c.req.query("q"),
           kind: c.req.query("kind"),
@@ -125,7 +128,7 @@ app.get(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const asset = await filesService.getById({ authUserId, id });
+      const asset = await filesService.getById({ authUserId, activeContext: tenantActiveContext(c), id });
       return c.json({ data: asset });
     } catch (err) {
       if (err instanceof FilesServiceError || err instanceof FileAccessError) {
@@ -164,6 +167,7 @@ app.patch(
 
       const updated = await filesService.rename({
         authUserId,
+        activeContext: tenantActiveContext(c),
         id,
         originalName: parsed.data.originalName,
       });
@@ -208,6 +212,7 @@ app.post(
 
       const data = await filesService.bulkDownload({
         authUserId,
+        activeContext: tenantActiveContext(c),
         fileIds: parsed.data.fileIds,
         mode: parsed.data.mode,
       });
@@ -231,7 +236,7 @@ app.get(
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
       const variant = c.req.query("variant") || "full";
-      const data = await filesService.getSignedUrl({ authUserId, id, variant });
+      const data = await filesService.getSignedUrl({ authUserId, activeContext: tenantActiveContext(c), id, variant });
       return c.json({ data });
     } catch (err) {
       if (err instanceof FilesServiceError || err instanceof FileAccessError) {
@@ -257,7 +262,11 @@ app.post(
         : [];
       if (fileIds.length === 0) return c.json({ data: {} });
 
-      const assets = await filesService.getCompanyAssets({ authUserId: c.get("authUserId"), fileIds });
+      const assets = await filesService.getCompanyAssets({
+        authUserId: c.get("authUserId"),
+        activeContext: tenantActiveContext(c),
+        fileIds,
+      });
 
       const byBucket = new Map();
       for (const asset of assets) {
@@ -310,6 +319,7 @@ app.patch(
       const body = await c.req.json();
       const updated = await filesService.setEnabled({
         authUserId,
+        activeContext: tenantActiveContext(c),
         id,
         enabled: Boolean(body.enabled),
       });
@@ -342,7 +352,7 @@ app.delete(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      await filesService.delete({ authUserId, id });
+      await filesService.delete({ authUserId, activeContext: tenantActiveContext(c), id });
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "files.assets.delete",
