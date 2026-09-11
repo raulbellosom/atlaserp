@@ -10,6 +10,14 @@
 // search_atlas (ERP reach, Fase A) reuses the global-search providers, gated
 // per provider by the caller's own permissions.
 import { SEARCH_PROVIDERS } from "../../services/search-providers.js";
+import {
+  resolveActiveMembership,
+  computeScopedPermissions,
+  isSystemAdminMembership,
+  createPermissionKeysCache,
+  COMPANY_ADMIN_ROLE_KEYS,
+} from "../../lib/tenant-context.js";
+import { get as cacheGet, set as cacheSet, TTL } from "../../lib/cache.js";
 
 const RECENT_MAX = 50;
 const SEARCH_MAX = 30;
@@ -164,19 +172,63 @@ export function buildToolRunners({
   prisma, listMessages, chatSearchService, visionService, signAttachmentUrl, resolveUserContext,
   inventoryService, ledgerService, calendarEventService, projectsService, tasksService,
 }) {
-  // Resolve the caller's RBAC context and assert a module read permission.
-  // Returns { uctx, companyId } on success or { error } for the runner to return.
-  async function erpContext(ctx, permissionKey) {
+  const getAllActivePermissionKeys = createPermissionKeysCache({
+    prisma,
+    cacheGet,
+    cacheSet,
+    ttlSeconds: TTL.PERMISSIONS,
+  });
+
+  // Resolve the caller's RBAC context, SCOPED TO ctx.companyId (the caller's
+  // validated active company, sourced from c.get("companyId") upstream in
+  // meridian-routes.js — never from resolveUserContext's own raw,
+  // union-across-every-company isAdmin/permissionSet, which would let a
+  // user's admin role in Company A leak into a MeridIAn tool call made while
+  // Company B is active). See
+  // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §16
+  // ("MeridIAn nunca debe obtener contexto de empresas diferentes").
+  // Returns { uctx, companyId, userId, isAdmin, permissionSet } or { error }.
+  async function resolveScopedErpContext(ctx) {
     if (typeof resolveUserContext !== "function") return { error: "Esa consulta no esta disponible aqui." };
     let uctx;
     try { uctx = await resolveUserContext(ctx.actorAuthUserId); } catch { uctx = null; }
     if (!uctx?.profile) return { error: "No pude verificar tus permisos." };
-    const companyId = uctx.memberships?.[0]?.companyId ?? ctx.companyId ?? null;
+
+    const membershipResult = resolveActiveMembership({
+      memberships: uctx.memberships,
+      requestedCompanyId: ctx.companyId ?? null,
+      strict: false,
+    });
+    const activeMembership = membershipResult.ok ? membershipResult.membership : null;
+    const companyId = activeMembership?.companyId ?? null;
     if (!companyId) return { error: "Sin empresa activa." };
-    if (!uctx.isAdmin && !uctx.permissionSet?.has(permissionKey)) {
+
+    const isSystemAdmin = isSystemAdminMembership(uctx.memberships);
+    const grantSet = uctx.grantsByCompany?.get?.(companyId);
+    const roleKey = activeMembership?.role?.key ?? null;
+    const isCompanyAdminRole = Boolean(roleKey && COMPANY_ADMIN_ROLE_KEYS.has(roleKey));
+    const allPermissionKeys =
+      isSystemAdmin || isCompanyAdminRole ? await getAllActivePermissionKeys() : [];
+    const { permissionSet, isCompanyAdmin } = computeScopedPermissions({
+      activeMembership,
+      grantKeysForCompany: grantSet ? [...grantSet] : [],
+      allPermissionKeys,
+      basePermissionKeys: [],
+      isSystemAdmin,
+    });
+
+    return { uctx, companyId, userId: uctx.profile.id, isAdmin: isCompanyAdmin || isSystemAdmin, permissionSet };
+  }
+
+  // Assert a single module read permission on top of the scoped context.
+  // Returns { uctx, companyId, userId } on success or { error } for the runner to return.
+  async function erpContext(ctx, permissionKey) {
+    const resolved = await resolveScopedErpContext(ctx);
+    if (resolved.error) return resolved;
+    if (!resolved.isAdmin && !resolved.permissionSet.has(permissionKey)) {
       return { error: "No tienes acceso a esa informacion." };
     }
-    return { uctx, companyId, userId: uctx.profile.id };
+    return { uctx: resolved.uctx, companyId: resolved.companyId, userId: resolved.userId };
   }
 
   async function get_recent_messages(args, ctx) {
@@ -289,16 +341,13 @@ export function buildToolRunners({
   async function search_atlas(args, ctx) {
     const q = String(args?.query ?? "").trim();
     if (q.length < 2) return { error: "Da al menos 2 caracteres para buscar." };
-    if (typeof resolveUserContext !== "function") return { error: "La busqueda de registros no esta disponible aqui." };
-    let uctx;
-    try { uctx = await resolveUserContext(ctx.actorAuthUserId); } catch { uctx = null; }
-    if (!uctx?.profile) return { error: "No pude verificar tus permisos." };
-    const companyId = uctx.memberships?.[0]?.companyId ?? ctx.companyId ?? null;
-    if (!companyId) return { error: "Sin empresa activa." };
-    const allowed = SEARCH_PROVIDERS.filter((p) => uctx.isAdmin || uctx.permissionSet?.has(p.permission));
+    const resolved = await resolveScopedErpContext(ctx);
+    if (resolved.error) return resolved;
+    const { companyId, userId, isAdmin, permissionSet } = resolved;
+    const allowed = SEARCH_PROVIDERS.filter((p) => isAdmin || permissionSet.has(p.permission));
     if (!allowed.length) return { error: "No tienes permiso para buscar registros del ERP." };
     const settled = await Promise.allSettled(
-      allowed.map((p) => p.run({ prisma, companyId, actorId: uctx.profile.id, q, limit: 5 })),
+      allowed.map((p) => p.run({ prisma, companyId, actorId: userId, q, limit: 5 })),
     );
     const groups = [];
     settled.forEach((r, i) => {

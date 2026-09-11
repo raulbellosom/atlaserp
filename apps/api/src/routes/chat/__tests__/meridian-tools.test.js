@@ -5,6 +5,19 @@ import { TOOL_DEFS, buildToolRunners } from "../meridian-tools.js";
 
 const ctx = { companyId: "co1", actorAuthUserId: "auth1", actorProfileId: "prof1", conversationId: "conv1" };
 
+// Builds a membership in the shape erpContext/resolveScopedErpContext (via
+// resolveActiveMembership/computeScopedPermissions) actually expects — the
+// same nested { companyId, company, role: { key, permissions } } shape
+// _loadUserContext produces in apps/api/src/index.js, not a flat
+// { isAdmin, permissionSet } on the mock's top level.
+function membership({ companyId, roleKey = null, permissions = [] }) {
+  return {
+    companyId,
+    company: { enabled: true },
+    role: { key: roleKey, enabled: true, permissions: permissions.map((key) => ({ permission: { key } })) },
+  };
+}
+
 test("TOOL_DEFS lists every read tool with JSON schemas", () => {
   const names = TOOL_DEFS.map((t) => t.function.name).sort();
   assert.deepEqual(names, [
@@ -16,7 +29,7 @@ test("TOOL_DEFS lists every read tool with JSON schemas", () => {
 });
 
 test("search_inventory: gated by inventory.item.read; maps rows to the safe shape", async () => {
-  const withPerm = async () => ({ profile: { id: "p1" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set(["inventory.item.read"]) });
+  const withPerm = async () => ({ profile: { id: "p1" }, memberships: [membership({ companyId: "co1", permissions: ["inventory.item.read"] })] });
   const inventoryService = {
     listItems: async ({ companyId, search, limit }) => {
       assert.equal(companyId, "co1"); assert.equal(search, "laptop"); assert.equal(limit, 8);
@@ -29,14 +42,14 @@ test("search_inventory: gated by inventory.item.read; maps rows to the safe shap
   assert.equal(out.items[0].categoria, "Computo");
   assert.equal(out.total, 1);
 
-  const noPerm = async () => ({ profile: { id: "p1" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set() });
+  const noPerm = async () => ({ profile: { id: "p1" }, memberships: [membership({ companyId: "co1" })] });
   const r2 = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext: noPerm, inventoryService });
   const denied = await r2.search_inventory({ query: "x" }, { actorAuthUserId: "a", companyId: "co1" });
   assert.match(denied.error, /acceso/i);
 });
 
 test("list_my_tasks: iterates the caller's first 8 projects, filters by assignee", async () => {
-  const withPerm = async () => ({ profile: { id: "me" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set(["projects.task.read"]) });
+  const withPerm = async () => ({ profile: { id: "me" }, memberships: [membership({ companyId: "co1", permissions: ["projects.task.read"] })] });
   const projects = Array.from({ length: 10 }, (_, i) => ({ id: `pr${i}`, name: `Proyecto ${i}` }));
   let scanned = 0;
   const projectsService = { listProjects: async (companyId, userId) => { assert.equal(userId, "me"); return projects; } };
@@ -66,9 +79,8 @@ test("search_atlas: runs only the providers the caller is allowed, returns group
     assert.equal(authUserId, "auth1");
     return {
       profile: { id: "prof1" },
-      memberships: [{ companyId: "co1" }],
-      isAdmin: false,
-      permissionSet: new Set(["contacts.contacts.read"]), // NOT identity.users.read / hr.employee.read
+      // NOT identity.users.read / hr.employee.read
+      memberships: [membership({ companyId: "co1", permissions: ["contacts.contacts.read"] })],
     };
   };
   const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext });
@@ -78,8 +90,48 @@ test("search_atlas: runs only the providers the caller is allowed, returns group
   assert.ok(out.groups === undefined ? out.note : true);
 });
 
+test("search_inventory: admin in Company A does NOT leak admin access into a tool call scoped to Company B", async () => {
+  // Regression test for the exact bug this fix closes: erpContext used to
+  // read uctx.isAdmin/uctx.permissionSet, which getUserContextByAuthId built
+  // by UNIONING every membership's role across every company the user
+  // belongs to — so an atlas.admin role in Company A leaked admin access
+  // into any tool call, regardless of which company ctx.companyId (the
+  // caller's actual active company) named.
+  const resolveUserContext = async () => ({
+    profile: { id: "p1" },
+    memberships: [
+      membership({ companyId: "companyA", roleKey: "atlas.admin" }),
+      membership({ companyId: "companyB", permissions: [] }), // no special role in B
+    ],
+  });
+  const inventoryService = {
+    listItems: async () => ({ data: [], total: 0 }),
+  };
+  const runners = buildToolRunners({
+    prisma: { permission: { findMany: async () => [{ key: "inventory.item.read" }] } },
+    listMessages: async () => ({ data: [] }),
+    chatSearchService: {},
+    visionService: {},
+    signAttachmentUrl: async () => "x",
+    resolveUserContext,
+    inventoryService,
+  });
+
+  const asAdminInA = await runners.search_inventory(
+    { query: "laptop" },
+    { actorAuthUserId: "a", companyId: "companyA" },
+  );
+  assert.equal(asAdminInA.error, undefined, "atlas.admin in the active company must be allowed");
+
+  const asPlainInB = await runners.search_inventory(
+    { query: "laptop" },
+    { actorAuthUserId: "a", companyId: "companyB" },
+  );
+  assert.match(asPlainInB.error, /acceso/i, "no admin permissions in Company B must be refused there");
+});
+
 test("search_atlas: caller with no search permission is refused", async () => {
-  const resolveUserContext = async () => ({ profile: { id: "p" }, memberships: [{ companyId: "co1" }], isAdmin: false, permissionSet: new Set() });
+  const resolveUserContext = async () => ({ profile: { id: "p" }, memberships: [membership({ companyId: "co1" })] });
   const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext });
   const out = await runners.search_atlas({ query: "Juan" }, { actorAuthUserId: "a", companyId: "co1" });
   assert.match(out.error, /permiso/i);
