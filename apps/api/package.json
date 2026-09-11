@@ -14,7 +14,7 @@
     "@atlas/validators": "workspace:*",
     "@hono/node-server": "^1.19.17",
     "@hono/zod-validator": "^0.8.0",
-    "@prisma/client": "^6",
+    "@prisma/client": "^7.8.0",
     "@supabase/supabase-js": "^2.105.1",
     "csv-parse": "^5.6.0",
     "esbuild": "^0.25.0",
