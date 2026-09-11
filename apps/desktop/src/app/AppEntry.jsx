@@ -11,6 +11,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { AtlasOfflineDatabase, createDexiePersister } from "@atlas/offline";
 import { Toaster, TooltipProvider } from "@atlas/ui";
 import { AuthProvider } from "../auth/AuthProvider";
+import { ActiveCompanyProvider, ActiveCompanyGate } from "../company/ActiveCompanyProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
 import { OfficeProvider } from "../providers/OfficeProvider";
 import { CallsProvider } from "../modules/atlas.chat/calls/CallsProvider";
@@ -134,7 +135,20 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                 <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
               </Route>
               <Route element={<AppRouteGuard mode="access" />}>
-                <Route path="/app" element={<RealtimeProvider><CallsProvider><AtlasApp /></CallsProvider></RealtimeProvider>}>
+                <Route
+                  path="/app"
+                  element={
+                    <ActiveCompanyProvider>
+                      <ActiveCompanyGate>
+                        <RealtimeProvider>
+                          <CallsProvider>
+                            <AtlasApp />
+                          </CallsProvider>
+                        </RealtimeProvider>
+                      </ActiveCompanyGate>
+                    </ActiveCompanyProvider>
+                  }
+                >
                   <Route index element={<Navigate to="home" replace />} />
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
