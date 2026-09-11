@@ -590,6 +590,11 @@ function requireModuleAccess(moduleKey) {
         401,
       );
     }
+    const resolved = await resolveTenantContext(c, context, { strict: false });
+    if (!resolved.ok) return resolved.response;
+    const { tenant } = resolved;
+    c.set("companyId", tenant.companyId);
+    c.set("tenantContext", tenant);
     const moduleRow = await prisma.atlasModule.findUnique({
       where: { key: moduleKey },
       select: {
@@ -602,7 +607,7 @@ function requireModuleAccess(moduleKey) {
     if (!moduleRow) {
       return c.json({ error: "Modulo no encontrado." }, 404);
     }
-    if (!userCanAccessModule(context, moduleRow)) {
+    if (!userCanAccessModule(tenant, moduleRow)) {
       return c.json(
         { error: `No tienes permisos para acceder al modulo ${moduleKey}.` },
         403,
@@ -3190,6 +3195,9 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
       401,
     );
   }
+  const resolved = await resolveTenantContext(c, context, { strict: false });
+  if (!resolved.ok) return resolved.response;
+  const { tenant } = resolved;
 
   // Cache raw DB data — the per-user access filter is applied below on each request.
   // Invalidated by module lifecycle events (same points as blueprints:raw).
@@ -3218,7 +3226,7 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
   }
 
   return c.json({
-    data: serializeModulesForResponse(modulesRaw, context, {
+    data: serializeModulesForResponse(modulesRaw, tenant, {
       filterByPermission: true,
       filterNavigation: true,
     }),
@@ -3233,6 +3241,9 @@ app.get("/blueprints", authMiddleware, async (c) => {
       401,
     );
   }
+  const resolved = await resolveTenantContext(c, context, { strict: false });
+  if (!resolved.ok) return resolved.response;
+  const { tenant } = resolved;
 
   // Cache raw DB data — the per-user access filter is applied below on each request.
   // Invalidated by module lifecycle events (install/enable/disable/uninstall/sync/reset).
@@ -3273,7 +3284,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
   const mergedByKey = new Map();
 
   for (const blueprint of blueprints) {
-    if (!userCanAccessModule(context, blueprint.module)) continue;
+    if (!userCanAccessModule(tenant, blueprint.module)) continue;
     mergedByKey.set(blueprint.key, {
       ...blueprint,
       source: "blueprint",
@@ -3289,7 +3300,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
   for (const view of atlasViews) {
     const moduleRow = moduleRowsByKey.get(view.moduleKey);
     if (!moduleRow) continue;
-    if (!userCanAccessModule(context, moduleRow)) continue;
+    if (!userCanAccessModule(tenant, moduleRow)) continue;
 
     mergedByKey.set(view.key, {
       id: view.id,
