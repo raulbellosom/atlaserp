@@ -1,0 +1,25 @@
+-- Discovered while verifying 20260911150000_notification_rls: the
+-- `authenticated` Postgres role has never had USAGE on the `public` schema
+-- on this self-hosted instance (confirmed via
+-- has_schema_privilege('authenticated', 'public', 'USAGE') = false). Without
+-- it, EVERY direct-table `postgres_changes` Realtime subscription in the app
+-- fails with "permission denied for schema public" regardless of any
+-- table-level GRANT or RLS policy — this is not new to `notification`, it
+-- also affects `call`/`call_participant` (which already had a correct
+-- SELECT grant + chat_is_member-based RLS policy) and `chat_messages`. Not a
+-- security gap (fails closed — no one, legitimate or not, has ever been able
+-- to use these channels), just dead functionality: the app's real-time
+-- "message/call arrived" UX has always relied entirely on the
+-- user:<id>:events / company:<id>:events broadcast channels instead (fixed
+-- in 20260911140000).
+--
+-- USAGE alone grants nothing by itself — it only lets the role resolve
+-- objects in the schema; actual row/column access still requires the
+-- existing per-table GRANT + RLS policy (or, for realtime.messages broadcast
+-- channels, the SECURITY DEFINER functions already in place). Scoped to
+-- `authenticated` only: no current code path needs an unauthenticated
+-- (`anon`) client to read app tables directly — the one anon use case
+-- (public canvas notes) already goes through a SECURITY DEFINER function,
+-- which doesn't need schema USAGE at all.
+
+GRANT USAGE ON SCHEMA public TO authenticated;
