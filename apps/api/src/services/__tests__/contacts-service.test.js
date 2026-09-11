@@ -60,4 +60,26 @@ describe("contacts-service — getById", () => {
       (err) => err instanceof ContactsServiceError && err.status === 404,
     );
   });
+
+  it("uses the passed-in companyId instead of re-deriving via membership — the multi-tenant fix", async () => {
+    // Regression test: getCompanyContext used to always re-derive the
+    // company via membership.findFirst({ orderBy: createdAt desc }),
+    // ignoring the caller's validated active company entirely. The mocked
+    // membership here resolves to a DIFFERENT company than the one passed
+    // explicitly — if the fix regresses, this contact (scoped to the
+    // explicitly-passed company) would incorrectly 404.
+    const contact = { id: "contact-1", companyId: "company-explicit", name: "Ada Lovelace" };
+    const prisma = buildPrismaMock({
+      profile: { id: "profile-1" },
+      membership: { companyId: "company-STALE-FALLBACK" },
+      contact,
+    });
+    const service = createContactsService({ prisma });
+    const result = await service.getById({
+      authUserId: "auth-1",
+      companyId: "company-explicit",
+      id: "contact-1",
+    });
+    assert.deepEqual(result, contact);
+  });
 });

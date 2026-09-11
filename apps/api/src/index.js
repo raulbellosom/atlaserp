@@ -3750,6 +3750,7 @@ app.get(
       const enabled = enabledRaw === "false" ? false : true;
       const result = await contactsService.list({
         authUserId,
+        companyId: c.get("companyId"),
         search,
         page,
         pageSize,
@@ -3785,6 +3786,7 @@ app.get(
       const limit = c.req.query("limit");
       const options = await contactsService.picker({
         authUserId,
+        companyId: c.get("companyId"),
         query,
         limit,
       });
@@ -3809,7 +3811,7 @@ app.post(
     try {
       const authUserId = c.get("authUserId");
       const payload = await c.req.json();
-      const contact = await contactsService.create({ authUserId, payload });
+      const contact = await contactsService.create({ authUserId, companyId: c.get("companyId"), payload });
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "contacts.contact.create",
@@ -3842,7 +3844,7 @@ app.patch(
     try {
       const authUserId = c.get("authUserId");
       const { ids, enabled } = await c.req.json();
-      await contactsService.bulkSetEnabled({ authUserId, ids, enabled });
+      await contactsService.bulkSetEnabled({ authUserId, companyId: c.get("companyId"), ids, enabled });
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: enabled
@@ -3873,7 +3875,7 @@ app.delete(
     try {
       const authUserId = c.get("authUserId");
       const { ids } = await c.req.json();
-      await contactsService.bulkDelete({ authUserId, ids });
+      await contactsService.bulkDelete({ authUserId, companyId: c.get("companyId"), ids });
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "contacts.contact.bulk_delete",
@@ -3902,6 +3904,7 @@ app.post(
       const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
       const contacts = await contactsService.getContactsForExport({
         authUserId,
+        companyId: c.get("companyId"),
         ids,
       });
 
@@ -3960,7 +3963,7 @@ app.post(
       const authUserId = c.get("authUserId");
       const body = await c.req.json().catch(() => ({}));
       const ids = Array.isArray(body?.ids) ? body.ids.filter(Boolean) : [];
-      const contacts = await contactsService.getContactsForExport({ authUserId, ids });
+      const contacts = await contactsService.getContactsForExport({ authUserId, companyId: c.get("companyId"), ids });
       const { resolveCompanyBranding, resolvePdfDocumentCtor, toSafeText, compact, normalizeHexColor, lightenHex, drawPdfHeader, drawPdfFooter } =
         await import("./services/pdf-branding-service.js");
       // requirePermission() already resolved and set companyId on the context —
@@ -4100,7 +4103,7 @@ app.get(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      const contact = await contactsService.getById({ authUserId, id });
+      const contact = await contactsService.getById({ authUserId, companyId: c.get("companyId"), id });
       return c.json({ data: contact });
     } catch (err) {
       if (err instanceof ContactsServiceError) {
@@ -4120,7 +4123,7 @@ app.put(
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
       const payload = await c.req.json();
-      const contact = await contactsService.update({ authUserId, id, payload });
+      const contact = await contactsService.update({ authUserId, companyId: c.get("companyId"), id, payload });
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "contacts.contact.update",
@@ -4157,6 +4160,7 @@ app.patch(
       const { enabled } = await c.req.json();
       const contact = await contactsService.setEnabled({
         authUserId,
+        companyId: c.get("companyId"),
         id,
         enabled,
       });
@@ -4192,7 +4196,7 @@ app.delete(
     try {
       const authUserId = c.get("authUserId");
       const id = c.req.param("id");
-      await contactsService.delete({ authUserId, id });
+      await contactsService.delete({ authUserId, companyId: c.get("companyId"), id });
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "contacts.contact.delete",
