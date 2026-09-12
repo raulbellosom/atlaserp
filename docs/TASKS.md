@@ -1,5 +1,17 @@
 ﻿# Atlas ERP - Tasks and Roadmap
 
+## Atlas Native Host Android [IMPLEMENTED; ERP acceptance pending]
+
+Spec: `docs/superpowers/specs/2026-09-11-atlas-native-host-design.md`. Evidence and operation: `docs/mobile/ATLAS_NATIVE_HOST.md`.
+
+- [x] Remote Android host, local recovery, exact-origin IPC, centralized bridge and queued deep links.
+- [x] ARM64 debug APK with production origin; x86_64 emulator verified bridge, media, notifications, deep links, external navigation and fallback.
+- [x] Actual compiled SPA login/branding loaded in emulator using local nginx; no Desktop server picker.
+- [ ] Deploy web CSP/SPA and validate authenticated session persistence, companies, chat/Realtime and LiveKit on physical devices.
+- [ ] Release signing/distribution, iOS, FCM/APNs and native incoming-call integration (future milestones).
+
+Verified: 2026-09-11 (9 native Node tests, 22 regression tests, 3 Rust tests, cargo check, Vite build, ESLint, React Doctor 98/100, nginx -t, Android Gradle builds and adb/CDP emulator checks). Full functional acceptance remains pending; no production deployment performed.
+
 ## Task completion policy
 
 - Mark `[x]` only when the task has explicit verification evidence.

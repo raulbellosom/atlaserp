@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { nativeHostHeaders } from './native-host/web-policy.js';
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "url";
@@ -100,6 +101,7 @@ export default defineConfig({
   // Read shared monorepo env vars from repository root (.env, .env.local, etc.).
   envDir: "../..",
   plugins: [
+    nativeHostHeaders(),
     tailwindcss(),
     react(),
     atlasDevImportmapPlugin(),
@@ -150,6 +152,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
     alias: {
       "node:crypto": resolve(__dirname, "src/shims/node-crypto.js"),
+      "@atlas/core/native-runtime": resolve(__dirname, "../../packages/core/src/native-runtime.js"),
       "@atlas/core": resolve(__dirname, "../../packages/core/src/index.js"),
       "@atlas/module-engine": resolve(__dirname, "../../packages/module-engine/src/index.js"),
       "@atlas/sdk": resolve(__dirname, "../../packages/sdk/src/index.js"),

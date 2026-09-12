@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { ATLAS_PUBLIC_DESKTOP_CONFIG_PATH } from './appConfig.js'
 import { getApiUrl, runtimeConfig } from './runtimeConfig.js'
+import { isNativeDesktop } from '@atlas/core/native-runtime'
 
 let currentSupabaseClient = null
 let currentSupabaseKey = null
@@ -36,8 +37,7 @@ export async function initSupabaseClient({
   forceReload = false,
   config = null,
 } = {}) {
-  const isTauriRuntime =
-    typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__)
+  const isTauriRuntime = isNativeDesktop()
 
   let resolvedConfig = config
   if (!resolvedConfig && isTauriRuntime) {

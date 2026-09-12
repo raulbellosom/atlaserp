@@ -203,9 +203,7 @@ async function loadTauriDatabase(path) {
   return Database.load(path)
 }
 
-export function isTauriAvailable() {
-  return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__)
-}
+export { isNativeDesktop as isTauriAvailable } from '@atlas/core/native-runtime'
 
 export class LedgerSQLiteStore {
   #dbLoader

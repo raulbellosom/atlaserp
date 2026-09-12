@@ -1,4 +1,5 @@
 (function bootstrapPwaManifest() {
+  if (window.__ATLAS_NATIVE_HOST__) return;
   var match = window.location.pathname.match(/^\/app\/m\/([^/]+)/);
   var moduleKey = match ? match[1] : "";
   var searchParams = new URLSearchParams(window.location.search || "");

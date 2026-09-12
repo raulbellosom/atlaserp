@@ -1,0 +1,5 @@
+{
+  "nativeHostVersion": "1.0.0",
+  "production": "https://atlas.racoondevs.com",
+  "staging": "https://staging.atlas.racoondevs.com"
+}

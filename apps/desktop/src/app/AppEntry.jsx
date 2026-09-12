@@ -32,6 +32,8 @@ import { PublicModuleOutlet } from "../shell/PublicModuleOutlet.jsx";
 import { PublicWebsiteEntry } from "../shell/PublicWebsiteEntry.jsx";
 import { PublicClientLogin } from "../shell/PublicClientLogin.jsx";
 import { ServerSetup } from "./ServerSetup.jsx";
+import { native } from '../native/index.js';
+import { NativeHostDiagnostics } from '../native/NativeHostDiagnostics.jsx';
 import { AppRouteGuard } from "./AppRouteGuard.jsx";
 import PublicNoteScreen from "../modules/atlas.notes/PublicNoteScreen.jsx";
 
@@ -67,6 +69,10 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
     : !isAtlasInternalPath(window.location.pathname);
 
   useCallSoundUnlock();
+
+  useEffect(() => {
+    if (!requiresServerSetup && (brandReady || skipBrandWait)) native.ready().catch(() => {});
+  }, [requiresServerSetup, brandReady, skipBrandWait]);
 
   useEffect(() => {
     if (requiresServerSetup) return undefined
@@ -153,6 +159,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                   <Route path="home" element={<HomeScreen />} />
                   <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                   <Route path="profile" element={<ProfileScreen />} />
+                  <Route path="native-host" element={<NativeHostDiagnostics />} />
                 </Route>
               </Route>
               <Route path="/p" element={<PublicShell />}>

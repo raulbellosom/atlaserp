@@ -3,11 +3,13 @@ import {
   ATLAS_SERVER_URL_KEY,
 } from './appConfig.js'
 import { getConfiguredApiUrl, setApiUrl } from './runtimeConfig.js'
+import { isNativeDesktop } from '@atlas/core/native-runtime'
 
 let storePromise = null
 
 export function isTauriRuntime() {
-  return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__)
+  // Historical name: these callers specifically manage the Desktop server picker.
+  return isNativeDesktop()
 }
 
 export function normalizeServerUrl(value) {

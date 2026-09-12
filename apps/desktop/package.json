@@ -11,6 +11,8 @@
     "last 2 iOS versions"
   ],
   "scripts": {
+    "native": "node scripts/native-host.mjs",
+    "test:native": "node --test src/native/__tests__/*.test.js",
     "dev": "tauri dev",
     "dev:web": "vite",
     "build": "tauri build && node scripts/rename-installer.mjs",
@@ -37,6 +39,7 @@
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-persist-client": "^5.101.0",
     "@tauri-apps/api": "latest",
+    "@tauri-apps/plugin-haptics": "^2.3.0",
     "@tauri-apps/plugin-notification": "^2.4.0",
     "@tauri-apps/plugin-sql": "^2.3.0",
     "@tauri-apps/plugin-store": "^2.2.0",

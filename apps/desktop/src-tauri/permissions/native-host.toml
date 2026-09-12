@@ -1,0 +1,29 @@
+[[permission]]
+identifier = "allow-host-info"
+description = "Read public host metadata."
+commands.allow = ["host_info"]
+
+[[permission]]
+identifier = "allow-host-connect"
+description = "Retry the compiled frontend from the bundled recovery page."
+commands.allow = ["host_connect"]
+
+[[permission]]
+identifier = "allow-host-ready"
+description = "Acknowledge successful React mount."
+commands.allow = ["host_ready"]
+
+[[permission]]
+identifier = "allow-host-events"
+description = "Read queued native navigation intents."
+commands.allow = ["host_events"]
+
+[[permission]]
+identifier = "allow-host-ack-events"
+description = "Acknowledge handled native navigation intents."
+commands.allow = ["host_ack_events"]
+
+[[permission]]
+identifier = "allow-host-open-external"
+description = "Open a validated HTTP(S) link in the system browser."
+commands.allow = ["host_open_external"]

@@ -10,6 +10,8 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
+import { native } from '../../../native/index.js';
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
 import {
@@ -45,6 +47,7 @@ async function dismissSystemCallNotification(callId) {
 }
 
 export function CallsProvider({ children }) {
+  const navigate = useNavigate();
   const { session, userProfile } = useAuth();
   const { on } = useRealtimeContext();
   const [config, setConfig] = useState({ enabled: false, mode: "disabled", loading: true });
@@ -303,6 +306,33 @@ export function CallsProvider({ children }) {
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
   }, [token, userProfile?.id, syncCurrentCall]);
+
+  useEffect(() => {
+    if (!token || !userProfile?.id) return undefined;
+    return native.events.subscribe(async (event) => {
+      if (event.kind === 'chat') {
+        navigate(`/app/m/atlas.chat/chat/inbox/${encodeURIComponent(event.targetId)}`);
+        return true;
+      }
+      if (config.loading || config.mode === 'unavailable') return false;
+      if (!config.enabled) {
+        toast.error('Las llamadas no están disponibles en esta instancia.');
+        return true;
+      }
+      try {
+        // Reconcile authoritative participant state; a deep link never accepts a call.
+        await fetchCall(event.targetId);
+        await syncCurrentCall();
+        return true;
+      } catch (error) {
+        if ([403, 404].includes(error?.status)) {
+          toast.error('La llamada ya no está disponible.');
+          return true;
+        }
+        return false;
+      }
+    });
+  }, [token, userProfile?.id, config.loading, config.mode, config.enabled, navigate, fetchCall, syncCurrentCall]);
 
   useCallSynchronization({
     enabled: config.enabled,

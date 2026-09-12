@@ -1,7 +1,7 @@
-import { isTauri } from "@tauri-apps/api/core";
+import { native } from '../native/index.js';
 
 export function isTauriRuntime() {
-  return isTauri();
+  return native.isAvailable();
 }
 
 export function isSystemNotificationSupported() {
@@ -10,34 +10,15 @@ export function isSystemNotificationSupported() {
 }
 
 export async function getSystemNotificationPermission() {
-  if (isTauriRuntime()) {
-    const { isPermissionGranted } = await import("@tauri-apps/plugin-notification");
-    return (await isPermissionGranted()) ? "granted" : "default";
-  }
-  return globalThis.Notification?.permission ?? "unsupported";
+  return native.notifications.permission();
 }
 
 export async function requestSystemNotificationPermission() {
-  if (isTauriRuntime()) {
-    const { isPermissionGranted, requestPermission } = await import(
-      "@tauri-apps/plugin-notification"
-    );
-    if (await isPermissionGranted()) return "granted";
-    return requestPermission();
-  }
-  if (typeof globalThis.Notification === "undefined") return "unsupported";
-  return globalThis.Notification.requestPermission();
+  return native.notifications.requestPermission();
 }
 
 export async function requestDesktopAttention() {
-  if (!isTauriRuntime()) return false;
-  try {
-    const { getCurrentWindow, UserAttentionType } = await import("@tauri-apps/api/window");
-    await getCurrentWindow().requestUserAttention(UserAttentionType.Critical);
-    return true;
-  } catch {
-    return false;
-  }
+  return native.requestDesktopAttention();
 }
 
 export async function showSystemNotification({
@@ -51,12 +32,7 @@ export async function showSystemNotification({
 
   try {
     if (isTauriRuntime()) {
-      const { isPermissionGranted, sendNotification } = await import(
-        "@tauri-apps/plugin-notification"
-      );
-      if (!(await isPermissionGranted())) return false;
-      sendNotification({ title, body: body ?? "" });
-      return true;
+      return native.notifications.show({ title, body: body ?? '' });
     }
 
     if (
