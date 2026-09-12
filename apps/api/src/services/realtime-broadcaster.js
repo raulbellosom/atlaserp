@@ -17,12 +17,25 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
     }
   }
 
+  // private: true on every message sent through this service. Every topic
+  // this broadcaster ever targets (user:*:events, company:*:events,
+  // chat:presence:*, chat:conv:*, chat:company:*) was switched to Realtime
+  // Authorization (`{ config: { private: true } }` on the client's
+  // `.channel()` call) during the 2026-09-11 multi-tenant sweep. Realtime
+  // treats private and non-private subscribers to the SAME topic string as
+  // two distinct delivery pools — a message posted without `private: true`
+  // silently never reaches a client that joined privately, even though that
+  // client's subscription itself succeeded. Omitting this flag here was
+  // exactly that bug: every server-sent chat message/notification/presence
+  // event stopped arriving in real time the moment those RLS policies went
+  // live, without the subscribe-side auth ever failing or logging anything.
   async function broadcastToUser(profileId, event, payload) {
     if (!profileId) return
     await _send([{
       topic: `user:${profileId}:events`,
       event,
       payload: payload ?? {},
+      private: true,
     }]).catch((err) => {
       console.warn('[realtime-broadcaster] broadcastToUser error:', err?.message)
     })
@@ -36,6 +49,7 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
         topic: `user:${id}:events`,
         event,
         payload: payload ?? {},
+        private: true,
       })),
     ).catch((err) => {
       console.warn('[realtime-broadcaster] broadcastToUsers error:', err?.message)
@@ -48,6 +62,7 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
       topic: `company:${companyId}:events`,
       event,
       payload: payload ?? {},
+      private: true,
     }]).catch((err) => {
       console.warn('[realtime-broadcaster] broadcastToCompany error:', err?.message)
     })
@@ -59,6 +74,7 @@ export function createRealtimeBroadcaster({ supabaseUrl, serviceRoleKey }) {
       topic: channelName,
       event,
       payload: payload ?? {},
+      private: true,
     }]).catch((err) => {
       console.warn('[realtime-broadcaster] broadcastToChannel error:', err?.message)
     })
