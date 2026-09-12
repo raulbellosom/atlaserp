@@ -57,6 +57,16 @@ What it does:
 
 ## Generated outputs
 
+### Native Android host
+
+`pnpm brand:native` uses the installed Tauri icon CLI and the vector master `identity/atlas-erp_isotype.svg`. It separates the master's background, preserves the logo paths/colors, and uses the official `#E6EAF0` surface. Adaptive foregrounds include padding for circular masks; Android 13 themed icons use a monochrome silhouette.
+
+The command updates the initialized Android project's launcher resources and the bundled recovery logo. Intermediate platform exports go to ignored `.tmp/native-brand/`. Native builds run this command automatically, and `brand:build` runs it last so its legacy raster generation cannot overwrite mobile branding. Keep the Android resources used by the APK in version control; do not add the temporary exports.
+
+Android startup uses `androidx.core:core-splashscreen:1.2.0` with the same mark/background and a normal transition into Tauri. It does not add a second Activity or artificially delay loading. The recovery shell remains responsible for network errors after startup. iOS icon exports can be generated, but iOS launch-screen integration still requires the pending Xcode project.
+
+References: [Tauri icon generator](https://v2.tauri.app/develop/icons/) and [Android SplashScreen migration](https://developer.android.com/develop/ui/views/launch/splash-screen/migrate).
+
 `apps/desktop/public`:
 
 - `favicon.ico`

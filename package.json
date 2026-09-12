@@ -32,6 +32,7 @@
     "setup": "pnpm install && pnpm db:generate && pnpm db:migrate && pnpm db:seed",
     "icons:generate": "node scripts/gen-icons.mjs",
     "brand:build": "node scripts/build-brand-assets.mjs",
+    "brand:native": "node scripts/build-native-brand-assets.mjs",
     "rbac:verify-catalog": "node scripts/verify-permission-catalog.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

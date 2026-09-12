@@ -4,6 +4,8 @@ Fecha: 2026-09-11. Estado: host Android implementado y verificado en emulador; a
 
 ## Arquitectura y alcance
 
+La marca nativa se regenera con `pnpm brand:native` desde `identity/atlas-erp_isotype.svg`; los builds móviles lo ejecutan automáticamente. Android usa iconos adaptativos/monocromáticos y AndroidX SplashScreen con el logo Atlas. La shell local también incluye el isotipo. Ver `docs/10_brand_assets_strategy.md` para fuentes, márgenes y archivos temporales.
+
 ### Archivos versionados y artefactos locales
 
 Se versionan las fuentes Android bajo `src-tauri/gen/android/` (manifiesto, Kotlin, recursos y Gradle wrapper), aunque el directorio se llame `gen`: contienen ajustes propios y permiten reproducir el build. También se conservan tests, fixtures y la documentación de diseño requerida por el proyecto.
@@ -177,7 +179,7 @@ curl -I -A 'AtlasNativeHost/1.0' https://atlas.racoondevs.com/app/
 # Exigir HTTP 200 y CSP con frame-src 'none'; object-src 'none'
 ```
 
-En la auditoría de esta sesión: producción devolvió 200 pero sin CSP Mobile; staging no resolvió. Requiere desplegar estos cambios de nginx y la SPA. No se modificó el servidor productivo.
+En la auditoría inicial: producción devolvió 200 pero sin CSP Mobile; staging no resolvió. En la verificación posterior de branding del 2026-09-11, producción ya entregó la CSP requerida y el APK llegó al login. El agente no desplegó ni modificó el servidor productivo.
 
 ## Push y llamadas: fases posteriores
 
@@ -217,7 +219,7 @@ Resultados iniciales:
 
 Checklist de aceptación en dispositivo, aún no inferible de tests unitarios:
 
-- [ ] Instalar APK y abrir SPA real con CSP desplegada.
+- [x] Instalar APK y abrir SPA real con CSP desplegada (emulador, verificación posterior de branding).
 - [ ] Login, persistencia tras reinicio, refresh y logout.
 - [ ] Cambio de empresa y rechazo de entidades sin permiso.
 - [ ] Chat bidireccional y reconexión Realtime.
@@ -247,11 +249,13 @@ Host Android implementado y probado en emulador Android 16/API 36. La aceptació
 | Sin ready y reintento | Fallback local tras 30 segundos; reintento recupera |
 | Servidor sin CSP exigida | Fallback local con MISSING_NATIVE_FRAME_POLICY |
 
-Estas pruebas no demuestran percepción física de vibración, calidad multimedia, diálogos de permisos denegados, persistencia de sesión, Realtime ni una llamada LiveKit entre usuarios. No se utilizaron credenciales de usuario. Producción todavía responde sin la CSP exigida; staging no resolvió durante la auditoría.
+Estas pruebas no demuestran percepción física de vibración, calidad multimedia, diálogos de permisos denegados, persistencia de sesión, Realtime ni una llamada LiveKit entre usuarios. No se utilizaron credenciales de usuario. La verificación posterior de branding confirmó CSP y login en producción; staging no resolvió durante la auditoría inicial.
 
 Se corrigió un crash reproducido en Tao 0.35.0 al recibir Intent sin MIME: MainActivity conserva URI/extras y normaliza el MIME antes de llamar a Tauri. Se verificaron arranques fríos y calientes después del cambio. El bridge envía los valores de haptics en minúsculas, como espera el plugin, y comprueba errores devueltos por Android.
 
-Artefacto local: `.tmp/artifacts/Atlas-Native-Host-1.0.0-arm64-production-debug.apk`, versión 1.0.0/versionCode 1000000, origen de producción, firmado para **debug**, no para tienda. SHA-256: `C2C9DA4F0076F6F8336281E4C37871C3B8EA303FF9A2369B7225B17CFC1865F4`. Para cargar producción necesita primero desplegar la SPA y configuración nginx de este cambio; mientras tanto muestra recuperación local.
+Artefacto local: `.tmp/artifacts/Atlas-Native-Host-1.0.0-arm64-production-debug.apk`, versión 1.0.0/versionCode 1000000, origen de producción, firmado para **debug**, no para tienda. Regenerado con marca Atlas y splash nativo. SHA-256: `38F0684E631C49E7B1F34B9AF59628D4BC8C8E27B24661509D4E54433B16DF71`. Producción ya entrega la CSP requerida; el APK x86_64 equivalente llegó al login en el emulador.
+
+Branding verificado: launcher adaptativo con isotipo Atlas, splash nativo con logo completo y fondo oficial, transición al login productivo sin crash. Builds ARM64/x86_64 debug correctos, 9 tests Node y ESLint correctos. Capturas locales en `.tmp/native-brand/`, fuera de Git. Se eliminaron los drawables y colores sin uso de la plantilla Android.
 
 Rust compiló para ARM64 y x86_64. El empaquetado Tauri encontró la restricción de symlinks de Windows (Developer Mode desactivado). Para verificar el APK se copió la biblioteca recién compilada a `gen/android/app/src/main/jniLibs/<abi>/` y se ejecutó Gradle excluyendo únicamente la recompilación Rust correspondiente:
 

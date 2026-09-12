@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { buildNativeBrandAssets } from '../../../scripts/build-native-brand-assets.mjs'
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const environments = JSON.parse(readFileSync(resolve(desktop, 'native-host/environments.json'), 'utf8'))
@@ -65,6 +66,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     // `tauri dev` can replace App URLs with its development asset server, so dev here
     // builds a debug host. Web edits still appear remotely without rebuilding it.
     const tauriAction = action === 'dev' ? 'build' : action
+    if (tauriAction === 'build') buildNativeBrandAssets()
     const args = [cli, platform, tauriAction, '--config', configPath, ...(action === 'init' ? ['--ci'] : [])]
     if (action === 'dev') args.push('--debug')
     if (platform === 'android' && tauriAction === 'build') args.push('--target', target)
@@ -74,6 +76,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       cwd: desktop, stdio: 'inherit', env: { ...process.env, ATLAS_NATIVE_ENV: environment, ATLAS_NATIVE_ORIGIN: origin },
     })
     if (result.error) throw result.error
+    if (action === 'init' && result.status === 0) buildNativeBrandAssets()
     process.exitCode = result.status ?? 1
   }
 }

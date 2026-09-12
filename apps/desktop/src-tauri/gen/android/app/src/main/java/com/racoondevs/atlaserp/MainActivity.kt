@@ -5,6 +5,7 @@ import android.content.Intent
 import android.webkit.WebView
 import android.webkit.WebSettings
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : TauriActivity() {
   override val handleBackNavigation: Boolean = true
@@ -17,6 +18,7 @@ class MainActivity : TauriActivity() {
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    installSplashScreen()
     normalizeIntent(intent)
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)

@@ -3,6 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { execSync } from 'child_process'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { buildNativeBrandAssets } from './build-native-brand-assets.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
@@ -83,3 +84,6 @@ writeFileSync(
 )
 
 console.log('Brand assets generated in apps/desktop/public and apps/desktop/src-tauri/icons')
+// The legacy command above also touches initialized mobile projects. Apply the
+// adaptive native brand last so mobile never falls back to the legacy raster.
+buildNativeBrandAssets()
