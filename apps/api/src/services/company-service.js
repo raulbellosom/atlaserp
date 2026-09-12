@@ -94,7 +94,15 @@ function normalizeEnumValue(value, validValues, aliases = {}) {
 }
 
 export function createCompanyService({ prisma, supabaseAdmin }) {
-  async function getCompanyId() {
+  // companyId: the requester's server-resolved active company (from
+  // requirePermission's tenant middleware, never client-supplied). Every
+  // caller now passes this explicitly — a user who switches their active
+  // company must see and edit THAT company's profile/address/branding, not
+  // whichever company instance_config.company_id happens to point to
+  // (a single-tenant-era leftover). Falls back to that legacy singleton only
+  // when no companyId is given, for backward compatibility.
+  async function resolveCompanyId(companyId) {
+    if (companyId) return companyId;
     const record = await prisma.instanceConfig.findUnique({
       where: { key: "company_id" },
     });
@@ -119,8 +127,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
   return {
     // ── Profile ──────────────────────────────────────────────────────────────
 
-    async getProfile() {
-      const companyId = await getCompanyId();
+    async getProfile(activeCompanyId) {
+      const companyId = await resolveCompanyId(activeCompanyId);
       const company = await prisma.company.findUnique({
         where: { id: companyId },
       });
@@ -152,8 +160,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async updateProfile(fields) {
-      const companyId = await getCompanyId();
+    async updateProfile(fields, activeCompanyId) {
+      const companyId = await resolveCompanyId(activeCompanyId);
       const companyType = normalizeEnumValue(
         fields.companyType,
         COMPANY_TYPE_VALUES,
@@ -195,8 +203,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
 
     // ── Address ──────────────────────────────────────────────────────────────
 
-    async getAddress() {
-      const companyId = await getCompanyId();
+    async getAddress(activeCompanyId) {
+      const companyId = await resolveCompanyId(activeCompanyId);
       const company = await prisma.company.findUnique({
         where: { id: companyId },
       });
@@ -213,8 +221,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async updateAddress(fields) {
-      const companyId = await getCompanyId();
+    async updateAddress(fields, activeCompanyId) {
+      const companyId = await resolveCompanyId(activeCompanyId);
       await prisma.company.update({
         where: { id: companyId },
         data: {
@@ -233,8 +241,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
 
     // ── Branding ─────────────────────────────────────────────────────────────
 
-    async getBranding() {
-      const companyId = await getCompanyId();
+    async getBranding(activeCompanyId) {
+      const companyId = await resolveCompanyId(activeCompanyId);
       const branding = await prisma.brandingConfig.findFirst({
         where: { companyId },
       });
@@ -247,7 +255,8 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
       };
     },
 
-    async updateBranding({ primaryColor, logoFileId }, companyId) {
+    async updateBranding({ primaryColor, logoFileId }, activeCompanyId) {
+      const companyId = await resolveCompanyId(activeCompanyId);
       // Validate logo ownership if provided
       if (logoFileId) {
         const logoAsset = await prisma.fileAsset.findFirst({

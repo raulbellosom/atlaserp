@@ -1337,6 +1337,11 @@ app.get("/user/me", authMiddleware, async (c) => {
       avatarUrl,
       role: tenant.role?.key ?? null,
       isAdmin: tenant.isAdmin,
+      // Distinct from isAdmin (company admin OR system admin): only a true
+      // platform-scope admin can create new companies (see POST /companies)
+      // or manage another company's modules — a company-scoped atlas.admin
+      // must not see those affordances.
+      isSystemAdmin: tenant.isSystemAdmin,
       permissions: [...tenant.permissionSet].sort(),
       colony: context.profile.colony,
       companyId: tenant.companyId,
@@ -1851,6 +1856,105 @@ app.put(
   },
 );
 
+// ── Companies: create a new tenant ──────────────────────────────────────────
+// Platform-level action, distinct from /company/profile|address|branding
+// below (which always operate on the REQUESTER'S active company). Creating
+// a brand-new tenant is gated to system admins only — a company-scoped
+// admin should never be able to spin up an unrelated company. Reuses the
+// existing company.profile.create permission (already seeded, already
+// granted to atlas.admin/system.admin via the isAdmin-gets-everything path)
+// rather than inventing a new permission key just for this.
+app.post(
+  "/companies",
+  authMiddleware,
+  requirePermission("company.profile.create"),
+  async (c) => {
+    const tenant = c.get("tenantContext");
+    if (!tenant.isSystemAdmin) {
+      return c.json(
+        { error: "Solo un administrador de plataforma puede crear nuevas empresas." },
+        403,
+      );
+    }
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const name = String(body.name ?? "").trim();
+      if (!name) {
+        return c.json({ error: "El nombre de la empresa es obligatorio." }, 422);
+      }
+
+      const baseSlug = toSlug(name) || "empresa";
+      let slug = baseSlug;
+      let suffix = 1;
+      // eslint-disable-next-line no-await-in-loop -- sequential by design: each check depends on the previous candidate being taken
+      while (await prisma.company.findUnique({ where: { slug }, select: { id: true } })) {
+        suffix += 1;
+        slug = `${baseSlug}-${suffix}`;
+      }
+
+      const userId = c.get("userId");
+      const company = await prisma.$transaction(async (tx) => {
+        const adminRole = await ensureSetupAdminRole(tx);
+        const created = await tx.company.create({
+          data: {
+            name,
+            slug,
+            legalName: String(body.legalName ?? "").trim() || null,
+            rfc: String(body.rfc ?? "").trim() || null,
+            contactEmail: String(body.contactEmail ?? "").trim() || null,
+            phone: String(body.phone ?? "").trim() || null,
+            website: String(body.website ?? "").trim() || null,
+            country: String(body.country ?? "").trim() || null,
+            state: String(body.state ?? "").trim() || null,
+            city: String(body.city ?? "").trim() || null,
+            street: String(body.street ?? "").trim() || null,
+            postalCode: String(body.postalCode ?? "").trim() || null,
+          },
+        });
+        // The creator becomes this company's first admin immediately — no
+        // separate invitation step needed to start using it. Uses their
+        // EXISTING profile/login; unlike /setup/initialize (which bootstraps
+        // the instance's very first company + a brand-new Supabase Auth
+        // user), this never touches Supabase Auth at all.
+        await tx.membership.create({
+          data: { companyId: created.id, userId, roleId: adminRole.id },
+        });
+        await tx.brandingConfig.create({
+          data: {
+            companyId: created.id,
+            primaryColor: /^#[0-9a-fA-F]{6}$/.test(String(body.primaryColor ?? ""))
+              ? body.primaryColor
+              : "#0A7BFF",
+          },
+        });
+        return created;
+      });
+
+      // Take effect immediately: the creator's memberships list (and hence
+      // the CompanySwitcher) must show the new company without waiting for
+      // the user-context cache TTL to expire.
+      cacheDel(`user_ctx:${c.get("authUserId")}`);
+
+      const { actorName } = getActivityContext(c);
+      await publishActivityFromContext(prisma, c, {
+        type: "company.create",
+        severity: "success",
+        entityType: "Company",
+        entityId: company.id,
+        summary: `${actorName} creó la empresa "${company.name}"`,
+      });
+
+      return c.json({ data: company }, 201);
+    } catch (err) {
+      if (err?.code === "P2002") {
+        return c.json({ error: "Ya existe una empresa con datos únicos duplicados." }, 409);
+      }
+      console.error("[companies/create]", err);
+      return c.json({ error: "No se pudo crear la empresa." }, 500);
+    }
+  },
+);
+
 // ── Company: Profile ─────────────────────────────────────────────────────────
 
 app.get(
@@ -1859,7 +1963,7 @@ app.get(
   requirePermission("company.profile.read"),
   async (c) => {
     try {
-      const data = await companyService.getProfile();
+      const data = await companyService.getProfile(c.get("companyId"));
       return c.json({ data });
     } catch (err) {
       if (err instanceof CompanyServiceError)
@@ -1897,7 +2001,7 @@ app.put(
         contactEmail: String(body.contactEmail ?? "").trim(),
         phone: String(body.phone ?? "").trim(),
         website: String(body.website ?? "").trim(),
-      });
+      }, c.get("companyId"));
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "company.profile.update",
@@ -1925,7 +2029,7 @@ app.get(
   requirePermission("company.address.read"),
   async (c) => {
     try {
-      const data = await companyService.getAddress();
+      const data = await companyService.getAddress(c.get("companyId"));
       return c.json({ data });
     } catch (err) {
       if (err instanceof CompanyServiceError)
@@ -1954,7 +2058,7 @@ app.put(
         extNumber: String(body.extNumber ?? "").trim(),
         intNumber: String(body.intNumber ?? "").trim(),
         postalCode: String(body.postalCode ?? "").trim(),
-      });
+      }, c.get("companyId"));
       const { actorName } = getActivityContext(c);
       await publishActivityFromContext(prisma, c, {
         type: "company.address.update",
@@ -1982,7 +2086,7 @@ app.get(
   requirePermission("company.branding.read"),
   async (c) => {
     try {
-      const data = await companyService.getBranding();
+      const data = await companyService.getBranding(c.get("companyId"));
       return c.json({ data });
     } catch (err) {
       if (err instanceof CompanyServiceError)
@@ -2001,12 +2105,7 @@ app.put(
   requirePermission("company.branding.update"),
   async (c) => {
     try {
-      const companyIdRecord = await prisma.instanceConfig.findUnique({
-        where: { key: "company_id" },
-      });
-      if (!companyIdRecord?.value)
-        return c.json({ error: "No hay empresa activa configurada." }, 404);
-      const companyId = companyIdRecord.value;
+      const companyId = c.get("companyId");
       const body = await c.req.json();
       const primaryColor = String(body.primaryColor ?? "").trim();
       if (!/^#[0-9a-fA-F]{6}$/.test(primaryColor)) {

@@ -168,6 +168,15 @@ export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
         }),
     },
     company: {
+      // Platform-level: creates a brand-new company/tenant (system-admin
+      // only). Distinct from the rest of this group, which always operates
+      // on the requester's currently-active company.
+      create: (data, token) =>
+        request("/companies", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       getProfile: (token) =>
         request("/company/profile", { headers: withAuthHeaders(token) }),
       updateProfile: (data, token) =>
