@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare } from "lucide-react";
+import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2 } from "lucide-react";
 import { useThemeStore } from "../stores/theme";
 import { useChatFloatStore } from "../modules/atlas.chat/store/chatFloatStore";
+import { useActiveCompany } from "../company/ActiveCompanyProvider";
+import { CompanySwitcherModal } from "./CompanySwitcherModal";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -73,8 +75,10 @@ export function UserMenu({
   const { userProfile, logout } = useAuth();
   const { isDark, toggle: toggleTheme } = useThemeStore();
   const { hidden: chatHubHidden, show: showChatHub } = useChatFloatStore();
+  const { activeCompany } = useActiveCompany();
   const navigate = useNavigate();
   const [showReminder, setShowReminder] = useState(() => shouldShowDesktopReminder());
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
 
   const platform = getDevicePlatform();
   const standalone = isStandaloneMode();
@@ -249,6 +253,26 @@ export function UserMenu({
           </>
         )}
 
+        {/* Mobile-only: company switcher (hidden on md+ where CompanySwitcher
+            lives inline in the topbar — see Topbar.jsx's `hidden md:contents`).
+            Opens a modal (CompanySwitcherModal) rather than a nested dropdown,
+            which is awkward on touch. Shown whenever there's at least one
+            company to display or the user could create one. */}
+        {(activeCompany || userProfile?.isSystemAdmin) && (
+          <div className="md:hidden">
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setCompanyModalOpen(true)}
+              className="gap-2 cursor-pointer"
+            >
+              <Building2 size={14} />
+              <span className="flex-1 truncate">
+                {activeCompany?.name ?? "Cambiar empresa"}
+              </span>
+            </DropdownMenuItem>
+          </div>
+        )}
+
         {/* Mobile-only: activity + theme (hidden on sm+ where they live in topbar) */}
         <div className="sm:hidden">
           <DropdownMenuSeparator />
@@ -289,6 +313,9 @@ export function UserMenu({
           Cerrar sesión
         </DropdownMenuItem>
       </DropdownMenuContent>
+      {companyModalOpen && (
+        <CompanySwitcherModal onClose={() => setCompanyModalOpen(false)} />
+      )}
     </DropdownMenu>
   );
 }

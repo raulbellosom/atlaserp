@@ -12,7 +12,7 @@ import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { CreateCompanyDialog } from "./CreateCompanyDialog";
 
-function CompanyLogo({ company, size = 20 }) {
+export function CompanyLogo({ company, size = 20 }) {
   const initials = (company?.name ?? "E")
     .split(" ")
     .slice(0, 2)
