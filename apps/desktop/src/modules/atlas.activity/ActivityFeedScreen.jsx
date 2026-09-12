@@ -4,6 +4,7 @@ import { AtlasTable, PageHeader } from "@atlas/ui";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
+import { useActiveCompany } from "../../company/ActiveCompanyProvider";
 import { atlas } from "../../lib/atlas";
 import { getApiUrl } from "../../lib/runtimeConfig.js";
 import ActivityDetailSheet from "./ActivityDetailSheet";
@@ -86,6 +87,7 @@ function downloadBlob(blob, filename) {
 export default function ActivityFeedScreen() {
   const { session } = useAuth();
   const token = session?.access_token;
+  const { activeCompanyId } = useActiveCompany();
   const [selected, setSelected] = useState(null);
 
   const bulkActions = useMemo(
@@ -122,6 +124,7 @@ export default function ActivityFeedScreen() {
       <AtlasTable
         blueprint={ACTIVITY_BLUEPRINT}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         onView={setSelected}
         bulkActions={bulkActions}

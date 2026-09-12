@@ -31,6 +31,7 @@ import {
   normalizeRelationDescriptor,
 } from "./renderer-adapters.js";
 import { cn } from "../lib/utils.js";
+import { buildApiHeaders } from "../lib/apiHeaders.js";
 import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
 import {
   PRESET_COLORS,
@@ -125,6 +126,7 @@ export function AtlasForm({
   initialData,
   mode = "create",
   token,
+  companyId = null,
   apiBaseUrl,
   onSuccess,
   onCancel,
@@ -259,7 +261,7 @@ export function AtlasForm({
       }));
       try {
         const res = await fetch(cacheKey, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: buildApiHeaders(token, companyId),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -349,7 +351,7 @@ export function AtlasForm({
         return false;
       }
     },
-    [apiBaseUrl, token],
+    [apiBaseUrl, token, companyId],
   );
 
   // Reset form state when the form structure or initial data actually changes.
@@ -576,7 +578,7 @@ export function AtlasForm({
 
       const response = await fetch(joinUrl(apiBaseUrl, "/blueprints"), {
         method: "GET",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: buildApiHeaders(token, companyId),
       });
       if (!response.ok)
         throw new Error("No se pudieron cargar las vistas relacionadas.");
@@ -598,6 +600,7 @@ export function AtlasForm({
       nestedBlueprintRows,
       resolveBlueprintByKey,
       token,
+      companyId,
     ],
   );
 
@@ -832,10 +835,7 @@ export function AtlasForm({
         : joinUrl(apiBaseUrl, apiPath);
       const response = await fetch(endpoint, {
         method: isEditMode ? "PATCH" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: buildApiHeaders(token, companyId, { "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -1221,6 +1221,7 @@ export function AtlasForm({
           <AttachmentsPanel
             apiBaseUrl={apiBaseUrl}
             token={token}
+            companyId={companyId}
             recordId={recordId}
             config={{
               ...(section.attachments ?? {}),

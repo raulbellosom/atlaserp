@@ -11,6 +11,7 @@ import {
 import { ArrowLeft, Plus, UserPlus, Trash2, Landmark, Link2, Unlink2, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
@@ -39,6 +40,7 @@ export default function GroupScreen() {
   const navigate          = useNavigate()
   const { session }       = useAuth()
   const token             = session?.access_token ?? null
+  const { activeCompanyId } = useActiveCompany()
   const actorId           = session?.user?.id ?? null
   const queryClient       = useQueryClient()
   const headers           = { Authorization: `Bearer ${token}` }
@@ -492,6 +494,7 @@ export default function GroupScreen() {
         excludeIds={members.map((m) => m.user_id)}
         apiBase={API_BASE}
         token={token}
+        companyId={activeCompanyId}
       />
 
       <ConfirmDialog

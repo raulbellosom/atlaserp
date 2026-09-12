@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AtlasCrudView } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
@@ -75,6 +76,7 @@ export default function TypesScreen() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token ?? null
+  const { activeCompanyId } = useActiveCompany()
 
   const { initialMode, recordId } = useMemo(() => parseModeAndId(wildcard), [wildcard])
 
@@ -94,6 +96,7 @@ export default function TypesScreen() {
         formBlueprint={TYPES_FORM}
         detailBlueprint={TYPES_DETAIL}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode={initialMode}
         recordId={recordId}

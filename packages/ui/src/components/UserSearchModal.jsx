@@ -7,8 +7,9 @@ import { Button } from './Button.jsx'
 import { SelectField } from './FormFields.jsx'
 import { SearchInput } from './SearchInput.jsx'
 import { User, X } from 'lucide-react'
+import { buildApiHeaders } from '../lib/apiHeaders.js'
 
-export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeIds = [], apiBase, token }) {
+export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeIds = [], apiBase, token, companyId = null }) {
   const [query, setQuery]       = useState('')
   const [results, setResults]   = useState([])
   const [loading, setLoading]   = useState(false)
@@ -33,7 +34,7 @@ export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeI
       try {
         const res = await fetch(
           `${apiBase}/users/search?q=${encodeURIComponent(query)}&limit=10`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: buildApiHeaders(token, companyId) }
         )
         if (!res.ok) { setResults([]); return }
         const json = await res.json()
@@ -45,7 +46,7 @@ export function UserSearchModal({ open, onClose, onConfirm, roles = [], excludeI
       }
     }, 300)
     return () => clearTimeout(debounceRef.current)
-  }, [query, apiBase, token, excludeIds])
+  }, [query, apiBase, token, companyId, excludeIds])
 
   function handleConfirm() {
     if (!selected || !role) return

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AtlasCrudView } from '@atlas/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { atlas } from '../../../lib/atlas'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -142,6 +143,7 @@ export default function ReportDetailScreen() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token ?? null
+  const { activeCompanyId } = useActiveCompany()
 
   const recordId = useMemo(() => {
     // wildcard: 'reports/:id'
@@ -176,6 +178,7 @@ export default function ReportDetailScreen() {
         tableBlueprint={REPORT_TABLE_STUB}
         detailBlueprint={detailBlueprint}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode="detail"
         recordId={recordId}

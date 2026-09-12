@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AtlasCrudView } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
@@ -129,6 +130,7 @@ export default function ReportFormPage() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token ?? null
+  const { activeCompanyId } = useActiveCompany()
 
   const { reportType, recordId, mode } = useMemo(() => {
     // Supported shapes:
@@ -170,6 +172,7 @@ export default function ReportFormPage() {
         tableBlueprint={REPORT_TABLE_STUB}
         formBlueprint={formBlueprint}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode={mode}
         recordId={recordId}

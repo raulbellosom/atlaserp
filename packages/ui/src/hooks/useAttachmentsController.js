@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildApiHeaders } from "../lib/apiHeaders.js";
 
 const DEFAULT_FIELDS = {
   id: "id",
@@ -172,10 +173,6 @@ function inferDocumentTypeFromFile(file) {
   }).kind;
 }
 
-function toHeaders(token) {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 function normalizeAssociatedItem(rawItem, fields) {
   const fileAsset =
     getByPath(rawItem, fields.fileAsset) ?? rawItem?.file_asset ?? rawItem?.fileAsset ?? null;
@@ -259,6 +256,7 @@ function normalizeEditMode(config) {
 export function useAttachmentsController({
   apiBaseUrl,
   token,
+  companyId = null,
   recordId,
   config,
   context = "detail",
@@ -330,7 +328,7 @@ export function useAttachmentsController({
         const endpointPath = replacePathTokens(config.listPath, { id: effectiveRecordId });
         const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
           method: "GET",
-          headers: toHeaders(token),
+          headers: buildApiHeaders(token, companyId),
         });
         const text = await response.text();
         const payload = parseJsonSafe(text);
@@ -356,6 +354,7 @@ export function useAttachmentsController({
     },
     [
       apiBaseUrl,
+      companyId,
       config?.listPath,
       normalizedFields,
       recordId,
@@ -414,7 +413,7 @@ export function useAttachmentsController({
 
         const uploadResponse = await fetch(joinUrl(apiBaseUrl, config.upload.endpoint), {
           method: "POST",
-          headers: toHeaders(token),
+          headers: buildApiHeaders(token, companyId),
           body: formData,
         });
         const uploadText = await uploadResponse.text();
@@ -454,10 +453,7 @@ export function useAttachmentsController({
         const addPath = replacePathTokens(config.addPath, { id: effectiveRecordId });
         const addResponse = await fetch(joinUrl(apiBaseUrl, addPath), {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...toHeaders(token),
-          },
+          headers: buildApiHeaders(token, companyId, { "Content-Type": "application/json" }),
           body: JSON.stringify(associationPayload),
         });
         const addText = await addResponse.text();
@@ -496,7 +492,7 @@ export function useAttachmentsController({
         return { ok: false, error: message };
       }
     },
-    [apiBaseUrl, canUpload, config, token],
+    [apiBaseUrl, canUpload, companyId, config, token],
   );
 
   const flushPending = useCallback(
@@ -665,7 +661,7 @@ export function useAttachmentsController({
       const endpointPath = replacePathTokens(endpointTemplate, { fileId: fileAssetId });
       const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
         method: "GET",
-        headers: toHeaders(token),
+        headers: buildApiHeaders(token, companyId),
       });
       const text = await response.text();
       const payload = parseJsonSafe(text);
@@ -676,7 +672,7 @@ export function useAttachmentsController({
       if (!url) throw new Error("Archivo no disponible");
       return url;
     },
-    [apiBaseUrl, config?.signedUrl?.endpointTemplate, token],
+    [apiBaseUrl, companyId, config?.signedUrl?.endpointTemplate, token],
   );
 
   const openAssociated = useCallback(
@@ -780,7 +776,7 @@ export function useAttachmentsController({
         });
         const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
           method: "DELETE",
-          headers: toHeaders(token),
+          headers: buildApiHeaders(token, companyId),
         });
         const text = await response.text();
         const payload = parseJsonSafe(text);
@@ -802,7 +798,7 @@ export function useAttachmentsController({
         return { ok: false, error: message };
       }
     },
-    [apiBaseUrl, canWrite, config?.removePath, loadAssociated, recordId, setGlobalError, token],
+    [apiBaseUrl, canWrite, companyId, config?.removePath, loadAssociated, recordId, setGlobalError, token],
   );
 
   const closeViewer = useCallback(() => {

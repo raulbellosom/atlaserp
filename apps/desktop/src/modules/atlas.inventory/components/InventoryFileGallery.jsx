@@ -119,10 +119,11 @@ function FileRow({ file, kind, onOpen, onDownload }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function InventoryFileGallery({ item, token, apiBaseUrl, config }) {
+export function InventoryFileGallery({ item, token, companyId = null, apiBaseUrl, config }) {
   const controller = useAttachmentsController({
     apiBaseUrl,
     token,
+    companyId,
     recordId: item.id,
     config,
     context: 'detail',

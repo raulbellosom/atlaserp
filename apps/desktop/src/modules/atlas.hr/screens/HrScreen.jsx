@@ -5,6 +5,7 @@ import { AtlasTable, Button, ErrorState, LoadingState, PageHeader } from "@atlas
 import { FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { atlas } from "../../../lib/atlas";
 import { buildHrEmployeesTableProps } from "../lib/hr-employees-table-props.js";
 import { resolveHrScreenAccess } from "../lib/hr-screen-access.js";
@@ -88,6 +89,7 @@ function downloadBlob(blob, filename) {
 export default function HrScreen() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const { activeCompanyId } = useActiveCompany();
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
@@ -220,6 +222,7 @@ export default function HrScreen() {
         {...buildHrEmployeesTableProps({
           blueprint: HR_EMPLOYEES_BLUEPRINT,
           token,
+          companyId: activeCompanyId,
           onView: (row) => navigate(`/app/m/atlas.hr/hr/employees/${row.id}`),
           bulkActions,
         })}

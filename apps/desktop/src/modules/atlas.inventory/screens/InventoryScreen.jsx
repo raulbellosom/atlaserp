@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { AtlasTable, Button, ConfirmDialog, PageHeader } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { atlas } from '../../../lib/atlas.js'
 import { useInventoryCategories, useInventoryBrands, useInventoryLocations } from '../hooks/useInventoryCatalogs.js'
@@ -16,6 +17,7 @@ export default function InventoryScreen() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token
+  const { activeCompanyId } = useActiveCompany()
   const queryClient = useQueryClient()
 
   const [confirmDelete, setConfirmDelete] = useState(null)
@@ -100,6 +102,7 @@ export default function InventoryScreen() {
       <AtlasTable
         blueprint={blueprint}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={getApiUrl()}
         onView={row => {
           queryClient.prefetchQuery({

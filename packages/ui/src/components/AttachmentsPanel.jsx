@@ -476,6 +476,7 @@ function AssociatedFilesList({
 export function AttachmentsPanel({
   apiBaseUrl,
   token,
+  companyId = null,
   recordId,
   config,
   context = "detail",
@@ -494,6 +495,7 @@ export function AttachmentsPanel({
   const controller = useAttachmentsController({
     apiBaseUrl,
     token,
+    companyId,
     recordId,
     config,
     context,

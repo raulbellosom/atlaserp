@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AtlasTable, Button, PageHeader } from '@atlas/ui'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
@@ -132,6 +133,7 @@ export default function ReportsScreen() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token ?? null
+  const { activeCompanyId } = useActiveCompany()
 
   const reportType = useMemo(() => {
     const segs = String(wildcard ?? '').replace(/^\/+/, '').split('/')
@@ -189,6 +191,7 @@ export default function ReportsScreen() {
       <AtlasTable
         blueprint={currentBlueprint}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         componentRegistry={componentRegistry}
         onView={handleView}

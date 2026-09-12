@@ -41,6 +41,7 @@ import {
   fetchSignedUrl,
   initialsFromName,
 } from "./atlas-detail-hero.jsx";
+import { buildApiHeaders } from "../lib/apiHeaders.js";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -524,7 +525,7 @@ function normalizeTextValue(value) {
   return String(value).trim();
 }
 
-function RelationCardSection({ section, data, apiBaseUrl, token }) {
+function RelationCardSection({ section, data, apiBaseUrl, token, companyId = null }) {
   const relationCard = section.relationCard;
   const [avatarUrl, setAvatarUrl] = useState(null);
 
@@ -542,13 +543,13 @@ function RelationCardSection({ section, data, apiBaseUrl, token }) {
       };
     }
     (async () => {
-      const url = await fetchSignedUrl(apiBaseUrl, token, avatarAssetId);
+      const url = await fetchSignedUrl(apiBaseUrl, token, avatarAssetId, companyId);
       if (!cancelled) setAvatarUrl(url);
     })();
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, token, avatarAssetId]);
+  }, [apiBaseUrl, token, avatarAssetId, companyId]);
 
   if (!relationCard?.idField) {
     return (
@@ -664,7 +665,7 @@ function RelationCardSection({ section, data, apiBaseUrl, token }) {
   );
 }
 
-function RelationListSection({ section, data, apiBaseUrl, token }) {
+function RelationListSection({ section, data, apiBaseUrl, token, companyId = null }) {
   const relationList = section.relationList;
   const recordId = data?.id ?? null;
   const [items, setItems] = useState([]);
@@ -690,7 +691,7 @@ function RelationListSection({ section, data, apiBaseUrl, token }) {
         });
         const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
           method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: buildApiHeaders(token, companyId),
         });
         const text = await response.text();
         const payload = parseJsonSafe(text);
@@ -888,6 +889,7 @@ export function AtlasDetail({
   heroActions,
   token,
   apiBaseUrl,
+  companyId = null,
 }) {
   const schema = blueprint?.schema ?? {};
   const fieldMap = useMemo(() => normalizeFieldMap(fields), [fields]);
@@ -961,6 +963,7 @@ export function AtlasDetail({
         <AttachmentsPanel
           apiBaseUrl={apiBaseUrl}
           token={token}
+          companyId={companyId}
           recordId={data?.id ?? null}
           config={section.attachments ?? {}}
           context="detail"
@@ -975,6 +978,7 @@ export function AtlasDetail({
           data={data}
           apiBaseUrl={apiBaseUrl}
           token={token}
+          companyId={companyId}
         />
       ) : null}
 
@@ -984,6 +988,7 @@ export function AtlasDetail({
           data={data}
           apiBaseUrl={apiBaseUrl}
           token={token}
+          companyId={companyId}
         />
       ) : null}
 
@@ -1052,6 +1057,7 @@ export function AtlasDetail({
           data={data}
           apiBaseUrl={apiBaseUrl}
           token={token}
+          companyId={companyId}
           actions={heroActions ?? fallbackActions}
           renderValue={renderValue}
         />

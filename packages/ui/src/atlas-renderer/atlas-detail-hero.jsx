@@ -6,6 +6,7 @@ import { Badge } from "../components/Badge.jsx";
 import { DetailHero } from "../components/DetailHero.jsx";
 import { StatStrip } from "../components/StatStrip.jsx";
 import { replacePathTokens } from "./detail-presentation.js";
+import { buildApiHeaders } from "../lib/apiHeaders.js";
 
 function joinUrl(baseUrl, apiPath) {
   const base = String(baseUrl ?? "")
@@ -36,12 +37,12 @@ function extractArrayPayload(payload) {
   return [];
 }
 
-export async function fetchSignedUrl(apiBaseUrl, token, fileAssetId) {
+export async function fetchSignedUrl(apiBaseUrl, token, fileAssetId, companyId = null) {
   if (!fileAssetId) return null;
   try {
     const res = await fetch(
       joinUrl(apiBaseUrl, `/files/${encodeURIComponent(fileAssetId)}/signed-url`),
-      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      { headers: buildApiHeaders(token, companyId) },
     );
     if (!res.ok) return null;
     const payload = parseJsonSafe(await res.text());
@@ -51,12 +52,12 @@ export async function fetchSignedUrl(apiBaseUrl, token, fileAssetId) {
   }
 }
 
-async function fetchFirstImageAssetId(apiBaseUrl, token, docsPath, recordId) {
+async function fetchFirstImageAssetId(apiBaseUrl, token, docsPath, recordId, companyId = null) {
   if (!docsPath || !recordId) return null;
   try {
     const path = replacePathTokens(docsPath, { id: recordId });
     const res = await fetch(joinUrl(apiBaseUrl, path), {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: buildApiHeaders(token, companyId),
     });
     if (!res.ok) return null;
     const rows = extractArrayPayload(parseJsonSafe(await res.text()));
@@ -101,6 +102,7 @@ export function HeroContainer({
   data,
   apiBaseUrl,
   token,
+  companyId = null,
   actions,
   renderValue,
 }) {
@@ -119,6 +121,7 @@ export function HeroContainer({
           token,
           heroModel.imageDocsPath,
           data?.id,
+          companyId,
         );
       }
       if (!assetId) {
@@ -128,7 +131,7 @@ export function HeroContainer({
         }
         return;
       }
-      const url = await fetchSignedUrl(apiBaseUrl, token, assetId);
+      const url = await fetchSignedUrl(apiBaseUrl, token, assetId, companyId);
       if (!cancelled) {
         setImageUrl(url);
         setImageLoading(false);
@@ -138,7 +141,7 @@ export function HeroContainer({
     return () => {
       cancelled = true;
     };
-  }, [apiBaseUrl, token, heroModel.imageAssetId, heroModel.imageDocsPath, data?.id]);
+  }, [apiBaseUrl, token, companyId, heroModel.imageAssetId, heroModel.imageDocsPath, data?.id]);
 
   const kpiRenderItems = kpiItems.map((item) => ({
     key: item.key,

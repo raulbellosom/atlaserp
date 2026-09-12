@@ -20,6 +20,7 @@ import {
   resolveAccentColor,
   resolveFormMode,
 } from "./renderer-adapters.js";
+import { buildApiHeaders } from "../lib/apiHeaders.js";
 
 const MODES = new Set(["list", "create", "detail", "edit"]);
 
@@ -93,6 +94,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
   detailBlueprint,
   fields,
   token,
+  companyId = null,
   apiBaseUrl,
   componentRegistry = null,
   suppressToolbarCreate = false,
@@ -168,7 +170,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
         const endpoint = `${joinUrl(apiBaseUrl, tableApiPath)}/${encodeURIComponent(String(nextRecordId))}`;
         const response = await fetch(endpoint, {
           method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: buildApiHeaders(token, companyId),
         });
         if (!response.ok) {
           const text = await response.text();
@@ -192,7 +194,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
         setLoadingRecord(false);
       }
     },
-    [apiBaseUrl, tableApiPath, token],
+    [apiBaseUrl, tableApiPath, token, companyId],
   );
 
   useEffect(() => {
@@ -278,7 +280,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
       const endpoint = `${joinUrl(apiBaseUrl, tableApiPath)}/${encodeURIComponent(String(id))}`;
       const response = await fetch(endpoint, {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: buildApiHeaders(token, companyId),
       });
       if (!response.ok) {
         const text = await response.text();
@@ -334,7 +336,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
       try {
         const response = await fetch(joinUrl(apiBaseUrl, endpointPath), {
           method,
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: buildApiHeaders(token, companyId),
         });
         if (!response.ok) {
           const text = await response.text();
@@ -372,7 +374,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
         setHeaderActionLoadingKey("");
       }
     },
-    [apiBaseUrl, fetchRecord, recordData, token],
+    [apiBaseUrl, fetchRecord, recordData, token, companyId],
   );
 
   const renderRecordLoadingOrError = () => {
@@ -437,6 +439,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                 initialData={{}}
                 mode="create"
                 token={token}
+                companyId={companyId}
                 apiBaseUrl={apiBaseUrl}
                 onSuccess={handleFormSuccess}
                 onCancel={goToList}
@@ -505,6 +508,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                       data={recordData}
                       accentColor={accentColor}
                       token={token}
+                companyId={companyId}
                       apiBaseUrl={apiBaseUrl}
                       onBack={heroEnabled ? goToList : undefined}
                       heroActions={heroEnabled ? detailActions : undefined}
@@ -544,6 +548,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                     initialData={recordData}
                     mode="edit"
                     token={token}
+                companyId={companyId}
                     apiBaseUrl={apiBaseUrl}
                     onSuccess={handleFormSuccess}
                     onCancel={goToList}
@@ -559,6 +564,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
             key={tableBlueprint?.key ?? tableApiPath}
             blueprint={tableBlueprint}
             token={token}
+                companyId={companyId}
             apiBaseUrl={apiBaseUrl}
             componentRegistry={componentRegistry}
             accentColor={accentColor}
@@ -599,6 +605,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                       initialData={{}}
                       mode="create"
                       token={token}
+                companyId={companyId}
                       apiBaseUrl={apiBaseUrl}
                       onSuccess={handleFormSuccess}
                       onCancel={goToList}
@@ -628,6 +635,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                           data={recordData}
                           accentColor={accentColor}
                           token={token}
+                companyId={companyId}
                           apiBaseUrl={apiBaseUrl}
                           onEdit={
                             currentFormBlueprint
@@ -661,6 +669,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                           initialData={recordData}
                           mode="edit"
                           token={token}
+                companyId={companyId}
                           apiBaseUrl={apiBaseUrl}
                           onSuccess={handleFormSuccess}
                           onCancel={goToList}

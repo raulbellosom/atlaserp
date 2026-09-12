@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AtlasCrudView, Button, PageHeader } from "@atlas/ui";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { componentRegistry } from "../../../lib/moduleComponentRegistry";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
@@ -565,6 +566,7 @@ export default function VehiclesScreen() {
   const navigate = useNavigate();
   const { session, userProfile } = useAuth();
   const token = session?.access_token ?? null;
+  const { activeCompanyId } = useActiveCompany();
   const canCreate = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("fleet.vehicles.create"));
 
   const { initialMode, recordId } = useMemo(
@@ -609,6 +611,7 @@ export default function VehiclesScreen() {
         formBlueprint={VEHICLE_FORM}
         detailBlueprint={VEHICLE_DETAIL}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode={initialMode}
         recordId={recordId}

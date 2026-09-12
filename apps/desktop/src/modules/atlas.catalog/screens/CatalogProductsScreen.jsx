@@ -9,6 +9,7 @@ import {
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { atlas } from '../../../lib/atlas.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
@@ -75,6 +76,7 @@ const CATALOG_PRODUCTS_BLUEPRINT = {
 export default function CatalogProductsScreen() {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
+  const { activeCompanyId } = useActiveCompany()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const permissions = userProfile?.permissions ?? []
@@ -140,6 +142,7 @@ export default function CatalogProductsScreen() {
       <AtlasTable
         blueprint={CATALOG_PRODUCTS_BLUEPRINT}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         onView={row => navigate(`/app/m/atlas.catalog/${row.id}`)}
         onEdit={canUpdate ? row => navigate(`/app/m/atlas.catalog/${row.id}`) : undefined}

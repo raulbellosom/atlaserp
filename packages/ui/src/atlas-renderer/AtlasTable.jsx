@@ -29,6 +29,7 @@ import {
 } from "./renderer-adapters.js";
 import { resolveColorHex } from "./atlas-form-utils.js";
 import { formatTableDate } from "../lib/utils.js";
+import { buildApiHeaders } from "../lib/apiHeaders.js";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -278,6 +279,7 @@ function ColorCell({ value }) {
 export function AtlasTable({
   blueprint,
   token,
+  companyId = null,
   apiBaseUrl,
   componentRegistry = null,
   accentColor = null,
@@ -482,7 +484,7 @@ export function AtlasTable({
         const endpoint = `${joinUrl(apiBaseUrl, apiPath)}?${params.toString()}`;
         const response = await fetch(endpoint, {
           method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: buildApiHeaders(token, companyId),
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -528,6 +530,7 @@ export function AtlasTable({
     sortBy,
     sortDir,
     token,
+    companyId,
   ]);
 
   useEffect(() => {

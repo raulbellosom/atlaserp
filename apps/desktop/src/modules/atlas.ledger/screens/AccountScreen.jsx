@@ -30,6 +30,7 @@ import {
 import SpreadsheetRegister from "./SpreadsheetRegister.jsx";
 import AccountSummary from "./AccountSummary.jsx";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
   useLedgerSQLite,
@@ -60,6 +61,7 @@ export default function AccountScreen() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
+  const { activeCompanyId } = useActiveCompany();
   const { isUsingLocalLedger } = useLedgerSQLite();
 
   const [activeTab, setActiveTab] = useState("registro");
@@ -544,6 +546,7 @@ export default function AccountScreen() {
                   excludeIds={members.map((member) => member.user_id)}
                   apiBase={API_BASE}
                   token={token}
+                  companyId={activeCompanyId}
                 />
 
                 <ConfirmDialog

@@ -17,6 +17,7 @@ import {
 } from "@atlas/ui";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { atlas } from "../lib/atlas";
 import { getApiUrl } from "../lib/runtimeConfig.js";
@@ -534,6 +535,7 @@ export function BlueprintCrudScreen() {
   const location = useLocation();
   const { session } = useAuth();
   const token = session?.access_token ?? null;
+  const { activeCompanyId } = useActiveCompany();
   const authUserId = session?.user?.id ?? "anonymous";
   const { moduleMap } = useRuntimeModules();
   const module = moduleMap.get(moduleKey) ?? null;
@@ -1086,6 +1088,7 @@ export function BlueprintCrudScreen() {
           detailBlueprint={selection.detailBlueprint}
           fields={fields}
           token={token}
+          companyId={activeCompanyId}
           apiBaseUrl={API_BASE_URL}
           componentRegistry={componentRegistry}
           module={module}

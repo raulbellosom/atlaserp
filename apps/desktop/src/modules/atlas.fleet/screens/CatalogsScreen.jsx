@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AtlasCrudView, PageHeader } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
@@ -112,6 +113,7 @@ export default function CatalogsScreen() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token ?? null
+  const { activeCompanyId } = useActiveCompany()
 
   const catalogKey = useMemo(() => {
     const segs = String(wildcard ?? '').replace(/^\/+/, '').split('/')
@@ -152,6 +154,7 @@ export default function CatalogsScreen() {
         tableBlueprint={tableBlueprint}
         formBlueprint={formBlueprint}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE}
         initialMode="list"
       />

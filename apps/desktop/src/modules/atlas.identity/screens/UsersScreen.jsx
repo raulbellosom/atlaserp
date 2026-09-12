@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { atlas } from "../../../lib/atlas";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
@@ -120,6 +121,7 @@ export default function UsersScreen() {
   const navigate = useNavigate();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const { activeCompanyId } = useActiveCompany();
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
@@ -267,6 +269,7 @@ export default function UsersScreen() {
         <AtlasTable
           blueprint={USERS_BLUEPRINT}
           token={token}
+          companyId={activeCompanyId}
           apiBaseUrl={API_BASE_URL}
           onView={(row) => navigate(`/app/m/atlas.identity/identity/users/${row.id}`)}
           onEdit={

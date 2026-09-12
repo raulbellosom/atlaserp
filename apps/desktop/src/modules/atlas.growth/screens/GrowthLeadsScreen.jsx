@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { atlas } from "../../../lib/atlas.js";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { componentRegistry } from "../../../lib/moduleComponentRegistry.js";
@@ -75,6 +76,7 @@ export default function GrowthLeadsScreen() {
   const queryClient = useQueryClient();
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const { activeCompanyId } = useActiveCompany();
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) =>
     Boolean(userProfile?.isAdmin || permissions.includes(key));
@@ -158,6 +160,7 @@ export default function GrowthLeadsScreen() {
       <AtlasTable
         blueprint={LEADS_BLUEPRINT}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         componentRegistry={componentRegistry}
         onView={(row) => navigate(`/app/m/atlas.growth/leads/${row.id}`)}

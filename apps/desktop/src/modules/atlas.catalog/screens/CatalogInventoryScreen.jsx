@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { AtlasTable, PageHeader } from '@atlas/ui'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE_URL = getApiUrl()
@@ -69,6 +70,7 @@ const INVENTORY_BLUEPRINT = {
 export default function CatalogInventoryScreen() {
   const { session } = useAuth()
   const token = session?.access_token
+  const { activeCompanyId } = useActiveCompany()
   const navigate = useNavigate()
 
   return (
@@ -82,6 +84,7 @@ export default function CatalogInventoryScreen() {
       <AtlasTable
         blueprint={INVENTORY_BLUEPRINT}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         onView={row => navigate(`/app/m/atlas.catalog/${row.id}`)}
       />

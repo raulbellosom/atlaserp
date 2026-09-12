@@ -6,6 +6,7 @@ import { AtlasTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@atla
 import { FileSpreadsheet, FileText, Power, PowerOff, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { atlas } from "../../../lib/atlas";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
@@ -93,6 +94,7 @@ function getUniformStatusMode(rows) {
 export default function ContactsScreen() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  const { activeCompanyId } = useActiveCompany();
   const authUserId = session?.user?.id ?? "anonymous";
   const permissions = userProfile?.permissions ?? [];
   const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key));
@@ -327,6 +329,7 @@ export default function ContactsScreen() {
       <AtlasTable
         blueprint={CONTACTS_BLUEPRINT}
         token={token}
+        companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         onCreate={canCreateContacts ? openCreate : undefined}
         onEdit={canUpdateContacts ? openEdit : undefined}
