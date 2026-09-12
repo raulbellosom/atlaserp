@@ -20,6 +20,7 @@ import {
   reorderLayer,
   mergeDown,
   duplicateLayer,
+  deleteLayerElements,
 } from '../canvasLayers.js'
 
 const L = (id, over = {}) => ({
@@ -265,10 +266,16 @@ test('reorderLayer: moving a layer changes derived z-order', () => {
 
 test('mergeDown: reassigns elements of a layer to the one below and drops the layer', () => {
   const layers = [L('low', { order: 0 }), L('high', { order: 1 })]
-  const els = [E('a', 'low'), E('b', 'high')]
+  const els = [E('a', 'low', { version: 1 }), E('b', 'high', { version: 1 })]
   const { layers: nl, elements: ne } = mergeDown(layers, els, 'high')
   assert.deepEqual(nl.map((l) => l.id), ['low'])
   assert.deepEqual(ne.map((e) => e.customData.layerId), ['low', 'low'])
+  // Regression: a reassigned element's version must bump, or the layer-id
+  // change never shows up in the peer-to-peer element diff (diffElements only
+  // reports elements whose version rose) — the merge would apply locally but
+  // never reach other connected clients.
+  assert.equal(ne.find((e) => e.id === 'b').version, 2)
+  assert.equal(ne.find((e) => e.id === 'a').version, 1) // untouched element unaffected
 })
 
 test('mergeDown: the bottom layer cannot merge down (no-op)', () => {
@@ -288,4 +295,29 @@ test('duplicateLayer: clones the layer and its elements with fresh ids', () => {
   const dupEls = ne.filter((e) => e.customData.layerId === dup.id)
   assert.equal(dupEls.length, 2)
   assert.equal(dupEls.every((e) => e.id !== 'a' && e.id !== 'b'), true)
+})
+
+// Regression: layer deletion used to filter the layer's elements out of the
+// array entirely (elements.filter(el => layerId !== id)). A removed-not-marked
+// element never shows up in diffElements (which only inspects nextElements),
+// so already-connected remote peers were never told those elements were
+// deleted — they'd keep rendering them, and could even resurrect them on
+// their own next autosave. Marking isDeleted (like the single-element
+// deleteElement helper already does) lets the deletion travel through the
+// normal version-diff broadcast/reconcile path.
+test('deleteLayerElements: marks the layer\'s elements deleted (kept in the array) so the deletion can sync', () => {
+  const els = [E('a', 'x', { version: 1 }), E('b', 'x', { version: 1 }), E('c', 'y', { version: 1 })]
+  const out = deleteLayerElements(els, 'x')
+  assert.equal(out.length, 3) // nothing removed from the array
+  assert.equal(out.find((e) => e.id === 'a').isDeleted, true)
+  assert.equal(out.find((e) => e.id === 'a').version, 2)
+  assert.equal(out.find((e) => e.id === 'b').isDeleted, true)
+  assert.equal(out.find((e) => e.id === 'c').isDeleted, false) // other layer untouched
+  assert.equal(out.find((e) => e.id === 'c').version, 1)
+})
+
+test('deleteLayerElements: already-deleted elements are left alone (no double bump)', () => {
+  const els = [E('a', 'x', { version: 3, isDeleted: true })]
+  const out = deleteLayerElements(els, 'x')
+  assert.equal(out[0].version, 3)
 })

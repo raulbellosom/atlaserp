@@ -26,6 +26,7 @@ import {
   renameElement,
   mergeDown,
   duplicateLayer,
+  deleteLayerElements,
 } from '../lib/canvasLayers.js'
 import { SupabaseCanvasSync } from '../lib/SupabaseCanvasSync.js'
 import { syncNewImages, hydrateImages, pickManifest } from '../lib/canvasImages.js'
@@ -176,6 +177,11 @@ export function CanvasEditor({ note }) {
         apiRef.current?.updateScene({
           elements: deriveScene(elementsRef.current, snap.layers ?? layersRef.current),
         })
+      },
+      onRemoteLayers: (remoteLayers) => {
+        const ls = ensureLayers(remoteLayers)
+        setLayers(ls)
+        apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, ls) })
       },
       onRemoteFiles: async (files) => {
         filesManifestRef.current = { ...filesManifestRef.current, ...files }
@@ -343,6 +349,7 @@ export function CanvasEditor({ note }) {
   const mutateLayers = useCallback(
     (next) => {
       setLayers(next)
+      syncRef.current?.broadcastLayers(next)
       persist()
     },
     [persist],
@@ -370,7 +377,10 @@ export function CanvasEditor({ note }) {
       const layersToUse = nextLayers ?? layersRef.current
       const scene = deriveScene(nextElements, layersToUse).map((el) => ({ ...el, index: null }))
       apiRef.current?.updateScene({ elements: scene, captureUpdate: 'IMMEDIATELY' })
-      if (nextLayers) setLayers(nextLayers)
+      if (nextLayers) {
+        setLayers(nextLayers)
+        syncRef.current?.broadcastLayers(nextLayers)
+      }
       syncRef.current?.notifyLocalChange()
       persist()
       setElementsVersion((v) => v + 1)
@@ -438,11 +448,13 @@ export function CanvasEditor({ note }) {
       const nextLocked = !layer?.locked
       elementsRef.current = setLayerLocked(elementsRef.current, id, nextLocked)
       apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
+      syncRef.current?.notifyLocalChange()
       mutateLayers(layers.map((l) => (l.id === id ? { ...l, locked: nextLocked } : l)))
     },
     onOpacity: (id, opacity) => {
       elementsRef.current = setLayerOpacity(elementsRef.current, id, opacity)
       apiRef.current?.updateScene({ elements: deriveScene(elementsRef.current, layers) })
+      syncRef.current?.notifyLocalChange()
       mutateLayers(layers.map((l) => (l.id === id ? { ...l, opacity } : l)))
     },
     onReorderList: (topFirst) => applyOrder(elementsRef.current, orderFromTopFirst(topFirst)),
@@ -465,7 +477,7 @@ export function CanvasEditor({ note }) {
     },
     onDelete: (id) => {
       if (layers.length === 1) return
-      const ne = elementsRef.current.filter((el) => el.customData?.layerId !== id)
+      const ne = deleteLayerElements(elementsRef.current, id)
       const nl = [...layers]
         .filter((l) => l.id !== id)
         .sort((a, b) => a.order - b.order)

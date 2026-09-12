@@ -165,6 +165,18 @@ export function deleteElement(elements, id) {
   return elements.map((el) => (el.id === id ? bumpVersion({ ...el, isDeleted: true }) : el))
 }
 
+// Mark every element of `layerId` deleted, in place (never filter them out of
+// the array) — mirrors deleteElement's tombstone approach so the removal
+// travels through the normal version-diff broadcast/reconcile path instead of
+// silently vanishing from one client's local array.
+export function deleteLayerElements(elements, layerId) {
+  return elements.map((el) =>
+    el.customData?.layerId === layerId && !el.isDeleted
+      ? bumpVersion({ ...el, isDeleted: true })
+      : el,
+  )
+}
+
 // Merge Excalidraw's post-change list (which only ever contains visible-layer
 // elements) back into the full list by re-appending the elements that live on
 // currently-hidden layers. Order does not matter — deriveScene re-sorts.
@@ -274,7 +286,7 @@ export function mergeDown(layers, elements, layerId) {
   const nextLayers = sorted.filter((l) => l.id !== layerId).map((l, i) => ({ ...l, order: i }))
   const nextElements = elements.map((el) =>
     el.customData?.layerId === layerId
-      ? { ...el, customData: { ...el.customData, layerId: belowId } }
+      ? bumpVersion({ ...el, customData: { ...el.customData, layerId: belowId } })
       : el,
   )
   return { layers: nextLayers, elements: nextElements }

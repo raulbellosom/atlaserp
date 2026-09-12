@@ -17,6 +17,7 @@ export class SupabaseCanvasSync {
     onRemoteElements, // (reconciled: Element[]) => void
     onRemoteSnapshot, // ({ elements, layers, appState, files }) => void
     onRemoteFiles, // (manifestSubset) => void
+    onRemoteLayers, // (layers: Layer[]) => void
     onRemotePointer, // ({ senderId, x, y, selectedElementIds, user }) => void
     onPresence, // (list) => void
     onStatus, // (status) => void
@@ -30,6 +31,7 @@ export class SupabaseCanvasSync {
     this._onRemoteElements = onRemoteElements
     this._onRemoteSnapshot = onRemoteSnapshot
     this._onRemoteFiles = onRemoteFiles
+    this._onRemoteLayers = onRemoteLayers
     this._onRemotePointer = onRemotePointer
     this._onPresence = onPresence
     this._onStatus = onStatus
@@ -40,6 +42,7 @@ export class SupabaseCanvasSync {
     this._sentVersions = new Map()
 
     this._sendDeltaThrottled = throttle(() => this._flushDelta(), 200)
+    this._sendLayersThrottled = throttle((layers) => this._rawSend('scene.layers', { layers, senderId: this._identity.id }), 200)
     this._sendPointerThrottled = throttle((p) => this._rawSend('pointer', p), 50)
 
     this._init()
@@ -83,6 +86,9 @@ export class SupabaseCanvasSync {
       .on('broadcast', { event: 'scene.request' }, () => this._answerRequest())
       .on('broadcast', { event: 'scene.files' }, ({ payload }) => {
         if (payload?.files && this._onRemoteFiles) this._onRemoteFiles(payload.files)
+      })
+      .on('broadcast', { event: 'scene.layers' }, ({ payload }) => {
+        if (Array.isArray(payload?.layers) && this._onRemoteLayers) this._onRemoteLayers(payload.layers)
       })
       .on('broadcast', { event: 'pointer' }, ({ payload }) => {
         if (payload && this._onRemotePointer) this._onRemotePointer(payload)
@@ -160,6 +166,16 @@ export class SupabaseCanvasSync {
   broadcastFiles(manifestSubset) {
     if (this._readOnly || !manifestSubset || !Object.keys(manifestSubset).length) return
     this._rawSend('scene.files', { files: manifestSubset, senderId: this._identity.id })
+  }
+
+  // Layer metadata (name/order/visible/locked/opacity/color) lives outside the
+  // elements array, so it never rides the scene.delta version-diff — without
+  // this, already-connected peers only ever see it once, at join time (full
+  // snapshot), and creating/renaming/reordering/deleting a layer looks like it
+  // never left the tab that made the change.
+  broadcastLayers(layers) {
+    if (this._readOnly || !Array.isArray(layers)) return
+    this._sendLayersThrottled(layers)
   }
 
   // Called by CanvasEditor after every local onChange.
