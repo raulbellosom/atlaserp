@@ -1,6 +1,143 @@
-import { describe, it } from 'node:test'
+import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { isAssetPath, resolveHtmlCandidates, injectSeoTags, rewriteDistHtml, injectAtlasConfig } from '../dist-serve-service.js'
+import {
+  isAssetPath,
+  resolveHtmlCandidates,
+  injectSeoTags,
+  rewriteDistHtml,
+  injectAtlasConfig,
+  normalizeHost,
+  createDistServeService,
+  invalidatePrimaryCache,
+} from '../dist-serve-service.js'
+
+describe('normalizeHost', () => {
+  it('returns null for null/undefined/empty input', () => {
+    assert.equal(normalizeHost(null), null)
+    assert.equal(normalizeHost(undefined), null)
+    assert.equal(normalizeHost(''), null)
+  })
+
+  it('strips protocol, path, port, and a leading www.', () => {
+    assert.equal(normalizeHost('https://www.Example.com/some/path'), 'example.com')
+    assert.equal(normalizeHost('http://example.com:8080'), 'example.com')
+    assert.equal(normalizeHost('example.com'), 'example.com')
+  })
+
+  it('lowercases the hostname', () => {
+    assert.equal(normalizeHost('Example.COM'), 'example.com')
+  })
+
+  it('a bare domain and its stored https:// form normalize identically', () => {
+    // The exact shapes seen in practice: Host header is bare, website_site.domain is a full URL.
+    assert.equal(normalizeHost('maquinariaycanteras.com.mx'), normalizeHost('https://maquinariaycanteras.com.mx'))
+  })
+})
+
+function makeContextMock(headers) {
+  return {
+    req: { header: (name) => headers[name.toLowerCase()] ?? headers[name] ?? undefined },
+    json: (body, status) => ({ __kind: 'json', body, status }),
+    text: (body, status) => ({ __kind: 'text', body, status }),
+    html: (body) => ({ __kind: 'html', body }),
+    header: () => {},
+  }
+}
+
+function makeSiteRow(overrides = {}) {
+  return {
+    id: 'site-1',
+    source_type: 'dist',
+    seo_defaults: null,
+    company_id: 'company-1',
+    site_name: 'Test Site',
+    domain: null,
+    analytics_mode: 'off',
+    turnstile_site_key: null,
+    stripe_publishable_key: null,
+    stripe_currency: null,
+    company_slug: 'testco',
+    ...overrides,
+  }
+}
+
+// Discriminator convention used across these tests: the site that SHOULD be
+// selected is given source_type 'none' (serve() returns a distinguishable
+// { __kind: 'json', status: 404 }); the site that should NOT be selected is
+// given source_type 'builder' (serve() returns bare `null`). Since only one
+// of the two candidates can ever produce each shape, observing which one
+// came back unambiguously proves which site actually won.
+describe('createDistServeService — domain-based resolution (serve)', () => {
+  beforeEach(() => invalidatePrimaryCache())
+
+  it('resolves by matching Host header against a registered website_site.domain, even when a different primary company is configured', async () => {
+    const domainSite = makeSiteRow({ id: 'site-domain', company_slug: 'domainco', domain: 'https://example.com', source_type: 'none' })
+    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'builder' })
+    const prisma = {
+      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
+      $queryRaw: async (strings) => {
+        const sql = strings.join('?')
+        return sql.includes('ws.domain IS NOT NULL') ? [domainSite] : [primarySite]
+      },
+    }
+    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
+    const c = makeContextMock({ host: 'www.example.com' })
+    const result = await svc.serve(c, '/')
+    assert.equal(result?.__kind, 'json', 'expected the domain-matched site (source_type none) to win, not the primary one')
+    assert.equal(result.status, 404)
+  })
+
+  it('falls back to the primary-company lookup when the Host header matches no registered domain', async () => {
+    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'none' })
+    const prisma = {
+      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
+      $queryRaw: async (strings) => {
+        const sql = strings.join('?')
+        return sql.includes('ws.domain IS NOT NULL') ? [] : [primarySite] // no domains registered at all
+      },
+    }
+    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
+    const c = makeContextMock({ host: 'localhost:5173' })
+    const result = await svc.serve(c, '/')
+    assert.equal(result?.__kind, 'json')
+    assert.equal(result.status, 404)
+  })
+
+  it('a malformed/empty domain row never matches a real request (fails safe, falls back to primary)', async () => {
+    const badRow = makeSiteRow({ domain: '', company_slug: 'bad', source_type: 'none' })
+    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'builder' })
+    const prisma = {
+      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
+      $queryRaw: async (strings) => {
+        const sql = strings.join('?')
+        // Real Postgres would already exclude this via `domain <> ''`, but
+        // guard defensively in the JS map-building step too, in case a
+        // NULL/'' slipped through some other path.
+        return sql.includes('ws.domain IS NOT NULL') ? [badRow] : [primarySite]
+      },
+    }
+    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
+    const c = makeContextMock({ host: 'anything.example' })
+    const result = await svc.serve(c, '/')
+    assert.equal(result, null, 'expected the malformed row to be skipped and the primary (builder) site to win')
+  })
+
+  it('an unrelated Host header (e.g. the ERP app itself) never matches and falls back to primary', async () => {
+    const domainSite = makeSiteRow({ domain: 'https://storefront.example.com', company_slug: 'storefront', source_type: 'none' })
+    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'builder' })
+    const prisma = {
+      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
+      $queryRaw: async (strings) => {
+        const sql = strings.join('?')
+        return sql.includes('ws.domain IS NOT NULL') ? [domainSite] : [primarySite]
+      },
+    }
+    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
+    const c = makeContextMock({ host: 'atlas-admin.internal.example.com' })
+    const result = await svc.serve(c, '/')
+    assert.equal(result, null, 'an unrelated hostname must not accidentally match a registered storefront domain')
+  })
+})
 
 describe('isAssetPath', () => {
   it('returns true for .js files', () => assert.equal(isAssetPath('/assets/main.js'), true))

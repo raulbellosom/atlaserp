@@ -215,9 +215,31 @@ let _primaryCompanyCache = null
 let _primaryCompanyCachedAt = 0
 const COMPANY_CACHE_TTL = 60_000
 
+// Multi-tenant domain routing (spec §11): a shared instance can host more
+// than one company's public website, distinguished by which domain the
+// visitor actually typed. Keyed by normalized hostname (never the raw
+// Host header) so http/https, a trailing :port, and a leading "www." don't
+// cause a spurious miss. Populated from every enabled website_site row that
+// has a domain set — small table, safe to hold in full.
+let _siteByDomainCache = null
+let _siteByDomainCachedAt = 0
+
 export function invalidatePrimaryCache() {
   _primaryCompanyCache = null
   _primaryCompanyCachedAt = 0
+  _siteByDomainCache = null
+  _siteByDomainCachedAt = 0
+}
+
+// Exported for unit testing — pure, no I/O.
+export function normalizeHost(input) {
+  if (!input) return null
+  let h = String(input).trim().toLowerCase()
+  h = h.replace(/^https?:\/\//, '')
+  h = h.split('/')[0]
+  h = h.split(':')[0]
+  h = h.replace(/^www\./, '')
+  return h || null
 }
 
 export function createDistServeService({ prisma, supabaseAdmin }) {
@@ -249,10 +271,52 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     return site
   }
 
+  async function loadDomainSiteMap() {
+    if (_siteByDomainCache && Date.now() - _siteByDomainCachedAt < COMPANY_CACHE_TTL) {
+      return _siteByDomainCache
+    }
+    const rows = await prisma.$queryRaw`
+      SELECT ws.id, ws.source_type, ws.seo_defaults, ws.company_id,
+             ws.name as site_name, ws.domain,
+             ws.analytics_mode, ws.turnstile_site_key,
+             ws.stripe_publishable_key, ws.stripe_currency,
+             c.slug as company_slug
+      FROM website_site ws
+      JOIN company c ON c.id = ws.company_id
+      WHERE ws.enabled = true AND ws.domain IS NOT NULL AND ws.domain <> ''
+    `
+    const map = new Map()
+    for (const row of rows) {
+      const host = normalizeHost(row.domain)
+      // Skip anything that doesn't normalize to a distinct, real hostname —
+      // never let a malformed/empty domain row swallow unrelated requests.
+      if (host) map.set(host, row)
+    }
+    _siteByDomainCache = map
+    _siteByDomainCachedAt = Date.now()
+    return map
+  }
+
+  // Resolves which company's site should answer this request. Tries an
+  // exact hostname match against a registered website_site.domain first;
+  // any miss (dev/localhost, the ERP's own admin domain, a site that never
+  // set a custom domain, or simply the single-company case) falls back to
+  // the original primary_company_id lookup unchanged — so an instance with
+  // one company and no custom domain configured behaves exactly as before.
+  async function resolveSiteForRequest(c) {
+    const host = normalizeHost(c.req.header('x-forwarded-host') || c.req.header('host'))
+    if (host) {
+      const map = await loadDomainSiteMap()
+      const bySite = map.get(host)
+      if (bySite) return bySite
+    }
+    return getPrimaryCompany()
+  }
+
   async function serve(c, urlPath) {
     let site
     try {
-      site = await getPrimaryCompany()
+      site = await resolveSiteForRequest(c)
     } catch (err) {
       // DB connection timeout or transient failure — return 503 instead of crashing
       console.error('[dist-serve] getPrimaryCompany failed:', err?.message ?? err)
