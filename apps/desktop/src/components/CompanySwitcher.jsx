@@ -50,10 +50,14 @@ export function CompanySwitcher() {
   const { companies, activeCompany, isLoading, setActiveCompany } = useActiveCompany();
   const { userProfile } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
-  // Distinct from a company-scoped atlas.admin — only a platform-scope admin
-  // can spin up additional tenants (enforced server-side too, see
-  // POST /companies). Regular users' 0/1-company UX below is unchanged.
-  const isSystemAdmin = Boolean(userProfile?.isSystemAdmin);
+  // Any admin of their active company (atlas.admin or system.admin) can
+  // create additional companies — enforced server-side too, see
+  // POST /companies. Not narrowed to system.admin alone: in the common
+  // single-company case the owner's own account is an atlas.admin, never
+  // system.admin, so that would make this unreachable for exactly the
+  // person who needs it. Regular non-admin users' 0/1-company UX is
+  // unchanged.
+  const canCreateCompany = Boolean(userProfile?.isAdmin);
 
   if (isLoading) {
     return (
@@ -64,7 +68,7 @@ export function CompanySwitcher() {
     );
   }
 
-  if (companies.length === 0 && !isSystemAdmin) {
+  if (companies.length === 0 && !canCreateCompany) {
     return (
       <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium select-none text-[hsl(var(--muted-foreground))] grayscale hover:grayscale-0 hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-all duration-150">
         <Building2 size={16} className="shrink-0" />
@@ -73,7 +77,7 @@ export function CompanySwitcher() {
     );
   }
 
-  if (companies.length === 1 && !isSystemAdmin) {
+  if (companies.length === 1 && !canCreateCompany) {
     return (
       <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-[hsl(var(--muted))] text-xs font-medium text-[hsl(var(--foreground))] select-none">
         <CompanyLogo company={activeCompany} size={20} />
@@ -119,7 +123,7 @@ export function CompanySwitcher() {
               ))}
             </>
           )}
-          {isSystemAdmin && (
+          {canCreateCompany && (
             <>
               {companies.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem

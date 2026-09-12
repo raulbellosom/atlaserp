@@ -258,7 +258,7 @@ export function UserMenu({
             Opens a modal (CompanySwitcherModal) rather than a nested dropdown,
             which is awkward on touch. Shown whenever there's at least one
             company to display or the user could create one. */}
-        {(activeCompany || userProfile?.isSystemAdmin) && (
+        {(activeCompany || userProfile?.isAdmin) && (
           <div className="md:hidden">
             <DropdownMenuSeparator />
             <DropdownMenuItem

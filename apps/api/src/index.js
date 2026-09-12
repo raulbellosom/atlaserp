@@ -1857,22 +1857,29 @@ app.put(
 );
 
 // ── Companies: create a new tenant ──────────────────────────────────────────
-// Platform-level action, distinct from /company/profile|address|branding
-// below (which always operate on the REQUESTER'S active company). Creating
-// a brand-new tenant is gated to system admins only — a company-scoped
-// admin should never be able to spin up an unrelated company. Reuses the
-// existing company.profile.create permission (already seeded, already
-// granted to atlas.admin/system.admin via the isAdmin-gets-everything path)
-// rather than inventing a new permission key just for this.
+// Distinct from /company/profile|address|branding below (which always
+// operate on the REQUESTER'S active company). Gated to any admin of their
+// currently-active company (tenant.isAdmin — atlas.admin or system.admin),
+// not system.admin alone: in the common case of a single-company instance,
+// the owner's account is an atlas.admin for that one company, never
+// system.admin (that role is seeded separately and often held by nobody in
+// practice) — restricting this to system.admin would make "create a second
+// company" unreachable for the exact person who needs it. Creating a new
+// company never grants access to any OTHER existing company's data, so this
+// is not a cross-tenant privilege — just "can this admin spin up an
+// additional workspace they'll immediately own." Reuses the existing
+// company.profile.create permission (already seeded, already granted to
+// atlas.admin/system.admin via the isAdmin-gets-everything path) rather than
+// inventing a new permission key just for this.
 app.post(
   "/companies",
   authMiddleware,
   requirePermission("company.profile.create"),
   async (c) => {
     const tenant = c.get("tenantContext");
-    if (!tenant.isSystemAdmin) {
+    if (!tenant.isAdmin) {
       return c.json(
-        { error: "Solo un administrador de plataforma puede crear nuevas empresas." },
+        { error: "Solo un administrador puede crear nuevas empresas." },
         403,
       );
     }

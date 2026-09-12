@@ -13,7 +13,9 @@ import { CreateCompanyDialog } from "./CreateCompanyDialog";
 export function CompanySwitcherModal({ onClose }) {
   const { companies, activeCompany, setActiveCompany } = useActiveCompany();
   const { userProfile } = useAuth();
-  const isSystemAdmin = Boolean(userProfile?.isSystemAdmin);
+  // Matches CompanySwitcher.jsx: any admin of the active company, not
+  // system.admin alone — see that file's comment for why.
+  const canCreateCompany = Boolean(userProfile?.isAdmin);
   const [createOpen, setCreateOpen] = useState(false);
 
   function handleSelect(companyId) {
@@ -53,7 +55,7 @@ export function CompanySwitcherModal({ onClose }) {
               })
             )}
           </div>
-          {isSystemAdmin && (
+          {canCreateCompany && (
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
