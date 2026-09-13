@@ -8,6 +8,7 @@ import { ChatTemplatePopover } from "./ChatTemplatePopover";
 import { useConversationFiles } from "../hooks/useConversationFiles";
 import { ErrorState } from "@atlas/ui";
 import { ChatFilesGallery } from "./ChatFilesGallery";
+import { ChatRecordingsGallery } from "./ChatRecordingsGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
 import { ChatMessageList } from "./ChatMessageList";
 import { MeridianIntro } from "./MeridianIntro";
@@ -54,7 +55,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const navigate = useNavigate();
   const { userProfile, session } = useAuth();
   const isExternal = variant === "external";
-  const { enabled: callsEnabled, isStarting: callPending, startCall } = useCalls();
+  const { enabled: callsEnabled, isStarting: callPending, startCall, openRecordingsFor, clearOpenRecordingsRequest } = useCalls();
   const queryClient = useQueryClient();
   const token = session?.access_token;
   const conversationId = conversation?.id;
@@ -107,6 +108,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const canPinMessages = isChannelOrGroupType && roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_PIN);
 
   const [filesView, setFilesView] = useState(initialFilesView);
+  const [recordingsView, setRecordingsView] = useState(false);
   const [hiddenMessageIds, setHiddenMessageIds] = useState(() =>
     conversationId ? loadHidden(conversationId) : new Set(),
   );
@@ -243,6 +245,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     setProfileInitialTab(tab);
     setMembersView(true);
     setFilesView(false);
+    setRecordingsView(false);
   }, []);
 
   const closeProfile = useCallback(() => {
@@ -271,6 +274,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       return;
     }
     setFilesView(false);
+    setRecordingsView(false);
     setJumpTarget({ id: messageId, nonce: Date.now() });
   }, []);
 
@@ -279,8 +283,18 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   useEffect(() => {
     if (!initialJumpMessageId || !conversationId) return;
     setFilesView(false);
+    setRecordingsView(false);
     setJumpTarget({ id: initialJumpMessageId, nonce: `msg-${initialJumpMessageId}` });
   }, [initialJumpMessageId, conversationId]);
+
+  // A message's "Ver grabación" action bumps CallsProvider's shared signal —
+  // open the Grabaciones view in place when it targets THIS conversation.
+  useEffect(() => {
+    if (openRecordingsFor && openRecordingsFor === conversationId) {
+      setRecordingsView(true);
+      clearOpenRecordingsRequest();
+    }
+  }, [openRecordingsFor, conversationId, clearOpenRecordingsRequest]);
 
   const handleHideForMe = useCallback((messageId) => {
     setHiddenMessageIds((prev) => {
@@ -316,7 +330,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       if (selectionMode) { exitSelectionMode(); return; }
       if (searchMode) { setSearchMode(false); setSearchQuery(""); return; }
       if (membersView) { closeProfile(); return; }
-      if (filesView) { setFilesView(false); return; }
+      if (filesView) { setFilesView(false); setRecordingsView(false); return; }
       if (!conversation || e.defaultPrevented || !onClose) return;
       // A Radix overlay / the message action menu owns Escape while open.
       if (document.querySelector(
@@ -534,7 +548,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         externalStatus={conversation?.status ?? null}
         onCloseExternal={isExternal ? handleCloseExternal : undefined}
         filesView={filesView}
-        onToggleFilesView={() => { setFilesView((v) => !v); setMembersView(false); setProfileInitialTab(null); }}
+        onToggleFilesView={() => { setFilesView((v) => !v); setRecordingsView(false); setMembersView(false); setProfileInitialTab(null); }}
+        onToggleRecordingsView={() => { setRecordingsView((v) => !v); setFilesView(false); setMembersView(false); }}
         searchMode={searchMode}
         searchQuery={searchQuery}
         onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); setSearchCurrentIdx(0); }}
@@ -575,7 +590,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       />
 
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-          {filesView ? (
+          {recordingsView ? (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <ChatRecordingsGallery conversationId={conversationId} />
+            </div>
+          ) : filesView ? (
             <div className="flex-1 min-h-0 flex flex-col">
               {filesHistory.isError && <ErrorState title="No se pudieron cargar los archivos" onRetry={filesHistory.refetch} />}
               <ChatFilesGallery

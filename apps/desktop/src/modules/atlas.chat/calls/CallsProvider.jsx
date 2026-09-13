@@ -65,6 +65,9 @@ export function CallsProvider({ children }) {
   // and opens the guest sheet in place (no navigation, no unmount).
   const [guestPanelNonce, setGuestPanelNonce] = useState(0);
   const [minimized, setMinimized] = useState(false);
+  const [openRecordingsFor, setOpenRecordingsFor] = useState(null); // conversationId or null
+  const requestOpenRecordings = useCallback((conversationId) => setOpenRecordingsFor(conversationId), []);
+  const clearOpenRecordingsRequest = useCallback(() => setOpenRecordingsFor(null), []);
 
   useEffect(() => {
     activeRef.current = activeSession;
@@ -470,6 +473,7 @@ export function CallsProvider({ children }) {
       on("chat.call.guest_admitted", clear),
       on("chat.call.guest_denied", clear),
       on("chat.call.guest_kicked", clear),
+      on("chat.call.guest_left", clear),
     ];
     return () => subs.forEach((u) => u?.());
   }, [on]);
@@ -495,7 +499,10 @@ export function CallsProvider({ children }) {
     minimizeCall,
     restoreCall,
     startCall,
-  }), [config.enabled, config.loading, isStarting, activeSession, pendingGuestCount, minimized, minimizeCall, restoreCall, startCall]);
+    openRecordingsFor,
+    requestOpenRecordings,
+    clearOpenRecordingsRequest,
+  }), [config.enabled, config.loading, isStarting, activeSession, pendingGuestCount, minimized, minimizeCall, restoreCall, startCall, openRecordingsFor, requestOpenRecordings, clearOpenRecordingsRequest]);
 
   return (
     <CallsContext.Provider value={value}>

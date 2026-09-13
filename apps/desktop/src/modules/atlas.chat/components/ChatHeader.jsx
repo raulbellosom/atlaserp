@@ -33,6 +33,7 @@ export function ChatHeader({
   conversation, currentUserId, onlineUsers, onClose,
   detailMembers,
   filesView, onToggleFilesView,
+  onToggleRecordingsView,
   searchMode, searchQuery, onSearchToggle, onSearchChange,
   searchMatchCount, searchCurrentIdx, searchBusy, searchError, searchHasQuery, onNextMatch, onPrevMatch,
   selectionMode, selectionCount, hasOwnSelected,
@@ -399,6 +400,10 @@ export function ChatHeader({
               {filesView
                 ? <><MessageSquare className="h-3.5 w-3.5 mr-2" />Ver mensajes</>
                 : <><FolderOpen className="h-3.5 w-3.5 mr-2" />Ver archivos</>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onToggleRecordingsView}>
+              <Video className="mr-2 h-4 w-4" />
+              Grabaciones
             </DropdownMenuItem>
             {pinnedCount > 0 && (
               <DropdownMenuItem className="sm:hidden" onSelect={onOpenPinned}>
