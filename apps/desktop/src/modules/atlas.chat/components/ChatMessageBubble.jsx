@@ -18,7 +18,8 @@ import { AttachmentsBlock } from "./MessageAttachments";
 import { isMergeableMediaMessage } from "../lib/messageMedia";
 import { MessageQuote } from "./MessageQuote";
 import { CallLogCard } from "./CallLogCard";
-import { getCallMeta } from "./callLogMeta";
+import { getCallMeta, getRecordingMeta } from "./callLogMeta";
+import { RecordingReadyCard } from "./RecordingReadyCard";
 import { MessageActionSheet } from "./MessageActionSheet";
 import { AssistantMarkdown } from "./AssistantMarkdown";
 import { buildMessageActions } from "../lib/messageActions";
@@ -106,12 +107,12 @@ function SwipeReplyHint({ translateX, isOwn }) {
 // shared with MessageActionSheet (mobile long-press / desktop right-click).
 function MessageActions({
   isOwn, hasBody, onCopy, onDelete, onHideForMe, onForward, onEnterSelection,
-  canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply, onAskMeridian,
+  canPin, isPinned, onPin, onReact, canReply, onOpenThread, onReply, onAskMeridian, onShowReceipt,
 }) {
   const actions = buildMessageActions({
     hasBody, isOwn, canPin, isPinned, canReply,
     onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
-    onDelete, onHideForMe, onAskMeridian,
+    onDelete, onHideForMe, onAskMeridian, onShowReceipt,
   });
   const primary = actions.filter((a) => a.group === "primary");
   const danger = actions.filter((a) => a.group === "danger");
@@ -305,6 +306,7 @@ export function ChatMessageBubble({
   onReply,
   onAskMeridian,
   onJumpToMessage,
+  onShowReceipt,
 }) {
   const [avatarErr, setAvatarErr] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
@@ -519,6 +521,10 @@ export function ChatMessageBubble({
     return <CallLogCard message={message} />;
   }
 
+  if (getRecordingMeta(message)) {
+    return <RecordingReadyCard message={message} />;
+  }
+
   if (message.sender_type === "system" || message.message_type === "system") {
     return (
       <div className="flex justify-center my-2 px-4">
@@ -658,6 +664,7 @@ export function ChatMessageBubble({
             onOpenThread={onOpenThread}
             onReply={onReply ? () => onReply(message) : undefined}
             onAskMeridian={onAskMeridian ? () => onAskMeridian(message) : undefined}
+            onShowReceipt={onShowReceipt ? () => onShowReceipt(message) : undefined}
           />
         )}
         <MessageActionSheet
@@ -673,6 +680,7 @@ export function ChatMessageBubble({
             onReply: onReply ? () => onReply(message) : undefined,
             onCopy, onForward, onEnterSelection, onPin, onOpenThread, onDelete, onHideForMe,
             onAskMeridian: onAskMeridian ? () => onAskMeridian(message) : undefined,
+            onShowReceipt: onShowReceipt ? () => onShowReceipt(message) : undefined,
           }}
           onQuickReact={(emoji) => onToggleReaction?.(message.id, emoji)}
           onOpenFullPicker={() => setReactionPickerOpen(true)}

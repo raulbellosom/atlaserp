@@ -20,3 +20,19 @@ export function getCallMeta(message) {
   if (!call || (call.event !== "started" && call.event !== "ended")) return null;
   return call;
 }
+
+// Sibling of getCallMeta — a "grabación lista" system-message card.
+export function getRecordingMeta(message) {
+  if (!message) return null;
+  const isSystem = message.sender_type === "system" || message.message_type === "system";
+  if (!isSystem) return null;
+
+  let meta = message.metadata;
+  if (typeof meta === "string") {
+    try { meta = JSON.parse(meta); } catch { return null; }
+  }
+
+  const recording = meta && typeof meta === "object" ? meta.recording : null;
+  if (!recording?.recordingId) return null;
+  return recording;
+}
