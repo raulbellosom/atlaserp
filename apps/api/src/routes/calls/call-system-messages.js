@@ -49,3 +49,12 @@ export function buildCallSystemMessage({ event, kind, endReason = null, startedA
     metadata: { call: { kind: callKind, event: "ended", endReason: "ended", durationSec } },
   };
 }
+
+// spec: { recordingId: string, durationMs: number|null }
+export function buildRecordingReadyMessage({ recordingId, durationMs }) {
+  const totalSeconds = Number.isFinite(durationMs) && durationMs > 0 ? Math.round(durationMs / 1000) : 0;
+  return {
+    body: `Grabación lista · ${formatCallDuration(totalSeconds)}`,
+    metadata: { recording: { recordingId, durationMs: durationMs ?? null } },
+  };
+}

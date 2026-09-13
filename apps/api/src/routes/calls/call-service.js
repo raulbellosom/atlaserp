@@ -78,13 +78,11 @@ export function createCallService({
     `;
   }
 
-  async function postCallSystemMessage(call, spec) {
+  async function postSystemMessage(conversationId, { body, metadata }) {
     try {
-      const { body, metadata } = buildCallSystemMessage(spec);
-      const payloadMeta = { call: { ...metadata.call, callId: call.id } };
       const rows = await prisma.$queryRaw`
         INSERT INTO chat_messages (conversation_id, sender_type, body, message_type, metadata)
-        VALUES (${call.conversationId}, 'system', ${body}, 'system', ${JSON.stringify(payloadMeta)}::jsonb)
+        VALUES (${conversationId}, 'system', ${body}, 'system', ${JSON.stringify(metadata)}::jsonb)
         RETURNING id, created_at
       `;
       const messageId = rows?.[0]?.id ?? null;
@@ -93,13 +91,13 @@ export function createCallService({
       await prisma.$executeRaw`
         UPDATE chat_conversations
         SET last_message_id = ${messageId}, last_message_at = ${createdAt}, updated_at = NOW()
-        WHERE id = ${call.conversationId}
+        WHERE id = ${conversationId}
       `;
-      const members = await listConversationMembers(call.conversationId);
+      const members = await listConversationMembers(conversationId);
       const memberIds = members.map((member) => member.userId).filter(Boolean);
       if (memberIds.length) {
         await broadcaster?.broadcastToUsers?.(memberIds, "chat.message.new", {
-          conversationId: call.conversationId,
+          conversationId,
           messageId,
           senderId: null,
           senderName: null,
@@ -109,10 +107,15 @@ export function createCallService({
       }
     } catch (error) {
       console.warn(
-        "[atlas.calls] No se pudo publicar el mensaje de sistema de la llamada:",
+        "[atlas.calls] No se pudo publicar el mensaje de sistema:",
         error?.message ?? error,
       );
     }
+  }
+
+  async function postCallSystemMessage(call, spec) {
+    const { body, metadata } = buildCallSystemMessage(spec);
+    await postSystemMessage(call.conversationId, { body, metadata: { call: { ...metadata.call, callId: call.id } } });
   }
 
   async function assertMembership(conversationId, userProfileId) {
@@ -894,5 +897,6 @@ export function createCallService({
     startExpirySweeper,
     assertCanManageCall,
     inviteMembersToLiveCall,
+    postSystemMessage,
   };
 }

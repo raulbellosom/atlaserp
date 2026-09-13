@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatCallDuration, buildCallSystemMessage } from "../call-system-messages.js";
+import { formatCallDuration, buildCallSystemMessage, buildRecordingReadyMessage } from "../call-system-messages.js";
 
 describe("formatCallDuration", () => {
   it("formats sub-hour durations as m:ss", () => {
@@ -53,5 +53,18 @@ describe("buildCallSystemMessage", () => {
     const out = buildCallSystemMessage({ event: "ended", kind: "VIDEO", endReason: "rejected", startedAt: null });
     assert.equal(out.body, "Llamada rechazada");
     assert.equal(out.metadata.call.endReason, "rejected");
+  });
+});
+
+describe("buildRecordingReadyMessage", () => {
+  it("formats duration and carries the recording id in metadata", () => {
+    const { body, metadata } = buildRecordingReadyMessage({ recordingId: "rec-1", durationMs: 754_000 });
+    assert.equal(body, "Grabación lista · 12:34");
+    assert.deepEqual(metadata, { recording: { recordingId: "rec-1", durationMs: 754_000 } });
+  });
+
+  it("falls back to 0:00 when duration is missing", () => {
+    const { body } = buildRecordingReadyMessage({ recordingId: "rec-1", durationMs: null });
+    assert.equal(body, "Grabación lista · 0:00");
   });
 });
