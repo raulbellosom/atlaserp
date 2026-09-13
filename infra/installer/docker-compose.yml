@@ -142,10 +142,17 @@ services:
       - "7882:7882/udp"
     restart: unless-stopped
 
+  # Separate opt-in profile (not bundled into "livekit") because this
+  # container mounts the host's docker.sock — a materially larger trust
+  # boundary than livekit/livekit-redis, which have no host access at all.
+  # Same reasoning as livekit-caddy's own "livekit-tls" profile: an optional
+  # add-on to the base voice/video stack shouldn't be silently included for
+  # every deployment. Enable with:
+  #   docker compose --profile livekit --profile livekit-egress up -d
   egress:
     image: ${LIVEKIT_EGRESS_IMAGE:-livekit/egress:v1.9.0}
     container_name: atlas-livekit-egress
-    profiles: ["livekit"]
+    profiles: ["livekit-egress"]
     restart: unless-stopped
     environment:
       - EGRESS_CONFIG_FILE=/etc/egress/egress.yaml
