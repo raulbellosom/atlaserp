@@ -37,3 +37,31 @@ test('both installers preserve stable secrets and Office settings across reruns 
   }
   await fs.rmdir(dir);
 });
+
+test('repairs accumulated Office headings and repeated configuration leaves env unchanged', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-office-headings-'));
+  t.after(async () => {
+    assert.equal(path.dirname(dir), path.resolve(os.tmpdir()));
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+  for (const eol of ['\n', '\r\n']) {
+    const envFile = path.join(dir, eol === '\n' ? '.env.lf' : '.env.crlf');
+    const custom = '#Document Editor\n# Optional Office notes written by the operator\nATLAS_APP_URL=https://atlas.example.com\n';
+    const firebase = '# Firebase server push (runtime integration pending)\nATLAS_FCM_ENABLED=true\nFIREBASE_PROJECT_ID=test-project\nGOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase/service-account.json\n';
+    const text = custom + '\n' + '# Optional Office\n\n'.repeat(36)
+      + 'ATLAS_OFFICE_ENABLED=true\nATLAS_WOPI_SECRET=' + 'a'.repeat(48) + '\n\n' + firebase;
+    await fs.writeFile(envFile, text.replaceAll('\n', eol));
+    await configureOffice({ envFile, environment: {} });
+    const once = await fs.readFile(envFile, 'utf8');
+    assert.equal(once.split(/\r?\n/).filter(line => line.trim() === '# Optional Office').length, 1);
+    assert.ok(!/\n(?:\r?\n){3}/.test(once), 'remove empty gaps belonging to duplicate headings');
+    const normalized = once.replaceAll('\r\n', '\n');
+    assert.ok(normalized.includes(custom));
+    assert.ok(normalized.includes(firebase));
+    assert.equal(parseOfficeEnv(once).ATLAS_WOPI_SECRET, 'a'.repeat(48));
+    for (let rerun = 0; rerun < 3; rerun++) {
+      await configureOffice({ envFile, environment: {} });
+      assert.equal(await fs.readFile(envFile, 'utf8'), once);
+    }
+  }
+});

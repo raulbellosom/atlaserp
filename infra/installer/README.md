@@ -433,6 +433,19 @@ node lib/firebase-config.mjs .env.external
 Ese comando no reinicia Atlas ni genera la clave privada: el archivo Firebase
 `service-account.json` debe provisionarse por separado.
 
+Si un instalador anterior acumuló comentarios `# Optional Office` en el entorno,
+la versión corregida los consolida automáticamente al configurar Office. Después
+de publicar y descargar la corrección, también puedes reparar solo ese archivo,
+sin iniciar servicios ni ejecutar migraciones:
+
+```bash
+node --input-type=module -e 'import { configureOffice } from "./lib/office-config.mjs"; await configureOffice({ envFile: ".env.external", environment: {} });'
+```
+
+Conserva los valores existentes de Office (incluida su clave) y las variables de
+Firebase. Los comentarios personalizados se conservan; solo se retiran los
+encabezados generados duplicados y se vuelve a escribir un único bloque Office.
+
 Office viene desactivado. Para habilitarlo en el VPS, primero publica las nuevas
 imagenes de Atlas y los archivos del instalador. Desde la **carpeta existente del
 instalador**, refresca los scripts y Compose con el bootstrap actualizado:

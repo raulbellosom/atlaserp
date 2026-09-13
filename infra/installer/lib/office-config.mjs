@@ -59,8 +59,14 @@ export async function configureOffice({ envFile, composeEnvFile, environment = p
   const stored = parseOfficeEnv(text);
   const values = Object.fromEntries(OFFICE_ENV_KEYS.map(key => [key, environment[key] ?? stored[key]]));
   const office = resolveOfficeConfig(values);
-  const preserved = text.split(/\r?\n/).filter(line => !OFFICE_ENV_KEYS.some(key => line.startsWith(`${key}=`))).join('\n');
-  await fs.writeFile(envFile, preserved.trimEnd() + '\n\n# Optional Office\n' + renderOfficeEnv(office), { mode: 0o600 });
+  // Remove our old heading and its blank lines as well as managed variables.
+  // Previous installers accumulated a heading on every run. Keep custom comments.
+  const withoutHeadings = text.replace(/^[ \t]*# Optional Office[ \t]*\r?\n(?:[ \t]*\r?\n)*/gm, '');
+  const preserved = withoutHeadings.split(/\r?\n/).filter(line => line.trim() !== '# Optional Office'
+    && !OFFICE_ENV_KEYS.some(key => line.startsWith(`${key}=`))).join('\n');
+  const updated = preserved.trimEnd() + '\n\n# Optional Office\n' + renderOfficeEnv(office);
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  await fs.writeFile(envFile, updated.replaceAll('\n', eol), { mode: 0o600 });
   try { await fs.chmod(envFile, 0o600); } catch { /* Windows ACLs apply. */ }
   if (composeEnvFile && office.enabled) {
     // Only public networking configuration enters Compose interpolation, never the signing key.
