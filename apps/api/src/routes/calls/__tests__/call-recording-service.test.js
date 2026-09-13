@@ -21,7 +21,10 @@ function env() {
   };
 }
 
-const liveCall = { id: CALL, conversationId: CONV, kind: "VIDEO", status: "ACTIVE", livekitRoomName: `call_${CALL}` };
+const liveCall = {
+  id: CALL, conversationId: CONV, kind: "VIDEO", status: "ACTIVE",
+  livekitRoomName: `call_${CALL}`, initiatedByUserId: USER,
+};
 
 class FakeEgress {
   constructor() { this.started = []; this.stopped = []; }
@@ -46,13 +49,14 @@ describe("createCallRecordingService.startRecording", () => {
       callService: { getLiveCallOrThrow: async () => liveCall },
     });
     await assert.rejects(
-      svc.startRecording({ callId: CALL, startedByUserId: USER }),
+      svc.startRecording({ callId: CALL, startedByUserId: USER, profileId: USER }),
       (e) => e instanceof CallRecordingError && e.status === 409,
     );
   });
 
   it("creates a STARTING row, starts a segmented-HLS egress with S3 output, and stores the egressId", async () => {
     let createData;
+    let manageCheckArgs;
     const egress = new FakeEgress();
     const prisma = {
       callRecording: {
@@ -63,9 +67,12 @@ describe("createCallRecordingService.startRecording", () => {
     };
     const svc = createCallRecordingService({
       prisma, env: env(), EgressClientImpl: egress,
-      callService: { getLiveCallOrThrow: async () => liveCall },
+      callService: {
+        getLiveCallOrThrow: async () => liveCall,
+        assertCanManageCall: async (args) => { manageCheckArgs = args; },
+      },
     });
-    const out = await svc.startRecording({ callId: CALL, startedByUserId: USER });
+    const out = await svc.startRecording({ callId: CALL, startedByUserId: USER, profileId: USER });
     assert.equal(out.status, "STARTING");
     assert.equal(createData.callId, CALL);
     assert.equal(createData.conversationId, CONV);
@@ -73,6 +80,36 @@ describe("createCallRecordingService.startRecording", () => {
     assert.equal(egress.started[0].roomName, liveCall.livekitRoomName);
     assert.equal(egress.started[0].output.segments.output.case, "s3");
     assert.equal(egress.started[0].output.segments.output.value.bucket, "atlas-chat");
+    // IDOR guard: startRecording must ask the shared "can this profile manage
+    // this call" gate before touching LiveKit — not just trust that the
+    // caller's ROLE carries chat.calls.record somewhere in the company.
+    assert.deepEqual(manageCheckArgs, {
+      conversationId: liveCall.conversationId,
+      initiatedByUserId: liveCall.initiatedByUserId,
+      profileId: USER,
+      action: "grabar la llamada",
+    });
+  });
+
+  it("rejects starting a recording when the caller cannot manage the call (IDOR guard)", async () => {
+    const prisma = { callRecording: { findFirst: async () => null } };
+    class RejectingError extends Error {
+      constructor() { super("No tienes permiso para grabar la llamada."); this.status = 403; }
+    }
+    const egress = new FakeEgress();
+    const svc = createCallRecordingService({
+      prisma, env: env(), EgressClientImpl: egress,
+      callService: {
+        getLiveCallOrThrow: async () => liveCall,
+        assertCanManageCall: async () => { throw new RejectingError(); },
+      },
+    });
+    await assert.rejects(
+      svc.startRecording({ callId: CALL, startedByUserId: "someone-else", profileId: "someone-else" }),
+      (e) => e.status === 403,
+    );
+    // Never reaches LiveKit when the caller isn't allowed to manage the call.
+    assert.equal(egress.started.length, 0);
   });
 });
 
@@ -81,13 +118,14 @@ describe("createCallRecordingService.stopRecording", () => {
     const prisma = { callRecording: { findFirst: async () => null } };
     const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress });
     await assert.rejects(
-      svc.stopRecording({ callId: CALL }),
+      svc.stopRecording({ callId: CALL, profileId: USER }),
       (e) => e instanceof CallRecordingError && e.status === 404,
     );
   });
 
   it("calls stopEgress and flips status to PROCESSING", async () => {
     let updateData;
+    let manageCheckArgs;
     const egress = new FakeEgress();
     const prisma = {
       callRecording: {
@@ -95,11 +133,48 @@ describe("createCallRecordingService.stopRecording", () => {
         update: async ({ data }) => { updateData = data; return { id: REC, ...data }; },
       },
     };
-    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: egress });
-    const out = await svc.stopRecording({ callId: CALL });
+    const svc = createCallRecordingService({
+      prisma, env: env(), EgressClientImpl: egress,
+      callService: {
+        getLiveCallOrThrow: async () => liveCall,
+        assertCanManageCall: async (args) => { manageCheckArgs = args; },
+      },
+    });
+    const out = await svc.stopRecording({ callId: CALL, profileId: USER });
     assert.equal(out.status, "PROCESSING");
     assert.equal(updateData.status, "PROCESSING");
     assert.deepEqual(egress.stopped, ["egress_1"]);
+    assert.deepEqual(manageCheckArgs, {
+      conversationId: liveCall.conversationId,
+      initiatedByUserId: liveCall.initiatedByUserId,
+      profileId: USER,
+      action: "grabar la llamada",
+    });
+  });
+
+  it("rejects stopping a recording when the caller cannot manage the call (IDOR guard)", async () => {
+    const egress = new FakeEgress();
+    const prisma = {
+      callRecording: {
+        findFirst: async () => ({ id: REC, callId: CALL, egressId: "egress_1", status: "ACTIVE" }),
+        update: async () => { throw new Error("must not be reached"); },
+      },
+    };
+    class RejectingError extends Error {
+      constructor() { super("No tienes permiso para grabar la llamada."); this.status = 403; }
+    }
+    const svc = createCallRecordingService({
+      prisma, env: env(), EgressClientImpl: egress,
+      callService: {
+        getLiveCallOrThrow: async () => liveCall,
+        assertCanManageCall: async () => { throw new RejectingError(); },
+      },
+    });
+    await assert.rejects(
+      svc.stopRecording({ callId: CALL, profileId: "someone-else" }),
+      (e) => e.status === 403,
+    );
+    assert.equal(egress.stopped.length, 0);
   });
 });
 
@@ -132,6 +207,14 @@ describe("createCallRecordingService.reconcileActiveRecordings (sweep)", () => {
     assert.equal(updateData.durationMs, 60_000);
     assert.ok(updateData.expiresAt instanceof Date);
     assert.equal(posted.length, 1);
+    // onRecordingReady is wired (apps/api/src/routes/calls/index.js) straight
+    // into buildRecordingReadyMessage({ recordingId: rec.id, durationMs:
+    // rec.durationMs }) and calls.postSystemMessage(rec.conversationId, ...)
+    // — pin the exact fields that wiring reads off the callback's argument.
+    assert.equal(posted[0].id, REC);
+    assert.equal(posted[0].conversationId, CONV);
+    assert.equal(posted[0].durationMs, 60_000);
+    assert.equal(posted[0].status, "READY");
   });
 
   it("marks a FAILED egress as FAILED with the reported error", async () => {
@@ -282,6 +365,7 @@ describe("createCallRecordingService.reconcileActiveRecordings (sweep)", () => {
 describe("createCallRecordingService.listRecordings", () => {
   it("attaches a signed playlistUrl only to READY rows with a playlistObjectKey", async () => {
     const prisma = {
+      $queryRaw: async () => [{ id: "member-row" }], // caller is an active member
       callRecording: {
         findMany: async () => [
           { id: REC, status: "READY", playlistObjectKey: "recordings/conv/rec/index.m3u8" },
@@ -293,22 +377,39 @@ describe("createCallRecordingService.listRecordings", () => {
       storage: { from: () => ({ createSignedUrl: async (key) => ({ data: { signedUrl: `https://signed.example/${key}` }, error: null }) }) },
     };
     const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress, supabaseAdmin });
-    const rows = await svc.listRecordings({ conversationId: CONV });
+    const rows = await svc.listRecordings({ conversationId: CONV, profileId: USER });
     assert.equal(rows[0].playlistUrl, "https://signed.example/recordings/conv/rec/index.m3u8");
     assert.equal(rows[1].playlistUrl, undefined);
   });
 
   it("serializes a BigInt sizeBytes to a plain Number (JSON.stringify throws on raw BigInt)", async () => {
     const prisma = {
+      $queryRaw: async () => [{ id: "member-row" }],
       callRecording: {
         findMany: async () => [{ id: REC, status: "READY", playlistObjectKey: null, sizeBytes: 123456789012345n }],
       },
     };
     const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress });
-    const rows = await svc.listRecordings({ conversationId: CONV });
+    const rows = await svc.listRecordings({ conversationId: CONV, profileId: USER });
     assert.equal(typeof rows[0].sizeBytes, "number");
     assert.equal(rows[0].sizeBytes, 123456789012345);
     assert.doesNotThrow(() => JSON.stringify(rows[0]));
+  });
+
+  it("rejects listing recordings for a caller who is not a member of the conversation (IDOR guard)", async () => {
+    let findManyCalled = false;
+    const prisma = {
+      $queryRaw: async () => [], // not a member
+      callRecording: {
+        findMany: async () => { findManyCalled = true; return []; },
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress });
+    await assert.rejects(
+      svc.listRecordings({ conversationId: CONV, profileId: "someone-else" }),
+      (e) => e instanceof CallRecordingError && e.status === 404,
+    );
+    assert.equal(findManyCalled, false);
   });
 });
 

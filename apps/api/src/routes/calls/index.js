@@ -51,6 +51,7 @@ export function createCallsRouter({
   deliveryWorker = null,
   smtpService = null,
   service = null,
+  recordingService: recordingServiceOverride = null,
 }) {
   const app = new Hono();
   const internal = new Hono();
@@ -61,7 +62,10 @@ export function createCallsRouter({
     prisma, supabaseAdmin, linksService, callService: calls, broadcaster, notificationService,
   });
   const messagesService = createCallMessagesService({ prisma, guestService, broadcaster });
-  const recordingService = createCallRecordingService({
+  // Test-only escape hatch, mirroring `service` above: lets call-routes.test.js
+  // inject a fake recording service instead of exercising the real Prisma
+  // model + LiveKit Egress client through the router's HTTP layer.
+  const recordingService = recordingServiceOverride ?? createCallRecordingService({
     prisma, callService: calls, supabaseAdmin,
     onRecordingReady: async (rec) => {
       const msg = buildRecordingReadyMessage({ recordingId: rec.id, durationMs: rec.durationMs });
@@ -187,7 +191,14 @@ export function createCallsRouter({
     async (c) => {
       try {
         const callId = callIdSchema.parse(c.req.param("callId"));
-        const data = await recordingService.startRecording({ callId, startedByUserId: c.get("userId") });
+        // requirePermission's middleware already resolved and set this —
+        // it is user_profile.id, the same identifier space profileId(c)
+        // resolves via raw SQL on unguarded routes below. The recording
+        // service still enforces "can THIS user manage THIS call"
+        // (assertCanManageCall) — chat.calls.record alone only proves the
+        // caller's role carries the permission somewhere.
+        const profileId = c.get("userId");
+        const data = await recordingService.startRecording({ callId, startedByUserId: profileId, profileId });
         return c.json({ data }, 201);
       } catch (error) { return handleError(c, error, "Error iniciando la grabación."); }
     },
@@ -198,7 +209,7 @@ export function createCallsRouter({
     async (c) => {
       try {
         const callId = callIdSchema.parse(c.req.param("callId"));
-        const data = await recordingService.stopRecording({ callId });
+        const data = await recordingService.stopRecording({ callId, profileId: c.get("userId") });
         return c.json({ data });
       } catch (error) { return handleError(c, error, "Error deteniendo la grabación."); }
     },
@@ -206,7 +217,7 @@ export function createCallsRouter({
   internal.get("/conversations/:conversationId/recordings", async (c) => {
     try {
       const conversationId = conversationIdSchema.parse(c.req.param("conversationId"));
-      const data = await recordingService.listRecordings({ conversationId });
+      const data = await recordingService.listRecordings({ conversationId, profileId: await profileId(c) });
       return c.json({ data });
     } catch (error) { return handleError(c, error, "Error obteniendo grabaciones."); }
   });
