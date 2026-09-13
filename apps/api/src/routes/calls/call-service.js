@@ -511,13 +511,20 @@ export function createCallService({
     };
   }
 
+  async function getRecordingActiveStatus(callId) {
+    const activeRecording = await prisma.$queryRaw`
+      SELECT id FROM "call_recording" WHERE call_id = ${callId} AND status IN ('STARTING','ACTIVE') LIMIT 1
+    `;
+    return activeRecording.length > 0;
+  }
+
   async function getCall({ authUserId, callId }) {
     assertEnabled();
     await expireStaleCalls();
     const profile = await resolveProfile(authUserId);
     const call = await getCallRecord(callId);
     await assertCallAccess(call, profile.id);
-    return call;
+    return { ...call, recording: { active: await getRecordingActiveStatus(call.id) } };
   }
 
   async function getLiveCallOrThrow(callId) {
@@ -547,7 +554,11 @@ export function createCallService({
       select: { callId: true, status: true },
     });
     if (!participant) return null;
-    return { participantStatus: participant.status, call: await getCallRecord(participant.callId) };
+    const call = await getCallRecord(participant.callId);
+    return {
+      participantStatus: participant.status,
+      call: { ...call, recording: { active: await getRecordingActiveStatus(call.id) } },
+    };
   }
 
   async function joinCall({ authUserId, callId }) {

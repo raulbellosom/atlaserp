@@ -139,7 +139,15 @@ export function createCallGuestService({
     if (name.length < 2 || name.length > 40) throw new CallGuestError("El nombre debe tener entre 2 y 40 caracteres.", 422);
 
     const recent = await prisma.callGuestJoinAttempt.count({
-      where: { ip: ip ?? "unknown", createdAt: { gte: new Date(now().getTime() - RATE_WINDOW_MS) } },
+      where: {
+        ip: ip ?? "unknown",
+        createdAt: { gte: new Date(now().getTime() - RATE_WINDOW_MS) },
+        // "no_live_call" is the guest lobby auto-polling every few seconds
+        // while it waits for the host to start the meeting — expected
+        // traffic, not an abuse signal, so it must not count against the
+        // join rate limit (it used to lock waiting guests out after ~30s).
+        outcome: { not: "no_live_call" },
+      },
     });
     if (recent >= RATE_MAX) {
       await recordAttempt(ip, null, "rate_limited");
@@ -181,8 +189,21 @@ export function createCallGuestService({
       throw new CallGuestError("La llamada alcanzó el máximo de invitados.", 409, "call_full");
     }
 
+    // A guest already denied or kicked from THIS call must go back through
+    // host approval even on an "open access" link — otherwise a denied/kicked
+    // guest can just resubmit the join form and moderation is a no-op.
+    const priorRejection = await prisma.callGuest.findFirst({
+      where: {
+        callId: call.id,
+        linkId: link.id,
+        status: { in: ["DENIED", "KICKED"] },
+        OR: [...(email ? [{ email }] : []), { joinIp: ip ?? "unknown" }],
+      },
+      select: { id: true },
+    });
+
     const rawToken = crypto.randomBytes(32).toString("hex");
-    const status = link.requireLobby ? "LOBBY" : "ADMITTED";
+    const status = (link.requireLobby || priorRejection) ? "LOBBY" : "ADMITTED";
     const guest = await prisma.callGuest.create({
       data: {
         callId: call.id,
@@ -274,6 +295,14 @@ export function createCallGuestService({
       messages = rows;
     }
 
+    let recordingActive = false;
+    if (call) {
+      const activeRecording = await prisma.$queryRaw`
+        SELECT id FROM "call_recording" WHERE call_id = ${call.id} AND status IN ('STARTING','ACTIVE') LIMIT 1
+      `;
+      recordingActive = activeRecording.length > 0;
+    }
+
     return {
       status: guest.status,
       callEnded: Boolean(call) && !live,
@@ -282,6 +311,7 @@ export function createCallGuestService({
       guests: roster,
       messages,
       branding,
+      recording: { active: recordingActive },
     };
   }
 
@@ -312,6 +342,12 @@ export function createCallGuestService({
   async function leaveGuest({ guestToken }) {
     const guest = await resolveGuest(guestToken);
     await prisma.callGuest.update({ where: { id: guest.id }, data: { status: "LEFT", leftAt: now() } });
+    // Only a lobby departure needs to notify the host — it's the only case
+    // that affects their "N esperando" pending-guest count.
+    if (guest.status === "LOBBY") {
+      const call = await liveCallById(guest.callId);
+      if (call) await notifyMembers(call, "chat.call.guest_left", { callId: call.id, guestId: guest.id, name: guest.displayName });
+    }
     return { ok: true };
   }
 
@@ -348,6 +384,23 @@ export function createCallGuestService({
     return { guests };
   }
 
+  // Retries once — a transient LiveKit blip shouldn't leave a "kicked" guest
+  // still holding a live media session. Returns whether the room actually
+  // dropped the participant, so callers can tell the host the truth instead
+  // of reporting success unconditionally.
+  async function removeParticipantWithRetry(roomName, identity, attempts = 2) {
+    for (let i = 0; i < attempts; i += 1) {
+      try {
+        const rc = new RoomServiceClientImpl(config().internalUrl, config().apiKey, config().apiSecret);
+        await rc.removeParticipant(roomName, identity);
+        return true;
+      } catch {
+        if (i === attempts - 1) return false;
+      }
+    }
+    return false;
+  }
+
   async function setGuestStatus({ profileId, callId, guestId, status, action, event }) {
     const call = await assertManage({ profileId, callId, action });
     const guest = await prisma.callGuest.findFirst({ where: { id: guestId, callId } });
@@ -356,14 +409,12 @@ export function createCallGuestService({
     if (status === "ADMITTED") { data.admittedByUserId = profileId; data.admittedAt = now(); }
     if (status === "LEFT" || status === "KICKED" || status === "DENIED") data.leftAt = now();
     await prisma.callGuest.update({ where: { id: guest.id }, data });
+    let liveActionOk = true;
     if (status === "KICKED") {
-      try {
-        const rc = new RoomServiceClientImpl(config().internalUrl, config().apiKey, config().apiSecret);
-        await rc.removeParticipant(call.livekitRoomName, guest.livekitIdentity);
-      } catch { /* best effort */ }
+      liveActionOk = await removeParticipantWithRetry(call.livekitRoomName, guest.livekitIdentity);
     }
     await notifyMembers(call, event, { callId, guestId, name: guest.displayName });
-    return { ok: true, status };
+    return { ok: true, status, ...(status === "KICKED" ? { liveActionOk } : {}) };
   }
 
   const admitGuest = (a) => setGuestStatus({ ...a, status: "ADMITTED", action: "admitir invitados", event: "chat.call.guest_admitted" });
@@ -374,14 +425,19 @@ export function createCallGuestService({
     const call = await assertManage({ profileId, callId, action: "silenciar invitados" });
     const guest = await prisma.callGuest.findFirst({ where: { id: guestId, callId } });
     if (!guest) throw new CallGuestError("Invitado no encontrado.", 404);
-    try {
-      const rc = new RoomServiceClientImpl(config().internalUrl, config().apiKey, config().apiSecret);
-      const parts = await rc.listParticipants(call.livekitRoomName);
-      const p = parts.find((x) => x.identity === guest.livekitIdentity);
-      const audio = p?.tracks?.find((t) => t.type === 1 /* AUDIO */ || t.source === 2);
-      if (audio) await rc.mutePublishedTrack(call.livekitRoomName, guest.livekitIdentity, audio.sid, muted);
-    } catch { /* best effort */ }
-    return { ok: true, muted };
+    let liveActionOk = false;
+    for (let attempt = 0; attempt < 2 && !liveActionOk; attempt += 1) {
+      try {
+        const rc = new RoomServiceClientImpl(config().internalUrl, config().apiKey, config().apiSecret);
+        const parts = await rc.listParticipants(call.livekitRoomName);
+        const p = parts.find((x) => x.identity === guest.livekitIdentity);
+        const audio = p?.tracks?.find((t) => t.type === 1 /* AUDIO */ || t.source === 2);
+        if (!audio) { liveActionOk = true; break; } // nothing published yet — nothing to mute, not a failure
+        await rc.mutePublishedTrack(call.livekitRoomName, guest.livekitIdentity, audio.sid, muted);
+        liveActionOk = true;
+      } catch { /* retry once, then report failure below */ }
+    }
+    return { ok: true, muted, liveActionOk };
   }
 
   async function kickGuestsForLink({ linkId }) {
@@ -404,11 +460,19 @@ export function createCallGuestService({
 
   async function sweepAbandonedGuests() {
     const cutoff = new Date(now().getTime() - ABANDON_MS);
-    const res = await prisma.callGuest.updateMany({
+    // A per-row update (instead of updateMany) so each abandoned guest can be
+    // broadcast individually — otherwise the host's "N esperando" badge
+    // never decrements for a guest who silently times out.
+    const abandoned = await prisma.callGuest.findMany({
       where: { status: "LOBBY", lastSeenAt: { lt: cutoff } },
-      data: { status: "DENIED", leftAt: now() },
+      select: { id: true, callId: true, displayName: true },
     });
-    return res?.count ?? 0;
+    for (const g of abandoned) {
+      await prisma.callGuest.update({ where: { id: g.id }, data: { status: "DENIED", leftAt: now() } }).catch(() => {});
+      const call = await liveCallById(g.callId);
+      if (call) await notifyMembers(call, "chat.call.guest_left", { callId: call.id, guestId: g.id, name: g.displayName });
+    }
+    return abandoned.length;
   }
 
   return {

@@ -583,6 +583,102 @@ describe("createCallService", () => {
   });
 });
 
+describe("createCallService recording.active exposure", () => {
+  function activeCallRecord() {
+    return {
+      id: CALL_ID,
+      conversationId: CONVERSATION_ID,
+      kind: "VIDEO",
+      status: "ACTIVE",
+      initiatedByUserId: CALLER_ID,
+      livekitRoomName: `call_${CALL_ID}`,
+      participants: [
+        { userId: CALLER_ID, status: "JOINED", user: { displayName: "Caller" } },
+        { userId: CALLEE_ID, status: "JOINED", user: { displayName: "Callee" } },
+      ],
+      initiator: { id: CALLER_ID, displayName: "Caller" },
+      calendarEvent: null,
+    };
+  }
+
+  it("getCall reports recording.active:true when a STARTING/ACTIVE call_recording row exists, scoped to this call id", async () => {
+    let queriedCallId;
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      call: { findMany: async () => [], findUnique: async () => activeCallRecord() },
+      $queryRaw: async (strings, ...values) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("chat_conversation_members")) return [{ id: "membership" }];
+        if (sql.includes('FROM "call_recording"')) {
+          queriedCallId = values[0];
+          return [{ id: "rec-1" }];
+        }
+        return [];
+      },
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+
+    const call = await service.getCall({ authUserId: "caller-auth", callId: CALL_ID });
+
+    assert.deepEqual(call.recording, { active: true });
+    assert.equal(queriedCallId, CALL_ID);
+  });
+
+  it("getCall reports recording.active:false when there is no active recording row", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      call: { findMany: async () => [], findUnique: async () => activeCallRecord() },
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("chat_conversation_members")) return [{ id: "membership" }];
+        if (sql.includes('FROM "call_recording"')) return [];
+        return [];
+      },
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+
+    const call = await service.getCall({ authUserId: "caller-auth", callId: CALL_ID });
+
+    assert.deepEqual(call.recording, { active: false });
+  });
+
+  it("getCurrentCall includes recording.active alongside participantStatus", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      call: { findMany: async () => [], findUnique: async () => activeCallRecord() },
+      callParticipant: {
+        findFirst: async () => ({ callId: CALL_ID, status: "JOINED" }),
+      },
+      $queryRaw: async (strings) => {
+        const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
+        if (sql.includes("chat_conversation_members")) return [{ id: "membership" }];
+        if (sql.includes('FROM "call_recording"')) return [{ id: "rec-1" }];
+        return [];
+      },
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+
+    const result = await service.getCurrentCall({ authUserId: "caller-auth" });
+
+    assert.equal(result.participantStatus, "JOINED");
+    assert.deepEqual(result.call.recording, { active: true });
+  });
+
+  it("getCurrentCall returns null (not an object with recording) when there is no live participant row", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Caller" }) },
+      call: { findMany: async () => [] },
+      callParticipant: { findFirst: async () => null },
+      $queryRaw: async () => [],
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+
+    const result = await service.getCurrentCall({ authUserId: "caller-auth" });
+
+    assert.equal(result, null);
+  });
+});
+
 describe("createCallService.getLiveCallOrThrow", () => {
   function callRow(overrides = {}) {
     return {
