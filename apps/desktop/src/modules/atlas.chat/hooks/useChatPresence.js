@@ -4,7 +4,7 @@ import { createPresenceChannel } from "../lib/supabaseRealtime";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 
 export function useChatPresence(conversationId) {
-  const { user } = useAuth();
+  const { userProfile: user } = useAuth();
   const { isUserOnline } = useGlobalPresence();
   const [onlineUsers, setOnlineUsers] = useState({});
   const [typingUsers, setTypingUsers] = useState({});
@@ -12,21 +12,26 @@ export function useChatPresence(conversationId) {
   const typingTimeouts = useRef({});
 
   useEffect(() => {
+    setOnlineUsers({});
+    setTypingUsers({});
     if (!conversationId || !user?.id) return;
+    let disposed = false;
 
     const { sendTyping, unsubscribe } = createPresenceChannel(
       `chat:presence:${conversationId}`,
-      { userId: user.id, displayName: user.display_name ?? user.email ?? user.id },
+      { userId: user.id, displayName: user.displayName ?? user.email ?? user.id },
       {
         onPresenceSync: (state) => {
+          if (disposed) return;
           const online = {};
-          Object.entries(state).forEach(([key, presences]) => {
+          Object.values(state).forEach((presences) => {
             const p = presences[0];
             if (p?.userId) online[p.userId] = p;
           });
           setOnlineUsers(online);
         },
         onTyping: ({ payload }) => {
+          if (disposed) return;
           const { userId, isTyping } = payload ?? {};
           if (!userId || userId === user.id) return;
 
@@ -56,10 +61,13 @@ export function useChatPresence(conversationId) {
     channelRef.current = { sendTyping };
 
     return () => {
+      disposed = true;
+      channelRef.current = null;
       unsubscribe();
       Object.values(typingTimeouts.current).forEach(clearTimeout);
+      typingTimeouts.current = {};
     };
-  }, [conversationId, user?.id, user?.display_name, user?.email]);
+  }, [conversationId, user?.id, user?.displayName, user?.email]);
 
   const sendTyping = useCallback((isTyping) => {
     channelRef.current?.sendTyping(isTyping);

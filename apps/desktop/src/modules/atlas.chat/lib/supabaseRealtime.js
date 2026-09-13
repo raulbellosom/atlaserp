@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../../../lib/supabase.js";
+import { sharePresence } from './sharedPresence.js';
 
 /**
  * Subscribe to new/updated messages in a conversation via Postgres Changes.
@@ -87,40 +88,5 @@ export function subscribeToMultiBroadcast(channelName, handlers) {
  * Used for typing indicators and online status.
  */
 export function createPresenceChannel(channelName, userPresenceData, { onPresenceSync, onTyping } = {}) {
-  const client = getSupabaseClient();
-  const channel = client.channel(channelName, {
-    config: { presence: { key: userPresenceData.userId }, ...(isPrivateTopic(channelName) ? { private: true } : {}) },
-  });
-
-  if (onPresenceSync) {
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      onPresenceSync(state);
-    });
-  }
-
-  if (onTyping) {
-    channel.on("broadcast", { event: "typing" }, (payload) => onTyping(payload));
-  }
-
-  channel.subscribe(async (status) => {
-    if (status === "SUBSCRIBED") {
-      await channel.track(userPresenceData);
-    }
-  });
-
-  const sendTyping = (isTyping) => {
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { userId: userPresenceData.userId, isTyping },
-    });
-  };
-
-  return {
-    channel,
-    sendTyping,
-    unsubscribe: () => client.removeChannel(channel),
-  };
+  return sharePresence(getSupabaseClient(), channelName, userPresenceData, { onPresenceSync, onTyping });
 }
-
