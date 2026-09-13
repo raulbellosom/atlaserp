@@ -1,10 +1,31 @@
 param(
-  [switch]$SkipRun
+  [switch]$SkipRun,
+  [switch]$SkipBootstrapRefresh
 )
 
 $ErrorActionPreference = "Stop"
 
 $baseUrl = "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer"
+if (-not $SkipBootstrapRefresh) {
+  $bootstrapDownload = "$PSCommandPath.download"
+  try {
+    Invoke-WebRequest -Uri "$baseUrl/bootstrap-local.ps1" -OutFile $bootstrapDownload
+    $parseTokens = $null
+    $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($bootstrapDownload, [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+    if ($parseErrors.Count) { throw "Downloaded bootstrap has invalid PowerShell syntax." }
+    if ((Get-FileHash -LiteralPath $PSCommandPath).Hash -ne (Get-FileHash -LiteralPath $bootstrapDownload).Hash) {
+      Move-Item -LiteralPath $bootstrapDownload -Destination $PSCommandPath -Force
+      Write-Host "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
+      $forwarded = @{} + $PSBoundParameters
+      $forwarded.SkipBootstrapRefresh = $true
+      & $PSCommandPath @forwarded
+      return
+    }
+  } finally {
+    if (Test-Path -LiteralPath $bootstrapDownload) { Remove-Item -LiteralPath $bootstrapDownload -Force }
+  }
+}
 $files = @(
   "docker-compose.yml",
   "docker-compose.linux.yml",

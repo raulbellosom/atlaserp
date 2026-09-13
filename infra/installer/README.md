@@ -404,6 +404,35 @@ node ./setup-external.mjs --skip-pull
 ```
 ## Editor Office opcional (Collabora CODE)
 
+### Actualizar una copia antigua del bootstrap
+
+Ejecutar `bash ./bootstrap-external.sh` usa el archivo que ya existe en el VPS.
+Las versiones antiguas no se actualizaban a sí mismas y podían omitir librerías
+nuevas aunque el código ya estuviera publicado en `main`. Para renovar esa copia
+una vez, desde la carpeta del instalador:
+
+```bash
+curl -fsSLo bootstrap-external.sh.next https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh && bash -n bootstrap-external.sh.next && mv bootstrap-external.sh.next bootstrap-external.sh
+bash ./bootstrap-external.sh
+```
+
+Las versiones nuevas de los bootstrap external/local (Bash y PowerShell) refrescan
+su propio código antes de descargar la lista de archivos. Si la descarga falla,
+se detienen sin sustituir el bootstrap. Conservan los archivos de entorno y las
+credenciales de `.secrets/`. Una versión antigua necesita la renovación manual
+anterior para incorporar esta capacidad.
+
+El bootstrap descarga los scripts y Compose. El setup (`npm run atlas:external`)
+descarga las imágenes/Dev Kit y ejecuta la instalación. Para preparar únicamente
+las variables y carpeta de Firebase después del bootstrap:
+
+```bash
+node lib/firebase-config.mjs .env.external
+```
+
+Ese comando no reinicia Atlas ni genera la clave privada: el archivo Firebase
+`service-account.json` debe provisionarse por separado.
+
 Office viene desactivado. Para habilitarlo en el VPS, primero publica las nuevas
 imagenes de Atlas y los archivos del instalador. Desde la **carpeta existente del
 instalador**, refresca los scripts y Compose con el bootstrap actualizado:

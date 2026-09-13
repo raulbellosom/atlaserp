@@ -2,6 +2,24 @@
 set -euo pipefail
 
 base_url="https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer"
+# Refresh the file list itself before downloading the installer. Existing VPS
+# copies otherwise keep downloading an obsolete list forever.
+if [[ "${ATLAS_BOOTSTRAP_REFRESHED:-}" != "external" ]]; then
+  bootstrap_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  bootstrap_download="$(mktemp "${bootstrap_path}.XXXXXX")"
+  trap 'rm -f "$bootstrap_download"' EXIT
+  curl -fsSLo "$bootstrap_download" "$base_url/bootstrap-external.sh"
+  bash -n "$bootstrap_download"
+  if ! cmp -s "$bootstrap_path" "$bootstrap_download"; then
+    chmod +x "$bootstrap_download"
+    mv -f "$bootstrap_download" "$bootstrap_path"
+    trap - EXIT
+    echo "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
+    exec env ATLAS_BOOTSTRAP_REFRESHED=external bash "$bootstrap_path" "$@"
+  fi
+  rm -f "$bootstrap_download"
+  trap - EXIT
+fi
 files=(
   docker-compose.yml
   docker-compose.linux.yml
