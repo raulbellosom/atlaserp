@@ -3,6 +3,7 @@ import { Button, useCoarsePointer } from "@atlas/ui";
 import {
   Camera,
   CameraOff,
+  Circle,
   Flashlight,
   FlashlightOff,
   Hand,
@@ -17,6 +18,7 @@ import {
   PinOff,
   PictureInPicture2,
   ScreenShareOff,
+  StopCircle,
   SwitchCamera,
   UserPlus,
   Volume2,
@@ -28,6 +30,7 @@ import { CallViewSwitcher } from "./CallViewSwitcher";
 import { CallReactionsOverlay } from "./CallReactionsOverlay";
 import { CallReactionButton } from "./CallReactionButton";
 import { RaisedHandsBar } from "./RaisedHandsBar";
+import { RecordingBanner } from "./RecordingBanner";
 import { resolvePinnedEntry } from "./lib/callLayout";
 
 function formatDuration(totalSeconds) {
@@ -252,6 +255,9 @@ export function CallRoomLayout({ view, actions, chat }) {
     isHost = false,
     pinnedIdentity = null,
     myLocalIdentity = null,
+    canRecord = false,
+    recordingActive = false,
+    recordingBusy = false,
   } = view;
 
   const {
@@ -351,6 +357,7 @@ export function CallRoomLayout({ view, actions, chat }) {
       )}
 
       <main className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+        <RecordingBanner active={recordingActive} />
         {mobileChatOpen ? (
           <div className="absolute inset-0 flex flex-col bg-[hsl(var(--background))]">
             {hasScreenShare && (
@@ -493,6 +500,19 @@ export function CallRoomLayout({ view, actions, chat }) {
         {isDirectVideo && (
           <Button type="button" variant="secondary" size="icon" className="h-11 w-11 rounded-full" onClick={actions.toggleLayout} title={layoutMode === "focus" ? "Usar vista 50/50" : "Destacar al otro participante"}>
             {layoutMode === "focus" ? <LayoutGrid className="h-5 w-5" /> : <PictureInPicture2 className="h-5 w-5" />}
+          </Button>
+        )}
+        {canRecord && (
+          <Button
+            type="button"
+            variant={recordingActive ? "destructive" : "secondary"}
+            size="icon"
+            disabled={!engineReady || recordingBusy}
+            className="h-11 w-11 rounded-full disabled:opacity-40"
+            onClick={actions.toggleRecording}
+            title={recordingActive ? "Detener grabación" : "Grabar llamada"}
+          >
+            {recordingActive ? <StopCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
           </Button>
         )}
         <Button type="button" variant="destructive" size="icon" className="h-11 w-11 rounded-full sm:w-auto sm:px-6" onClick={actions.leave} title="Colgar">

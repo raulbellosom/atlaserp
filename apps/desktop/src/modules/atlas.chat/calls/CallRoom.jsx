@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track, ConnectionState } from "livekit-client";
 import { toast } from "sonner";
 import { useIsMobile, Dialog, DialogContent, DialogHeader, DialogTitle, Button } from "@atlas/ui";
+import { useAuth } from "../../../auth/AuthProvider";
 import { useChatMessages } from "../hooks/useChatMessages";
 import { playCallSound, playCallEndSound } from "./callSounds";
 import { nextCallView } from "./lib/callChat";
@@ -11,6 +12,7 @@ import { CallInvitePanel } from "./CallInvitePanel";
 import { MiniCallBubble } from "./MiniCallBubble";
 import { useCallGuests } from "./hooks/useCallGuests";
 import { useCallEphemeral } from "./hooks/useCallEphemeral";
+import { useCallRecording } from "./hooks/useCallRecording";
 import { CallGuestSheet } from "./CallGuestSheet";
 import { CallRoomLayout } from "./CallRoomLayout";
 import { useNativeScreenShare } from './useNativeScreenShare';
@@ -74,6 +76,10 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const chatSeenRef = useRef(0);
   const chatLoadedRef = useRef(false);
   const [chatUnread, setChatUnread] = useState(0);
+
+  const { userProfile } = useAuth();
+  const canRecord = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes("chat.calls.record"));
+  const recording = useCallRecording({ callId: session.call.id, conversationId });
 
   // Guest access: only the initiator polls the roster (a non-manager member
   // gets a swallowed 403); the share dialog + roster are hidden otherwise.
@@ -572,6 +578,9 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         isHost: isInitiator,
         pinnedIdentity,
         myLocalIdentity: room.localParticipant?.identity,
+        canRecord,
+        recordingActive: recording.active,
+        recordingBusy: recording.busy,
       }}
       actions={{
         activateAudio: () => room.startAudio().then(() => setNeedsAudio(false)),
@@ -587,6 +596,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         toggleHand: ephemeral.toggleHand,
         lowerHand: ephemeral.lowerHand,
         setPinned,
+        toggleRecording: recording.active ? recording.stop : recording.start,
       }}
       chat={{
         isMobile,
