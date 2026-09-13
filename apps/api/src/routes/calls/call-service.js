@@ -517,6 +517,19 @@ export function createCallService({
     return call;
   }
 
+  async function getLiveCallOrThrow(callId) {
+    const rows = await prisma.$queryRaw`
+      SELECT id, conversation_id AS "conversationId", status,
+             livekit_room_name AS "livekitRoomName", initiated_by_user_id AS "initiatedByUserId"
+      FROM "call" WHERE id = ${callId} LIMIT 1
+    `;
+    const call = rows[0];
+    if (!call || !["RINGING", "ACTIVE"].includes(call.status)) {
+      throw new CallServiceError("La llamada no está activa.", 409);
+    }
+    return call;
+  }
+
   async function getCurrentCall({ authUserId }) {
     assertEnabled();
     await expireStaleCalls();
@@ -871,6 +884,7 @@ export function createCallService({
     getConfigStatus,
     createCall,
     getCall,
+    getLiveCallOrThrow,
     getCurrentCall,
     joinCall,
     declineCall,
