@@ -408,6 +408,7 @@ model UserProfile {
   callInvitesSent        CallInvite[]              @relation("CallInviteInvitedBy")
   callGuestsAdmitted     CallGuest[]               @relation("CallGuestAdmittedBy")
   callMessagesSent       CallMessage[]             @relation("CallMessageSenderUser")
+  callRecordingsStarted  CallRecording[]           @relation("CallRecordingStartedBy")
 
   projectsOwned      Project[]       @relation("ProjectOwner")
   projectMemberships ProjectMember[] @relation("ProjectMemberUser")
@@ -1970,6 +1971,7 @@ model Call {
   participants  CallParticipant[]
   guests        CallGuest[]
   messages      CallMessage[]
+  recordings    CallRecording[]
 
   @@index([conversationId])
   @@index([calendarEventId])
@@ -2093,6 +2095,32 @@ model CallGuestJoinAttempt {
 
   @@index([ip, createdAt])
   @@map("call_guest_join_attempt")
+}
+
+model CallRecording {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  callId            String    @db.Uuid @map("call_id")
+  conversationId    String    @db.Uuid @map("conversation_id")
+  status            String    @default("STARTING") // STARTING | ACTIVE | PROCESSING | READY | FAILED
+  startedByUserId   String    @db.Uuid @map("started_by_user_id")
+  egressId          String?   @map("egress_id")
+  playlistObjectKey String?   @map("playlist_object_key")
+  sizeBytes         BigInt?   @map("size_bytes")
+  durationMs        Int?      @map("duration_ms")
+  failureReason     String?   @map("failure_reason")
+  startedAt         DateTime  @default(now()) @map("started_at")
+  endedAt           DateTime? @map("ended_at")
+  expiresAt         DateTime? @map("expires_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  call      Call        @relation(fields: [callId], references: [id], onDelete: Cascade)
+  startedBy UserProfile @relation("CallRecordingStartedBy", fields: [startedByUserId], references: [id])
+
+  @@index([callId])
+  @@index([conversationId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("call_recording")
 }
 
 model CalendarEventFile {
