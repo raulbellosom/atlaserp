@@ -583,6 +583,63 @@ describe("createCallService", () => {
   });
 });
 
+describe("createCallService.getLiveCallOrThrow", () => {
+  function callRow(overrides = {}) {
+    return {
+      id: CALL_ID,
+      conversationId: CONVERSATION_ID,
+      status: "ACTIVE",
+      livekitRoomName: `call_${CALL_ID}`,
+      initiatedByUserId: CALLER_ID,
+      ...overrides,
+    };
+  }
+
+  it("returns the row when the call is ACTIVE", async () => {
+    const row = callRow({ status: "ACTIVE" });
+    const prisma = { $queryRaw: async () => [row] };
+    const service = createCallService({ prisma, env: {} });
+
+    const result = await service.getLiveCallOrThrow(CALL_ID);
+
+    assert.deepEqual(result, row);
+  });
+
+  it("returns the row when the call is RINGING", async () => {
+    const row = callRow({ status: "RINGING" });
+    const prisma = { $queryRaw: async () => [row] };
+    const service = createCallService({ prisma, env: {} });
+
+    const result = await service.getLiveCallOrThrow(CALL_ID);
+
+    assert.equal(result.status, "RINGING");
+    assert.equal(result.id, CALL_ID);
+    assert.equal(result.conversationId, CONVERSATION_ID);
+    assert.equal(result.livekitRoomName, `call_${CALL_ID}`);
+    assert.equal(result.initiatedByUserId, CALLER_ID);
+  });
+
+  it("throws CallServiceError(409) when the call exists but is not live", async () => {
+    const prisma = { $queryRaw: async () => [callRow({ status: "ENDED" })] };
+    const service = createCallService({ prisma, env: {} });
+
+    await assert.rejects(
+      service.getLiveCallOrThrow(CALL_ID),
+      (error) => error instanceof CallServiceError && error.status === 409,
+    );
+  });
+
+  it("throws CallServiceError(409) when the call does not exist", async () => {
+    const prisma = { $queryRaw: async () => [] };
+    const service = createCallService({ prisma, env: {} });
+
+    await assert.rejects(
+      service.getLiveCallOrThrow(CALL_ID),
+      (error) => error instanceof CallServiceError && error.status === 409,
+    );
+  });
+});
+
 describe("createCallService.inviteMembersToLiveCall", () => {
   const HOST = CALLER_ID;
   const GUEST = CALLEE_ID;
