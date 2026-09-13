@@ -58,6 +58,7 @@ rust {
 }
 
 dependencies {
+    implementation("io.livekit:livekit-android:2.28.2")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")

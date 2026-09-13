@@ -54,7 +54,7 @@ fn local_shell(url: &Url) -> bool {
         && url.port().is_none()
 }
 
-fn check_remote(window: &WebviewWindow) -> Result<(), String> {
+pub(crate) fn check_remote(window: &WebviewWindow) -> Result<(), String> {
     if window.label() == "main"
         && allowed_remote(&window.url().map_err(|_| "URL_UNAVAILABLE")?, ORIGIN)
     {
@@ -118,11 +118,22 @@ pub fn host_info(window: WebviewWindow) -> Result<serde_json::Value, String> {
     if window.label() != "main" || !(local_shell(&url) || allowed_remote(&url, ORIGIN)) {
         return Err("UNTRUSTED_CONTEXT".into());
     }
+    let mut capabilities = vec![
+        "host-info",
+        "haptics",
+        "local-notifications",
+        "deep-links",
+        "external-links",
+    ];
+    if cfg!(target_os = "android") {
+        capabilities.push("notification-actions");
+        capabilities.push("screen-share");
+    }
     Ok(serde_json::json!({
         "platform": std::env::consts::OS, "nativeHostVersion": VERSION,
         "osVersion": os_info::get().version().to_string(), "bridgeVersion": 1,
         "frontendUrl": format!("{ORIGIN}/app/"),
-        "capabilities": ["host-info", "haptics", "local-notifications", "deep-links", "external-links"]
+        "capabilities": capabilities
     }))
 }
 
@@ -283,6 +294,10 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             false
         })
         .on_page_load(move |window, payload| {
+            #[cfg(target_os = "android")]
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started) {
+                super::mobile_media::stop_on_navigation(window.app_handle().clone());
+            }
             if matches!(payload.event(), tauri::webview::PageLoadEvent::Started)
                 && allowed_remote(payload.url(), ORIGIN)
             {

@@ -20,9 +20,19 @@ export function NativeHostDiagnostics() {
     return () => { mounted = false; alive.current = false; stream.current?.getTracks().forEach((track) => track.stop()) }
   }, [])
 
-  async function run(action) {
+  async function executeDiagnostic(kind) {
     setError(''); setStatus(''); setBusy(true)
-    try { await action() } catch (reason) { setError(String(reason.message ?? reason)) }
+    try {
+      const action = {
+        notification: testNotification,
+        call: testCallNotification,
+        media: testMedia,
+        haptics: async () => { await native.haptics.impact(); return 'Vibración solicitada.' },
+        external: () => native.openExternal('https://github.com/raulbellosom/atlaserp'),
+      }[kind]
+      const message = await action()
+      if (typeof message === 'string') setStatus(message)
+    } catch (reason) { setError(String(reason.message ?? reason)) }
     finally { setBusy(false) }
   }
 
@@ -32,15 +42,26 @@ export function NativeHostDiagnostics() {
       stream.current = null
       if (video.current) video.current.srcObject = null
       setMediaActive(false)
-      setStatus('Micrófono y cámara detenidos.')
-      return
+      return 'Micrófono y cámara detenidos.'
     }
     const acquired = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
     if (!alive.current) { acquired.getTracks().forEach((track) => track.stop()); return }
     stream.current = acquired
     if (video.current) video.current.srcObject = stream.current
     setMediaActive(true)
-    setStatus('Micrófono y cámara activos. No se envía ni se graba contenido.')
+    return 'Micrófono y cámara activos. No se envía ni se graba contenido.'
+  }
+
+  async function testNotification() {
+    if (await native.notifications.requestPermission() !== 'granted') throw new Error('Permiso de notificaciones denegado.')
+    await native.notifications.show({ title: 'Atlas ERP', body: 'La notificación local funciona.', tag: 'native-diagnostics' })
+    return 'Notificación enviada.'
+  }
+
+  async function testCallNotification() {
+    if (await native.notifications.requestPermission() !== 'granted') throw new Error('Permiso denegado.')
+    await native.notifications.show({ title: 'Prueba de llamada entrante', body: 'Este aviso comprueba el canal de llamadas, no inicia una llamada.', tag: 'native-call-diagnostics', requireInteraction: true })
+    return 'Aviso local de llamada enviado. Los avisos con la app cerrada todavía no están disponibles.'
   }
 
   return (
@@ -55,15 +76,11 @@ export function NativeHostDiagnostics() {
           <dt>Funciones disponibles</dt><dd>{info.capabilities.join(', ')}</dd>
         </dl>}
         <div className="flex flex-wrap gap-3">
-          <Button disabled={busy || !native.supports('haptics')} onClick={() => run(async () => { await native.haptics.impact(); setStatus('Vibración solicitada.'); })}>Probar vibración</Button>
-          <Button disabled={busy || !info} onClick={() => run(async () => {
-            const permission = await native.notifications.requestPermission()
-            if (permission !== 'granted') throw new Error('Permiso de notificaciones denegado.')
-            await native.notifications.show({ title: 'Atlas ERP', body: 'La notificación local funciona.' })
-            setStatus('Notificación enviada.')
-          })}>Probar notificación</Button>
-          <Button disabled={busy} variant="outline" onClick={() => run(testMedia)}>{mediaActive ? 'Detener cámara y micrófono' : 'Probar cámara y micrófono'}</Button>
-          <Button disabled={busy} variant="outline" onClick={() => run(() => native.openExternal('https://github.com/raulbellosom/atlaserp'))}>Abrir enlace externo</Button>
+          <Button disabled={busy || !native.supports('haptics')} onClick={() => executeDiagnostic('haptics')}>Probar vibración</Button>
+          <Button disabled={busy || !info} onClick={() => executeDiagnostic('notification')}>Probar notificación</Button>
+          <Button disabled={busy || !info} variant="outline" onClick={() => executeDiagnostic('call')}>Probar aviso de llamada</Button>
+          <Button disabled={busy} variant="outline" onClick={() => executeDiagnostic('media')}>{mediaActive ? 'Detener cámara y micrófono' : 'Probar cámara y micrófono'}</Button>
+          <Button disabled={busy} variant="outline" onClick={() => executeDiagnostic('external')}>Abrir enlace externo</Button>
         </div>
         <video ref={video} autoPlay playsInline muted className={mediaActive ? 'w-full rounded-xl' : 'hidden'} aria-label="Vista previa de cámara" />
         {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}

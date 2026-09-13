@@ -8,10 +8,13 @@ Spec: `docs/superpowers/specs/2026-09-11-atlas-native-host-design.md`. Evidence 
 - [x] ARM64 debug APK with production origin; x86_64 emulator verified bridge, media, notifications, deep links, external navigation and fallback.
 - [x] Actual compiled SPA login/branding loaded in emulator using local nginx; no Desktop server picker.
 - [x] Android Atlas launcher/splash generated from canonical vector; production CSP and login verified in emulator after branding update.
+- [x] Android 1.1.0 native screen-video sharing and local call notification channels; isolated LiveKit/emulator verified reception, stop, denial and owner disconnect. Authenticated ERP acceptance remains pending.
 - [ ] Validate authenticated session persistence, companies, chat/Realtime and LiveKit on physical devices.
 - [ ] Release signing/distribution, iOS, FCM/APNs and native incoming-call integration (future milestones).
 
 Verified: 2026-09-11 (9 native Node tests, 22 regression tests, 3 Rust tests, cargo check, Vite build, ESLint, React Doctor 98/100, nginx -t, Android Gradle builds and adb/CDP emulator checks). Full functional acceptance remains pending; no production deployment performed.
+
+Verified: 2026-09-12 (70 call/native Node tests, 3 Rust tests, Vite build, ESLint, React Doctor without errors and one CallRoom complexity warning, Android ARM64/x86_64 builds, MediaProjection/LiveKit video received at 1080x2400, local notification importance/sound/vibration/dismiss and tap-to-deep-link queue). APK, web and API must all be updated; FCM is not implemented/configured.
 
 ## Task completion policy
 

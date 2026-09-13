@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Loaded by Tauri's Rust registration through reflection.
+-keep class com.racoondevs.atlaserp.ScreenSharePlugin { *; }
+-keep class com.racoondevs.atlaserp.ScreenShareArgs { *; }

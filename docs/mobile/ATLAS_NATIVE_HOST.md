@@ -1,5 +1,28 @@
 # Atlas Native Host
 
+## Android 1.1.0 — llamadas y pantalla (2026-09-12)
+
+El host añade captura nativa con MediaProjection y LiveKit Android 2.28.2 (Kotlin 2.2.21). El participante auxiliar `screen:<profileId>` publica exclusivamente video de pantalla en la sala existente; no adquiere audio, cámara ni suscripciones. La API exige pertenencia a la conversación, llamada activa y participante JOINED para emitir un token de un minuto limitado a SCREEN_SHARE. Los participantes auxiliares no cuentan como personas ni disparan sonidos de entrada/salida. Web/Desktop conservan `getDisplayMedia`.
+
+Los avisos locales ahora usan canales Android con importancia alta, sonido y vibración, IDs estables para retirarlos al responder/terminar, icono Atlas y un PendingIntent con URI validada. El enlace usa la cola nativa con ACK. Esto evita la pérdida de datos al tocar una notificación observada en el plugin Tauri instalado. El permiso y la creación/cancelación del canal siguen usando ese plugin. No se solicita full-screen intent.
+
+**No hay push con la aplicación cerrada:** falta integrar/configurar FCM en Android y el envío del servidor. El permiso POST_NOTIFICATIONS y los canales locales no constituyen un registro FCM. La interfaz deja de anunciar que los avisos en segundo plano ya funcionan. No se ha diagnosticado ni validado una llamada entre usuarios autenticados; las pruebas siguientes usan una sala sintética aislada.
+
+Para habilitar las mejoras se necesitan **el APK nuevo y un despliegue de web/API** que incluya el endpoint POST `/calls/:callId/screen-token` y el bridge actualizado. No se realizó ese despliegue. Los APK antiguos siguen usando su conjunto de capacidades y no reciben la captura nativa por una actualización web.
+
+Verificación ejecutada en Android 16/API 36:
+
+- LiveKit web recibió video de pantalla 1080 × 2400, readyState 4; servidor confirmó una única pista SCREEN_SHARE y ninguna pista de audio del auxiliar.
+- Detener desde el bridge retiró el auxiliar y dejó conectada la llamada web. Desconectar al propietario también detuvo la captura. Rechazar el diálogo dejó active/pending en false y permitió reintentar.
+- NotificationRecord confirmó importancia 4, sonido, vibración y visibilidad privada; retirada por ID y tap hacia la cola de llamada correctos, tanto con proceso activo como tras matarlo y arrancar de nuevo desde el aviso. Esto prueba abrir un aviso local ya creado, no recibir push con el proceso cerrado.
+- 70 pruebas Node de llamadas/bridge, 3 pruebas Rust, ESLint, build web y builds ARM64/x86_64 correctos. React Doctor: 83/100, sin errores, una advertencia de complejidad en CallRoom.
+
+Pendiente: dos dispositivos físicos, llamada autenticada completa, micrófono/cámara simultáneos con captura, recepción con bloqueo/segundo plano mediante FCM y validación del stop desde el control del sistema. No inferir estos resultados de la prueba de video aislada.
+
+APK debug local: `.tmp/artifacts/Atlas-Native-Host-1.1.0-arm64-production-debug.apk`, versionCode 1001000, origen de producción, SHA-256 `CD72B3163A8D0D0D953425E2787BC327E3AB06CA0A1533D6228BF42B33798420`. Se usó la copia de `.so` y Gradle descrita abajo por la restricción de symlinks de Windows. APKs, bibliotecas compiladas, logs y exportaciones permanecen ignorados por Git.
+
+Fixture reproducible (solo desarrollo, sin credenciales reales): iniciar un contenedor aislado con `docker run -d --name atlas-native-media-smoke -p 7885:7885 -p 7886:7886 livekit/livekit-server:v1.12.0 --dev --bind 0.0.0.0 --node-ip 10.0.2.2 --port 7885 --rtc.tcp_port 7886`, después `node apps/desktop/native-host/media-smoke-server.mjs`. Usar host debug localhost:5184 y `adb reverse tcp:5184 tcp:5184`. Desde CDP invocar `startScreen()` y conceder/rechazar el diálogo; `smoke`, `host_screen_status` y `/app/participants` permiten inspeccionar resultados sin imprimir tokens. Cerrar la fixture y eliminar ese contenedor al terminar. La fixture nunca se empaqueta en el producto.
+
 Fecha: 2026-09-11. Estado: host Android implementado y verificado en emulador; aceptación del ERP autenticado pendiente; no publicación en tiendas.
 
 ## Arquitectura y alcance

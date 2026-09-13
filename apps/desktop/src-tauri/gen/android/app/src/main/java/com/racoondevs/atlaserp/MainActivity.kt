@@ -29,6 +29,11 @@ class MainActivity : TauriActivity() {
     super.onNewIntent(intent)
   }
 
+  override fun onDestroy() {
+    ScreenSharePlugin.stopCurrent()
+    super.onDestroy()
+  }
+
   private fun normalizeIntent(intent: Intent) {
     // Tao 0.35's JNI intent handler unwraps a null getType() for VIEW/SEND.
     // Preserve URI/extras and provide a neutral MIME before entering Rust.

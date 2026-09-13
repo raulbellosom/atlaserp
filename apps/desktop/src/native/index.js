@@ -1,8 +1,10 @@
 import { detectRuntime, isNative, isNativeMobile, isNativeDesktop } from '@atlas/core/native-runtime'
 import { supportsCapability, createEventPump } from './policy.js'
+import { notificationId, nativeNotificationOptions, prepareAndroidNotificationChannels } from './notification-policy.js'
 
 let hostInfo = null
 let initializing = null
+let channelsReady = null
 const invoke = async (command, args) => {
   const { invoke } = await import('@tauri-apps/api/core')
   return invoke(command, args)
@@ -53,12 +55,30 @@ export const native = {
       const plugin = await notifications()
       return await plugin.isPermissionGranted() ? 'granted' : plugin.requestPermission()
     },
-    async show({ title, body = '' }) {
+    async show(options) {
       if (!isNative() || await native.notifications.permission() !== 'granted') return false
-      await (await notifications()).sendNotification({ title, body })
+      const plugin = await notifications()
+      await getHostInfo()
+      if (native.supports('notification-actions')) {
+        if (detectRuntime() === 'tauri-android') {
+          if (!channelsReady) channelsReady = prepareAndroidNotificationChannels(plugin).catch((error) => { channelsReady = null; throw error })
+          await channelsReady
+        }
+        await invoke('host_notification_show', { options: nativeNotificationOptions(options) })
+      } else await plugin.sendNotification({ title: options.title, body: options.body ?? '' })
       return true
     },
+    async dismiss(tag) {
+      if (!isNativeMobile()) return
+      await getHostInfo()
+      if (native.supports('notification-actions')) await (await notifications()).removeActive([{ id: notificationId(tag) }])
+    },
     getPushToken: unsupported,
+  },
+  screenShare: {
+    async start(session) { await native.requireCapability('screen-share'); return invoke('host_screen_start', { session }) },
+    async stop() { if (native.supports('screen-share')) await invoke('host_screen_stop') },
+    async status() { return native.supports('screen-share') ? invoke('host_screen_status') : { active: false } },
   },
   haptics: {
     async impact(style = 'light') {
@@ -80,7 +100,10 @@ export const native = {
     subscribe(handler) {
       if (!isNativeMobile()) return () => {}
       let disposed = false
-      const pump = createEventPump({ read: () => invoke('host_events'), acknowledge: (ids) => invoke('host_ack_events', { ids }) })
+      const pump = createEventPump({
+        read: () => invoke('host_events'),
+        acknowledge: (ids) => invoke('host_ack_events', { ids }),
+      })
       const tick = () => pump((event) => disposed ? false : handler(event)).catch(() => {})
       const timer = setInterval(tick, 1000)
       globalThis.addEventListener('focus', tick)

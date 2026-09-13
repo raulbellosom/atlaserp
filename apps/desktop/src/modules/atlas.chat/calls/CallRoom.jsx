@@ -13,6 +13,7 @@ import { useCallGuests } from "./hooks/useCallGuests";
 import { useCallEphemeral } from "./hooks/useCallEphemeral";
 import { CallGuestSheet } from "./CallGuestSheet";
 import { CallRoomLayout } from "./CallRoomLayout";
+import { useNativeScreenShare } from './useNativeScreenShare';
 
 const UNANSWERED_CALL_TIMEOUT_MS = 36_000;
 // Meet-style: a meeting room where nobody ever joined auto-closes after this,
@@ -38,6 +39,7 @@ function writeChatCollapsedPref(collapsed) {
 }
 
 export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, minimized = false, onMinimize, onRestore, guestPanelNonce = 0 }) {
+  const nativeScreen = useNativeScreenShare(session.call.id);
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), [session.callId]);
   const [renderVersion, setRenderVersion] = useState(0);
   const [connectionState, setConnectionState] = useState("connecting");
@@ -47,7 +49,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const mediaInitRef = useRef(false);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(session.call.kind === "VIDEO");
-  const [screenEnabled, setScreenEnabled] = useState(false);
+  const [browserScreenEnabled, setScreenEnabled] = useState(false);
+  const screenEnabled = nativeScreen.supported ? nativeScreen.active : browserScreenEnabled;
   const [layoutMode, setLayoutMode] = useState("focus");
   const [cameraFacing, setCameraFacing] = useState("user");
   const [canSwitchCamera, setCanSwitchCamera] = useState(false);
@@ -99,7 +102,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   }, [room]);
 
   const refresh = useCallback(() => setRenderVersion((value) => value + 1), []);
-  const screenShareSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
+  const screenShareSupported = nativeScreen.supported || Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
 
   // Ephemeral in-call affordances (data-channel only): floating reactions + raise-hand.
   const ephemeral = useCallEphemeral({
@@ -154,12 +157,14 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
         setConnectionState("reconnecting");
       } else if (state === ConnectionState.Connecting) setConnectionState("connecting");
     };
-    const handleParticipantConnected = () => {
+    const handleParticipantConnected = (participant) => {
+      if (participant?.identity?.startsWith('screen:')) { refresh(); return; }
       setHasRemoteJoined(true);
       playCallSound("join");
       refresh();
     };
-    const handleParticipantDisconnected = () => {
+    const handleParticipantDisconnected = (participant) => {
+      if (participant?.identity?.startsWith('screen:')) { refresh(); return; }
       playCallEndSound();
       refresh();
     };
@@ -203,7 +208,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
       try {
         await room.connect(session.livekitUrl, session.token);
         if (cancelled) return;
-        if (room.remoteParticipants.size > 0) {
+        if (Array.from(room.remoteParticipants.values()).some((participant) => !participant.identity?.startsWith('screen:'))) {
           setHasRemoteJoined(true);
           playCallSound("join");
         }
@@ -389,6 +394,11 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
 
   async function toggleScreen() {
     if (engineNotReady()) return;
+    if (nativeScreen.supported) {
+      try { await nativeScreen.toggle(); }
+      catch (error) { toast.error(error?.message || 'No se pudo compartir la pantalla.'); }
+      return;
+    }
     if (!screenShareSupported) {
       toast.info("Tu navegador no permite compartir pantalla durante una llamada. Prueba desde Chrome o Edge en una computadora.");
       return;
@@ -412,7 +422,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     onLeave();
   }
 
-  const remoteParticipants = Array.from(room.remoteParticipants.values());
+  const allRemoteParticipants = Array.from(room.remoteParticipants.values());
+  const remoteParticipants = allRemoteParticipants.filter((participant) => !participant.identity?.startsWith('screen:'));
   const localEntry = { participant: room.localParticipant, isLocal: true };
   const remoteEntries = remoteParticipants.map((participant) => ({ participant, isLocal: false }));
   const participants = [localEntry, ...remoteEntries];
@@ -427,7 +438,7 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
     const pub = participant?.getTrackPublication?.(source);
     return Boolean(pub?.track && !pub.isMuted);
   };
-  const anyRemoteHasVideo = remoteParticipants.some(
+  const anyRemoteHasVideo = allRemoteParticipants.some(
     (p) => hasLiveTrack(p, Track.Source.Camera) || hasLiveTrack(p, Track.Source.ScreenShare),
   );
   // A call created as AUDIO becomes a video call the moment anyone turns on a
@@ -436,7 +447,8 @@ export function CallRoom({ session, onLeave, onUnanswered, isInitiator = false, 
   const isVideoActive =
     session.call.kind === "VIDEO" || cameraEnabled || screenEnabled || anyRemoteHasVideo;
   const screenShareEntry =
-    participants.find(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare)) ?? null;
+    [...participants, ...allRemoteParticipants.filter((participant) => participant.identity?.startsWith('screen:')).map((participant) => ({ participant, isLocal: false }))]
+      .find(({ participant }) => hasLiveTrack(participant, Track.Source.ScreenShare)) ?? null;
   const hasScreenShare = Boolean(screenShareEntry);
   const isDirectVideo = isVideoActive && participants.length === 2;
   const useFocusLayout = isDirectVideo && layoutMode === "focus" && !screenShareEntry;

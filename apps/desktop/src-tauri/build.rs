@@ -37,6 +37,10 @@ fn main() {
             "host_events",
             "host_ack_events",
             "host_open_external",
+            "host_screen_start",
+            "host_notification_show",
+            "host_screen_stop",
+            "host_screen_status",
         ]),
     ))
     .expect("Tauri build configuration failed");

@@ -173,6 +173,13 @@ export function createCallsRouter({
     } catch (error) { return handleError(c, error, "Error obteniendo la llamada."); }
   });
 
+  internal.post('/:callId/screen-token', async (c) => {
+    try {
+      const callId = callIdSchema.parse(c.req.param('callId'));
+      return c.json({ data: await calls.getScreenShareToken({ authUserId: c.get('authUserId'), callId }) });
+    } catch (error) { return handleError(c, error, 'No se pudo autorizar compartir pantalla.'); }
+  });
+
   for (const [action, method] of [
     ["join", "joinCall"],
     ["decline", "declineCall"],

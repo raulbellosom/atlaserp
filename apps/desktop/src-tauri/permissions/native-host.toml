@@ -27,3 +27,23 @@ commands.allow = ["host_ack_events"]
 identifier = "allow-host-open-external"
 description = "Open a validated HTTP(S) link in the system browser."
 commands.allow = ["host_open_external"]
+
+[[permission]]
+identifier = "allow-host-screen-start"
+description = "Request Android screen sharing with system consent."
+commands.allow = ["host_screen_start"]
+
+[[permission]]
+identifier = "allow-host-notification-show"
+description = "Show a local Android notification with a validated Atlas deep link."
+commands.allow = ["host_notification_show"]
+
+[[permission]]
+identifier = "allow-host-screen-stop"
+description = "Stop Android screen sharing."
+commands.allow = ["host_screen_stop"]
+
+[[permission]]
+identifier = "allow-host-screen-status"
+description = "Read Android screen sharing state without credentials."
+commands.allow = ["host_screen_status"]

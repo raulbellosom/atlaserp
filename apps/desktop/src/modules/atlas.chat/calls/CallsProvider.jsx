@@ -40,6 +40,7 @@ function unwrap(response) {
 }
 
 async function dismissSystemCallNotification(callId) {
+  if (callId && native.isMobile()) return native.notifications.dismiss(`call:${callId}`);
   if (!callId || !("serviceWorker" in navigator)) return;
   const registration = await navigator.serviceWorker.getRegistration("/");
   const notifications = await registration?.getNotifications?.({ tag: `call:${callId}` });
@@ -251,6 +252,7 @@ export function CallsProvider({ children }) {
     const current = unwrap(await atlas.calls.getCurrent(token));
     if (!current?.call) {
       if (incomingRef.current) {
+        dismissSystemCallNotification(incomingRef.current.id).catch(() => {});
         incomingRef.current = null;
         setIncomingCall(null);
       }

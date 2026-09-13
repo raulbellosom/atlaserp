@@ -41,6 +41,8 @@ export function makeConfig(origin) {
             remote: { urls: [`${origin}/app/*`] },
             permissions: ['allow-host-info', 'allow-host-ready', 'allow-host-events', 'allow-host-ack-events',
               'notification:allow-is-permission-granted', 'notification:allow-request-permission', 'notification:allow-notify',
+              'notification:allow-create-channel', 'notification:allow-remove-active', 'allow-host-notification-show',
+              'allow-host-screen-start', 'allow-host-screen-stop', 'allow-host-screen-status',
               'haptics:allow-impact-feedback', 'allow-host-open-external'] },
         ],
       },

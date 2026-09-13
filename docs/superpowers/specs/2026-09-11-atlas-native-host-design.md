@@ -3,6 +3,9 @@
 Date: 2026-09-11
 Author: Codex
 
+## Android calls follow-up — 2026-09-12
+User-reported gaps: call alerts, misleading push activation, and missing Android screen sharing. Add high-importance local notification channels, stable IDs, click routing and cancellation; do not present notification permission as FCM registration. Background push remains unconfigured until the Firebase project/client/server configuration is supplied. Add MediaProjection capture through the LiveKit Android SDK, with explicit system consent and a visible foreground service. Publish screen video only using a separate, server-authorized `screen:<userId>` identity in the existing room; no microphone, camera, subscription or data permissions for that token. Require live call membership and JOINED status. Stop on hangup, projection revocation, room disconnect or host navigation. Gate the UI by native capability, preserving browser getDisplayMedia and old APK compatibility. No database migration is needed for these fixes. Tests must cover authorization/grants, notification payload/cancellation, capability gating, and Android build/runtime behavior. Authenticated cross-device calling and configured FCM delivery remain separate acceptance checks.
+
 ## 1. Feature title
 Atlas Native Host: frontend remoto con Tauri 2 Mobile.
 ## 2. Status

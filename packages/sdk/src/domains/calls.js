@@ -29,6 +29,7 @@ export function createCallsDomain(request, withAuthHeaders) {
     get: (callId, token) =>
       request(`/calls/${encodeURIComponent(callId)}`, { headers: withAuthHeaders(token) }),
     join: (callId, token) => action(callId, "join", token),
+    screenToken: (callId, token) => action(callId, 'screen-token', token),
     decline: (callId, token) => action(callId, "decline", token),
     leave: (callId, token) => action(callId, "leave", token),
     end: (callId, token) => action(callId, "end", token),

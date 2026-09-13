@@ -32,7 +32,7 @@ export async function showSystemNotification({
 
   try {
     if (isTauriRuntime()) {
-      return native.notifications.show({ title, body: body ?? '' });
+      return native.notifications.show({ title, body: body ?? '', tag, data, requireInteraction });
     }
 
     if (

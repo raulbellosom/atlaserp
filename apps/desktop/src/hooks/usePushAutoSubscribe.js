@@ -14,6 +14,7 @@ import {
   requestSystemNotificationPermission,
 } from "../lib/systemNotifications";
 import { unlockCallSounds } from "../modules/atlas.chat/calls/callSounds";
+import { native } from '../native/index.js';
 
 const ENABLE_NOTIFICATIONS_TOAST_ID = "atlas-enable-notifications";
 
@@ -42,7 +43,7 @@ function enableFromUserGesture(token) {
   Promise.all([soundActivation, notificationActivation])
     .then(([soundUnlocked]) => {
       if (!soundUnlocked) throw new Error("El dispositivo no permitio activar el sonido.");
-      toast.success("Notificaciones y sonidos activados.");
+      toast.success(native.isMobile() ? "Avisos locales activados mientras Atlas está abierto." : "Notificaciones y sonidos activados.");
     })
     .catch((error) => {
       toast.error(error?.message ?? "No se pudieron activar las notificaciones.");
@@ -52,7 +53,9 @@ function enableFromUserGesture(token) {
 function showEnablePrompt(token) {
   toast("Activa las notificaciones", {
     id: ENABLE_NOTIFICATIONS_TOAST_ID,
-    description: "Recibe avisos y escucha las llamadas aunque Atlas no este visible.",
+    description: native.isMobile()
+      ? "Permite los avisos mientras Atlas está abierto. Los avisos con la app cerrada todavía no están disponibles."
+      : "Recibe avisos y escucha las llamadas aunque Atlas no este visible.",
     duration: Infinity,
     action: {
       label: "Activar",

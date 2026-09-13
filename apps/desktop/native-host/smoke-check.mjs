@@ -44,7 +44,7 @@ try {
       return {info, denied, blockedDirective, ua:navigator.userAgent};
     })()`)
     assert.equal(result.info.platform, 'android')
-    assert.equal(result.info.nativeHostVersion, '1.0.0')
+    assert.equal(result.info.nativeHostVersion, '1.1.0')
     assert.ok(Object.values(result.denied).every(Boolean))
     assert.ok(result.ua.includes('Android') && result.ua.includes('Chrome') && result.ua.includes('AtlasNativeHost/'))
     assert.equal(result.blockedDirective, 'frame-src')
@@ -64,7 +64,10 @@ try {
     const result = await evaluate(`(async () => {
       const invoke = window.__TAURI_INTERNALS__.invoke;
       const granted = await invoke('plugin:notification|is_permission_granted');
-      if (granted) await invoke('plugin:notification|notify', {options:{title:'Atlas Native Smoke',body:'Notificación local de prueba'}});
+      if (granted) {
+        await invoke('plugin:notification|create_channel', {id:'atlas-calls-v1',name:'Llamadas entrantes',importance:4,visibility:0,vibration:true,lights:true});
+        await invoke('host_notification_show', {options:{id:47002,title:'Atlas Native Smoke',body:'Notificación local de prueba',channelId:'atlas-calls-v1',extra:{target:{kind:'call',targetId:'fixture-call'}}}});
+      }
       return {granted};
     })()`)
     assert.equal(result.granted, true, 'Grant notification permission on the emulator first')

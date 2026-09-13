@@ -1,5 +1,6 @@
 import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 import { buildCallSystemMessage } from "./call-system-messages.js";
+import { createCallScreenShareService } from './call-screen-share-service.js';
 
 const LIVE_CALL_STATUSES = ["RINGING", "ACTIVE"];
 const RING_TIMEOUT_MS = 36_000;
@@ -866,6 +867,7 @@ export function createCallService({
   }
 
   return {
+    ...createCallScreenShareService({ assertEnabled, resolveProfile, getCallRecord, assertCallAccess, AccessTokenImpl, ErrorImpl: CallServiceError }),
     getConfigStatus,
     createCall,
     getCall,
