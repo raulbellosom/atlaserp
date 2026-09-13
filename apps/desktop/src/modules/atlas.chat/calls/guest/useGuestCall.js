@@ -10,7 +10,7 @@ function unwrap(r) {
 // state/heartbeat poll. `token`/`code`/`inviteToken` come from the URL.
 export function useGuestCall({ token = null, code = null, inviteToken = null }) {
   const [guestToken, setGuestToken] = useState(null);
-  const [state, setState] = useState({ joined: false, status: null, callEnded: false, error: null });
+  const [state, setState] = useState({ joined: false, status: null, callEnded: false, error: null, recording: { active: false } });
   const [call, setCall] = useState(null);
   const [livekitUrl, setLivekitUrl] = useState(null);
   const [guests, setGuests] = useState([]);
@@ -53,7 +53,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
     async function tick() {
       try {
         const res = unwrap(await atlas.calls.guest.state(gtRef.current));
-        setState((s) => ({ ...s, status: res.status, callEnded: !!res.callEnded }));
+        setState((s) => ({ ...s, status: res.status, callEnded: !!res.callEnded, recording: res.recording ?? { active: false } }));
         setCall(res.call);
         setLivekitUrl(res.livekitUrl ?? null);
         setGuests(res.guests ?? []);

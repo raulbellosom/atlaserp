@@ -6,6 +6,7 @@ import { GuestRoomChat } from "./GuestRoomChat";
 import { useCallEphemeral } from "../hooks/useCallEphemeral";
 import { CallReactionsOverlay } from "../CallReactionsOverlay";
 import { CallReactionButton } from "../CallReactionButton";
+import { RecordingBanner } from "../RecordingBanner";
 
 function Tile({ participant, mirror, handRaised = false }) {
   const ref = useRef(null);
@@ -61,7 +62,7 @@ function RemoteAudio({ participant }) {
   return <audio ref={ref} autoPlay />;
 }
 
-export function GuestCallRoom({ fetchLivekitToken, messages, onSendMessage, onLeave, myName }) {
+export function GuestCallRoom({ fetchLivekitToken, messages, onSendMessage, onLeave, myName, recordingActive = false }) {
   const room = useMemo(() => new Room({ adaptiveStream: true, dynacast: true }), []);
   const [, force] = useState(0);
   const [mic, setMic] = useState(true);
@@ -148,6 +149,7 @@ export function GuestCallRoom({ fetchLivekitToken, messages, onSendMessage, onLe
   return (
     <div className="fixed inset-0 flex flex-col bg-slate-950 text-white">
       <main className="relative min-h-0 flex-1 p-2 sm:p-4">
+        <RecordingBanner active={recordingActive} />
         {showChat ? (
           <GuestRoomChat polled={messages} liveIncoming={live} onSend={publishChat} myName={myName} />
         ) : (

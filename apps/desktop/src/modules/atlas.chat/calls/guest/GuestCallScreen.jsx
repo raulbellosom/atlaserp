@@ -103,6 +103,7 @@ export default function GuestCallScreen() {
         onSendMessage={gc.sendMessage}
         onLeave={gc.leave}
         myName={formRef.current.name || name}
+        recordingActive={gc.state.recording?.active}
       />
     );
   }
