@@ -166,6 +166,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   // Reset local state when conversation changes
   useEffect(() => {
     setFilesView(initialFilesView);
+    setRecordingsView(false);
     setHiddenMessageIds(conversationId ? loadHidden(conversationId) : new Set());
     setSelectionMode(false);
     setSelectedMsgIds(new Set());
