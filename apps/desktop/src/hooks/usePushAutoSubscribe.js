@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -15,6 +15,7 @@ import {
 } from "../lib/systemNotifications";
 import { unlockCallSounds } from "../modules/atlas.chat/calls/callSounds";
 import { native } from '../native/index.js';
+import { createNotificationPreparation } from '../lib/notificationPreparation.js';
 
 const ENABLE_NOTIFICATIONS_TOAST_ID = "atlas-enable-notifications";
 
@@ -104,31 +105,32 @@ async function prepareNotifications(token) {
 export function usePushAutoSubscribe() {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
-  const hasRunRef = useRef(false);
-
-  useEffect(() => {
-    if (!token || !userProfile?.id) {
-      hasRunRef.current = false;
-      return;
-    }
-    if (hasRunRef.current) return;
-    hasRunRef.current = true;
-
-    prepareNotifications(token).catch(() => {});
-  }, [token, userProfile?.id]);
-
   useEffect(() => {
     if (!token || !userProfile?.id) return;
+    const prepare = createNotificationPreparation(() => prepareNotifications(token));
     let installTimer = null;
+
+    function refreshWhenVisible() {
+      if (!document.hidden) prepare();
+    }
 
     function handleAppInstalled() {
       if (installTimer !== null) window.clearTimeout(installTimer);
-      installTimer = window.setTimeout(() => prepareNotifications(token).catch(() => {}), 3000);
+      installTimer = window.setTimeout(prepare, 3000);
     }
 
     window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener('online', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    const retryTimer = window.setInterval(refreshWhenVisible, 60_000);
+    prepare();
     return () => {
       window.removeEventListener("appinstalled", handleAppInstalled);
+      window.removeEventListener('online', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.clearInterval(retryTimer);
       if (installTimer !== null) window.clearTimeout(installTimer);
     };
   }, [token, userProfile?.id]);

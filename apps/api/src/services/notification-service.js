@@ -443,25 +443,9 @@ export function createNotificationService({ prisma, broadcaster = null }) {
       },
     });
 
-    // Browsers rotate the push endpoint (and every PWA reinstall / permission
-    // re-grant mints a new one), leaving orphan rows that still accept pushes on
-    // Apple/FCM for a long time — the delivery worker then fans the same message
-    // out to every one of them and the device shows N copies. Retire the prior
-    // subscriptions for THIS device now that a fresh one is registered. Match on
-    // userAgent only: it is the real per-device/browser fingerprint, whereas
-    // deviceLabel is a generic constant ("Dispositivo web") shared across all of
-    // a user's devices, and matching userId alone would kill real devices.
-    if (userAgent) {
-      await prisma.pushSubscription.updateMany({
-        where: {
-          userId: profileId,
-          id: { not: row.id },
-          enabled: true,
-          userAgent,
-        },
-        data: { enabled: false },
-      });
-    }
+    // A user-agent describes browser software, not a device or installation.
+    // Keep distinct endpoints: identical phones and separately installed PWAs
+    // must not disable one another. Expired endpoints are retired on delivery.
 
     return { data: row };
   }

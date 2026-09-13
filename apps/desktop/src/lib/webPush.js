@@ -1,5 +1,5 @@
 import { atlas } from "./atlas.js";
-import { isNativeMobile } from '@atlas/core/native-runtime';
+import { isNative } from '@atlas/core/native-runtime';
 
 const STORAGE_KEY = "atlas.notifications.webpush.subscriptionId";
 
@@ -13,7 +13,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function isWebPushSupported() {
-  if (isNativeMobile()) return false;
+  if (isNative()) return false;
   if (typeof window === "undefined") return false;
   return (
     "serviceWorker" in navigator &&
@@ -34,7 +34,7 @@ export function clearStoredWebPushSubscriptionId() {
 
 // Register the notification service worker whenever the browser supports it.
 export async function registerServiceWorker() {
-  if (isNativeMobile()) return null;
+  if (isNative()) return null;
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   try {
     return await navigator.serviceWorker.register("/sw-notifications.js", { scope: "/" });

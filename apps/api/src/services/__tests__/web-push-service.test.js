@@ -153,7 +153,7 @@ describe("web-push-service", () => {
 });
 
 describe("notification-delivery-worker web_push channel", () => {
-  it("marks delivery as sent when at least one subscription is delivered", async () => {
+  it("delivers to distinct endpoints even when their user agents are identical", async () => {
     const deliveries = [
       {
         id: "d1",
@@ -169,7 +169,8 @@ describe("notification-delivery-worker web_push channel", () => {
       },
     ];
     const subscriptions = [
-      { id: "s1", endpoint: "https://p1", p256dh: "a", auth: "b" },
+      { id: "s1", endpoint: "https://p1", p256dh: "a", auth: "b", userAgent: 'Same browser' },
+      { id: "s2", endpoint: "https://p2", p256dh: "c", auth: "d", userAgent: 'Same browser' },
     ];
     const updates = [];
     const prisma = {
@@ -190,11 +191,12 @@ describe("notification-delivery-worker web_push channel", () => {
         update: async () => ({}),
       },
     };
+    const sentEndpoints = [];
     const worker = createNotificationDeliveryWorker({
       prisma,
       webPushService: {
         buildPushPayload: () => ({ title: "Aviso" }),
-        sendToSubscription: async () => ({ ok: true }),
+        sendToSubscription: async ({ subscription }) => { sentEndpoints.push(subscription.endpoint); return { ok: true }; },
       },
       smtpService: { sendEmail: async () => {} },
       maxAttempts: 3,
@@ -206,6 +208,7 @@ describe("notification-delivery-worker web_push channel", () => {
     });
 
     assert.equal(result.processed, 1);
+    assert.deepEqual(sentEndpoints, ['https://p1', 'https://p2']);
     assert.equal(result.sent, 1);
     assert.equal(updates.length, 1);
     assert.equal(updates[0].data.status, "sent");

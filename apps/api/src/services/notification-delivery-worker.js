@@ -513,7 +513,7 @@ export function createNotificationDeliveryWorker({
             text: mail.text,
           });
         } else if (channel === "web_push") {
-          const allSubs = await prisma.pushSubscription.findMany({
+          const subscriptions = await prisma.pushSubscription.findMany({
             where: {
               userId: delivery.notification?.userId,
               enabled: true,
@@ -523,27 +523,10 @@ export function createNotificationDeliveryWorker({
               endpoint: true,
               p256dh: true,
               auth: true,
-              userAgent: true,
-              lastSeenAt: true,
-              createdAt: true,
             },
           });
-          // Collapse orphan subscriptions for the same physical device (same
-          // user agent) to the freshest one — otherwise a rotated endpoint that
-          // Apple/FCM still accepts makes the device buzz twice. Rows with a
-          // null user agent can't be grouped, so each is kept.
-          const byDevice = new Map();
-          const subscriptions = [];
-          for (const s of allSubs) {
-            if (!s.userAgent) {
-              subscriptions.push(s);
-              continue;
-            }
-            const fresh = (row) => row.lastSeenAt ?? row.createdAt ?? new Date(0);
-            const prev = byDevice.get(s.userAgent);
-            if (!prev || fresh(s) > fresh(prev)) byDevice.set(s.userAgent, s);
-          }
-          subscriptions.push(...byDevice.values());
+          // endpoint is unique in the database. Do not collapse installations
+          // by user-agent: that would drop valid recipients with identical UAs.
           if (!subscriptions.length) {
             throw new Error("Destinatario sin suscripciones push activas.");
           }

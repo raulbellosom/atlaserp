@@ -1,5 +1,14 @@
 ﻿# Atlas ERP - Tasks and Roadmap
 
+## Notifications across runtimes [WEB FIX VERIFIED; NATIVE BACKGROUND PENDING]
+
+- [x] Preserve distinct Web Push endpoints with identical user-agents during registration and delivery.
+- [x] Retry browser subscription synchronization after transient failures; isolate Web/PWA worker from native runtimes.
+- [ ] Deploy web/API/worker changes and validate push on actual PWA installations.
+- [ ] Configure FCM and implement native Android background delivery/call lifecycle; APNs/PushKit/CallKit remain future iOS work.
+
+Verified: 2026-09-13 (35 backend/preparation and 18 browser/runtime/worker tests passed; Vite, ESLint, React Doctor 100/100; read-only production audit). Details: `docs/mobile/NOTIFICATIONS_AND_CALLS.md`. No production deployment or real-recipient test send.
+
 ## Atlas Native Host Android [IMPLEMENTED; ERP acceptance pending]
 
 Spec: `docs/superpowers/specs/2026-09-11-atlas-native-host-design.md`. Evidence and operation: `docs/mobile/ATLAS_NATIVE_HOST.md`.

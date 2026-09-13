@@ -541,7 +541,7 @@ describe('chat email throttle (chat.mail: dedupeKey)', () => {
   });
 });
 
-describe('subscribeWebPush prunes stale device subscriptions', () => {
+describe('subscribeWebPush preserves independent installations', () => {
   function withPushStore(prisma) {
     const store = [];
     let n = 100;
@@ -581,14 +581,14 @@ describe('subscribeWebPush prunes stale device subscriptions', () => {
     input: { endpoint, keys: { p256dh: 'p', auth: 'a' }, deviceLabel: label },
   });
 
-  it('disables prior subscriptions with the same user agent', async () => {
+  it('keeps both endpoints when two installations report the same user agent', async () => {
     const prisma = buildPrismaMock();
     const store = withPushStore(prisma);
     const service = createNotificationService({ prisma });
     await service.subscribeWebPush(sub('https://push/old', 'iPhone; CriOS'));
     await service.subscribeWebPush(sub('https://push/new', 'iPhone; CriOS'));
     const enabled = store.filter((s) => s.enabled).map((s) => s.endpoint);
-    assert.deepEqual(enabled, ['https://push/new']);
+    assert.deepEqual(enabled, ['https://push/old', 'https://push/new']);
   });
 
   it('leaves other devices alone', async () => {
