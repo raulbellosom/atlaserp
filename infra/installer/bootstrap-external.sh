@@ -7,6 +7,7 @@ files=(
   docker-compose.linux.yml
   lib/devkit-installer.mjs
   lib/office-config.mjs
+  lib/firebase-config.mjs
   lib/livekit-config.mjs
   package.json
   setup-external.mjs
@@ -24,6 +25,7 @@ for file in "${files[@]}"; do
 done
 
 mkdir -p custom-modules
+mkdir -p -m 700 .secrets/firebase
 
 if [[ ! -f .env.external ]]; then
   cp .env.external.example .env.external

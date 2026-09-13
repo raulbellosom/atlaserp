@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
+import { configureFirebase } from "./lib/firebase-config.mjs";
 // setup-external.mjs
 //
 // Production setup: Atlas ERP against an external (self-hosted or cloud) Supabase.
@@ -579,6 +580,7 @@ async function main() {
 
   // ── 2. Validate Docker ─────────────────────────────────────────────────────
   const office = await configureOffice({ envFile, composeEnvFile: path.resolve(installerDir, ".env") });
+  await configureFirebase({ envFile });
   console.log("[2/5] Validating Docker...");
   run("docker", ["compose", "version"]);
 

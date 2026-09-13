@@ -31,6 +31,7 @@ services:
       - "4010:4010"
     volumes:
       - ./custom-modules:/app/modules/custom
+      - ./.secrets/firebase:/run/secrets/firebase:ro
     networks:
       default:
         aliases:
@@ -47,6 +48,7 @@ services:
       ATLAS_PROJECT_ROOT: /app
     volumes:
       - ./custom-modules:/app/modules/custom
+      - ./.secrets/firebase:/run/secrets/firebase:ro
     restart: unless-stopped
 
   atlas-web-external:
@@ -76,6 +78,7 @@ services:
       - "4010:4010"
     volumes:
       - ./custom-modules:/app/modules/custom
+      - ./.secrets/firebase:/run/secrets/firebase:ro
     networks:
       default:
         aliases:
@@ -92,6 +95,7 @@ services:
       ATLAS_PROJECT_ROOT: /app
     volumes:
       - ./custom-modules:/app/modules/custom
+      - ./.secrets/firebase:/run/secrets/firebase:ro
     restart: unless-stopped
 
   atlas-web-local:

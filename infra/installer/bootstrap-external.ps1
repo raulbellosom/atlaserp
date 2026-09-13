@@ -10,6 +10,7 @@ $files = @(
   "docker-compose.linux.yml",
   "lib/devkit-installer.mjs",
   "lib/office-config.mjs",
+  "lib/firebase-config.mjs",
   "lib/livekit-config.mjs",
   "package.json",
   "setup-external.mjs",
@@ -31,6 +32,7 @@ foreach ($file in $files) {
 }
 
 New-Item -ItemType Directory -Force -Path (Join-Path $PWD "custom-modules") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $PWD ".secrets/firebase") | Out-Null
 
 if (-not $SkipEnvCopy -and -not (Test-Path ".\.env.external")) {
   Copy-Item ".\.env.external.example" ".\.env.external"

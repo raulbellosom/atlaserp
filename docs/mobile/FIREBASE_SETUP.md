@@ -55,7 +55,29 @@ Mantener `ATLAS_FCM_ENABLED=false` durante esta preparación. El interruptor tod
 
 `.secrets/` contiene archivos persistentes de configuración; no es una carpeta temporal ni un resultado de build. Está excluida de Git y del contexto Docker, al igual que la copia Android de `google-services.json`. El `.env` real también está excluido. El repositorio contiene únicamente el ejemplo y esta guía.
 
-Al desplegar la integración, la credencial privada debe provisionarse por separado en el servidor y montarse como archivo de solo lectura en el proceso/contenedor que envía los avisos. Allí `GOOGLE_APPLICATION_CREDENTIALS` debe apuntar a la ruta dentro del contenedor, por ejemplo `/run/secrets/atlas-firebase-service-account.json`. Una ruta Windows del entorno local no funciona dentro de un contenedor Linux. No se han modificado los despliegues con esta preparación.
+Al desplegar la integración, la credencial privada debe provisionarse por separado en el servidor y montarse como archivo de solo lectura en el proceso/contenedor que envía los avisos. Allí `GOOGLE_APPLICATION_CREDENTIALS` debe apuntar a la ruta dentro del contenedor, por ejemplo `/run/secrets/firebase/service-account.json`. Una ruta Windows del entorno local no funciona dentro de un contenedor Linux. No se han modificado los despliegues con esta preparación.
+
+### Instalador VPS actualizado
+
+Los instaladores `setup-external.mjs` (incluido `--up-only`) y `setup-local.mjs` preparan `.secrets/firebase/` junto a sus archivos `.env.external` / `.env.local`, agregan las tres variables de servidor que falten y preservan sus valores existentes. Los bootstrap Bash/PowerShell descargan el helper y crean la carpeta. No generan ni descargan una clave privada de Firebase.
+
+En ese VPS se necesita únicamente `service-account.json`. `google-services.json` permanece en la máquina que compila Android, a menos que también compiles el APK en el VPS. La carpeta `.secrets/firebase/` del instalador se monta en API y worker como `/run/secrets/firebase`, de solo lectura; no se monta en la web. Los perfiles local y external usan el mismo directorio del instalador: para proyectos Firebase distintos, usar instalaciones separadas.
+
+Con estos scripts ya actualizados en el servidor, desde la carpeta del instalador puedes preparar solo Firebase, sin reiniciar servicios ni ejecutar migraciones:
+
+```bash
+node lib/firebase-config.mjs .env.external
+```
+
+Después copia mediante SFTP/SCP el JSON privado a `.secrets/firebase/service-account.json` dentro de esa carpeta y limita su lectura al usuario de despliegue (`chmod 600 .secrets/firebase/service-account.json` en Linux). Completa en `.env.external`:
+
+```dotenv
+ATLAS_FCM_ENABLED=false
+FIREBASE_PROJECT_ID=tu-id-real-del-proyecto
+GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase/service-account.json
+```
+
+No copies el `.env` de Windows al VPS: las rutas y el resto de la configuración de producción son diferentes. El instalador utiliza la ruta de contenedor indicada arriba; cuando FCM está habilitado valida que exista una cuenta de servicio con clave RSA y proyecto coincidente antes de iniciar Atlas. Todavía hay que implementar y desplegar el runtime FCM; subir la credencial y preparar las variables no activa las notificaciones.
 
 La configuración Android se utiliza al compilar y sus identificadores quedan en la app; la cuenta de servicio permanece exclusivamente en el servidor. Cambiar las variables de entorno del servidor no configura un APK ya instalado.
 
@@ -71,3 +93,4 @@ El soporte iOS nativo requiere configurar Apple/APNs y, para llamadas VoIP, Push
 - Pasan cinco pruebas de preparación Firebase (aislamiento de credenciales, proyecto/paquete, configuración inválida y retirada de configuración anterior) y doce pruebas existentes del host y las notificaciones.
 - Gradle completó `:app:processArm64DebugGoogleServices` y `:app:compileArm64DebugKotlin`, excluyendo `rustBuildArm64Debug`. El compilador Kotlin recurrió a su mecanismo alternativo tras errores del daemon local y terminó con `BUILD SUCCESSFUL`.
 - Esta validación no genera un nuevo APK distribuible ni prueba entrega FCM en un dispositivo; tampoco despliega cambios en producción.
+- Automatización VPS: pasan 23 pruebas del instalador, incluidos preservación de variables, validación de credenciales y ocho combinaciones de Compose (local/external, Office y red Linux). La preparación se ejecutó también sobre los archivos de entorno locales del instalador sin iniciar contenedores ni modificar el VPS.

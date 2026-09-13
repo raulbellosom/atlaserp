@@ -28,6 +28,13 @@ test('Compose validates local/external with Office enabled/disabled and Linux ne
         assert.ok(config.services.collabora.environment.content_security_policy.includes('http://tauri.localhost'));
       }
       assert.ok(config.services[`atlas-api-${mode}`]);
+      for (const role of ['api', 'worker']) {
+        const mount = config.services[`atlas-${role}-${mode}`].volumes.find(volume => volume.target === '/run/secrets/firebase');
+        assert.equal(mount.type, 'bind');
+        assert.equal(mount.read_only, true);
+        assert.equal(mount.source.replaceAll('\\', '/'), path.join(dir, '.secrets/firebase').replaceAll('\\', '/'));
+      }
+      assert.ok(!config.services[`atlas-web-${mode}`].volumes?.some(volume => volume.target === '/run/secrets/firebase'));
     }
   } finally { for (const name of names) await fs.unlink(path.join(dir, name)); await fs.rmdir(dir); }
 });

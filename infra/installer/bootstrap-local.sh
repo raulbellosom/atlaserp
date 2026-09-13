@@ -7,6 +7,7 @@ files=(
   docker-compose.linux.yml
   lib/devkit-installer.mjs
   lib/office-config.mjs
+  lib/firebase-config.mjs
   lib/livekit-config.mjs
   package.json
   setup-local.mjs
@@ -25,6 +26,7 @@ for file in "${files[@]}"; do
 done
 
 mkdir -p custom-modules
+mkdir -p -m 700 .secrets/firebase
 
 echo "[atlas-bootstrap] Archivos listos."
 if [[ "${1:-}" == "--skip-run" ]]; then

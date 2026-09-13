@@ -10,6 +10,7 @@ $files = @(
   "docker-compose.linux.yml",
   "lib/devkit-installer.mjs",
   "lib/office-config.mjs",
+  "lib/firebase-config.mjs",
   "lib/livekit-config.mjs",
   "package.json",
   "setup-local.mjs",
@@ -32,6 +33,7 @@ foreach ($file in $files) {
 }
 
 New-Item -ItemType Directory -Force -Path (Join-Path $PWD "custom-modules") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $PWD ".secrets/firebase") | Out-Null
 
 Write-Host "[atlas-bootstrap] Archivos listos."
 if ($SkipRun) {
