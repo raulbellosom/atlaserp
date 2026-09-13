@@ -16,6 +16,11 @@ atlas-erp-starter@*
 # MCP server config (may contain URLs with tokens)
 .mcp.json
 
+# Persistent local credentials and per-environment Firebase configuration
+.secrets/
+**/google-services.json
+**/*firebase-adminsdk*.json
+
 # OS
 .DS_Store
 Thumbs.db

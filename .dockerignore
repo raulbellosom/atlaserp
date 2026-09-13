@@ -4,6 +4,15 @@ node_modules
 .github
 .superpowers
 .tmp
+# Credentials are mounted at runtime, never copied into an image.
+.secrets
+**/.secrets
+**/google-services.json
+**/*firebase-adminsdk*.json
+.env
+.env.local
+.env.*.local
+.env.external
 dist
 **/dist
 coverage
