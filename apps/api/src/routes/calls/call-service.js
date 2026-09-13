@@ -909,5 +909,6 @@ export function createCallService({
     assertCanManageCall,
     inviteMembersToLiveCall,
     postSystemMessage,
+    getRecordingActiveStatus,
   };
 }

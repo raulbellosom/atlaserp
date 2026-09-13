@@ -142,14 +142,18 @@ describe("createCallGuestService.getGuestState", () => {
         findMany: async () => [{ id: guest.id, displayName: guest.displayName }],
       },
       callMessage: { findMany: async () => [] },
-      $queryRaw: async (strings, ...values) => {
+      $queryRaw: async (strings) => {
         const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
-        if (sql.includes('FROM "call_recording"')) return recordingRows;
         if (sql.includes('FROM "call"')) return callRow ? [callRow] : [];
         return [];
       },
     };
-    return createCallGuestService({ prisma, env: env(), AccessTokenImpl: FakeToken, linksService: baseLinksService() });
+    // getGuestState now delegates the recording-active lookup to
+    // call-service.js's shared getRecordingActiveStatus (single source of
+    // truth for both the member and guest banners) instead of querying
+    // call_recording directly — fake that dependency here.
+    const callService = { getRecordingActiveStatus: async () => recordingRows.length > 0 };
+    return createCallGuestService({ prisma, env: env(), AccessTokenImpl: FakeToken, linksService: baseLinksService(), callService });
   }
 
   it("reports recording.active:true when a STARTING/ACTIVE call_recording row exists for this call", async () => {

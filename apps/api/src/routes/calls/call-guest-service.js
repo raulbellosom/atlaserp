@@ -295,13 +295,12 @@ export function createCallGuestService({
       messages = rows;
     }
 
-    let recordingActive = false;
-    if (call) {
-      const activeRecording = await prisma.$queryRaw`
-        SELECT id FROM "call_recording" WHERE call_id = ${call.id} AND status IN ('STARTING','ACTIVE') LIMIT 1
-      `;
-      recordingActive = activeRecording.length > 0;
-    }
+    // Shared with call-service.js's getCall/getCurrentCall — one definition
+    // of "is this call being recorded" so the member and guest banners can't
+    // silently drift apart.
+    const recordingActive = call && callService?.getRecordingActiveStatus
+      ? await callService.getRecordingActiveStatus(call.id)
+      : false;
 
     return {
       status: guest.status,
