@@ -194,9 +194,9 @@ export function createCallsRouter({
         // requirePermission's middleware already resolved and set this —
         // it is user_profile.id, the same identifier space profileId(c)
         // resolves via raw SQL on unguarded routes below. The recording
-        // service still enforces "can THIS user manage THIS call"
-        // (assertCanManageCall) — chat.calls.record alone only proves the
-        // caller's role carries the permission somewhere.
+        // service still enforces "is THIS user a member of THIS call's
+        // conversation" (assertMember) — chat.calls.record alone only
+        // proves the caller's role carries the permission somewhere.
         const profileId = c.get("userId");
         const data = await recordingService.startRecording({ callId, startedByUserId: profileId, profileId });
         return c.json({ data }, 201);
