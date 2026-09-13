@@ -53,6 +53,10 @@ export function createCallsDomain(request, withAuthHeaders) {
     denyGuest: (callId, guestId, token) => json(`/calls/${callId}/guests/${guestId}/deny`, "POST", {}, token),
     kickGuest: (callId, guestId, token) => json(`/calls/${callId}/guests/${guestId}/kick`, "POST", {}, token),
     muteGuest: (callId, guestId, muted, token) => json(`/calls/${callId}/guests/${guestId}/mute`, "POST", { muted }, token),
+    startRecording: (callId, token) => json(`/calls/${callId}/recording/start`, "POST", {}, token),
+    stopRecording: (callId, token) => json(`/calls/${callId}/recording/stop`, "POST", {}, token),
+    listRecordings: (conversationId, token) =>
+      json(`/calls/conversations/${encodeURIComponent(conversationId)}/recordings`, "GET", undefined, token),
 
     // --- call-room chat (members) ---
     listMessages: (callId, sinceId, token) =>
