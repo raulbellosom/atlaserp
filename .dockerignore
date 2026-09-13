@@ -18,5 +18,8 @@ dist
 coverage
 **/coverage
 .DS_Store
-# Tauri/Rust build artifacts — not needed in any Docker image (adds ~1.7 GB)
-apps/desktop/src-tauri/target/
+# Tauri/Rust native shell — not needed in any Docker image. None of the three
+# images (api, worker, web) build or reference src-tauri; the web image only
+# runs `vite build`. gen/android alone can reach several GB of local Gradle
+# build cache, which was silently bloating the buildx context transfer.
+apps/desktop/src-tauri/
