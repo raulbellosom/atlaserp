@@ -139,6 +139,12 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
+    // "Info del mensaje": Enviado + Visto por (per-member timestamps).
+    getMessageReceipt: (messageId, token) =>
+      request(`/chat/messages/${encodeURIComponent(messageId)}/receipt`, {
+        headers: withAuthHeaders(token),
+      }),
+
     // `data` may include `replyToMessageId` (uuid) — the message this one
     // quotes (WhatsApp-style inline reply). Independent of `threadRootId`.
     sendMessage: (conversationId, data, token) =>

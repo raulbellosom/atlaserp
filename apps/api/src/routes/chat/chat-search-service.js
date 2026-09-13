@@ -55,6 +55,16 @@ function wordPrefixSql(column, token) {
   return Prisma.sql`${column} ~ ${"\\m" + escapeRegex(token)}`;
 }
 
+// Word-prefix OR typo-similarity (the latter only for tokens long enough to
+// make that meaningful) against one normalised column. Shared by the body,
+// sender-name and attachment-filename predicates so all three fields use the
+// exact same matching rule.
+function fieldTokenCond(column, token) {
+  const fuzzy = token.length >= FUZZY_MIN_TOKEN_LEN;
+  const sim = fuzzy ? Prisma.sql` OR word_similarity(${token}, ${column}) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
+  return Prisma.sql`(${wordPrefixSql(column, token)}${sim})`;
+}
+
 // Compute [start,end] match ranges on the ORIGINAL body by scanning its
 // normalised form for each token AT WORD STARTS (mirrors the SQL predicate).
 // Returns [] if normalisation changed the string length (defensive — see
@@ -104,24 +114,31 @@ export function createChatSearchService({ prisma }) {
     // plus typo-similarity for tokens long enough to make that meaningful.
     // Matched against body / sender name / any attachment file name. AND across
     // tokens => order-independent.
-    const tokenConds = tokens.map((tok) => {
-      const fuzzy = tok.length >= FUZZY_MIN_TOKEN_LEN;
-      const bodySim = fuzzy ? Prisma.sql` OR word_similarity(${tok}, m.body_norm) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
-      const nameSim = fuzzy ? Prisma.sql` OR word_similarity(${tok}, up.name_norm) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
-      const fileSim = fuzzy ? Prisma.sql` OR word_similarity(${tok}, atlas_unaccent(lower(a.file_name))) > ${SIMILARITY_THRESHOLD}` : Prisma.empty;
-      return Prisma.sql`(
-        ${wordPrefixSql(Prisma.sql`m.body_norm`, tok)}${bodySim}
-        OR ${wordPrefixSql(Prisma.sql`up.name_norm`, tok)}${nameSim}
+    const tokenConds = tokens.map((tok) => Prisma.sql`(
+        ${fieldTokenCond(Prisma.sql`m.body_norm`, tok)}
+        OR ${fieldTokenCond(Prisma.sql`up.name_norm`, tok)}
         OR EXISTS (
           SELECT 1 FROM chat_attachments a
           WHERE a.message_id = m.id
-            AND (
-              ${wordPrefixSql(Prisma.sql`atlas_unaccent(lower(a.file_name))`, tok)}${fileSim}
-            )
+            AND ${fieldTokenCond(Prisma.sql`atlas_unaccent(lower(a.file_name))`, tok)}
         )
-      )`;
-    });
+      )`);
     const whereTokens = Prisma.join(tokenConds, " AND ");
+
+    // A row can satisfy `whereTokens` purely because the SENDER'S NAME or an
+    // ATTACHMENT FILE NAME matched, with the message body itself containing
+    // none of the query — e.g. searching "Pu" surfaces a message whose sender
+    // is "Publicidad" or that carries "Purchase_order.pdf", even though the
+    // body says something unrelated. Previously the API returned sender_name
+    // and nothing about the attachment, and the client only ever highlighted
+    // matchRanges computed against the BODY — so those rows rendered with no
+    // highlight and no visible reason to be there, reading as "buggy search".
+    // Surface which attachment (if any) is the likely match reason so the
+    // client can highlight it too instead of leaving the result unexplained.
+    const attachmentAnyTokenMatch = Prisma.join(
+      tokens.map((tok) => fieldTokenCond(Prisma.sql`atlas_unaccent(lower(matched_att.file_name))`, tok)),
+      " OR ",
+    );
 
     // score = sum over tokens of GREATEST(word-prefix hit ? 1 : 0, word_similarity)
     // — the fuzzy term only for tokens long enough to use it (matches the WHERE).
@@ -152,6 +169,7 @@ export function createChatSearchService({ prisma }) {
         conv.avatar_url AS conversation_avatar_url,
         conv.avatar_emoji AS conversation_avatar_emoji,
         dm.display_name AS dm_name,
+        matched_att.file_name AS matched_attachment_name,
         (${scoreExpr})  AS score
       FROM chat_messages m
       JOIN chat_conversation_members cm
@@ -179,6 +197,17 @@ export function createChatSearchService({ prisma }) {
         ORDER BY ocm.joined_at ASC
         LIMIT 1
       ) dm ON conv.type = 'direct'
+      -- Pick whichever attachment on this message best explains the match
+      -- (one whose file name actually satisfies a token), falling back to the
+      -- oldest attachment so the column is still populated when the real
+      -- match reason was the body or sender name instead.
+      LEFT JOIN LATERAL (
+        SELECT matched_att.file_name
+        FROM chat_attachments matched_att
+        WHERE matched_att.message_id = m.id
+        ORDER BY CASE WHEN (${attachmentAnyTokenMatch}) THEN 0 ELSE 1 END, matched_att.created_at ASC
+        LIMIT 1
+      ) AS matched_att ON true
       WHERE m.deleted_at IS NULL
         ${convFilter}
         AND (${whereTokens})
@@ -221,9 +250,26 @@ export function createChatSearchService({ prisma }) {
         avatarUrl: r.conversation_avatar_url ?? null,
         avatarEmoji: r.conversation_avatar_emoji ?? null,
       },
-      sender: { id: r.sender_user_id, displayName: r.sender_name ?? null },
+      sender: {
+        id: r.sender_user_id,
+        displayName: r.sender_name ?? null,
+        // Highlighted independently of the body — a row can match because the
+        // SENDER's name hit a token even though the body didn't (see the
+        // whereTokens comment above), so the client needs its own ranges to
+        // show why that row is here instead of rendering it unexplained.
+        matchRanges: computeMatchRanges(r.sender_name ?? "", tokens),
+      },
       body: r.body ?? "",
       matchRanges: computeMatchRanges(r.body ?? "", tokens),
+      // Same reasoning for an ATTACHMENT FILE NAME match — populated only when
+      // this message actually has an attachment; matchRanges is [] when this
+      // particular one wasn't the match reason (fallback to oldest attachment).
+      attachmentMatch: r.matched_attachment_name
+        ? {
+            fileName: r.matched_attachment_name,
+            matchRanges: computeMatchRanges(r.matched_attachment_name, tokens),
+          }
+        : null,
       createdAt: r.created_at,
       score: Number(r.score),
     }));

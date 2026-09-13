@@ -29,6 +29,7 @@ import { createChatModerationService, ChatModerationServiceError } from "./chat-
 import { createModerationRoutes } from "./moderation-routes.js";
 import { createTemplateRoutes } from "./template-routes.js";
 import { createMessageForwardRoutes } from "./message-forward-routes.js";
+import { createMessageReceiptRoutes } from "./message-receipt-routes.js";
 import { createChatOfficeRoutes } from "./chat-office-routes.js";
 import { createGuestChatService, GuestChatServiceError, mintGuestRealtimeToken } from "./guest-service.js";
 import { createChatTemplateService } from "./template-service.js";
@@ -527,6 +528,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
   // Mute, block/unblock, groups-in-common, reports — see moderation-routes.js.
   internal.route("", createModerationRoutes({ requirePermission, moderationService }));
   internal.route("", createMessageForwardRoutes({ requirePermission, chatService }));
+  internal.route("", createMessageReceiptRoutes({ requirePermission, chatService }));
   if (officeService) internal.route("", createChatOfficeRoutes({ officeService }));
 
   // ================================================================

@@ -271,5 +271,77 @@ export function createChatConversationReadsService({ prisma, getUserProfileId, a
     return conv;
   }
 
-  return { listConversations, archiveConversation, unarchiveConversation, pinConversation, hideConversation, getConversation };
+  // "Enviado" / "Visto por" info for one message (the WhatsApp-style "Info del
+  // mensaje" panel). There is no per-message delivery/receipt tracking in this
+  // system — messages are written straight to Postgres and pushed instantly to
+  // connected clients over Supabase Realtime, so "entregado" would just repeat
+  // "enviado" with fabricated meaning. Instead this reuses the SAME per-member
+  // last_read_at watermark the unread-count/sidebar logic already relies on
+  // (chat_conversation_members.last_read_at): a member has "seen" the message
+  // once their watermark passes its created_at, and that watermark IS the
+  // "visto" timestamp shown — an approximation (it moves when they mark the
+  // whole conversation read, not when this exact message scrolled into view)
+  // but the only one backed by real data without adding a new write path.
+  async function getMessageReceipt({ messageId, authUserId }) {
+    const profileId = await getUserProfileId(authUserId);
+
+    const rows = await prisma.$queryRaw`
+      SELECT m.id, m.conversation_id, m.created_at, m.sender_user_id,
+             c.type AS conversation_type
+      FROM chat_messages m
+      INNER JOIN chat_conversation_members ccm
+        ON ccm.conversation_id = m.conversation_id
+       AND ccm.user_id = ${profileId}
+       AND ccm.left_at IS NULL
+      JOIN chat_conversations c ON c.id = m.conversation_id
+      WHERE m.id = ${messageId} AND m.deleted_at IS NULL
+      LIMIT 1
+    `;
+    if (!rows.length) throw new ChatServiceError("Mensaje no encontrado.", 404);
+    const msg = rows[0];
+
+    const memberRows = await prisma.$queryRaw`
+      SELECT cm.user_id, cm.last_read_at,
+             up.display_name, up.avatar_file_id::text AS avatar_file_id,
+             au.raw_user_meta_data->>'avatar_url' AS auth_avatar_url
+      FROM chat_conversation_members cm
+      LEFT JOIN user_profile up ON up.id = cm.user_id
+      LEFT JOIN auth.users au ON au.id = up.auth_user_id
+      WHERE cm.conversation_id = ${msg.conversation_id}
+        AND cm.left_at IS NULL
+        AND cm.user_id IS NOT NULL
+        AND cm.user_id IS DISTINCT FROM ${msg.sender_user_id}
+      ORDER BY cm.joined_at ASC
+    `;
+
+    const fileIds = [...new Set(memberRows.map((m) => m.avatar_file_id).filter(Boolean))];
+    const avatarUrlMap = fileIds.length ? await batchSignAvatarUrls(fileIds) : {};
+
+    const seenBy = memberRows.map((m) => ({
+      userId: m.user_id,
+      displayName: m.display_name ?? null,
+      avatarUrl: m.avatar_file_id
+        ? (avatarUrlMap[m.avatar_file_id] ?? m.auth_avatar_url ?? null)
+        : (m.auth_avatar_url ?? null),
+      seenAt: m.last_read_at && m.last_read_at >= msg.created_at ? m.last_read_at : null,
+    }));
+
+    return {
+      messageId: msg.id,
+      conversationId: msg.conversation_id,
+      conversationType: msg.conversation_type,
+      createdAt: msg.created_at,
+      seenBy,
+    };
+  }
+
+  return {
+    listConversations,
+    archiveConversation,
+    unarchiveConversation,
+    pinConversation,
+    hideConversation,
+    getConversation,
+    getMessageReceipt,
+  };
 }

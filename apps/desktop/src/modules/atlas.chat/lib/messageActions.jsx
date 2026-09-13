@@ -1,4 +1,4 @@
-import { Copy, Forward, CheckSquare, Pin, PinOff, Smile, MessageSquare, Trash2, EyeOff, CornerUpLeft, Sparkles } from "lucide-react";
+import { Copy, Forward, CheckSquare, Pin, PinOff, Smile, MessageSquare, Trash2, EyeOff, CornerUpLeft, Sparkles, Info } from "lucide-react";
 
 // Single source of truth for the per-message action list. Consumed by the
 // desktop hover menu (MessageActions in ChatMessageBubble) and the mobile /
@@ -8,7 +8,7 @@ import { Copy, Forward, CheckSquare, Pin, PinOff, Smile, MessageSquare, Trash2, 
 export function buildMessageActions({
   hasBody, isOwn, canPin, isPinned, canReply,
   onReply, onCopy, onForward, onEnterSelection, onPin, onReact, onOpenThread,
-  onDelete, onHideForMe, onAskMeridian,
+  onDelete, onHideForMe, onAskMeridian, onShowReceipt,
 }) {
   const items = [];
   if (onReply) items.push({ key: "reply", label: "Responder", icon: CornerUpLeft, onSelect: onReply, group: "primary" });
@@ -19,6 +19,10 @@ export function buildMessageActions({
   if (canPin && onPin) items.push({ key: "pin", label: isPinned ? "Desfijar mensaje" : "Fijar mensaje", icon: isPinned ? PinOff : Pin, onSelect: onPin, group: "primary" });
   if (onReact) items.push({ key: "react", label: "Reaccionar", icon: Smile, onSelect: onReact, group: "primary" });
   if (canReply && onOpenThread) items.push({ key: "thread", label: "Responder en hilo", icon: MessageSquare, onSelect: onOpenThread, group: "primary" });
+  // Own messages only — mirrors WhatsApp's "Info del mensaje", which only ever
+  // appears on messages you sent (the enviado/visto breakdown is meaningless
+  // on a message you received).
+  if (isOwn && onShowReceipt) items.push({ key: "receipt", label: "Info del mensaje", icon: Info, onSelect: onShowReceipt, group: "primary" });
   if (isOwn && onDelete) items.push({ key: "delete", label: "Eliminar para todos", icon: Trash2, onSelect: onDelete, danger: true, group: "danger" });
   if (onHideForMe) items.push({ key: "hide", label: "Eliminar para mi", icon: EyeOff, onSelect: onHideForMe, group: "danger" });
   return items;

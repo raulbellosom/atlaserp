@@ -147,7 +147,17 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
         sourceEntityId={scheduled.targetId}
         initialAttendeeIds={memberIds}
         defaultVideoUrl={scheduled.link.url}
-        onClose={() => { setScheduled(null); onOpenChange(false); }}
+        onClose={async () => {
+          // Backing out of the calendar step must not leave an orphan empty
+          // room with a live, un-revoked guest join link behind.
+          if (createdRoomRef.current && createdRoomRef.current === scheduled.targetId) {
+            const roomId = createdRoomRef.current;
+            createdRoomRef.current = null;
+            await atlas.chat.deleteConversation(roomId, token).catch(() => {});
+          }
+          setScheduled(null);
+          onOpenChange(false);
+        }}
         onSaved={async () => {
           await sendScheduledInvites(scheduled.targetId);
           createdRoomRef.current = null;

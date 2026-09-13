@@ -15,6 +15,7 @@ import {
   Play, FileText, FileType2, FileSpreadsheet, FileImage, FileVideo, FileAudio,
   FileArchive, FileCode, File as FileIcon, Link2, User, Landmark, IdCard,
 } from "lucide-react";
+import { toast } from "sonner";
 import { ThemedEmojiPicker } from "./ThemedEmojiPicker";
 import { useChatUpload } from "../hooks/useChatUpload";
 import { useMentionCandidates } from "../hooks/useMentionCandidates";
@@ -69,10 +70,17 @@ const ENTITY_REF_ICON = {
 
 const MAX_ENTITY_REFS = 5;
 
-// Preferred audio MIME type for recording — safe for iOS (audio/mp4 only) and Android
+// Preferred audio MIME type for recording. audio/mp4 (AAC) comes first because
+// it is the only format every recipient's <audio> element can actually play
+// back — Safari (iOS and macOS) cannot decode WebM/Opus at all, so a voice
+// note recorded as webm;codecs=opus (the old default on Chrome/Android/
+// desktop) played fine for the sender but silently failed to play for any
+// Safari listener. Chrome/Edge also support recording audio/mp4, so most
+// senders now land on the universally-compatible format; only Firefox (which
+// has no MediaRecorder mp4 encoder) falls through to webm/ogg.
 function getRecordingMime() {
   if (typeof MediaRecorder === "undefined") return null;
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg", "audio/mp4"];
+  const candidates = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg"];
   return candidates.find((m) => {
     try { return MediaRecorder.isTypeSupported(m); }
     catch { return false; }
@@ -131,7 +139,7 @@ function StatusOverlay({ uploading, error }) {
   return null;
 }
 
-function AttachmentPreviewCard({ entry, onRemove, onOpen }) {
+function AttachmentPreviewCard({ entry, onRemove, onOpen, onRetry }) {
   const mime = entry.file.type;
   const isImage = mime.startsWith("image/");
   const isVideo = mime.startsWith("video/");
@@ -195,8 +203,22 @@ function AttachmentPreviewCard({ entry, onRemove, onOpen }) {
           <p className="text-[10px] text-[hsl(var(--muted-foreground))] leading-tight">
             {formatFileSize(entry.file.size)}
             {entry.uploading && " · Subiendo..."}
-            {entry.error && <span className="text-red-500"> · Error</span>}
+            {entry.error && (
+              // Full message in `title` (long-press/hover) — the composer
+              // used to swallow it into a bare "Error", which made an
+              // iOS-only upload failure impossible to diagnose remotely.
+              <span className="text-red-500" title={entry.error}> · Error</span>
+            )}
           </p>
+          {entry.error && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onRetry?.(); }}
+              className="mt-0.5 text-[10px] font-medium text-primary underline underline-offset-2"
+            >
+              Reintentar
+            </button>
+          )}
         </div>
         <RemoveBtn onClick={() => onRemove(entry.localId)} />
       </div>
@@ -385,6 +407,9 @@ export const MessageComposer = forwardRef(function MessageComposer(
   }
 
   function startUpload(entry) {
+    setPendingFiles((prev) =>
+      prev.map((f) => (f.localId === entry.localId ? { ...f, uploading: true, error: null } : f)),
+    );
     const promise = uploadFile(entry.file)
       .then((attachmentId) => {
         setPendingFiles((prev) =>
@@ -624,6 +649,16 @@ export const MessageComposer = forwardRef(function MessageComposer(
         .filter((r) => r.status === "fulfilled" && r.value)
         .map((r) => r.value);
 
+      // The voice-note auto-send fires the instant the recording is queued,
+      // before its upload settles — if that upload failed (e.g. an iOS-only
+      // upload error) this used to still go through as a blank, attachment-
+      // less message while the errored card sat there unexplained. Bail and
+      // leave the card (with its new "Reintentar" button) in place instead.
+      if (hasFiles && attachmentIds.length === 0 && !trimmed && !hasEntityRefs) {
+        toast.error("No se pudo enviar el archivo. Usa \"Reintentar\" en la vista previa.");
+        return;
+      }
+
       await onSend({
         body: trimmed || null,
         messageType: hasFiles && !trimmed ? "file" : "text",
@@ -820,6 +855,7 @@ export const MessageComposer = forwardRef(function MessageComposer(
               entry={entry}
               onRemove={removeFile}
               onOpen={openPendingViewer}
+              onRetry={() => startUpload(entry)}
             />
           ))}
         </div>

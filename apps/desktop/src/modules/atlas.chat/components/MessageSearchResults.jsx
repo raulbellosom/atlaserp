@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Paperclip } from "lucide-react";
 import { EmptyState, Skeleton, ErrorState } from "@atlas/ui";
 import { AvatarCircle } from "./AvatarCircle";
 import { buildSnippetSegments } from "../lib/searchSnippet";
@@ -13,13 +14,13 @@ function relativeDate(iso) {
   return d.toLocaleDateString("es", { day: "numeric", month: "short" });
 }
 
-function Snippet({ body, matchRanges }) {
+function HighlightedSpan({ text, matchRanges, radius, className }) {
   const { segments, truncatedStart, truncatedEnd } = useMemo(
-    () => buildSnippetSegments(body, matchRanges, 80),
-    [body, matchRanges],
+    () => buildSnippetSegments(text, matchRanges, radius),
+    [text, matchRanges, radius],
   );
   return (
-    <span className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-2">
+    <span className={className}>
       {truncatedStart ? "…" : ""}
       {segments.map((s, i) =>
         s.mark ? (
@@ -35,6 +36,17 @@ function Snippet({ body, matchRanges }) {
       )}
       {truncatedEnd ? "…" : ""}
     </span>
+  );
+}
+
+function Snippet({ body, matchRanges }) {
+  return (
+    <HighlightedSpan
+      text={body}
+      matchRanges={matchRanges}
+      radius={80}
+      className="text-xs text-[hsl(var(--muted-foreground))] line-clamp-2"
+    />
   );
 }
 
@@ -107,14 +119,31 @@ export function MessageSearchResults({ hits, isSearching, isError, truncated, on
                 className="w-full text-left px-2 py-1.5 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-medium truncate">
-                    {h.sender.displayName ?? "Usuario"}
-                  </span>
+                  <HighlightedSpan
+                    text={h.sender.displayName ?? "Usuario"}
+                    matchRanges={h.sender.matchRanges}
+                    radius={40}
+                    className="text-xs font-medium truncate"
+                  />
                   <span className="text-[10px] text-[hsl(var(--muted-foreground))] shrink-0">
                     {relativeDate(h.createdAt)}
                   </span>
                 </div>
                 <Snippet body={h.body} matchRanges={h.matchRanges} />
+                {/* Body/sender showed no highlight but the row still matched —
+                    it was the attachment's file name; show it so the result
+                    doesn't look unexplained (the original "Pu" bug report). */}
+                {h.attachmentMatch && h.attachmentMatch.matchRanges.length > 0 && (
+                  <div className="mt-0.5 flex items-center gap-1 text-[hsl(var(--muted-foreground))]">
+                    <Paperclip className="h-3 w-3 shrink-0" />
+                    <HighlightedSpan
+                      text={h.attachmentMatch.fileName}
+                      matchRanges={h.attachmentMatch.matchRanges}
+                      radius={40}
+                      className="text-xs truncate"
+                    />
+                  </div>
+                )}
               </button>
             ))}
           </div>

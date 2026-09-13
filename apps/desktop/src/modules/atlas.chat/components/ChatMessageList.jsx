@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useMemo, useCallback } fr
 import { Skeleton } from "@atlas/ui";
 import { Loader2, ChevronDown, AtSign } from "lucide-react";
 import { ChatMessageBubble } from "./ChatMessageBubble";
+import { MessageReceiptDialog } from "./MessageReceiptDialog";
 import { PinnedMessagesBar } from "./PinnedMessagesBar";
 import { TypingIndicator } from "./TypingIndicator";
 import { groupMessagesByDate, formatDateSeparator } from "../lib/chatUtils";
@@ -124,6 +125,9 @@ export function ChatMessageList({
   // unrelated re-render never re-scrolls you back to the same message.
   const jumpHandledRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  // "Info del mensaje" (Enviado + Visto por) — owned here rather than per-row
+  // so only one dialog instance ever exists for the whole list.
+  const [receiptMessage, setReceiptMessage] = useState(null);
   // While a jump is resolving, force its target row to render even if the
   // viewer had hidden it for themselves — otherwise the jump can never find it.
   const [revealMessageId, setRevealMessageId] = useState(null);
@@ -577,6 +581,7 @@ export function ChatMessageList({
               onReply={!isDeleted && !isPending && onReplyToMessage ? onReplyToMessage : undefined}
               onAskMeridian={!isDeleted && !isPending && onAskMeridian ? onAskMeridian : undefined}
               onJumpToMessage={onJumpToMessage}
+              onShowReceipt={isOwn && !isDeleted && !isPending ? () => setReceiptMessage(item) : undefined}
               selectionMode={selectionMode}
               isSelected={selectedMsgIds?.has(item.id) ?? false}
               onSelect={onToggleSelect ? () => onToggleSelect(item.id) : undefined}
@@ -622,6 +627,12 @@ export function ChatMessageList({
           )}
         </div>
       )}
+
+      <MessageReceiptDialog
+        open={Boolean(receiptMessage)}
+        onOpenChange={(o) => !o && setReceiptMessage(null)}
+        message={receiptMessage}
+      />
     </div>
   );
 }

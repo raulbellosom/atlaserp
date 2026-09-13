@@ -53,6 +53,7 @@ function row(overrides = {}) {
     conversation_type: "group",
     conversation_avatar_url: null,
     conversation_avatar_emoji: null,
+    matched_attachment_name: null,
     score: 1.5,
     ...overrides,
   };
@@ -124,6 +125,38 @@ describe("searchMessages", () => {
     assert.equal(out.data[0].sender.displayName, "Ana");
     assert.deepEqual(out.data[0].matchRanges, [[9, 16]]);
     assert.equal(out.truncated, false);
+  });
+
+  it("computes matchRanges on the sender name too — a row can match only because the sender's name hit a token", async () => {
+    // Body has nothing to do with "pu"; only the sender's name does. Before
+    // this field existed, this row would render with no highlight anywhere
+    // and no visible reason to be in the results (the reported "Pu" bug).
+    const svc = createChatSearchService({
+      prisma: mockPrisma([row({ body: "Nos vemos mañana", sender_name: "Publicidad" })]),
+    });
+    const out = await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "pu" });
+    assert.deepEqual(out.data[0].matchRanges, []);
+    assert.deepEqual(out.data[0].sender.matchRanges, [[0, 2]]);
+  });
+
+  it("surfaces a matching attachment file name with its own matchRanges", async () => {
+    const svc = createChatSearchService({
+      prisma: mockPrisma([
+        row({ body: "Nos vemos mañana", matched_attachment_name: "Purchase_order.pdf" }),
+      ]),
+    });
+    const out = await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "pu" });
+    assert.deepEqual(out.data[0].matchRanges, []);
+    assert.deepEqual(out.data[0].attachmentMatch, {
+      fileName: "Purchase_order.pdf",
+      matchRanges: [[0, 2]],
+    });
+  });
+
+  it("returns attachmentMatch: null when the message has no attachment", async () => {
+    const svc = createChatSearchService({ prisma: mockPrisma([row()]) });
+    const out = await svc.searchMessages({ authUserId: AUTH_USER_ID, q: "factura" });
+    assert.equal(out.data[0].attachmentMatch, null);
   });
 
   it("resolves the other participant's NAME for a direct conversation with no stored title", async () => {

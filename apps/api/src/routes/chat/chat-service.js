@@ -362,7 +362,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
   // ------------------------------------------------------------------
 
   const conversationReadsService = createChatConversationReadsService({ prisma, getUserProfileId, assertMember, batchSignAvatarUrls });
-  const { listConversations, archiveConversation, unarchiveConversation, pinConversation, hideConversation, getConversation } = conversationReadsService;
+  const { listConversations, archiveConversation, unarchiveConversation, pinConversation, hideConversation, getConversation, getMessageReceipt } = conversationReadsService;
 
   const conversationsWriteService = createChatConversationsWriteService({
     prisma,
@@ -1244,6 +1244,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
     hideConversation,
     createConversation,
     getConversation,
+    getMessageReceipt,
     updateConversation,
     deleteConversation,
     addMembers,

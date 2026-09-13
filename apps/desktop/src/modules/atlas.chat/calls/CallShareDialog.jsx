@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   Button, TagsField, CheckboxField, NumberField, ConfirmDialog,
@@ -24,6 +24,9 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
   const [inviteResult, setInviteResult] = useState(null);
   const [copied, setCopied] = useState("");
   const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [maxUsesDraft, setMaxUsesDraft] = useState("");
+  const maxUsesTimerRef = useRef(null);
+  const maxUsesPendingRef = useRef(null);
 
   useEffect(() => {
     if (!open || !conversationId || !token) return;
@@ -34,11 +37,37 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
       .finally(() => setLoading(false));
   }, [open, conversationId, token]);
 
+  // Only re-seed the draft when a *different* link loads (e.g. regenerate) —
+  // not on every patch response, or a keystroke could get overwritten by a
+  // stale response for a value the user has since changed.
+  useEffect(() => {
+    setMaxUsesDraft(link?.maxUses ?? "");
+  }, [link?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => {
+    if (maxUsesTimerRef.current) {
+      clearTimeout(maxUsesTimerRef.current);
+      patch({ maxUses: maxUsesPendingRef.current });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function patch(next) {
     try {
       const r = await atlas.calls.updateLink(conversationId, next, token);
       setLink(unwrap(r)?.link ?? link);
     } catch (e) { toast.error(e?.message || "No se pudo actualizar."); }
+  }
+
+  // Debounced: typing a multi-digit value used to fire one PATCH per
+  // keystroke with no ordering guard, so an out-of-order response could
+  // leave the field showing a stale intermediate digit.
+  function scheduleMaxUsesPatch(value) {
+    maxUsesPendingRef.current = value;
+    if (maxUsesTimerRef.current) clearTimeout(maxUsesTimerRef.current);
+    maxUsesTimerRef.current = setTimeout(() => {
+      maxUsesTimerRef.current = null;
+      patch({ maxUses: maxUsesPendingRef.current });
+    }, 500);
   }
 
   async function regenerate() {
@@ -138,11 +167,13 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
             />
             <NumberField
               label="Máximo de usos (opcional)"
-              value={link.maxUses ?? ""}
+              value={maxUsesDraft}
               min={1}
               onChange={(e) => {
                 const n = Number(e.target.value);
-                patch({ maxUses: Number.isFinite(n) && n > 0 ? n : null });
+                const next = Number.isFinite(n) && n > 0 ? n : "";
+                setMaxUsesDraft(next);
+                scheduleMaxUsesPatch(next === "" ? null : next);
               }}
             />
 

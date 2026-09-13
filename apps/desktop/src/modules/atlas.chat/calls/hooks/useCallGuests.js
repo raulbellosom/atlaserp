@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "../../../../auth/AuthProvider";
 import { atlas } from "../../../../lib/atlas";
 
@@ -40,8 +41,9 @@ export function useCallGuests(callId, { enabled = true, intervalMs = 3000 } = {}
     };
   }, [callId, token, enabled, intervalMs, refresh]);
 
-  const act = useCallback(async (fn) => {
-    await fn();
+  const act = useCallback(async (fn, onResult) => {
+    const res = unwrap(await fn());
+    onResult?.(res);
     await refresh();
   }, [refresh]);
 
@@ -53,7 +55,16 @@ export function useCallGuests(callId, { enabled = true, intervalMs = 3000 } = {}
     refresh,
     admit: (guestId) => act(() => atlas.calls.admitGuest(callId, guestId, token)),
     deny: (guestId) => act(() => atlas.calls.denyGuest(callId, guestId, token)),
-    kick: (guestId) => act(() => atlas.calls.kickGuest(callId, guestId, token)),
-    mute: (guestId, muted) => act(() => atlas.calls.muteGuest(callId, guestId, muted, token)),
+    // `liveActionOk` false means the DB was updated but LiveKit failed to drop
+    // the guest's live connection (transient RPC error) — tell the host so
+    // they don't assume the guest was actually removed from the call.
+    kick: (guestId) => act(
+      () => atlas.calls.kickGuest(callId, guestId, token),
+      (res) => { if (res?.liveActionOk === false) toast.error("Se marcó como expulsado, pero no se pudo desconectar su sesión en vivo. Inténtalo de nuevo."); },
+    ),
+    mute: (guestId, muted) => act(
+      () => atlas.calls.muteGuest(callId, guestId, muted, token),
+      (res) => { if (res?.liveActionOk === false) toast.error("No se pudo aplicar el silencio, inténtalo de nuevo."); },
+    ),
   };
 }
