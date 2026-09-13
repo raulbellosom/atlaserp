@@ -73,7 +73,7 @@ importers:
         version: 1.19.17(hono@4.13.5)
       '@hono/zod-validator':
         specifier: ^0.8.0
-        version: 0.8.0(hono@4.13.5)(zod@4.6.2)
+        version: 0.8.0(hono@4.13.5)(zod@4.6.4)
       '@prisma/client':
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))
@@ -103,7 +103,7 @@ importers:
         version: 2.18.0
       lucide-react:
         specifier: latest
-        version: 1.44.0(react@19.3.0)
+        version: 1.45.0(react@19.3.0)
       node-cache:
         specifier: ^5.1.2
         version: 5.1.2
@@ -133,7 +133,7 @@ importers:
         version: 3.4.0
       zod:
         specifier: latest
-        version: 4.6.2
+        version: 4.6.4
 
   apps/desktop:
     dependencies:
@@ -266,6 +266,9 @@ importers:
       emoji-picker-react:
         specifier: ^4.19.1
         version: 4.19.1(react@19.3.0)
+      hls.js:
+        specifier: ^1.7.3
+        version: 1.7.3
       jspdf:
         specifier: 4.2.1
         version: 4.2.1
@@ -277,7 +280,7 @@ importers:
         version: 2.21.0(@types/dom-mediacapture-record@1.0.22)
       lucide-react:
         specifier: latest
-        version: 1.44.0(react@19.3.0)
+        version: 1.45.0(react@19.3.0)
       motion:
         specifier: ^12.38.0
         version: 12.38.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -329,7 +332,7 @@ importers:
         version: 6.1.1(vite@8.3.0(@types/node@25.6.0)(jiti@2.6.1))
       autoprefixer:
         specifier: latest
-        version: 10.5.6(postcss@8.5.28)
+        version: 10.6.0(postcss@8.5.28)
       postcss:
         specifier: latest
         version: 8.5.28
@@ -475,7 +478,7 @@ importers:
         version: 4.3.0
       lucide-react:
         specifier: latest
-        version: 1.44.0(react@19.2.5)
+        version: 1.45.0(react@19.2.5)
       react-hook-form:
         specifier: ^7.75.0
         version: 7.75.0(react@19.2.5)
@@ -503,7 +506,7 @@ importers:
     dependencies:
       zod:
         specifier: latest
-        version: 4.6.2
+        version: 4.6.4
 
 packages:
 
@@ -3381,8 +3384,8 @@ packages:
   async@3.2.6:
     resolution: {integrity: sha512-htCUDlxyyCLMgaM3xXg0C0LW2xqfuQ6p05pCEIsXuyQ+a1koYKTuBMzRNwmybfLgvJDMd0r1LTn4+E0Ti6C2AA==}
 
-  autoprefixer@10.5.6:
-    resolution: {integrity: sha512-HiH4oYNc5+DQEx/b8FPfMj+WHH/WWUBmbN5r1Uf/ixtfyFkk+wGIlfJT/RD5eAyzlwkeYRtZUCI8qrEi26pl2g==}
+  autoprefixer@10.6.0:
+    resolution: {integrity: sha512-A26d6qs9kqGgkmImIXMYvXTzqb4Qv7AVgpY1NXzr9Y659J8qHHnLOO/zE8ewIGFMprOolAoRAQYDgNryXIJKBw==}
     engines: {node: ^10 || ^12 || >=14}
     hasBin: true
     peerDependencies:
@@ -4231,6 +4234,9 @@ packages:
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
 
+  hls.js@1.7.3:
+    resolution: {integrity: sha512-MsPlx6yVW4Qv4C7mEVou4/gk/5cN2dVxOTnrNjPSmyH2f0Ln+/UkG10Ax1PE6OvrmTVPKgQYozTtBaPOuCzq7A==}
+
   hono@4.13.5:
     resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
     engines: {node: '>=16.9.0'}
@@ -4708,8 +4714,8 @@ packages:
     resolution: {integrity: sha512-DqC6n3QQ77zdFpCMASA1a3Jlb64Hv2N2DciFGkO/4L9+q/IpIAuRlKOvCXabtRW6cQf8usbmM6BE/TOPysCdIA==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
 
-  lucide-react@1.44.0:
-    resolution: {integrity: sha512-2egNApH4hX4j/qdCgRublh88+9u3mEhz9iSlW5ckm4kaQEqZbXbMr0l5u5JZLy8nmWRx2dbHGQkEDYz6C9aCgw==}
+  lucide-react@1.45.0:
+    resolution: {integrity: sha512-yH1ubCAduho9UR7oJhRXIQXogksRILBiTuZC4/bQIGeB9JOkxMlSuEHyyZpo1Z3S0yWJO2KTSUZbjiNvVxeOUw==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -6029,8 +6035,8 @@ packages:
   zod@4.4.3:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
-  zod@4.6.2:
-    resolution: {integrity: sha512-lh5RCAGFa1Cm2hjtNwLQhSs/AsqdWnTQaBER9fEwN/88pSh7KOtJavtBx/0VlkN/uFd61SwYmljLMDAsHlvzBQ==}
+  zod@4.6.4:
+    resolution: {integrity: sha512-AXSD6hvGdvRjajG/l1cC+d6IrhH+sjmPKtYeQdJIK8MFJl3LyClzS+o/YsVC+zQZPupAaeH5skwwm8YqYH7BqA==}
 
   zundo@2.3.0:
     resolution: {integrity: sha512-4GXYxXA17SIKYhVbWHdSEU04P697IMyVGXrC2TnzoyohEAWytFNOKqOp5gTGvaW93F/PM5Y0evbGtOPF0PWQwQ==}
@@ -6686,10 +6692,10 @@ snapshots:
     dependencies:
       hono: 4.13.5
 
-  '@hono/zod-validator@0.8.0(hono@4.13.5)(zod@4.6.2)':
+  '@hono/zod-validator@0.8.0(hono@4.13.5)(zod@4.6.4)':
     dependencies:
       hono: 4.13.5
-      zod: 4.6.2
+      zod: 4.6.4
 
   '@hookform/resolvers@5.4.0(react-hook-form@7.75.0(react@19.3.0))':
     dependencies:
@@ -9383,7 +9389,7 @@ snapshots:
 
   async@3.2.6: {}
 
-  autoprefixer@10.5.6(postcss@8.5.28):
+  autoprefixer@10.6.0(postcss@8.5.28):
     dependencies:
       browserslist: 4.28.9
       caniuse-lite: 1.0.30001810
@@ -10292,6 +10298,8 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.4
 
+  hls.js@1.7.3: {}
+
   hono@4.13.5: {}
 
   html-url-attributes@3.0.1: {}
@@ -10682,11 +10690,11 @@ snapshots:
 
   lru.min@1.1.4: {}
 
-  lucide-react@1.44.0(react@19.2.5):
+  lucide-react@1.45.0(react@19.2.5):
     dependencies:
       react: 19.2.5
 
-  lucide-react@1.44.0(react@19.3.0):
+  lucide-react@1.45.0(react@19.3.0):
     dependencies:
       react: 19.3.0
 
@@ -12429,7 +12437,7 @@ snapshots:
 
   zod@4.4.3: {}
 
-  zod@4.6.2: {}
+  zod@4.6.4: {}
 
   zundo@2.3.0(zustand@5.0.15(@types/react@19.2.14)(immer@10.2.0)(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))):
     dependencies:
