@@ -1,6 +1,6 @@
 # Preparar Firebase para Android
 
-Estado: proyecto Firebase creado por el usuario; recepción y envío FCM pendientes de implementación. Las variables de Atlas que se documentan aquí preparan esa integración; no activan el push por sí solas. La web/PWA conserva su Web Push con VAPID.
+Estado: proyecto Firebase creado por el usuario; los dos JSON locales coinciden con el proyecto y el paquete Android. Google Services y Firebase Messaging están integrados en el build; recepción personalizada, registro de tokens y envío desde Atlas pendientes de implementación. Las variables de Atlas que se documentan aquí no activan el flujo completo por sí solas. La web/PWA conserva su Web Push con VAPID.
 
 ## 1. Obtener el identificador del proyecto
 
@@ -16,7 +16,9 @@ Descargar `google-services.json` y guardarlo en:
 D:/RacoonDevs/atlaserp-v2/.secrets/firebase/google-services.json
 ```
 
-La variable `ATLAS_ANDROID_GOOGLE_SERVICES_JSON` del `.env` local apunta a esa ubicación. Este archivo contiene identificadores de configuración de Android, no la clave privada del servidor. El SDK y el plugin de Google Services aún deben integrarse en Gradle. Al implementar el build, se deberá cargar explícitamente esta variable y copiar la configuración al módulo Android; el wrapper actual usa `process.env` y no carga automáticamente el `.env` raíz. No copiar la credencial del siguiente paso a Android.
+La variable `ATLAS_ANDROID_GOOGLE_SERVICES_JSON` del `.env` local apunta a esa ubicación. Este archivo contiene identificadores de configuración de Android, no la clave privada del servidor. El wrapper Android lee esta variable de `process.env`, con respaldo en el `.env` raíz, valida el paquete y el proyecto, rechaza claves privadas y copia el JSON al módulo Android antes de configurar/compilar. No exporta las credenciales del `.env` a Gradle. No copiar la credencial del siguiente paso a Android.
+
+Gradle incorpora Google Services 4.5.0 y Firebase Messaging con BoM 34.19.0 cuando existe esa configuración. No se añade Analytics. Sin ruta configurada, el wrapper retira la copia de una compilación anterior y permite compilar sin Firebase. Para sincronizar desde Android Studio, ejecutar primero desde la raíz `node apps/desktop/scripts/native-host.mjs android config production` y después sincronizar Gradle. Ese comando no compila ni publica un APK.
 
 Referencia: [Registrar Android y configurar el SDK](https://firebase.google.com/docs/android/setup).
 
@@ -62,3 +64,10 @@ La configuración Android se utiliza al compilar y sus identificadores quedan en
 Integrar el registro y renovación de tokens por instalación, el envío desde la cola de Atlas, el receptor Android y las acciones de llamada; compilar e instalar un APK nuevo y probar en un dispositivo real con la app en segundo plano. FCM avisa de la llamada; LiveKit sigue transportando audio y video. La presentación de llamada y su continuidad al bloquear la pantalla requieren su propia integración nativa.
 
 El soporte iOS nativo requiere configurar Apple/APNs y, para llamadas VoIP, PushKit/CallKit. Estos dos archivos Android/servidor no habilitan por sí solos el soporte iOS.
+
+## Verificación del build — 2026-09-13
+
+- Los dos JSON locales coinciden en proyecto y el paquete Android es el esperado; el ID del `.env` también coincide. No se imprimieron claves privadas ni se enviaron notificaciones reales.
+- Pasan cinco pruebas de preparación Firebase (aislamiento de credenciales, proyecto/paquete, configuración inválida y retirada de configuración anterior) y doce pruebas existentes del host y las notificaciones.
+- Gradle completó `:app:processArm64DebugGoogleServices` y `:app:compileArm64DebugKotlin`, excluyendo `rustBuildArm64Debug`. El compilador Kotlin recurrió a su mecanismo alternativo tras errores del daemon local y terminó con `BUILD SUCCESSFUL`.
+- Esta validación no genera un nuevo APK distribuible ni prueba entrega FCM en un dispositivo; tampoco despliega cambios en producción.

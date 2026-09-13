@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { buildNativeBrandAssets } from '../../../scripts/build-native-brand-assets.mjs'
+import { prepareAndroidFirebase } from './native-firebase.mjs'
 
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const environments = JSON.parse(readFileSync(resolve(desktop, 'native-host/environments.json'), 'utf8'))
@@ -55,6 +56,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const [platform = 'android', action = 'dev', environment = process.env.ATLAS_NATIVE_ENV || 'staging'] = process.argv.slice(2)
   if (!['android', 'ios'].includes(platform) || !['init', 'dev', 'build', 'config'].includes(action)) throw new Error('Usage: native-host.mjs android|ios init|dev|build|config development|staging|production')
   const origin = resolveEnvironment(environment, process.env.ATLAS_NATIVE_DEV_ORIGIN, action, process.argv.slice(5).includes('--debug'))
+  if (platform === 'android' && action !== 'init') {
+    prepareAndroidFirebase(resolve(desktop, '../..'), resolve(desktop, 'src-tauri/gen/android/app'))
+  }
   const configPath = resolve(desktop, 'src-tauri/tauri.native.generated.json')
   writeFileSync(configPath, `${JSON.stringify(makeConfig(origin), null, 2)}\n`)
   if (action === 'config') console.log(configPath)

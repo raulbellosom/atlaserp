@@ -6,6 +6,13 @@ plugins {
     id("rust")
 }
 
+// The native wrapper validates and supplies this ignored per-environment file.
+// Checkouts without Firebase configuration can still build the native host.
+val firebaseConfigured = file("google-services.json").exists()
+if (firebaseConfigured) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val tauriProperties = Properties().apply {
     val propFile = file("tauri.properties")
     if (propFile.exists()) {
@@ -58,6 +65,10 @@ rust {
 }
 
 dependencies {
+    if (firebaseConfigured) {
+        implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+        implementation("com.google.firebase:firebase-messaging")
+    }
     implementation("io.livekit:livekit-android:2.28.2")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("androidx.webkit:webkit:1.14.0")
