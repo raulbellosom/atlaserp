@@ -52,8 +52,14 @@ export function createCallRecordingService({
     return `recordings/${conversationId}/${recordingId}`;
   }
 
-  // IDOR gate for GET .../recordings: the caller must be an active member of
-  // the conversation, same shape as call-links-service.js's assertMember.
+  // IDOR gate shared by all three recording routes: the caller must be an
+  // active member of the conversation. `chat.calls.record` (requirePermission,
+  // in calls/index.js) is the role-level gate proving the caller's role is
+  // allowed to record AT ALL; this is the per-call scoping check on top of
+  // it. Deliberately NOT callService.assertCanManageCall (initiator or
+  // channel.manage) — chat.calls.record was created specifically so
+  // recording rights would not be coupled to call-moderation rights. Same
+  // shape as call-links-service.js's assertMember.
   async function assertMember(conversationId, profileId) {
     const rows = await prisma.$queryRaw`
       SELECT m.id FROM chat_conversation_members m
@@ -63,23 +69,6 @@ export function createCallRecordingService({
       LIMIT 1
     `;
     if (!rows.length) throw new CallRecordingError("Conversación no encontrada.", 404);
-  }
-
-  // IDOR gate for start/stop: the caller must be able to manage THIS call —
-  // its initiator, or a member holding channel.manage — not merely hold the
-  // global chat.calls.record permission. Mirrors call-guest-service.js's
-  // assertManage, which calls the same callService.assertCanManageCall gate
-  // for admit/deny/kick/mute. assertCanManageCall's own membership lookup
-  // (chat_conversation_members join) already covers "is this person even in
-  // the conversation" — no separate assertMember call needed here.
-  async function assertCanRecordCall(call, profileId) {
-    if (!callService?.assertCanManageCall) throw new CallRecordingError("No disponible.", 500);
-    await callService.assertCanManageCall({
-      conversationId: call.conversationId,
-      initiatedByUserId: call.initiatedByUserId,
-      profileId,
-      action: "grabar la llamada",
-    });
   }
 
   // startedByUserId (persisted on the row, for the "started by" audit trail)
@@ -96,7 +85,7 @@ export function createCallRecordingService({
 
     if (!callService?.getLiveCallOrThrow) throw new CallRecordingError("No disponible.", 500);
     const call = await callService.getLiveCallOrThrow(callId);
-    await assertCanRecordCall(call, profileId);
+    await assertMember(call.conversationId, profileId);
 
     const s3 = s3Config(env);
     const record = await prisma.callRecording.create({
@@ -141,9 +130,11 @@ export function createCallRecordingService({
     });
     if (!record) throw new CallRecordingError("No hay una grabación activa para esta llamada.", 404);
 
-    if (!callService?.getLiveCallOrThrow) throw new CallRecordingError("No disponible.", 500);
-    const call = await callService.getLiveCallOrThrow(callId);
-    await assertCanRecordCall(call, profileId);
+    // The recording row already carries its own conversationId (stamped at
+    // startRecording time) — no need to re-resolve the call via
+    // callService.getLiveCallOrThrow just to check membership, and doing so
+    // would wrongly block a legitimate stop if the call itself just ended.
+    await assertMember(record.conversationId, profileId);
 
     try {
       await egressClient().stopEgress(record.egressId);

@@ -103,18 +103,18 @@ describe("calls recording routes", () => {
     assert.deepEqual(received, { callId: ID, startedByUserId: PROFILE_ID, profileId: PROFILE_ID });
   });
 
-  it("rejects starting a recording when the caller cannot manage the call (not the initiator, no channel.manage)", async () => {
+  it("rejects starting a recording when the caller is not a member of the call's conversation (chat.calls.record alone is not enough)", async () => {
     const recordingService = {
       startRecording: async () => {
-        throw new CallServiceError("No tienes permiso para grabar la llamada.", 403);
+        throw new CallRecordingError("Conversación no encontrada.", 404);
       },
     };
     const app = createApp({}, recordingService);
     const response = await app.request(`/calls/${ID}/recording/start`, { method: "POST" });
     const body = await response.json();
 
-    assert.equal(response.status, 403);
-    assert.equal(body.error, "No tienes permiso para grabar la llamada.");
+    assert.equal(response.status, 404);
+    assert.equal(body.error, "Conversación no encontrada.");
   });
 
   it("stops a recording", async () => {
@@ -134,15 +134,15 @@ describe("calls recording routes", () => {
     assert.deepEqual(received, { callId: ID, profileId: PROFILE_ID });
   });
 
-  it("rejects stopping a recording when the caller cannot manage the call", async () => {
+  it("rejects stopping a recording when the caller is not a member of the call's conversation", async () => {
     const recordingService = {
       stopRecording: async () => {
-        throw new CallServiceError("No tienes permiso para grabar la llamada.", 403);
+        throw new CallRecordingError("Conversación no encontrada.", 404);
       },
     };
     const app = createApp({}, recordingService);
     const response = await app.request(`/calls/${ID}/recording/stop`, { method: "POST" });
-    assert.equal(response.status, 403);
+    assert.equal(response.status, 404);
   });
 
   it("lists recordings for a conversation, resolving the caller's profile id from the auth user", async () => {

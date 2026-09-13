@@ -56,9 +56,10 @@ describe("createCallRecordingService.startRecording", () => {
 
   it("creates a STARTING row, starts a segmented-HLS egress with S3 output, and stores the egressId", async () => {
     let createData;
-    let manageCheckArgs;
+    let memberCheckArgs;
     const egress = new FakeEgress();
     const prisma = {
+      $queryRaw: async (_strings, ...values) => { memberCheckArgs = values; return [{ id: "member-row" }]; },
       callRecording: {
         findFirst: async () => null,
         create: async ({ data }) => { createData = data; return { id: REC, ...data }; },
@@ -67,10 +68,7 @@ describe("createCallRecordingService.startRecording", () => {
     };
     const svc = createCallRecordingService({
       prisma, env: env(), EgressClientImpl: egress,
-      callService: {
-        getLiveCallOrThrow: async () => liveCall,
-        assertCanManageCall: async (args) => { manageCheckArgs = args; },
-      },
+      callService: { getLiveCallOrThrow: async () => liveCall },
     });
     const out = await svc.startRecording({ callId: CALL, startedByUserId: USER, profileId: USER });
     assert.equal(out.status, "STARTING");
@@ -80,35 +78,28 @@ describe("createCallRecordingService.startRecording", () => {
     assert.equal(egress.started[0].roomName, liveCall.livekitRoomName);
     assert.equal(egress.started[0].output.segments.output.case, "s3");
     assert.equal(egress.started[0].output.segments.output.value.bucket, "atlas-chat");
-    // IDOR guard: startRecording must ask the shared "can this profile manage
-    // this call" gate before touching LiveKit — not just trust that the
-    // caller's ROLE carries chat.calls.record somewhere in the company.
-    assert.deepEqual(manageCheckArgs, {
-      conversationId: liveCall.conversationId,
-      initiatedByUserId: liveCall.initiatedByUserId,
-      profileId: USER,
-      action: "grabar la llamada",
-    });
+    // IDOR guard: startRecording must check the caller is a MEMBER of the
+    // call's conversation before touching LiveKit — chat.calls.record (the
+    // role-level permission, gated in calls/index.js) proves the caller's
+    // role is allowed to record at all, not that they belong to this call.
+    assert.deepEqual(memberCheckArgs, [CONV, USER]);
   });
 
-  it("rejects starting a recording when the caller cannot manage the call (IDOR guard)", async () => {
-    const prisma = { callRecording: { findFirst: async () => null } };
-    class RejectingError extends Error {
-      constructor() { super("No tienes permiso para grabar la llamada."); this.status = 403; }
-    }
+  it("rejects starting a recording when the caller is not a member of the call's conversation (IDOR guard)", async () => {
+    const prisma = {
+      $queryRaw: async () => [], // not a member
+      callRecording: { findFirst: async () => null },
+    };
     const egress = new FakeEgress();
     const svc = createCallRecordingService({
       prisma, env: env(), EgressClientImpl: egress,
-      callService: {
-        getLiveCallOrThrow: async () => liveCall,
-        assertCanManageCall: async () => { throw new RejectingError(); },
-      },
+      callService: { getLiveCallOrThrow: async () => liveCall },
     });
     await assert.rejects(
       svc.startRecording({ callId: CALL, startedByUserId: "someone-else", profileId: "someone-else" }),
-      (e) => e.status === 403,
+      (e) => e instanceof CallRecordingError && e.status === 404,
     );
-    // Never reaches LiveKit when the caller isn't allowed to manage the call.
+    // Never reaches LiveKit when the caller isn't a member.
     assert.equal(egress.started.length, 0);
   });
 });
@@ -125,54 +116,38 @@ describe("createCallRecordingService.stopRecording", () => {
 
   it("calls stopEgress and flips status to PROCESSING", async () => {
     let updateData;
-    let manageCheckArgs;
+    let memberCheckArgs;
     const egress = new FakeEgress();
     const prisma = {
+      $queryRaw: async (_strings, ...values) => { memberCheckArgs = values; return [{ id: "member-row" }]; },
       callRecording: {
-        findFirst: async () => ({ id: REC, callId: CALL, egressId: "egress_1", status: "ACTIVE" }),
+        findFirst: async () => ({ id: REC, callId: CALL, conversationId: CONV, egressId: "egress_1", status: "ACTIVE" }),
         update: async ({ data }) => { updateData = data; return { id: REC, ...data }; },
       },
     };
-    const svc = createCallRecordingService({
-      prisma, env: env(), EgressClientImpl: egress,
-      callService: {
-        getLiveCallOrThrow: async () => liveCall,
-        assertCanManageCall: async (args) => { manageCheckArgs = args; },
-      },
-    });
+    // No callService needed: stopRecording checks membership off the
+    // recording row's own conversationId, not by re-resolving the live call.
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: egress });
     const out = await svc.stopRecording({ callId: CALL, profileId: USER });
     assert.equal(out.status, "PROCESSING");
     assert.equal(updateData.status, "PROCESSING");
     assert.deepEqual(egress.stopped, ["egress_1"]);
-    assert.deepEqual(manageCheckArgs, {
-      conversationId: liveCall.conversationId,
-      initiatedByUserId: liveCall.initiatedByUserId,
-      profileId: USER,
-      action: "grabar la llamada",
-    });
+    assert.deepEqual(memberCheckArgs, [CONV, USER]);
   });
 
-  it("rejects stopping a recording when the caller cannot manage the call (IDOR guard)", async () => {
+  it("rejects stopping a recording when the caller is not a member of the call's conversation (IDOR guard)", async () => {
     const egress = new FakeEgress();
     const prisma = {
+      $queryRaw: async () => [], // not a member
       callRecording: {
-        findFirst: async () => ({ id: REC, callId: CALL, egressId: "egress_1", status: "ACTIVE" }),
+        findFirst: async () => ({ id: REC, callId: CALL, conversationId: CONV, egressId: "egress_1", status: "ACTIVE" }),
         update: async () => { throw new Error("must not be reached"); },
       },
     };
-    class RejectingError extends Error {
-      constructor() { super("No tienes permiso para grabar la llamada."); this.status = 403; }
-    }
-    const svc = createCallRecordingService({
-      prisma, env: env(), EgressClientImpl: egress,
-      callService: {
-        getLiveCallOrThrow: async () => liveCall,
-        assertCanManageCall: async () => { throw new RejectingError(); },
-      },
-    });
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: egress });
     await assert.rejects(
       svc.stopRecording({ callId: CALL, profileId: "someone-else" }),
-      (e) => e.status === 403,
+      (e) => e instanceof CallRecordingError && e.status === 404,
     );
     assert.equal(egress.stopped.length, 0);
   });
