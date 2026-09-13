@@ -10,6 +10,8 @@ import { createCallService, CallServiceError } from "./call-service.js";
 import { createCallLinksService, CallLinkError } from "./call-links-service.js";
 import { createCallGuestService, CallGuestError } from "./call-guest-service.js";
 import { createCallMessagesService, CallMessageError } from "./call-messages-service.js";
+import { createCallRecordingService, CallRecordingError } from "./call-recording-service.js";
+import { buildRecordingReadyMessage } from "./call-system-messages.js";
 import { createGuestCallRouter } from "./guest-routes.js";
 
 const callIdSchema = z.string().uuid();
@@ -21,6 +23,7 @@ function handleError(c, error, fallback) {
     || error instanceof CallLinkError
     || error instanceof CallGuestError
     || error instanceof CallMessageError
+    || error instanceof CallRecordingError
   ) {
     return c.json(
       {
@@ -42,6 +45,7 @@ export function createCallsRouter({
   prisma,
   supabaseAdmin = null,
   authMiddleware,
+  requirePermission,
   notificationService = null,
   broadcaster = null,
   deliveryWorker = null,
@@ -57,11 +61,22 @@ export function createCallsRouter({
     prisma, supabaseAdmin, linksService, callService: calls, broadcaster, notificationService,
   });
   const messagesService = createCallMessagesService({ prisma, guestService, broadcaster });
+  const recordingService = createCallRecordingService({
+    prisma, callService: calls, supabaseAdmin,
+    onRecordingReady: async (rec) => {
+      const msg = buildRecordingReadyMessage({ recordingId: rec.id, durationMs: rec.durationMs });
+      await calls.postSystemMessage(rec.conversationId, msg);
+    },
+  });
 
   if (!service) {
     calls.startExpirySweeper();
     const t = setInterval(() => { guestService.sweepAbandonedGuests().catch(() => {}); }, 30_000);
     t.unref?.();
+    const rt = setInterval(() => { recordingService.reconcileActiveRecordings().catch(() => {}); }, 30_000);
+    rt.unref?.();
+    const ct = setInterval(() => { recordingService.cleanupExpiredRecordings().catch(() => {}); }, 60 * 60 * 1000);
+    ct.unref?.();
   }
 
   // ---- unauthenticated guest routes (no authMiddleware) ----
@@ -164,6 +179,36 @@ export function createCallsRouter({
       const { body } = callRoomMessageSchema.parse(await c.req.json());
       return c.json({ data: await messagesService.postMemberMessage({ profileId: await profileId(c), callId, body }) });
     } catch (error) { return handleError(c, error, "Error enviando el mensaje."); }
+  });
+
+  internal.post(
+    "/:callId/recording/start",
+    requirePermission("chat.calls.record"),
+    async (c) => {
+      try {
+        const callId = callIdSchema.parse(c.req.param("callId"));
+        const data = await recordingService.startRecording({ callId, startedByUserId: c.get("userId") });
+        return c.json({ data }, 201);
+      } catch (error) { return handleError(c, error, "Error iniciando la grabación."); }
+    },
+  );
+  internal.post(
+    "/:callId/recording/stop",
+    requirePermission("chat.calls.record"),
+    async (c) => {
+      try {
+        const callId = callIdSchema.parse(c.req.param("callId"));
+        const data = await recordingService.stopRecording({ callId });
+        return c.json({ data });
+      } catch (error) { return handleError(c, error, "Error deteniendo la grabación."); }
+    },
+  );
+  internal.get("/conversations/:conversationId/recordings", async (c) => {
+    try {
+      const conversationId = conversationIdSchema.parse(c.req.param("conversationId"));
+      const data = await recordingService.listRecordings({ conversationId });
+      return c.json({ data });
+    } catch (error) { return handleError(c, error, "Error obteniendo grabaciones."); }
   });
 
   internal.get("/:id", async (c) => {

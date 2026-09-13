@@ -3675,7 +3675,7 @@ app.route("/pwa", pwaRouter);
 //    guard mounted at root, commit 59a439a6); see meridian-mount-scope.test.js.
 app.route("/", createChatRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster, resolveUserContext: getUserContextByAuthId, officeService }));
 const callsSmtpService = createSmtpService({ prisma });
-app.route("/", createCallsRouter({ prisma, supabaseAdmin, authMiddleware, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
+app.route("/", createCallsRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, notificationService, broadcaster, deliveryWorker: notificationDeliveryWorker, smtpService: callsSmtpService }));
 app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }));
 
 app.get("/public", (c) => {

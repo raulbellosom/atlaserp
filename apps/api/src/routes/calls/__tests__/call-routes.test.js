@@ -5,6 +5,8 @@ import { CallServiceError } from "../call-service.js";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 
+const requirePermission = () => async (c, next) => next();
+
 function createApp(service) {
   return createCallsRouter({
     prisma: {},
@@ -13,6 +15,7 @@ function createApp(service) {
       c.set("authUserId", "auth-user");
       await next();
     },
+    requirePermission,
   });
 }
 
@@ -26,6 +29,7 @@ describe("calls routes", () => {
         authCalls += 1;
         await next();
       },
+      requirePermission,
     });
 
     const response = await app.request("/modules/atlas.ledger/bundle.js");
