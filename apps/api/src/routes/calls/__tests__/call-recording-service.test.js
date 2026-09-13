@@ -182,6 +182,101 @@ describe("createCallRecordingService.reconcileActiveRecordings (sweep)", () => {
     await svc.reconcileActiveRecordings();
     assert.deepEqual(egress.stopped, ["egress_1"]);
   });
+
+  it("looks up egress state by egressId, not via an active:true filter that would exclude terminal states", async () => {
+    // Mirrors real LiveKit semantics: `listEgress({ active: true })` only
+    // ever returns non-terminal egresses (STARTING/ACTIVE/ENDING) — it
+    // structurally excludes COMPLETE/FAILED/ABORTED. If the service queried
+    // with `{ active: true }` instead of `{ egressId }`, this fake would
+    // filter the COMPLETE entry out and the assertions below would fail.
+    class FilteringEgress extends FakeEgress {
+      constructor(entries) {
+        super();
+        this.entries = entries;
+        this.listCalls = [];
+      }
+      async listEgress(opts = {}) {
+        this.listCalls.push(opts);
+        if (opts.egressId) return this.entries.filter((e) => e.egressId === opts.egressId);
+        if (opts.active) return this.entries.filter((e) => e.status <= 2);
+        return this.entries;
+      }
+    }
+    const egress = new FilteringEgress([{
+      egressId: "egress_1",
+      status: 3 /* EGRESS_COMPLETE */,
+      segmentResults: [{ playlistLocation: "recordings/conv/rec/index.m3u8", duration: 10_000_000_000n, size: 999n }],
+    }]);
+    let updateData;
+    const prisma = {
+      callRecording: {
+        findMany: async () => [{ id: REC, callId: CALL, conversationId: CONV, egressId: "egress_1", status: "PROCESSING", startedAt: new Date() }],
+        update: async ({ data }) => { updateData = data; return {}; },
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: egress });
+    await svc.reconcileActiveRecordings();
+    assert.equal(updateData.status, "READY");
+    assert.ok(egress.listCalls.some((c) => c.egressId === "egress_1"));
+    assert.ok(!egress.listCalls.some((c) => c.active === true));
+  });
+
+  it("retries stopEgress for a PROCESSING row whose egress is still non-terminal", async () => {
+    class StillRunningEgress extends FakeEgress {
+      async listEgress({ egressId } = {}) {
+        return [{ egressId, status: 1 /* EGRESS_ACTIVE — not yet terminal */ }];
+      }
+    }
+    const egress = new StillRunningEgress();
+    const prisma = {
+      callRecording: {
+        findMany: async () => [{ id: REC, callId: CALL, conversationId: CONV, egressId: "egress_1", status: "PROCESSING", startedAt: new Date() }],
+        update: async () => ({}),
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: egress });
+    await svc.reconcileActiveRecordings();
+    assert.deepEqual(egress.stopped, ["egress_1"]);
+  });
+
+  it("keeps reconciling remaining rows when one row's update throws unexpectedly", async () => {
+    const updates = [];
+    class DoneEgress extends FakeEgress {
+      async listEgress({ egressId } = {}) {
+        return [{
+          egressId,
+          status: 3 /* EGRESS_COMPLETE */,
+          segmentResults: [{ playlistLocation: `recordings/conv/${egressId}/index.m3u8`, duration: 1_000_000_000n, size: 1n }],
+        }];
+      }
+    }
+    const prisma = {
+      callRecording: {
+        findMany: async () => [
+          { id: "rec-a", callId: CALL, conversationId: CONV, egressId: "egress_a", status: "PROCESSING", startedAt: new Date() },
+          { id: "rec-b", callId: CALL, conversationId: CONV, egressId: "egress_b", status: "PROCESSING", startedAt: new Date() },
+        ],
+        update: async ({ where, data }) => {
+          if (where.id === "rec-a") throw new Error("boom");
+          updates.push({ id: where.id, data });
+          return {};
+        },
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: DoneEgress });
+    await assert.doesNotReject(svc.reconcileActiveRecordings());
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0].id, "rec-b");
+  });
+
+  it("returns without touching LiveKit when there are no active recordings", async () => {
+    const egress = new FakeEgress();
+    const prisma = { callRecording: { findMany: async () => [] } };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: egress });
+    await svc.reconcileActiveRecordings();
+    assert.equal(egress.started.length, 0);
+    assert.equal(egress.stopped.length, 0);
+  });
 });
 
 describe("createCallRecordingService.listRecordings", () => {
@@ -202,6 +297,19 @@ describe("createCallRecordingService.listRecordings", () => {
     assert.equal(rows[0].playlistUrl, "https://signed.example/recordings/conv/rec/index.m3u8");
     assert.equal(rows[1].playlistUrl, undefined);
   });
+
+  it("serializes a BigInt sizeBytes to a plain Number (JSON.stringify throws on raw BigInt)", async () => {
+    const prisma = {
+      callRecording: {
+        findMany: async () => [{ id: REC, status: "READY", playlistObjectKey: null, sizeBytes: 123456789012345n }],
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress });
+    const rows = await svc.listRecordings({ conversationId: CONV });
+    assert.equal(typeof rows[0].sizeBytes, "number");
+    assert.equal(rows[0].sizeBytes, 123456789012345);
+    assert.doesNotThrow(() => JSON.stringify(rows[0]));
+  });
 });
 
 describe("createCallRecordingService.cleanupExpiredRecordings", () => {
@@ -220,5 +328,50 @@ describe("createCallRecordingService.cleanupExpiredRecordings", () => {
     const count = await svc.cleanupExpiredRecordings();
     assert.equal(count, 1);
     assert.deepEqual(removedKeys, ["recordings/conv/rec/index.m3u8"]);
+  });
+
+  it("returns only the count actually cleaned up, not the total expired, when one deletion fails", async () => {
+    const prisma = {
+      callRecording: {
+        findMany: async () => [
+          { id: "rec-a", playlistObjectKey: "recordings/conv/rec-a/index.m3u8" },
+          { id: "rec-b", playlistObjectKey: "recordings/conv/rec-b/index.m3u8" },
+        ],
+        delete: async ({ where }) => {
+          if (where.id === "rec-b") throw new Error("db unavailable");
+          return {};
+        },
+      },
+    };
+    const supabaseAdmin = {
+      storage: { from: () => ({ remove: async () => ({ error: null }), list: async () => ({ data: [], error: null }) }) },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress, supabaseAdmin });
+    const count = await svc.cleanupExpiredRecordings();
+    assert.equal(count, 1);
+  });
+
+  it("skips cleanup (leaves the DB row alone) when listing storage fails, instead of deleting only the playlist key", async () => {
+    const deleted = [];
+    const removed = [];
+    const prisma = {
+      callRecording: {
+        findMany: async () => [{ id: REC, playlistObjectKey: "recordings/conv/rec/index.m3u8" }],
+        delete: async ({ where }) => { deleted.push(where.id); return {}; },
+      },
+    };
+    const supabaseAdmin = {
+      storage: {
+        from: () => ({
+          remove: async (keys) => { removed.push(...keys); return { error: null }; },
+          list: async () => ({ data: null, error: { message: "storage unavailable" } }),
+        }),
+      },
+    };
+    const svc = createCallRecordingService({ prisma, env: env(), EgressClientImpl: FakeEgress, supabaseAdmin });
+    const count = await svc.cleanupExpiredRecordings();
+    assert.equal(count, 0);
+    assert.deepEqual(removed, []);
+    assert.deepEqual(deleted, []);
   });
 });

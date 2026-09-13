@@ -5,6 +5,8 @@ const MAX_DURATION_MS = 4 * 60 * 60 * 1000; // hard cap — spec §24 risk 3
 const RETENTION_MS = 90 * 24 * 60 * 60 * 1000; // spec §5 goal 4
 const RECORDING_BUCKET = "atlas-chat";
 const ACTIVE_STATUSES = ["STARTING", "ACTIVE", "PROCESSING"];
+const STORAGE_LIST_PAGE_SIZE = 1000;
+const LOG_PREFIX = "[atlas.calls/recording]";
 
 export class CallRecordingError extends Error {
   constructor(message, status = 400) {
@@ -79,7 +81,10 @@ export function createCallRecordingService({
     try {
       info = await egressClient().startRoomCompositeEgress(call.livekitRoomName, { segments: output });
     } catch (error) {
-      await prisma.callRecording.update({ where: { id: record.id }, data: { status: "FAILED", failureReason: error?.message ?? "No se pudo iniciar." } }).catch(() => {});
+      console.warn(`${LOG_PREFIX} No se pudo iniciar el egress de grabación:`, record.id, error?.message ?? error);
+      await prisma.callRecording
+        .update({ where: { id: record.id }, data: { status: "FAILED", failureReason: error?.message ?? "No se pudo iniciar." } })
+        .catch((updateError) => console.warn(`${LOG_PREFIX} No se pudo marcar el intento de grabación como FAILED:`, record.id, updateError?.message ?? updateError));
       throw new CallRecordingError("No se pudo iniciar la grabación.", 500);
     }
 
@@ -101,7 +106,9 @@ export function createCallRecordingService({
 
     try {
       await egressClient().stopEgress(record.egressId);
-    } catch { /* the sweep will retry/reconcile on the next tick */ }
+    } catch (error) {
+      console.warn(`${LOG_PREFIX} No se pudo detener el egress ahora; el sweep lo reintentará:`, record.id, error?.message ?? error);
+    }
 
     const updated = await prisma.callRecording.update({
       where: { id: record.id },
@@ -115,22 +122,34 @@ export function createCallRecordingService({
       where: { conversationId },
       orderBy: { startedAt: "desc" },
     });
-    if (!supabaseAdmin) return rows;
-    return Promise.all(rows.map(async (row) => {
-      if (row.status !== "READY" || !row.playlistObjectKey) return row;
-      try {
-        const { data, error } = await supabaseAdmin.storage
-          .from(RECORDING_BUCKET)
-          .createSignedUrl(row.playlistObjectKey, 3600);
-        if (error) return row;
-        return { ...row, playlistUrl: data.signedUrl };
-      } catch {
-        return row; // playback surfaces "no disponible"-style state client-side if this stays unset
-      }
-    }));
+    const withSignedUrls = !supabaseAdmin
+      ? rows
+      : await Promise.all(rows.map(async (row) => {
+        if (row.status !== "READY" || !row.playlistObjectKey) return row;
+        try {
+          const { data, error } = await supabaseAdmin.storage
+            .from(RECORDING_BUCKET)
+            .createSignedUrl(row.playlistObjectKey, 3600);
+          if (error) return row;
+          return { ...row, playlistUrl: data.signedUrl };
+        } catch {
+          return row; // playback surfaces "no disponible"-style state client-side if this stays unset
+        }
+      }));
+
+    // sizeBytes is a Prisma BigInt column — JSON.stringify (which Hono's
+    // c.json() uses) throws on a raw BigInt, so serialize it before it can
+    // leave this service.
+    return withSignedUrls.map((row) => (
+      row.sizeBytes != null ? { ...row, sizeBytes: Number(row.sizeBytes) } : row
+    ));
   }
 
   function nsToMs(ns) {
+    // ASSUMPTION: LiveKit's EgressInfo segmentResults[].duration is reported
+    // in nanoseconds. This has not been independently verified in this repo
+    // against a real LiveKit response — confirm during manual/E2E testing
+    // before "fixing" the divisor in the other direction.
     if (ns == null) return null;
     return Math.round(Number(ns) / 1_000_000);
   }
@@ -146,49 +165,111 @@ export function createCallRecordingService({
     if (!rows.length) return;
 
     const client = egressClient();
-    const infos = rows.some((r) => r.egressId) ? await client.listEgress({ active: true }).catch(() => []) : [];
-    const byId = new Map(infos.map((i) => [i.egressId, i]));
 
     for (const row of rows) {
-      // Edge case 4: the call ended — force-stop an orphaned egress even if
-      // LiveKit still reports it active.
-      let callStillLive = true;
-      if (callService?.getLiveCallOrThrow) {
-        try { await callService.getLiveCallOrThrow(row.callId); }
-        catch { callStillLive = false; }
-      }
-      // Edge case 2: hard duration cap.
-      const overCap = now().getTime() - new Date(row.startedAt).getTime() > MAX_DURATION_MS;
+      try {
+        // Edge case 4: the call ended — force-stop an orphaned egress even if
+        // LiveKit still reports it active.
+        let callStillLive = true;
+        if (callService?.getLiveCallOrThrow) {
+          try { await callService.getLiveCallOrThrow(row.callId); }
+          catch { callStillLive = false; }
+        }
+        // Edge case 2: hard duration cap.
+        const overCap = now().getTime() - new Date(row.startedAt).getTime() > MAX_DURATION_MS;
 
-      if ((!callStillLive || overCap) && row.status !== "PROCESSING" && row.egressId) {
-        await client.stopEgress(row.egressId).catch(() => {});
-        await prisma.callRecording.update({ where: { id: row.id }, data: { status: "PROCESSING" } }).catch(() => {});
-        continue;
-      }
+        if ((!callStillLive || overCap) && row.status !== "PROCESSING" && row.egressId) {
+          try {
+            await client.stopEgress(row.egressId);
+          } catch (error) {
+            console.warn(`${LOG_PREFIX} No se pudo forzar el detenimiento del egress (se reintentará):`, row.id, error?.message ?? error);
+          }
+          try {
+            await prisma.callRecording.update({ where: { id: row.id }, data: { status: "PROCESSING" } });
+          } catch (error) {
+            console.warn(`${LOG_PREFIX} No se pudo marcar la grabación como PROCESSING:`, row.id, error?.message ?? error);
+          }
+          continue;
+        }
 
-      const info = row.egressId ? byId.get(row.egressId) : null;
-      if (!info) continue; // still starting, or LiveKit hasn't reported it in this poll yet
+        if (!row.egressId) continue; // still starting, no egress to check yet
 
-      if (info.status === 3 /* EGRESS_COMPLETE */) {
-        const seg = info.segmentResults?.[0];
-        const data = {
-          status: "READY",
-          playlistObjectKey: seg?.playlistLocation ?? null,
-          durationMs: nsToMs(seg?.duration),
-          sizeBytes: seg?.size != null ? BigInt(seg.size) : null,
-          endedAt: now(),
-          expiresAt: new Date(now().getTime() + RETENTION_MS),
-        };
-        await prisma.callRecording.update({ where: { id: row.id }, data });
-        if (onRecordingReady) await onRecordingReady({ ...row, ...data }).catch(() => {});
-      } else if (info.status === 4 /* EGRESS_FAILED */ || info.status === 5 /* EGRESS_ABORTED */) {
-        await prisma.callRecording.update({
-          where: { id: row.id },
-          data: { status: "FAILED", failureReason: info.error || "La grabación no se pudo completar.", endedAt: now() },
-        });
+        // Query per-row by egressId rather than a single batched
+        // `listEgress({ active: true })` call: LiveKit's `active: true` filter
+        // structurally EXCLUDES terminal states (COMPLETE/FAILED/ABORTED),
+        // which are exactly the states this sweep needs to see in order to
+        // promote a row to READY or mark it FAILED. The row set here is
+        // already small/bounded (only STARTING/ACTIVE/PROCESSING rows), so
+        // one lookup per row is cheap.
+        let infos;
+        try {
+          infos = await client.listEgress({ egressId: row.egressId });
+        } catch (error) {
+          console.warn(`${LOG_PREFIX} No se pudo consultar el estado del egress (se reintentará):`, row.id, error?.message ?? error);
+          continue;
+        }
+        const info = (infos ?? [])[0];
+        if (!info) continue; // LiveKit hasn't reported it in this poll yet
+
+        if (info.status === 3 /* EGRESS_COMPLETE */) {
+          const seg = info.segmentResults?.[0];
+          const data = {
+            status: "READY",
+            playlistObjectKey: seg?.playlistLocation ?? null,
+            durationMs: nsToMs(seg?.duration),
+            sizeBytes: seg?.size != null ? BigInt(seg.size) : null,
+            endedAt: now(),
+            expiresAt: new Date(now().getTime() + RETENTION_MS),
+          };
+          await prisma.callRecording.update({ where: { id: row.id }, data });
+          if (onRecordingReady) {
+            try { await onRecordingReady({ ...row, ...data }); }
+            catch (error) { console.warn(`${LOG_PREFIX} onRecordingReady falló:`, row.id, error?.message ?? error); }
+          }
+        } else if (info.status === 4 /* EGRESS_FAILED */ || info.status === 5 /* EGRESS_ABORTED */) {
+          await prisma.callRecording.update({
+            where: { id: row.id },
+            data: { status: "FAILED", failureReason: info.error || "La grabación no se pudo completar.", endedAt: now() },
+          });
+        } else if (row.status === "PROCESSING") {
+          // We already asked LiveKit to stop this egress (force-stop branch,
+          // a previous tick) but it's still STARTING/ACTIVE/ENDING — the
+          // original stopEgress call may have failed silently. Retry it
+          // (idempotent on LiveKit's side) instead of leaving this row stuck
+          // in PROCESSING forever with no automatic remediation.
+          try {
+            await client.stopEgress(row.egressId);
+          } catch (error) {
+            console.warn(`${LOG_PREFIX} Reintento de detener un egress atascado en PROCESSING falló:`, row.id, error?.message ?? error);
+          }
+        }
+        // EGRESS_STARTING/ACTIVE/ENDING while not yet PROCESSING: nothing to
+        // do yet, check again next tick.
+      } catch (error) {
+        // One row's unexpected failure must not abort the rest of the sweep.
+        console.error(`${LOG_PREFIX} Error reconciliando una grabación:`, row.id, error?.stack ?? error);
       }
-      // EGRESS_STARTING/ACTIVE/ENDING: nothing to do yet, check again next tick.
     }
+  }
+
+  // Lists every object under `prefix`, paginating past Supabase Storage's
+  // per-call page cap (100 by default) — a long recording can have well over
+  // a thousand HLS segments. Throws on a real listing failure; the caller
+  // decides what "we couldn't confirm what's in storage" should do.
+  async function listAllStorageObjects(prefix) {
+    const all = [];
+    let offset = 0;
+    for (;;) {
+      const { data, error } = await supabaseAdmin.storage
+        .from(RECORDING_BUCKET)
+        .list(prefix, { limit: STORAGE_LIST_PAGE_SIZE, offset });
+      if (error) throw new Error(error.message || "No se pudo listar el almacenamiento.");
+      const page = data ?? [];
+      all.push(...page);
+      if (page.length < STORAGE_LIST_PAGE_SIZE) break;
+      offset += STORAGE_LIST_PAGE_SIZE;
+    }
+    return all;
   }
 
   // Spec §5 goal 4 / §23 edge case: delete storage objects + rows past retention.
@@ -196,17 +277,39 @@ export function createCallRecordingService({
     const expired = await prisma.callRecording.findMany({
       where: { status: "READY", expiresAt: { lt: now() } },
     });
+    let cleaned = 0;
     for (const rec of expired) {
-      if (rec.playlistObjectKey && supabaseAdmin) {
-        const prefix = rec.playlistObjectKey.split("/").slice(0, -1).join("/");
-        const { data: files } = await supabaseAdmin.storage.from(RECORDING_BUCKET).list(prefix).catch(() => ({ data: [] }));
-        const keys = (files ?? []).map((f) => `${prefix}/${f.name}`);
-        if (keys.length) await supabaseAdmin.storage.from(RECORDING_BUCKET).remove(keys).catch(() => {});
-        else await supabaseAdmin.storage.from(RECORDING_BUCKET).remove([rec.playlistObjectKey]).catch(() => {});
+      try {
+        if (rec.playlistObjectKey && supabaseAdmin) {
+          const prefix = rec.playlistObjectKey.split("/").slice(0, -1).join("/");
+          let files;
+          try {
+            files = await listAllStorageObjects(prefix);
+          } catch (error) {
+            // A listing failure must NOT fall through to deleting just the
+            // single known playlist key and calling it done — that would
+            // silently orphan every other segment file. Skip this record
+            // entirely this run; the DB row (and its storage) is retried on
+            // the next sweep.
+            console.warn(`${LOG_PREFIX} No se pudo listar los objetos de una grabación expirada; se reintentará:`, rec.id, error?.message ?? error);
+            continue;
+          }
+          const keys = files.length
+            ? files.map((f) => `${prefix}/${f.name}`)
+            : [rec.playlistObjectKey]; // genuinely empty listing (not a failure) — fall back to the one key we know about from the DB row
+          const { error: removeError } = await supabaseAdmin.storage.from(RECORDING_BUCKET).remove(keys);
+          if (removeError) {
+            console.warn(`${LOG_PREFIX} No se pudo borrar los objetos de una grabación expirada; se reintentará:`, rec.id, removeError.message ?? removeError);
+            continue;
+          }
+        }
+        await prisma.callRecording.delete({ where: { id: rec.id } });
+        cleaned += 1;
+      } catch (error) {
+        console.warn(`${LOG_PREFIX} No se pudo limpiar una grabación expirada; se reintentará:`, rec.id, error?.message ?? error);
       }
-      await prisma.callRecording.delete({ where: { id: rec.id } }).catch(() => {});
     }
-    return expired.length;
+    return cleaned;
   }
 
   return { startRecording, stopRecording, listRecordings, reconcileActiveRecordings, cleanupExpiredRecordings };
