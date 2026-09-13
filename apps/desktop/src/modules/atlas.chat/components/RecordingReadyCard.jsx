@@ -17,15 +17,17 @@ export function RecordingReadyCard({ message }) {
           <Video className="h-3.5 w-3.5" />
         </span>
         <span className="font-medium text-[hsl(var(--foreground))]">{message.body}</span>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="h-6 px-2 text-[11px]"
-          onClick={() => conversationId && requestOpenRecordings(conversationId)}
-        >
-          Ver grabación
-        </Button>
+        {conversationId && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-[11px]"
+            onClick={() => requestOpenRecordings(conversationId)}
+          >
+            Ver grabación
+          </Button>
+        )}
       </div>
     </div>
   );
