@@ -1401,6 +1401,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "chat",
     order: 50,
   },
+  "chat.calls.record": {
+    displayNameEs: "Grabar llamadas",
+    descriptionEs: "Permite iniciar y detener la grabación de una videollamada.",
+    groupKey: "chat",
+    order: 60,
+  },
   // -----------------------------------------------------------------------
   // atlas.inventory
   // -----------------------------------------------------------------------
