@@ -142,6 +142,22 @@ services:
       - "7882:7882/udp"
     restart: unless-stopped
 
+  egress:
+    image: ${LIVEKIT_EGRESS_IMAGE:-livekit/egress:v1.9.0}
+    container_name: atlas-livekit-egress
+    profiles: ["livekit"]
+    restart: unless-stopped
+    environment:
+      - EGRESS_CONFIG_FILE=/etc/egress/egress.yaml
+    volumes:
+      - ./livekit/egress.yaml:/etc/egress/egress.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      livekit-redis:
+        condition: service_started
+      livekit:
+        condition: service_started
+
   livekit-caddy:
     image: ${LIVEKIT_CADDY_IMAGE:-caddy:2-alpine}
     container_name: atlas-livekit-caddy
