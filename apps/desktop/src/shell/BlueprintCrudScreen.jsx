@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Package, Plus } from "lucide-react";
 import {
-  AtlasCrudView,
+  RunlyCrudView,
   Button,
   Card,
   CardHeader,
@@ -977,7 +977,7 @@ export function BlueprintCrudScreen() {
   return (
     <div className={usesDashboardShell ? "flex flex-col" : "p-4 md:p-6"}>
       {/* List-mode header: only shown for the main listing view, not form/detail/edit.
-          AtlasCrudView renders its own compact header for create/detail/edit modes. */}
+          RunlyCrudView renders its own compact header for create/detail/edit modes. */}
       {usesCrudLayout && routeInfo.initialMode === "list" && (
         <div className="p-4 md:p-6 pb-0 space-y-4">
           <PageHeader
@@ -1081,7 +1081,7 @@ export function BlueprintCrudScreen() {
           </Card>
         ) : null}
 
-        <AtlasCrudView
+        <RunlyCrudView
           ref={crudViewRef}
           tableBlueprint={selection.tableBlueprint}
           formBlueprint={selection.formBlueprint}

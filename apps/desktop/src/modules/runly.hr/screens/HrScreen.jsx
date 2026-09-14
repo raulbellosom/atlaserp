@@ -1,7 +1,7 @@
 import { toLocalIso } from '../../../lib/localDate.js';
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AtlasTable, Button, ErrorState, LoadingState, PageHeader } from "@runly/ui";
+import { RunlyTable, Button, ErrorState, LoadingState, PageHeader } from "@runly/ui";
 import { FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -218,7 +218,7 @@ export default function HrScreen() {
           </div>
         }
       />
-      <AtlasTable
+      <RunlyTable
         {...buildHrEmployeesTableProps({
           blueprint: HR_EMPLOYEES_BLUEPRINT,
           token,

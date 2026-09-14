@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/DropdownMenu.jsx";
 
-export function AtlasSortMenu({ columns = [], sortBy = "", sortDir = "asc", onSortChange }) {
+export function RunlySortMenu({ columns = [], sortBy = "", sortDir = "asc", onSortChange }) {
   const current = columns.find((c) => c.field === sortBy);
   const label = current ? current.label : "Ordenar";
   const isActive = Boolean(sortBy);

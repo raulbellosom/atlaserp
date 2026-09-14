@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '@runly/ui'
 import { LayoutTemplate } from 'lucide-react'
-import { allTemplates } from '../../../website/atlasTemplates/index.js'
+import { allTemplates } from '../../../website/runlyTemplates/index.js'
 
 export default function WebsiteTemplatesScreen() {
   const navigate = useNavigate()

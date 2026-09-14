@@ -7,7 +7,7 @@ import { MobileFiltersSheet } from "../components/MobileFiltersSheet.jsx";
 import { ViewModeSwitch } from "../components/ViewModeSwitch.jsx";
 import { cn } from "../lib/utils.js";
 
-export function AtlasTableToolbar({
+export function RunlyTableToolbar({
   storageKey,
   search = "",
   onSearchChange,

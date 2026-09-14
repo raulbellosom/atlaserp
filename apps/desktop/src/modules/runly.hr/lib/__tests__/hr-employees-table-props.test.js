@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { setApiUrl, clearApiUrl } from "../../../../lib/runtimeConfig.js";
 import { buildHrEmployeesTableProps } from "../hr-employees-table-props.js";
 
-test("buildHrEmployeesTableProps wires AtlasTable to the configured API base URL", () => {
+test("buildHrEmployeesTableProps wires RunlyTable to the configured API base URL", () => {
   const blueprint = { key: "hr.employees.table" };
   const token = "token-123";
   const onView = () => {};

@@ -2,7 +2,7 @@ import { toLocalIso } from '../../../lib/localDate.js';
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AtlasTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@runly/ui";
+import { RunlyTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@runly/ui";
 import { FileSpreadsheet, FileText, Power, PowerOff, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -326,7 +326,7 @@ export default function ContactsScreen() {
         }
       />
 
-      <AtlasTable
+      <RunlyTable
         blueprint={CONTACTS_BLUEPRINT}
         token={token}
         companyId={activeCompanyId}

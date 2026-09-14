@@ -15,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "../components/Table.jsx";
-import { AtlasCardView } from "./AtlasCardView.jsx";
-import { AtlasTableToolbar } from "./AtlasTableToolbar.jsx";
+import { RunlyCardView } from "./RunlyCardView.jsx";
+import { RunlyTableToolbar } from "./RunlyTableToolbar.jsx";
 import { BulkActionBar } from "./BulkActionBar.jsx";
 import { ColumnConfigPanel } from "./ColumnConfigPanel.jsx";
 import { ColumnHeaderMenu } from "./ColumnHeaderMenu.jsx";
@@ -27,7 +27,7 @@ import {
   normalizeSpanishLabel,
   stripMarkdown,
 } from "./renderer-adapters.js";
-import { resolveColorHex } from "./atlas-form-utils.js";
+import { resolveColorHex } from "./runly-form-utils.js";
 import { formatTableDate } from "../lib/utils.js";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
 
@@ -70,7 +70,7 @@ function inferRowActionKind(label) {
 }
 
 function getRowId(row, index) {
-  if (row?.__atlasRowKey != null) return String(row.__atlasRowKey);
+  if (row?.__runlyRowKey != null) return String(row.__runlyRowKey);
   return row?.id != null ? String(row.id) : `row-${index}`;
 }
 
@@ -81,9 +81,9 @@ function withUniqueRowKeys(rows) {
     const nextCount = (seen.get(baseId) ?? 0) + 1;
     seen.set(baseId, nextCount);
     if (nextCount === 1) {
-      return { ...row, __atlasRowKey: baseId };
+      return { ...row, __runlyRowKey: baseId };
     }
-    return { ...row, __atlasRowKey: `${baseId}__dup${nextCount - 1}` };
+    return { ...row, __runlyRowKey: `${baseId}__dup${nextCount - 1}` };
   });
 }
 
@@ -276,7 +276,7 @@ function ColorCell({ value }) {
   );
 }
 
-export function AtlasTable({
+export function RunlyTable({
   blueprint,
   token,
   companyId = null,
@@ -450,7 +450,7 @@ export function AtlasTable({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [reloadTick, setReloadTick] = useState(0);
-  const storageKey = `atlas.renderer.${apiPath.replace(/\//g, ".")}`;
+  const storageKey = `runly.renderer.${apiPath.replace(/\//g, ".")}`;
   const [view, setView] = useState(() =>
     getStoredViewMode(storageKey, schema.defaultViewMode ?? "table"),
   );
@@ -1148,7 +1148,7 @@ export function AtlasTable({
       : null;
 
     return (
-      <AtlasCardView
+      <RunlyCardView
         columns={visibleColumns}
         rows={rows}
         selectedIds={selectedIds}
@@ -1169,7 +1169,7 @@ export function AtlasTable({
   return (
     <>
       <div className="flex flex-col gap-4">
-        <AtlasTableToolbar
+        <RunlyTableToolbar
           storageKey={storageKey}
           search={searchable ? search : ""}
           onSearchChange={

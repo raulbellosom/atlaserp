@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AtlasCrudView, Button, PageHeader } from "@runly/ui";
+import { RunlyCrudView, Button, PageHeader } from "@runly/ui";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
@@ -15,7 +15,7 @@ const VEHICLE_TABLE = {
   kind: "TABLE",
   schema: {
     entity: "vehicle",
-    component: "AtlasTable",
+    component: "RunlyTable",
     apiPath: "/fleet/vehicles",
     primaryField: "plate",
     searchable: true,
@@ -92,7 +92,7 @@ const VEHICLE_FORM = {
   kind: "FORM",
   schema: {
     entity: "vehicle",
-    component: "AtlasForm",
+    component: "RunlyForm",
     apiPath: "/fleet/vehicles",
     sections: [
       {
@@ -296,7 +296,7 @@ const VEHICLE_DETAIL = {
   kind: "DETAIL",
   schema: {
     entity: "vehicle",
-    component: "AtlasDetail",
+    component: "RunlyDetail",
     apiPath: "/fleet/vehicles",
     layout: "two-column",
     hero: {
@@ -606,7 +606,7 @@ export default function VehiclesScreen() {
           }
         />
       )}
-      <AtlasCrudView
+      <RunlyCrudView
         tableBlueprint={VEHICLE_TABLE}
         formBlueprint={VEHICLE_FORM}
         detailBlueprint={VEHICLE_DETAIL}

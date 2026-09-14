@@ -14,9 +14,9 @@ import "@raulbellosom/atlas-web-builder/styles";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
-  buildAtlasBlocks,
-  buildAtlasTemplates,
-} from "../../../website/atlasBlocks/index.js";
+  buildRunlyBlocks,
+  buildRunlyTemplates,
+} from "../../../website/runlyBlocks/index.js";
 import { toast } from "sonner";
 
 async function apiFetch(path, token, options = {}) {
@@ -237,8 +237,8 @@ export default function WebsitePageEditorScreen({
       }}
     >
       <AtlasWebBuilderEditor
-        blocks={[...baseBlocks, ...buildAtlasBlocks(siteType)]}
-        templates={buildAtlasTemplates(siteType)}
+        blocks={[...baseBlocks, ...buildRunlyBlocks(siteType)]}
+        templates={buildRunlyTemplates(siteType)}
         initialPage={initialPage}
         theme={resolvedTheme}
         assets={createAssetSource(token)}

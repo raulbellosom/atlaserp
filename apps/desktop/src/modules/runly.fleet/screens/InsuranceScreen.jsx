@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasCrudView, Button, PageHeader } from '@runly/ui'
+import { RunlyCrudView, Button, PageHeader } from '@runly/ui'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -15,7 +15,7 @@ const INSURANCE_TABLE = {
   kind: 'TABLE',
   schema: {
     entity: 'insurance_policy',
-    component: 'AtlasTable',
+    component: 'RunlyTable',
     apiPath: '/fleet/insurance',
     primaryField: 'policy_number',
     searchable: false,
@@ -43,7 +43,7 @@ const INSURANCE_FORM = {
   kind: 'FORM',
   schema: {
     entity: 'insurance_policy',
-    component: 'AtlasForm',
+    component: 'RunlyForm',
     apiPath: '/fleet/insurance',
     sections: [
       {
@@ -106,7 +106,7 @@ const INSURANCE_DETAIL = {
   kind: 'DETAIL',
   schema: {
     entity: 'insurance_policy',
-    component: 'AtlasDetail',
+    component: 'RunlyDetail',
     apiPath: '/fleet/insurance',
     hero: {
       titleField: 'insurer_name',
@@ -214,7 +214,7 @@ export default function InsuranceScreen() {
           }
         />
       )}
-      <AtlasCrudView
+      <RunlyCrudView
         tableBlueprint={INSURANCE_TABLE}
         formBlueprint={INSURANCE_FORM}
         detailBlueprint={INSURANCE_DETAIL}

@@ -1,6 +1,6 @@
-// Pure view-model helpers for the opt-in AtlasDetail presentation layer
+// Pure view-model helpers for the opt-in RunlyDetail presentation layer
 // (hero + KPI strip + two-column body). No React, no fetching, no side effects.
-import { resolveColorHex } from "./atlas-form-utils.js";
+import { resolveColorHex } from "./runly-form-utils.js";
 
 export function getByPath(value, path) {
   if (!path || typeof path !== "string") return undefined;

@@ -32,7 +32,7 @@ import {
   agenciaTemplate,
   negocioTemplate,
   habitiaTemplate,
-  allAtlasTemplates,
+  allRunlyTemplates,
 } from './templates/index.js'
 
 export {
@@ -42,12 +42,12 @@ export {
   agenciaTemplate,
   negocioTemplate,
   habitiaTemplate,
-  allAtlasTemplates,
+  allRunlyTemplates,
 }
 
 // ─── Grupos por categoría ────────────────────────────────────────────────────
 
-export const universalAtlasBlocks = [
+export const universalRunlyBlocks = [
   ContactFormBlock,
   BlogIndexBlock,
   ServicesGridBlock,
@@ -63,17 +63,17 @@ export const universalAtlasBlocks = [
   QuoteBlock,
 ]
 
-export const ecommerceAtlasBlocks = [
+export const ecommerceRunlyBlocks = [
   ProductsGridBlock,
   ProductCardBlock,
   CartBlock,
 ]
 
-export const bookingsAtlasBlocks = [
+export const bookingsRunlyBlocks = [
   BookingFormBlock,
 ]
 
-export const restaurantAtlasBlocks = [
+export const restaurantRunlyBlocks = [
   MenuGridBlock,
 ]
 
@@ -102,15 +102,15 @@ export {
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
 
-export function buildAtlasBlocks(siteType) {
-  const blocks = [...universalAtlasBlocks]
-  if (siteType === 'ecommerce')  blocks.push(...ecommerceAtlasBlocks)
-  if (siteType === 'bookings')   blocks.push(...bookingsAtlasBlocks)
-  if (siteType === 'restaurant') blocks.push(...restaurantAtlasBlocks)
+export function buildRunlyBlocks(siteType) {
+  const blocks = [...universalRunlyBlocks]
+  if (siteType === 'ecommerce')  blocks.push(...ecommerceRunlyBlocks)
+  if (siteType === 'bookings')   blocks.push(...bookingsRunlyBlocks)
+  if (siteType === 'restaurant') blocks.push(...restaurantRunlyBlocks)
   return blocks
 }
 
-export function buildAtlasTemplates(siteType) {
+export function buildRunlyTemplates(siteType) {
   const base = [agenciaTemplate, negocioTemplate]
   if (siteType === 'ecommerce')  return [...base, tiendaTemplate, habitiaTemplate]
   if (siteType === 'bookings')   return [...base, spaTemplate, restauranteTemplate]

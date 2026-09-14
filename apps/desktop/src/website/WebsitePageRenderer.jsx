@@ -1,18 +1,18 @@
 import { AtlasWebBuilderProvider, AtlasWebRenderer, baseBlocks, defineTheme, defaultTheme, parsePage } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
 import {
-  universalAtlasBlocks,
-  ecommerceAtlasBlocks,
-  bookingsAtlasBlocks,
-  restaurantAtlasBlocks,
-} from './atlasBlocks/index.js'
+  universalRunlyBlocks,
+  ecommerceRunlyBlocks,
+  bookingsRunlyBlocks,
+  restaurantRunlyBlocks,
+} from './runlyBlocks/index.js'
 
 const ALL_BLOCKS = [
   ...baseBlocks,
-  ...universalAtlasBlocks,
-  ...ecommerceAtlasBlocks,
-  ...bookingsAtlasBlocks,
-  ...restaurantAtlasBlocks,
+  ...universalRunlyBlocks,
+  ...ecommerceRunlyBlocks,
+  ...bookingsRunlyBlocks,
+  ...restaurantRunlyBlocks,
 ]
 
 export function WebsitePageRenderer({ page, theme }) {

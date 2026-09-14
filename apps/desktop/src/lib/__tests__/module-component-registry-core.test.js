@@ -43,10 +43,10 @@ test("component registry keeps non-namespaced keys always resolvable", () => {
   const registry = createModuleComponentRegistry();
   const SharedComponent = () => null;
 
-  registry.register("AtlasTable", SharedComponent);
+  registry.register("RunlyTable", SharedComponent);
   registry.setActiveModules(["atlas.core"]);
 
-  assert.equal(registry.resolve("AtlasTable"), SharedComponent);
+  assert.equal(registry.resolve("RunlyTable"), SharedComponent);
 });
 
 test("component registry warns and replaces duplicate keys", () => {

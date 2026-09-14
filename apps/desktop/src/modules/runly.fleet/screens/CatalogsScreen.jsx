@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasCrudView, PageHeader } from '@runly/ui'
+import { RunlyCrudView, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -150,7 +150,7 @@ export default function CatalogsScreen() {
           </button>
         ))}
       </div>
-      <AtlasCrudView
+      <RunlyCrudView
         tableBlueprint={tableBlueprint}
         formBlueprint={formBlueprint}
         token={token}

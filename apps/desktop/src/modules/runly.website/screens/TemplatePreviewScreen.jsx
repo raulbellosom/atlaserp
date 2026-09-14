@@ -16,20 +16,20 @@ import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { allTemplates } from '../../../website/atlasTemplates/index.js'
+import { allTemplates } from '../../../website/runlyTemplates/index.js'
 import {
-  universalAtlasBlocks,
-  ecommerceAtlasBlocks,
-  bookingsAtlasBlocks,
-  restaurantAtlasBlocks,
-} from '../../../website/atlasBlocks/index.js'
+  universalRunlyBlocks,
+  ecommerceRunlyBlocks,
+  bookingsRunlyBlocks,
+  restaurantRunlyBlocks,
+} from '../../../website/runlyBlocks/index.js'
 
 const ALL_BLOCKS = [
   ...baseBlocks,
-  ...universalAtlasBlocks,
-  ...ecommerceAtlasBlocks,
-  ...bookingsAtlasBlocks,
-  ...restaurantAtlasBlocks,
+  ...universalRunlyBlocks,
+  ...ecommerceRunlyBlocks,
+  ...bookingsRunlyBlocks,
+  ...restaurantRunlyBlocks,
 ]
 
 async function apiFetch(path, token, options = {}) {

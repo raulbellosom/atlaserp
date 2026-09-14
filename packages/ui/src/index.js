@@ -254,23 +254,24 @@ export { ActivityTimeline } from "./components/ActivityTimeline.jsx";
 export { ActivityDrawer } from "./components/ActivityDrawer.jsx";
 export { ActivityBellTrigger } from "./components/ActivityBellTrigger.jsx";
 
-// Atlas blueprint renderer
+// Runly blueprint renderer (AtlasTable/AtlasForm/AtlasDetail/AtlasCrudView/
+// AtlasCardView kept as aliases for any caller not yet migrated off the old names)
 export {
-  AtlasTable,
-  AtlasTable as RunlyTable,
-  AtlasForm,
-  AtlasForm as RunlyForm,
-  AtlasDetail,
-  AtlasDetail as RunlyDetail,
-  AtlasCrudView,
-  AtlasCrudView as RunlyCrudView,
-  AtlasCardView,
-  AtlasCardView as RunlyCardView,
+  RunlyTable,
+  RunlyTable as AtlasTable,
+  RunlyForm,
+  RunlyForm as AtlasForm,
+  RunlyDetail,
+  RunlyDetail as AtlasDetail,
+  RunlyCrudView,
+  RunlyCrudView as AtlasCrudView,
+  RunlyCardView,
+  RunlyCardView as AtlasCardView,
   BulkActionBar,
   normalizeSpanishLabel,
   shouldUsePageMode,
   CostsSummaryPanel,
-} from "./atlas-renderer/index.js";
+} from "./runly-renderer/index.js";
 
 export { UserSearchModal } from "./components/UserSearchModal.jsx";
 

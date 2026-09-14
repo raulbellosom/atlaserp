@@ -2,7 +2,7 @@ import { toLocalIso } from '../../../lib/localDate.js';
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
-import { AtlasTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@runly/ui";
+import { RunlyTable, Button, ConfirmDialog, ErrorState, PageHeader } from "@runly/ui";
 import {
   FileSpreadsheet,
   FileText,
@@ -266,7 +266,7 @@ export default function UsersScreen() {
       />
 
       {canReadUsers ? (
-        <AtlasTable
+        <RunlyTable
           blueprint={USERS_BLUEPRINT}
           token={token}
           companyId={activeCompanyId}

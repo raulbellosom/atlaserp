@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.catalog/screens/CatalogInventoryScreen.jsx
 import { useNavigate } from 'react-router-dom'
-import { AtlasTable, PageHeader } from '@runly/ui'
+import { RunlyTable, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -81,7 +81,7 @@ export default function CatalogInventoryScreen() {
         description="Vision general del stock de todos los productos."
       />
 
-      <AtlasTable
+      <RunlyTable
         blueprint={INVENTORY_BLUEPRINT}
         token={token}
         companyId={activeCompanyId}

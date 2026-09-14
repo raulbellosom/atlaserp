@@ -23,7 +23,7 @@ export default defineView({
   version: '0.1.0',
   schema: {
     entity: '${entity.name}',
-    component: 'AtlasTable',
+    component: 'RunlyTable',
     apiPath: '${apiPath}',
     searchable: true,
     searchPlaceholder: 'Buscar ${entity.label.toLowerCase()}...',
@@ -78,7 +78,7 @@ export default defineView({
   version: '0.1.0',
   schema: {
     entity: '${entity.name}',
-    component: 'AtlasForm',
+    component: 'RunlyForm',
     apiPath: '${apiPath}',
     sections: [
       {
@@ -116,7 +116,7 @@ export default defineView({
   version: '0.1.0',
   schema: {
     entity: '${entity.name}',
-    component: 'AtlasDetail',
+    component: 'RunlyDetail',
     apiPath: '${apiPath}',
     sections: [
       {

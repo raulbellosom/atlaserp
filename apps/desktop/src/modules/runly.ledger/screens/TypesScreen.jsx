@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasCrudView } from '@runly/ui'
+import { RunlyCrudView } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -13,7 +13,7 @@ const TYPES_TABLE = {
   kind: 'TABLE',
   schema: {
     entity: 'transaction_type',
-    component: 'AtlasTable',
+    component: 'RunlyTable',
     apiPath: '/ledger/types',
     description: 'Codigos de operacion bancaria (DEP, CHQ, TRANSF, etc.). Identifican el instrumento de cada movimiento y permiten filtrar el registro por tipo.',
     primaryField: 'code',
@@ -36,7 +36,7 @@ const TYPES_FORM = {
   kind: 'FORM',
   schema: {
     entity: 'transaction_type',
-    component: 'AtlasForm',
+    component: 'RunlyForm',
     apiPath: '/ledger/types',
     sections: [{
       fields: [
@@ -91,7 +91,7 @@ export default function TypesScreen() {
 
   return (
     <div className="p-4 md:p-6 min-h-dvh">
-      <AtlasCrudView
+      <RunlyCrudView
         tableBlueprint={TYPES_TABLE}
         formBlueprint={TYPES_FORM}
         detailBlueprint={TYPES_DETAIL}

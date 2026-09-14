@@ -335,7 +335,7 @@ export function createHrService({ prisma, activityBridge }) {
     }) {
       const { companyId } = await getUserContext(authUserId, activeCompanyId);
 
-      // Paginated path (used by AtlasTable)
+      // Paginated path (used by RunlyTable)
       if (page !== undefined || pageSize !== undefined) {
         const take = Math.min(Math.max(1, Number(pageSize) || 20), 200);
         const skip = (Math.max(1, Number(page) || 1) - 1) * take;

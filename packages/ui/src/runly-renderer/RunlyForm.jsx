@@ -32,7 +32,7 @@ import {
 } from "./renderer-adapters.js";
 import { cn } from "../lib/utils.js";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
-import { normalizeField, normalizeSections } from "./atlas-form-schema.js";
+import { normalizeField, normalizeSections } from "./runly-form-schema.js";
 import {
   PRESET_COLORS,
   CAR_COLORS,
@@ -50,7 +50,7 @@ import {
   toMoney,
   normalizeReportParts,
   computePartsCost,
-} from "./atlas-form-utils.js";
+} from "./runly-form-utils.js";
 
 // Module-level cache for relation field options. Persists across modal open/close cycles.
 const _relationOptionsCache = new Map();
@@ -120,7 +120,7 @@ function buildResetInitialDataToken(initialData, mode) {
   }
 }
 
-export function AtlasForm({
+export function RunlyForm({
   blueprint,
   fields,
   initialData,
@@ -1363,7 +1363,7 @@ export function AtlasForm({
                 </DialogDescription>
               </DialogHeader>
               <div className="max-h-[70dvh] overflow-y-auto pr-1">
-                <AtlasForm
+                <RunlyForm
                   blueprint={inlineCreateState.blueprint}
                   fields={nestedBlueprintFields}
                   initialData={inlineCreateState.prefillData}

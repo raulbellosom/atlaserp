@@ -1,6 +1,6 @@
-// Hero glue for AtlasDetail's opt-in presentation layer: resolves the hero image
+// Hero glue for RunlyDetail's opt-in presentation layer: resolves the hero image
 // signed URL client-side and composes DetailHero + StatStrip. Kept out of
-// AtlasDetail.jsx to keep that file under the repo file-size budget.
+// RunlyDetail.jsx to keep that file under the repo file-size budget.
 import { useEffect, useState } from "react";
 import { Badge } from "../components/Badge.jsx";
 import { DetailHero } from "../components/DetailHero.jsx";
@@ -95,7 +95,7 @@ function HeroStatus({ heroModel, data, renderValue }) {
   return renderValue({ type: "text" }, statusValue, data);
 }
 
-// `renderValue` is injected by AtlasDetail so the two files share one formatter.
+// `renderValue` is injected by RunlyDetail so the two files share one formatter.
 export function HeroContainer({
   heroModel,
   kpiItems,

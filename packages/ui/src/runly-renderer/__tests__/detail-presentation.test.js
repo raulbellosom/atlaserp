@@ -96,7 +96,7 @@ test("resolveKpis maps fields, types and href tokens", () => {
     {
       kpis: [
         { label: "Matricula", field: "plate", icon: "Hash" },
-        { label: "Operador", field: "driver_name", hrefTemplate: "/app/m/atlas.fleet/drivers/:driver_id" },
+        { label: "Operador", field: "driver_name", hrefTemplate: "/app/m/runly.fleet/drivers/:driver_id" },
         { label: "Poliza", field: "active_insurance_policy.expiry_date", type: "date" },
       ],
     },
@@ -105,7 +105,7 @@ test("resolveKpis maps fields, types and href tokens", () => {
   assert.equal(items.length, 3);
   assert.equal(items[0].rawValue, "PVR-8109");
   assert.equal(items[0].type, "text");
-  assert.equal(items[1].href, "/app/m/atlas.fleet/drivers/d1");
+  assert.equal(items[1].href, "/app/m/runly.fleet/drivers/d1");
   assert.equal(items[2].rawValue, "2027-04-10");
   assert.equal(items[2].type, "date");
 });

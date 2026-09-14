@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-import { AtlasTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
+import { RunlyTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -99,7 +99,7 @@ export default function InventoryScreen() {
         }
       />
 
-      <AtlasTable
+      <RunlyTable
         blueprint={blueprint}
         token={token}
         companyId={activeCompanyId}

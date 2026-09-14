@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AtlasTable,
+  RunlyTable,
   Button,
   ErrorState,
   PageHeader,
@@ -157,7 +157,7 @@ export default function GrowthLeadsScreen() {
         />
       </div>
 
-      <AtlasTable
+      <RunlyTable
         blueprint={LEADS_BLUEPRINT}
         token={token}
         companyId={activeCompanyId}

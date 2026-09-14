@@ -94,7 +94,7 @@ test('discoverModules reads custom modules from ATLAS_MODULES_DIR when provided'
       kind: 'TABLE',
       schema: {
         entity: 'demo',
-        component: 'AtlasTable',
+        component: 'RunlyTable',
         columns: [{ field: 'name', label: 'Nombre' }],
       },
     }`,

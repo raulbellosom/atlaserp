@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasTable, Button, PageHeader } from '@runly/ui'
+import { RunlyTable, Button, PageHeader } from '@runly/ui'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -22,7 +22,7 @@ const REPORT_TABLES = {
     kind: 'TABLE',
     schema: {
       entity: 'report',
-      component: 'AtlasTable',
+      component: 'RunlyTable',
       apiPath: '/fleet/reports/maintenance',
       primaryField: 'title',
       searchable: true,
@@ -47,7 +47,7 @@ const REPORT_TABLES = {
     kind: 'TABLE',
     schema: {
       entity: 'report',
-      component: 'AtlasTable',
+      component: 'RunlyTable',
       apiPath: '/fleet/reports/service',
       primaryField: 'title',
       searchable: true,
@@ -72,7 +72,7 @@ const REPORT_TABLES = {
     kind: 'TABLE',
     schema: {
       entity: 'report',
-      component: 'AtlasTable',
+      component: 'RunlyTable',
       apiPath: '/fleet/reports/repair',
       primaryField: 'title',
       searchable: true,
@@ -98,7 +98,7 @@ const REPORT_TABLES = {
     kind: 'TABLE',
     schema: {
       entity: 'report',
-      component: 'AtlasTable',
+      component: 'RunlyTable',
       apiPath: '/fleet/reports/other',
       primaryField: 'title',
       searchable: true,
@@ -188,7 +188,7 @@ export default function ReportsScreen() {
           </button>
         ))}
       </div>
-      <AtlasTable
+      <RunlyTable
         blueprint={currentBlueprint}
         token={token}
         companyId={activeCompanyId}

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasCrudView } from '@runly/ui'
+import { RunlyCrudView } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
@@ -22,7 +22,7 @@ const FORMS_BY_TYPE = {
     kind: 'FORM',
     schema: {
       entity: 'report',
-      component: 'AtlasForm',
+      component: 'RunlyForm',
       apiPath: '/fleet/reports/maintenance',
       formMode: 'page',
       title: 'Nuevo Reporte de Mantenimiento',
@@ -61,7 +61,7 @@ const FORMS_BY_TYPE = {
     kind: 'FORM',
     schema: {
       entity: 'report',
-      component: 'AtlasForm',
+      component: 'RunlyForm',
       apiPath: '/fleet/reports/service',
       formMode: 'page',
       title: 'Nuevo Reporte de Servicio',
@@ -83,7 +83,7 @@ const FORMS_BY_TYPE = {
     kind: 'FORM',
     schema: {
       entity: 'report',
-      component: 'AtlasForm',
+      component: 'RunlyForm',
       apiPath: '/fleet/reports/repair',
       formMode: 'page',
       title: 'Nuevo Reporte de Reparacion',
@@ -106,7 +106,7 @@ const FORMS_BY_TYPE = {
     kind: 'FORM',
     schema: {
       entity: 'report',
-      component: 'AtlasForm',
+      component: 'RunlyForm',
       apiPath: '/fleet/reports/other',
       formMode: 'page',
       title: 'Nuevo Reporte - Otro',
@@ -168,7 +168,7 @@ export default function ReportFormPage() {
 
   return (
     <div className="p-4 md:p-6 min-h-dvh">
-      <AtlasCrudView
+      <RunlyCrudView
         tableBlueprint={REPORT_TABLE_STUB}
         formBlueprint={formBlueprint}
         token={token}

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  AtlasTable, Button, ConfirmDialog, Dialog, DialogContent,
+  RunlyTable, Button, ConfirmDialog, Dialog, DialogContent,
   DialogHeader, DialogTitle, PageHeader, TextField,
 } from '@runly/ui'
 import { Plus } from 'lucide-react'
@@ -139,7 +139,7 @@ export default function CatalogProductsScreen() {
         }
       />
 
-      <AtlasTable
+      <RunlyTable
         blueprint={CATALOG_PRODUCTS_BLUEPRINT}
         token={token}
         companyId={activeCompanyId}

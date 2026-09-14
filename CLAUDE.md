@@ -70,7 +70,7 @@ apps/
 packages/
   core/           Module registry, event bus, manifest contract
   module-engine/  @runly/module-engine — AME3 primitives: defineAtlasModule, defineModel, defineView, definePage
-  ui/             Shared React components (AppShell, Button, AtlasTable, AtlasForm, etc.)
+  ui/             Shared React components (AppShell, Button, RunlyTable, RunlyForm, etc.)
   sdk/            Atlas API client (createAtlasClient factory)
   validators/     Zod schemas shared between API and frontend
 modules/
@@ -185,7 +185,7 @@ Before writing any UI element, check `@runly/ui` first. This is non-negotiable.
 | `<textarea>` | `TextareaField` or `Textarea` |
 | `<input type="checkbox">` | `CheckboxField` or `Checkbox` |
 | `<input type="date">` | `DateField` or `DatePickerField` |
-| hand-rolled table | `AtlasTable` / `DataTable` |
+| hand-rolled table | `RunlyTable` / `DataTable` |
 | hand-rolled modal | `Dialog` or `Sheet` |
 | hand-rolled dropdown | `DropdownMenu` |
 | `window.confirm()` / `window.alert()` / `window.prompt()` | `ConfirmDialog` (destructive actions) or `Dialog` |
@@ -197,7 +197,7 @@ Before writing any UI element, check `@runly/ui` first. This is non-negotiable.
 - `CreatableComboboxField` — searchable combobox with inline "+ Crear «X»" option; use whenever a select needs to allow new entries. `placeholder="Buscar o crear..."` is the canonical UX.
 - `ComboboxField` — same as above without the create option; use for read-only option sets.
 - `SelectField` — plain controlled select (no search). Use only for short, fixed lists.
-- `AtlasTable` / `AtlasCrudView` / `AtlasForm` / `AtlasDetail` — blueprint-driven renderers; use for all standard module CRUD screens.
+- `RunlyTable` / `RunlyCrudView` / `RunlyForm` / `RunlyDetail` — blueprint-driven renderers; use for all standard module CRUD screens.
 - `PageHeader` — every screen must start with `PageHeader`.
 - `EmptyState` / `ErrorState` — standard empty/error placeholders; never render plain text instead.
 - `ConfirmDialog` — for all destructive action confirmations.
@@ -272,7 +272,7 @@ See `docs/TASKS.md` for the full phased roadmap.
 - Phase 9.5 (Module Lifecycle v2): complete — Permission.active, dry-run uninstall/reset, cleanup registry
 - AME3 Phase 1 (Module Engine foundation): complete — `packages/module-engine` with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`, SQL generator, checksum
 - AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
-- AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@runly/ui`
+- AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`RunlyTable`, `RunlyForm`, `RunlyDetail`, `RunlyCrudView`) in `@runly/ui`
 - AME3 Phase 4 (Discovery as primary source + route/component lifecycle sync): complete
 - AME3 Phase 5 (official module relocation): retired by architecture decision (2026-05-25)
 - AME3 Phase 6 (generic CRUD renderer baseline) and Phase 7 (maps decommission) are complete; follow-on refinements are tracked in `docs/TASKS.md`

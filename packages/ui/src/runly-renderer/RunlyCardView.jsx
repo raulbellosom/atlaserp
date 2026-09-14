@@ -49,7 +49,7 @@ function renderColValue(col, value, row = {}) {
   return renderValue(value);
 }
 
-export function AtlasCardView({
+export function RunlyCardView({
   columns = [],
   rows = [],
   selectedIds = new Set(),

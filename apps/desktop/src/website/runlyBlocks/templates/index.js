@@ -12,7 +12,7 @@ import { agenciaTemplate }     from './agenciaTemplate.js'
 import { negocioTemplate }     from './negocioTemplate.js'
 import { habitiaTemplate }      from './habitiaTemplate.js'
 
-export const allAtlasTemplates = [
+export const allRunlyTemplates = [
   restauranteTemplate,
   spaTemplate,
   tiendaTemplate,

@@ -208,7 +208,7 @@ export function normalizeRelationDescriptor(fieldLike) {
 }
 
 /**
- * Converts the normalized filter array used by AtlasTable to the FilterBar-compatible
+ * Converts the normalized filter array used by RunlyTable to the FilterBar-compatible
  * format. Only select-type filters with at least one option are included.
  */
 export function normalizeToFilterBarFilters(normalizedFilters) {

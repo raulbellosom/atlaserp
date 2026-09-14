@@ -1,6 +1,6 @@
 import { toLocalIso } from '../../lib/localDate.js';
 import { useMemo, useState } from "react";
-import { AtlasTable, PageHeader } from "@runly/ui";
+import { RunlyTable, PageHeader } from "@runly/ui";
 import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
@@ -121,7 +121,7 @@ export default function ActivityFeedScreen() {
         title="Actividad"
         description="Bitácora legible de eventos recientes de tu empresa."
       />
-      <AtlasTable
+      <RunlyTable
         blueprint={ACTIVITY_BLUEPRINT}
         token={token}
         companyId={activeCompanyId}

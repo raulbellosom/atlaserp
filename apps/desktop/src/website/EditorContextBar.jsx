@@ -4,15 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { Pin, PinOff, ChevronLeft, ChevronDown, Eye, Pencil, Search, Plus } from 'lucide-react'
 
 const BAR_H      = 46
-const STORAGE_KEY = 'atlas-editor-bar-pinned'
-const STYLES_ID   = 'atlas-editor-bar-css'
+const STORAGE_KEY = 'runly-editor-bar-pinned'
+const STYLES_ID   = 'runly-editor-bar-css'
 
 const CSS = `
-@keyframes _atlasPulse {
+@keyframes _runlyPulse {
   0%,100% { opacity:1 }
   50%      { opacity:0.3 }
 }
-._atlasCornerLine { animation: _atlasPulse 2.4s ease-in-out infinite }
+._runlyCornerLine { animation: _runlyPulse 2.4s ease-in-out infinite }
 `
 
 function injectCss() {
@@ -364,13 +364,13 @@ export function EditorContextBar({
           onMouseEnter={show}
           onMouseLeave={scheduleHide}
         >
-          <div className="_atlasCornerLine" style={{
+          <div className="_runlyCornerLine" style={{
             position: 'absolute', top: 0, left: 0,
             width: 44, height: 3,
             background: 'linear-gradient(90deg, #ef4444 0%, #fca5a5 55%, transparent 100%)',
             borderRadius: '0 0 2px 0',
           }} />
-          <div className="_atlasCornerLine" style={{
+          <div className="_runlyCornerLine" style={{
             position: 'absolute', top: 0, left: 0,
             width: 3, height: 44,
             background: 'linear-gradient(180deg, #ef4444 0%, #fca5a5 55%, transparent 100%)',

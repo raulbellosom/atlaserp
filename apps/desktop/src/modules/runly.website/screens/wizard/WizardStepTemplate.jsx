@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.website/screens/wizard/WizardStepTemplate.jsx
 import { useState } from 'react'
 import { Badge } from '@runly/ui'
-import { allTemplates } from '../../../../website/atlasTemplates/index.js'
+import { allTemplates } from '../../../../website/runlyTemplates/index.js'
 
 export function WizardStepTemplate({ onNext, onBack, isPending }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null)

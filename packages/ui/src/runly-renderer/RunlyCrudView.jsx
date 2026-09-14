@@ -12,9 +12,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "../components/Sheet.jsx";
-import { AtlasDetail } from "./AtlasDetail.jsx";
-import { AtlasForm } from "./AtlasForm.jsx";
-import { AtlasTable } from "./AtlasTable.jsx";
+import { RunlyDetail } from "./RunlyDetail.jsx";
+import { RunlyForm } from "./RunlyForm.jsx";
+import { RunlyTable } from "./RunlyTable.jsx";
 import {
   shouldUsePageMode,
   resolveAccentColor,
@@ -88,7 +88,7 @@ function isActionVisible(action, record) {
   return true;
 }
 
-export const AtlasCrudView = forwardRef(function AtlasCrudView({
+export const RunlyCrudView = forwardRef(function RunlyCrudView({
   tableBlueprint,
   formBlueprint,
   detailBlueprint,
@@ -426,14 +426,14 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                     <Button variant="outline" size="sm" onClick={goToList}>
                       Cancelar
                     </Button>
-                    <Button type="submit" form="atlas-crud-form" size="sm">
+                    <Button type="submit" form="runly-crud-form" size="sm">
                       Guardar
                     </Button>
                   </div>
                 }
               />
-              <AtlasForm
-                id="atlas-crud-form"
+              <RunlyForm
+                id="runly-crud-form"
                 blueprint={currentFormBlueprint}
                 fields={fields}
                 initialData={{}}
@@ -502,7 +502,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                 )}
                 {renderRecordLoadingOrError() ??
                   (recordData && (
-                    <AtlasDetail
+                    <RunlyDetail
                       blueprint={currentDetailBlueprint}
                       fields={fields}
                       data={recordData}
@@ -533,7 +533,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                     <Button variant="outline" size="sm" onClick={goToList}>
                       Cancelar
                     </Button>
-                    <Button type="submit" form="atlas-crud-form" size="sm">
+                    <Button type="submit" form="runly-crud-form" size="sm">
                       Guardar cambios
                     </Button>
                   </div>
@@ -541,8 +541,8 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
               />
               {renderRecordLoadingOrError() ??
                 (recordData && (
-                  <AtlasForm
-                    id="atlas-crud-form"
+                  <RunlyForm
+                    id="runly-crud-form"
                     blueprint={currentFormBlueprint}
                     fields={fields}
                     initialData={recordData}
@@ -560,7 +560,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
       ) : (
         /* Normal mode: table always visible, sheet for create/detail/edit */
         <>
-          <AtlasTable
+          <RunlyTable
             key={tableBlueprint?.key ?? tableApiPath}
             blueprint={tableBlueprint}
             token={token}
@@ -599,7 +599,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                     </SheetDescription>
                   </SheetHeader>
                   <div className="md:flex-1 md:min-h-0 md:overflow-y-auto pr-1">
-                    <AtlasForm
+                    <RunlyForm
                       blueprint={currentFormBlueprint}
                       fields={fields}
                       initialData={{}}
@@ -629,7 +629,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                   <div className="md:flex-1 md:min-h-0 md:overflow-y-auto pr-1">
                     {renderRecordLoadingOrError() ??
                       (recordData && (
-                        <AtlasDetail
+                        <RunlyDetail
                           blueprint={currentDetailBlueprint}
                           fields={fields}
                           data={recordData}
@@ -663,7 +663,7 @@ export const AtlasCrudView = forwardRef(function AtlasCrudView({
                   <div className="md:flex-1 md:min-h-0 md:overflow-y-auto pr-1">
                     {renderRecordLoadingOrError() ??
                       (recordData && (
-                        <AtlasForm
+                        <RunlyForm
                           blueprint={currentFormBlueprint}
                           fields={fields}
                           initialData={recordData}

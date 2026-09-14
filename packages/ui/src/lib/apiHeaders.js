@@ -1,5 +1,5 @@
 // Shared header-building helper for every generic blueprint-driven renderer
-// (AtlasCrudView, AtlasTable, AtlasForm, AtlasDetail, atlas-detail-hero,
+// (RunlyCrudView, RunlyTable, RunlyForm, RunlyDetail, runly-detail-hero,
 // useAttachmentsController) that talks to the API via raw fetch() instead of
 // the @runly/sdk client. Those all live in @runly/ui, a host-agnostic package
 // that cannot import the host app's own active-company context — so every

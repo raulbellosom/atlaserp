@@ -29,7 +29,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "../components/Avatar.jsx";
 import { AttachmentsPanel } from "../components/AttachmentsPanel.jsx";
 import { MarkdownViewer } from "../components/MarkdownViewer.jsx";
 import { normalizeSpanishLabel } from "./renderer-adapters.js";
-import { resolveColorHex } from "./atlas-form-utils.js";
+import { resolveColorHex } from "./runly-form-utils.js";
 import { CostsSummaryPanel } from "./CostsSummaryPanel.jsx";
 import {
   resolveHeroModel,
@@ -40,7 +40,7 @@ import {
   HeroContainer,
   fetchSignedUrl,
   initialsFromName,
-} from "./atlas-detail-hero.jsx";
+} from "./runly-detail-hero.jsx";
 import { buildApiHeaders } from "../lib/apiHeaders.js";
 
 const STATUS_LABELS = {
@@ -880,7 +880,7 @@ function FieldLabel({ field }) {
   );
 }
 
-export function AtlasDetail({
+export function RunlyDetail({
   blueprint,
   fields,
   data,

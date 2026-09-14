@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AtlasCrudView } from '@runly/ui'
+import { RunlyCrudView } from '@runly/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -22,7 +22,7 @@ const DETAIL_BY_TYPE = {
     kind: 'DETAIL',
     schema: {
       entity: 'report',
-      component: 'AtlasDetail',
+      component: 'RunlyDetail',
       apiPath: '/fleet/reports/maintenance',
       sections: [
         { label: 'Informacion general', columns: 2, fields: [
@@ -69,7 +69,7 @@ const DETAIL_BY_TYPE = {
     kind: 'DETAIL',
     schema: {
       entity: 'report',
-      component: 'AtlasDetail',
+      component: 'RunlyDetail',
       apiPath: '/fleet/reports/service',
       sections: [
         { label: 'Informacion general', columns: 2, fields: [{ field: 'folio', label: 'Folio', icon: 'Hash' }, { field: 'title', label: 'Titulo', icon: 'ClipboardList' }, { field: 'status', label: 'Estado', icon: 'Activity' }, { field: 'report_type_label', label: 'Tipo', icon: 'Layers' }, { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' }, { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' }, { field: 'service_subtype', label: 'Subtipo', icon: 'Wrench', type: 'select', options: [{ label: 'General', value: 'general' }, { label: 'Diagnostico', value: 'diagnostic' }, { label: 'Limpieza', value: 'cleaning' }, { label: 'Electrico', value: 'electrical' }, { label: 'Otro', value: 'other' }] }] },
@@ -93,7 +93,7 @@ const DETAIL_BY_TYPE = {
     kind: 'DETAIL',
     schema: {
       entity: 'report',
-      component: 'AtlasDetail',
+      component: 'RunlyDetail',
       apiPath: '/fleet/reports/repair',
       sections: [
         { label: 'Informacion general', columns: 2, fields: [{ field: 'folio', label: 'Folio', icon: 'Hash' }, { field: 'title', label: 'Titulo', icon: 'ClipboardList' }, { field: 'status', label: 'Estado', icon: 'Activity' }, { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' }, { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' }, { field: 'is_inhouse_workshop', label: 'Taller propio', type: 'boolean', icon: 'Building2' }, { field: 'repair_priority', label: 'Prioridad', icon: 'Tag', type: 'select', options: [{ label: 'Baja', value: 'low' }, { label: 'Normal', value: 'normal' }, { label: 'Alta', value: 'high' }, { label: 'Urgente', value: 'urgent' }] }, { field: 'repair_damage_type', label: 'Tipo de dano', icon: 'Wrench', type: 'select', options: [{ label: 'Mecanico', value: 'mechanical' }, { label: 'Electrico', value: 'electrical' }, { label: 'Carroceria', value: 'body' }, { label: 'Interior', value: 'interior' }, { label: 'Otro', value: 'other' }] }, { field: 'repair_start_date', label: 'Inicio', type: 'date', icon: 'CalendarDays' }, { field: 'repair_completion_date', label: 'Fin', type: 'date', icon: 'CalendarDays' }] },
@@ -117,7 +117,7 @@ const DETAIL_BY_TYPE = {
     kind: 'DETAIL',
     schema: {
       entity: 'report',
-      component: 'AtlasDetail',
+      component: 'RunlyDetail',
       apiPath: '/fleet/reports/other',
       sections: [
         { label: 'Informacion general', columns: 2, fields: [{ field: 'folio', label: 'Folio', icon: 'Hash' }, { field: 'title', label: 'Titulo', icon: 'ClipboardList' }, { field: 'status', label: 'Estado', icon: 'Activity' }, { field: 'other_category_label', label: 'Categoria', icon: 'Layers' }, { field: 'report_date', label: 'Fecha', type: 'date', icon: 'CalendarDays' }, { field: 'odometer_km', label: 'Kilometraje', icon: 'Hash', type: 'number' }] },
@@ -174,7 +174,7 @@ export default function ReportDetailScreen() {
 
   return (
     <div className="p-4 md:p-6 min-h-dvh">
-      <AtlasCrudView
+      <RunlyCrudView
         tableBlueprint={REPORT_TABLE_STUB}
         detailBlueprint={detailBlueprint}
         token={token}

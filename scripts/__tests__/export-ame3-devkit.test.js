@@ -25,7 +25,7 @@ test('AME3 devkit helpers derive machine-readable capabilities from code and exp
   assert.ok(contract.atlasUiExports.includes('PageHeader'), 'runtime contract must include PageHeader export')
   assert.deepEqual(contract.runlyUiExports, contract.atlasUiExports)
   assert.ok(contract.runlyUiExports.includes('RunlyTable'))
-  assert.ok(contract.runlyUiExports.includes('AtlasTable'))
+  assert.ok(contract.runlyUiExports.includes('RunlyTable'))
   assert.equal(contract.legacyImportAliases['@atlas/ui'], '@runly/ui')
   assert.ok(contract.externals.includes('@atlas/ui'))
   assert.ok(contract.externals.includes('@runly/ui'))

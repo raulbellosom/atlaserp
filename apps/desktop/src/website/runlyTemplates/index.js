@@ -1,9 +1,9 @@
-import { restauranteTemplate, restauranteSitePages } from '../atlasBlocks/templates/restauranteTemplate.js'
-import { spaTemplate,         spaSitePages }         from '../atlasBlocks/templates/spaTemplate.js'
-import { tiendaTemplate,      tiendaSitePages }      from '../atlasBlocks/templates/tiendaTemplate.js'
-import { agenciaTemplate,     agenciaSitePages }     from '../atlasBlocks/templates/agenciaTemplate.js'
-import { negocioTemplate,     negocioSitePages }     from '../atlasBlocks/templates/negocioTemplate.js'
-import { habitiaTemplate, habtiaSitePages, habitiaThemeTokens } from '../atlasBlocks/templates/habitiaTemplate.js'
+import { restauranteTemplate, restauranteSitePages } from '../runlyBlocks/templates/restauranteTemplate.js'
+import { spaTemplate,         spaSitePages }         from '../runlyBlocks/templates/spaTemplate.js'
+import { tiendaTemplate,      tiendaSitePages }      from '../runlyBlocks/templates/tiendaTemplate.js'
+import { agenciaTemplate,     agenciaSitePages }     from '../runlyBlocks/templates/agenciaTemplate.js'
+import { negocioTemplate,     negocioSitePages }     from '../runlyBlocks/templates/negocioTemplate.js'
+import { habitiaTemplate, habtiaSitePages, habitiaThemeTokens } from '../runlyBlocks/templates/habitiaTemplate.js'
 
 const CATEGORY_COLORS = {
   restaurante: '#92400e',
