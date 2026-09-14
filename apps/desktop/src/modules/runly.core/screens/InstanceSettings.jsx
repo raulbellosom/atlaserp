@@ -15,7 +15,7 @@ import { BellRing, Building2, Clock3, Coins, Mail, Settings } from "lucide-react
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { atlas } from "../../../lib/atlas";
-import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../../../lib/appConfig.js";
+import { RUNLY_DESKTOP_DOWNLOAD_URL } from "../../../lib/appConfig.js";
 import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs";
 
 function SettingsTabs() {
@@ -199,7 +199,7 @@ export default function InstanceSettings() {
 
             <Button
               type="button"
-              onClick={() => window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
+              onClick={() => window.open(RUNLY_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
             >
               Descargar para Windows
             </Button>

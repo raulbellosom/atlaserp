@@ -1,6 +1,6 @@
 import {
-  ATLAS_SERVER_STORE_FILE,
-  ATLAS_SERVER_URL_KEY,
+  RUNLY_SERVER_STORE_FILE,
+  RUNLY_SERVER_URL_KEY,
 } from './appConfig.js'
 import { getConfiguredApiUrl, setApiUrl } from './runtimeConfig.js'
 import { isNativeDesktop } from '@runly/core/native-runtime'
@@ -34,7 +34,7 @@ async function getStore() {
   if (!isTauriRuntime()) return null
   if (!storePromise) {
     storePromise = import('@tauri-apps/plugin-store').then(({ load }) =>
-      load(ATLAS_SERVER_STORE_FILE, { autoSave: false }),
+      load(RUNLY_SERVER_STORE_FILE, { autoSave: false }),
     )
   }
   return storePromise
@@ -48,7 +48,7 @@ export async function getServerUrl() {
   }
 
   const store = await getStore()
-  const storedUrl = await store.get(ATLAS_SERVER_URL_KEY)
+  const storedUrl = await store.get(RUNLY_SERVER_URL_KEY)
   const normalizedUrl = normalizeServerUrl(storedUrl)
   if (normalizedUrl) {
     setApiUrl(normalizedUrl)
@@ -69,7 +69,7 @@ export async function setServerUrl(url) {
   }
 
   const store = await getStore()
-  await store.set(ATLAS_SERVER_URL_KEY, normalizedUrl)
+  await store.set(RUNLY_SERVER_URL_KEY, normalizedUrl)
   await store.save()
   return normalizedUrl
 }
@@ -78,6 +78,6 @@ export async function clearServerUrl() {
   if (!isTauriRuntime()) return
 
   const store = await getStore()
-  await store.set(ATLAS_SERVER_URL_KEY, null)
+  await store.set(RUNLY_SERVER_URL_KEY, null)
   await store.save()
 }

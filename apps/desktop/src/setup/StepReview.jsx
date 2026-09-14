@@ -2,7 +2,7 @@ import { forwardRef, useImperativeHandle } from "react";
 import { Button } from "@runly/ui";
 import { Pencil } from "lucide-react";
 import { Country, State } from "country-state-city";
-import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
+import { RUNLY_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
 
 const COMPANY_TYPE_LABELS = {
   sa_de_cv: "SA de CV",
@@ -192,7 +192,7 @@ export const StepReview = forwardRef(function StepReview(
           type="button"
           variant="secondary"
           className="self-start"
-          onClick={() => window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
+          onClick={() => window.open(RUNLY_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
         >
           Descargar para Windows
         </Button>

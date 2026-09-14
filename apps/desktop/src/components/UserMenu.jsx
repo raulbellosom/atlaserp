@@ -16,7 +16,7 @@ import {
   AvatarImage,
 } from "@runly/ui";
 import { useAuth } from "../auth/AuthProvider";
-import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
+import { RUNLY_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
 import { getMobilePwaInstallMode } from "../lib/pwaInstallUi.js";
 
 const DESKTOP_REMINDER_KEY = "atlas_desktop_reminder_dismissed_at";
@@ -92,7 +92,7 @@ export function UserMenu({
   });
 
   function handleDesktopDownload() {
-    window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
+    window.open(RUNLY_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
     dismissDesktopReminder();
     setShowReminder(false);
   }

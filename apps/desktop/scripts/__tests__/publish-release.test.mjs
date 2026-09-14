@@ -8,7 +8,7 @@ import {
   readDesktopVersion,
   resolveInstallerPath,
 } from '../publish-release.mjs'
-import { ATLAS_DESKTOP_RELEASE_ASSET_NAME } from '../../src/lib/appConfig.js'
+import { RUNLY_DESKTOP_RELEASE_ASSET_NAME } from '../../src/lib/appConfig.js'
 
 test('buildReleaseTag prefixes versions once', () => {
   assert.equal(buildReleaseTag('0.1.0'), 'v0.1.0')
@@ -31,7 +31,7 @@ test('resolveInstallerPath points to fixed NSIS asset path', () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), 'atlas-release-installer-'))
   const nsisDir = path.join(tempDir, 'src-tauri', 'target', 'release', 'bundle', 'nsis')
   mkdirSync(nsisDir, { recursive: true })
-  const installerPath = path.join(nsisDir, ATLAS_DESKTOP_RELEASE_ASSET_NAME)
+  const installerPath = path.join(nsisDir, RUNLY_DESKTOP_RELEASE_ASSET_NAME)
   writeFileSync(installerPath, 'installer')
 
   assert.equal(resolveInstallerPath(tempDir), installerPath)

@@ -3,8 +3,8 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
-  ATLAS_DESKTOP_RELEASE_ASSET_NAME,
-  ATLAS_GITHUB_REPO,
+  RUNLY_DESKTOP_RELEASE_ASSET_NAME,
+  RUNLY_GITHUB_REPO,
 } from '../src/lib/appConfig.js'
 
 export const DEFAULT_RELEASE_NOTES = 'Instalador universal de Runly ERP para escritorio'
@@ -47,7 +47,7 @@ export function resolveInstallerPath(desktopDir) {
     'release',
     'bundle',
     'nsis',
-    ATLAS_DESKTOP_RELEASE_ASSET_NAME,
+    RUNLY_DESKTOP_RELEASE_ASSET_NAME,
   )
 
   if (!existsSync(installerPath)) {
@@ -68,13 +68,13 @@ export function releaseExists(tag, repo) {
 
 export function publishRelease({
   desktopDir,
-  repo = ATLAS_GITHUB_REPO,
+  repo = RUNLY_GITHUB_REPO,
   releaseNotes = DEFAULT_RELEASE_NOTES,
 } = {}) {
   const version = readDesktopVersion(desktopDir)
   const tag = buildReleaseTag(version)
   const installerPath = resolveInstallerPath(desktopDir)
-  const assetSpec = `${installerPath}#${ATLAS_DESKTOP_RELEASE_ASSET_NAME}`
+  const assetSpec = `${installerPath}#${RUNLY_DESKTOP_RELEASE_ASSET_NAME}`
 
   if (releaseExists(tag, repo)) {
     const uploadResult = runGh(

@@ -1,9 +1,9 @@
 import { renameSync, rmSync, existsSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ATLAS_DESKTOP_RELEASE_ASSET_NAME } from '../src/lib/appConfig.js'
+import { RUNLY_DESKTOP_RELEASE_ASSET_NAME } from '../src/lib/appConfig.js'
 
-export const FIXED_INSTALLER_NAME = ATLAS_DESKTOP_RELEASE_ASSET_NAME
+export const FIXED_INSTALLER_NAME = RUNLY_DESKTOP_RELEASE_ASSET_NAME
 
 export function resolveInstallerPaths(baseDir) {
   const nsisDir = path.join(baseDir, 'src-tauri', 'target', 'release', 'bundle', 'nsis')

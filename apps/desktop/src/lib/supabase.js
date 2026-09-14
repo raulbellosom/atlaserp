@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { ATLAS_PUBLIC_DESKTOP_CONFIG_PATH } from './appConfig.js'
+import { RUNLY_PUBLIC_DESKTOP_CONFIG_PATH } from './appConfig.js'
 import { getApiUrl, runtimeConfig } from './runtimeConfig.js'
 import { isNativeDesktop } from '@runly/core/native-runtime'
 
@@ -16,7 +16,7 @@ function getFallbackSupabaseConfig() {
 }
 
 async function fetchSupabaseConfigFromServer(baseUrl = getApiUrl()) {
-  const response = await fetch(`${baseUrl}${ATLAS_PUBLIC_DESKTOP_CONFIG_PATH}`)
+  const response = await fetch(`${baseUrl}${RUNLY_PUBLIC_DESKTOP_CONFIG_PATH}`)
   if (!response.ok) {
     throw new Error('SUPABASE_CONFIG_FETCH_FAILED')
   }
