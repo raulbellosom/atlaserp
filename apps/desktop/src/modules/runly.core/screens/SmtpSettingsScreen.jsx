@@ -13,15 +13,15 @@ function SettingsTabs() {
   const inactive = `${base} text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--accent))]/50`;
   return (
     <div className="flex gap-1 border-b border-[hsl(var(--border))] pb-3">
-      <NavLink to="/app/m/atlas.core/settings" end className={({ isActive }) => isActive ? active : inactive}>
+      <NavLink to="/app/m/runly.core/settings" end className={({ isActive }) => isActive ? active : inactive}>
         <Settings className="h-4 w-4 inline mr-1.5 -mt-0.5" />
         General
       </NavLink>
-      <NavLink to="/app/m/atlas.core/settings/smtp" className={({ isActive }) => isActive ? active : inactive}>
+      <NavLink to="/app/m/runly.core/settings/smtp" className={({ isActive }) => isActive ? active : inactive}>
         <Mail className="h-4 w-4 inline mr-1.5 -mt-0.5" />
         SMTP
       </NavLink>
-      <NavLink to="/app/m/atlas.core/settings/webpush" className={({ isActive }) => isActive ? active : inactive}>
+      <NavLink to="/app/m/runly.core/settings/webpush" className={({ isActive }) => isActive ? active : inactive}>
         <BellRing className="h-4 w-4 inline mr-1.5 -mt-0.5" />
         Web Push
       </NavLink>

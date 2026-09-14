@@ -1,4 +1,4 @@
-// Registry key: atlas.fleet:VehicleStatusBadge
+// Registry key: runly.fleet:VehicleStatusBadge
 // Props: { status: 'active' | 'inactive' | 'maintenance' | 'retired' | 'pending' | 'disabled' }
 // Registered via ComponentRegistry.register in the Route Loader (Phase 4+).
 import { Badge } from "@runly/ui";

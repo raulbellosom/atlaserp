@@ -91,7 +91,7 @@ describe("GET /search", () => {
       body.groups.map((g) => g.source),
       ["contacts", "users"],
     );
-    assert.equal(body.groups[0].items[0].target, "/app/m/atlas.contacts/contacts/c1");
+    assert.equal(body.groups[0].items[0].target, "/app/m/runly.contacts/contacts/c1");
     assert.equal(body.groups[0].items[0].source, "contacts");
   });
 

@@ -32,7 +32,7 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
       const message = event?.data;
       if (!message || typeof message !== "object") return;
 
-      if (message.type === "atlas.notifications.push") {
+      if (message.type === "runly.notifications.push") {
         const notificationId = message.notificationId ?? null;
         if (notificationId && seenNotificationIds.current.has(notificationId)) return;
         if (notificationId) {
@@ -42,7 +42,7 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
 
         if (
           message.eventType === "chat.message.new"
-          && window.location.pathname.includes("/m/atlas.chat")
+          && window.location.pathname.includes("/m/runly.chat")
         ) {
           invalidateNotifications();
           return;
@@ -88,7 +88,7 @@ export function useServiceWorkerNotifications({ navigate, queryClient }) {
         return;
       }
 
-      if (message.type === "atlas.notifications.click") {
+      if (message.type === "runly.notifications.click") {
         const link = resolveNotificationLink(message.link);
         if (link) openNotificationLink(link, navigate);
       }

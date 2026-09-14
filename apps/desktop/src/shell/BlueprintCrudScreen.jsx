@@ -569,7 +569,7 @@ export function BlueprintCrudScreen() {
       ? blueprintsQuery.data.data
       : [];
     return rows.filter(
-      (row) => row?.source === "atlas-view" && row?.moduleKey === moduleKey,
+      (row) => row?.source === "runly-view" && row?.moduleKey === moduleKey,
     );
   }, [blueprintsQuery.data, moduleKey]);
 
@@ -963,8 +963,8 @@ export function BlueprintCrudScreen() {
   const createPath = routeInfo.moduleRoutePath
     ? `${routeInfo.moduleRoutePath}/new`
     : null;
-  const usesCrudLayout = presentation.layoutKey === "atlas.crudLayout";
-  const usesDashboardShell = presentation.shellKey === "atlas.dashboardShell";
+  const usesCrudLayout = presentation.layoutKey === "runly.crudLayout";
+  const usesDashboardShell = presentation.shellKey === "runly.dashboardShell";
   const unsupportedPresentationKeys = [
     presentation.unsupportedShellKey
       ? `shell "${presentation.unsupportedShellKey}" (${presentation.shellSource})`
@@ -1042,7 +1042,7 @@ export function BlueprintCrudScreen() {
               <CardTitle>Layout de blueprint no soportado</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Se detectaron claves de shell/layout no soportadas y se aplico el fallback
-                estandar (`atlas.dashboardShell` + `atlas.crudLayout`).
+                estandar (`runly.dashboardShell` + `runly.crudLayout`).
               </p>
               <div className="space-y-1 text-xs text-muted-foreground">
                 {unsupportedPresentationKeys.map((row) => (

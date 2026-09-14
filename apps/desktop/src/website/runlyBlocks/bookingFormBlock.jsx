@@ -11,7 +11,7 @@ export const BookingFormBlock = defineBlock({
     buttonLabel:     'Solicitar reservacion',
   },
   fields: {
-    calendarId:      { type: 'text',   label: 'ID del calendario (atlas.calendar)' },
+    calendarId:      { type: 'text',   label: 'ID del calendario (runly.calendar)' },
     serviceDuration: { type: 'number', label: 'Duracion del servicio (minutos)' },
     successMessage:  { type: 'text',   label: 'Mensaje de exito' },
     buttonLabel:     { type: 'text',   label: 'Texto del boton' },

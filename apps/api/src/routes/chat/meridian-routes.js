@@ -14,7 +14,7 @@ export function createMeridianRoutes({ requirePermission, meridianService, resol
       return c.json({ data: { conversationId } });
     } catch (err) {
       if (err instanceof ChatServiceError) return c.json({ error: err.message }, err.status);
-      console.error("[atlas.chat] meridian ensure", err?.message ?? err);
+      console.error("[runly.chat] meridian ensure", err?.message ?? err);
       return c.json({ error: "No se pudo abrir el chat con MeridIAn." }, 500);
     }
   });
@@ -38,7 +38,7 @@ export function createMeridianRoutes({ requirePermission, meridianService, resol
       const { threadId, messages } = await meridianService.getPanelThread({ ownerProfileId, hostConversationId: conversationId });
       return c.json({ data: { threadId, messages } });
     } catch (err) {
-      console.error("[atlas.chat] meridian panel get", err?.message ?? err);
+      console.error("[runly.chat] meridian panel get", err?.message ?? err);
       return c.json({ error: "No se pudo abrir el panel de MeridIAn." }, 500);
     }
   });
@@ -67,7 +67,7 @@ export function createMeridianRoutes({ requirePermission, meridianService, resol
       const m = String(err?.message ?? err);
       if (m === "MERIDIAN_NOT_CONFIGURED") return c.json({ error: "MeridIAn no esta configurado en este entorno." }, 503);
       if (m === "MERIDIAN_RATE_LIMITED") return c.json({ error: "Vas muy rapido, intenta de nuevo en un momento." }, 429);
-      console.error("[atlas.chat] meridian panel send", m);
+      console.error("[runly.chat] meridian panel send", m);
       return c.json({ error: "MeridIAn no pudo responder, intentalo de nuevo." }, 502);
     }
   });
@@ -80,7 +80,7 @@ export function createMeridianRoutes({ requirePermission, meridianService, resol
       const out = await meridianService.clearPanelThread({ ownerProfileId, hostConversationId: conversationId });
       return c.json({ data: out });
     } catch (err) {
-      console.error("[atlas.chat] meridian panel clear", err?.message ?? err);
+      console.error("[runly.chat] meridian panel clear", err?.message ?? err);
       return c.json({ error: "No se pudo limpiar el panel." }, 500);
     }
   });

@@ -1,7 +1,7 @@
 import { hasBuiltInModule, isPathAllowedByNavigation, resolveScreen } from './module-screen-resolver.js';
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { findModuleByKey, resolveModuleAliasPath, getLegacyModuleKey } from '@runly/core';
+import { findModuleByKey, resolveModuleAliasPath } from '@runly/core';
 import { Badge, Skeleton } from "@runly/ui";
 import { Layers } from "lucide-react";
 import { BlueprintCrudScreen } from "../shell/BlueprintCrudScreen.jsx";
@@ -17,356 +17,356 @@ const PfmAssistantSidebar = lazy(() =>
 );
 
 const SCREEN_MAP = {
-  "atlas.core:/modules": lazy(
+  "runly.core:/modules": lazy(
     () => import("../modules/runly.core/screens/ModuleCatalog.jsx"),
   ),
-  "atlas.core:/settings": lazy(
+  "runly.core:/settings": lazy(
     () => import("../modules/runly.core/screens/InstanceSettings.jsx"),
   ),
-  "atlas.core:/settings/smtp": lazy(
+  "runly.core:/settings/smtp": lazy(
     () => import("../modules/runly.core/screens/SmtpSettingsScreen.jsx"),
   ),
-  "atlas.core:/settings/webpush": lazy(
+  "runly.core:/settings/webpush": lazy(
     () => import("../modules/runly.core/screens/WebPushSettingsScreen.jsx"),
   ),
-  "atlas.company:/": lazy(
+  "runly.company:/": lazy(
     () => import("../modules/runly.company/screens/CompanyOverview.jsx"),
   ),
-  "atlas.company:/company": lazy(
+  "runly.company:/company": lazy(
     () => import("../modules/runly.company/screens/CompanyProfile.jsx"),
   ),
-  "atlas.company:/company/address": lazy(
+  "runly.company:/company/address": lazy(
     () => import("../modules/runly.company/screens/CompanyAddress.jsx"),
   ),
-  "atlas.company:/company/branding": lazy(
+  "runly.company:/company/branding": lazy(
     () => import("../modules/runly.company/screens/CompanyBranding.jsx"),
   ),
-  "atlas.identity:/identity/users": lazy(
+  "runly.identity:/identity/users": lazy(
     () => import("../modules/runly.identity/screens/UsersScreen.jsx"),
   ),
-  "atlas.identity:/identity/users/new": lazy(
+  "runly.identity:/identity/users/new": lazy(
     () => import("../modules/runly.identity/screens/UserCreateScreen.jsx"),
   ),
-  "atlas.identity:/identity/users/:id": lazy(
+  "runly.identity:/identity/users/:id": lazy(
     () => import("../modules/runly.identity/screens/UserEditorScreen.jsx"),
   ),
-  "atlas.identity:/identity/users/:id/edit": lazy(
+  "runly.identity:/identity/users/:id/edit": lazy(
     () => import("../modules/runly.identity/screens/UserEditorScreen.jsx"),
   ),
-  "atlas.identity:/identity/roles": lazy(
+  "runly.identity:/identity/roles": lazy(
     () => import("../modules/runly.identity/screens/RolesScreen.jsx"),
   ),
-  "atlas.identity:/identity/roles/:id": lazy(
+  "runly.identity:/identity/roles/:id": lazy(
     () => import("../modules/runly.identity/screens/RoleEditorScreen.jsx"),
   ),
-  "atlas.identity:/identity/chat-reports": lazy(
+  "runly.identity:/identity/chat-reports": lazy(
     () => import("../modules/runly.identity/screens/ChatReportsScreen.jsx"),
   ),
-  "atlas.contacts:/": lazy(
+  "runly.contacts:/": lazy(
     () => import("../modules/runly.contacts/screens/ContactsScreen.jsx"),
   ),
-  "atlas.contacts:/contacts": lazy(
+  "runly.contacts:/contacts": lazy(
     () => import("../modules/runly.contacts/screens/ContactsScreen.jsx"),
   ),
-  "atlas.contacts:/contacts/:id": lazy(
+  "runly.contacts:/contacts/:id": lazy(
     () => import("../modules/runly.contacts/screens/ContactsScreen.jsx"),
   ),
-  "atlas.files:/": lazy(
+  "runly.files:/": lazy(
     () => import("../modules/runly.files/screens/FilesScreen.jsx"),
   ),
-  "atlas.files:/files": lazy(
+  "runly.files:/files": lazy(
     () => import("../modules/runly.files/screens/FilesScreen.jsx"),
   ),
-  "atlas.files:/files/:id": lazy(
+  "runly.files:/files/:id": lazy(
     () => import("../modules/runly.files/screens/FilesScreen.jsx"),
   ),
-  "atlas.files:/files/:id/edit": lazy(
+  "runly.files:/files/:id/edit": lazy(
     () => import("../modules/runly.files/screens/OfficeEditorScreen.jsx"),
   ),
-  "atlas.hr:/": lazy(() => import("../modules/runly.hr/screens/HrScreen.jsx")),
-  "atlas.hr:/hr": lazy(
+  "runly.hr:/": lazy(() => import("../modules/runly.hr/screens/HrScreen.jsx")),
+  "runly.hr:/hr": lazy(
     () => import("../modules/runly.hr/screens/HrScreen.jsx"),
   ),
-  "atlas.hr:/hr/employees": lazy(
+  "runly.hr:/hr/employees": lazy(
     () => import("../modules/runly.hr/screens/HrScreen.jsx"),
   ),
-  "atlas.hr:/hr/employees/:id": lazy(
+  "runly.hr:/hr/employees/:id": lazy(
     () => import("../modules/runly.hr/screens/HrScreen.jsx"),
   ),
-  "atlas.hr:/hr/org-chart": lazy(
+  "runly.hr:/hr/org-chart": lazy(
     () => import("../modules/runly.hr/screens/HrScreen.jsx"),
   ),
-  "atlas.hr:/hr/catalogs": lazy(
+  "runly.hr:/hr/catalogs": lazy(
     () => import("../modules/runly.hr/screens/HrScreen.jsx"),
   ),
-  "atlas.identity:/": lazy(
+  "runly.identity:/": lazy(
     () => import("../modules/runly.identity/screens/IdentityOverview.jsx"),
   ),
-  "atlas.ledger:/accounts": lazy(
+  "runly.ledger:/accounts": lazy(
     () => import("../modules/runly.ledger/screens/AccountsScreen.jsx"),
   ),
-  "atlas.ledger:/accounts/:id": lazy(
+  "runly.ledger:/accounts/:id": lazy(
     () => import("../modules/runly.ledger/screens/AccountScreen.jsx"),
   ),
-  "atlas.ledger:/accounts/:id/import": lazy(
+  "runly.ledger:/accounts/:id/import": lazy(
     () => import("../modules/runly.ledger/screens/ImportWizard.jsx"),
   ),
-  "atlas.ledger:/groups": lazy(
+  "runly.ledger:/groups": lazy(
     () => import("../modules/runly.ledger/screens/GroupsScreen.jsx"),
   ),
-  "atlas.ledger:/groups/:id": lazy(
+  "runly.ledger:/groups/:id": lazy(
     () => import("../modules/runly.ledger/screens/GroupScreen.jsx"),
   ),
-  "atlas.ledger:/memberships": lazy(
+  "runly.ledger:/memberships": lazy(
     () => import("../modules/runly.ledger/screens/MembershipsScreen.jsx"),
   ),
-  "atlas.ledger:/categories": lazy(
+  "runly.ledger:/categories": lazy(
     () => import("../modules/runly.ledger/screens/CategoriesScreen.jsx"),
   ),
-  "atlas.ledger:/categories/:id": lazy(
+  "runly.ledger:/categories/:id": lazy(
     () => import("../modules/runly.ledger/screens/CategoriesScreen.jsx"),
   ),
-  "atlas.ledger:/types": lazy(
+  "runly.ledger:/types": lazy(
     () => import("../modules/runly.ledger/screens/TypesScreen.jsx"),
   ),
-  "atlas.ledger:/types/:id": lazy(
+  "runly.ledger:/types/:id": lazy(
     () => import("../modules/runly.ledger/screens/TypesScreen.jsx"),
   ),
-  // atlas.pfm screens
-  "atlas.pfm:/overview": lazy(
+  // runly.pfm screens
+  "runly.pfm:/overview": lazy(
     () => import("../modules/runly.pfm/screens/OverviewScreen.jsx"),
   ),
-  "atlas.pfm:/wallets": lazy(
+  "runly.pfm:/wallets": lazy(
     () => import("../modules/runly.pfm/screens/WalletsScreen.jsx"),
   ),
-  "atlas.pfm:/wallets/:id": lazy(
+  "runly.pfm:/wallets/:id": lazy(
     () => import("../modules/runly.pfm/screens/WalletDetailScreen.jsx"),
   ),
-  "atlas.pfm:/recurring": lazy(
+  "runly.pfm:/recurring": lazy(
     () => import("../modules/runly.pfm/screens/RecurringScreen.jsx"),
   ),
-  "atlas.pfm:/receipts": lazy(
+  "runly.pfm:/receipts": lazy(
     () => import("../modules/runly.pfm/screens/ReceiptsScreen.jsx"),
   ),
-  "atlas.pfm:/categories": lazy(
+  "runly.pfm:/categories": lazy(
     () => import("../modules/runly.pfm/screens/CategoriesScreen.jsx"),
   ),
-  "atlas.pfm:/budgets": lazy(
+  "runly.pfm:/budgets": lazy(
     () => import("../modules/runly.pfm/screens/BudgetsScreen.jsx"),
   ),
-  // atlas.fleet custom screens
-  "atlas.fleet:/vehicles": lazy(
+  // runly.fleet custom screens
+  "runly.fleet:/vehicles": lazy(
     () => import("../modules/runly.fleet/screens/VehiclesScreen.jsx"),
   ),
-  "atlas.fleet:/vehicles/:id": lazy(
+  "runly.fleet:/vehicles/:id": lazy(
     () => import("../modules/runly.fleet/screens/VehiclesScreen.jsx"),
   ),
-  "atlas.fleet:/drivers": lazy(
+  "runly.fleet:/drivers": lazy(
     () => import("../modules/runly.fleet/screens/DriversScreen.jsx"),
   ),
-  "atlas.fleet:/drivers/:id": lazy(
+  "runly.fleet:/drivers/:id": lazy(
     () => import("../modules/runly.fleet/screens/DriversScreen.jsx"),
   ),
-  "atlas.fleet:/insurance": lazy(
+  "runly.fleet:/insurance": lazy(
     () => import("../modules/runly.fleet/screens/InsuranceScreen.jsx"),
   ),
-  "atlas.fleet:/insurance/:id": lazy(
+  "runly.fleet:/insurance/:id": lazy(
     () => import("../modules/runly.fleet/screens/InsuranceScreen.jsx"),
   ),
-  "atlas.fleet:/reports/:type": lazy(
+  "runly.fleet:/reports/:type": lazy(
     () => import("../modules/runly.fleet/screens/ReportsScreen.jsx"),
   ),
-  "atlas.fleet:/reports/:type/new": lazy(
+  "runly.fleet:/reports/:type/new": lazy(
     () => import("../modules/runly.fleet/screens/ReportFormPage.jsx"),
   ),
-  "atlas.fleet:/reports/:id": lazy(
+  "runly.fleet:/reports/:id": lazy(
     () => import("../modules/runly.fleet/screens/ReportDetailScreen.jsx"),
   ),
-  "atlas.fleet:/catalogs/:section": lazy(
+  "runly.fleet:/catalogs/:section": lazy(
     () => import("../modules/runly.fleet/screens/CatalogsScreen.jsx"),
   ),
-  "atlas.website:/": lazy(
+  "runly.website:/": lazy(
     () => import("../modules/runly.website/screens/WebsiteOverviewScreen.jsx"),
   ),
-  "atlas.website:/pages": lazy(
+  "runly.website:/pages": lazy(
     () => import("../modules/runly.website/screens/WebsitePagesScreen.jsx"),
   ),
-  "atlas.website:/templates": lazy(
+  "runly.website:/templates": lazy(
     () => import("../modules/runly.website/screens/WebsiteTemplatesScreen.jsx"),
   ),
-  "atlas.website:/templates/:id/detail": lazy(
+  "runly.website:/templates/:id/detail": lazy(
     () => import("../modules/runly.website/screens/WebsiteTemplateDetailScreen.jsx"),
   ),
-  "atlas.website:/templates/:id/preview": lazy(
+  "runly.website:/templates/:id/preview": lazy(
     () => import("../modules/runly.website/screens/TemplatePreviewScreen.jsx"),
   ),
-  "atlas.website:/pages/:id/editor": lazy(
+  "runly.website:/pages/:id/editor": lazy(
     () =>
       import("../modules/runly.website/screens/WebsitePageEditorScreen.jsx"),
   ),
-  "atlas.website:/theme": lazy(
+  "runly.website:/theme": lazy(
     () => import("../modules/runly.website/screens/WebsiteThemeScreen.jsx"),
   ),
-  "atlas.website:/menus": lazy(
+  "runly.website:/menus": lazy(
     () => import("../modules/runly.website/screens/WebsiteMenusScreen.jsx"),
   ),
-  "atlas.website:/blog": lazy(
+  "runly.website:/blog": lazy(
     () => import("../modules/runly.website/screens/WebsiteBlogScreen.jsx"),
   ),
-  "atlas.website:/blog/:id/editor": lazy(
+  "runly.website:/blog/:id/editor": lazy(
     () =>
       import("../modules/runly.website/screens/WebsiteBlogPostEditorScreen.jsx"),
   ),
-  "atlas.website:/forms": lazy(
+  "runly.website:/forms": lazy(
     () => import("../modules/runly.website/screens/WebsiteFormsScreen.jsx"),
   ),
-  "atlas.website:/settings": lazy(
+  "runly.website:/settings": lazy(
     () => import("../modules/runly.website/screens/WebsiteSettingsScreen.jsx"),
   ),
-  "atlas.website:/payments": lazy(
+  "runly.website:/payments": lazy(
     () => import("../modules/runly.website/screens/WebsitePaymentsScreen.jsx"),
   ),
-  "atlas.growth:/": lazy(
+  "runly.growth:/": lazy(
     () => import("../modules/runly.growth/screens/GrowthAnalyticsScreen.jsx"),
   ),
-  "atlas.growth:/leads": lazy(
+  "runly.growth:/leads": lazy(
     () => import("../modules/runly.growth/screens/GrowthLeadsScreen.jsx"),
   ),
-  "atlas.growth:/leads/:id": lazy(
+  "runly.growth:/leads/:id": lazy(
     () => import("../modules/runly.growth/screens/GrowthLeadDetailScreen.jsx"),
   ),
-  "atlas.documents:/templates": lazy(
+  "runly.documents:/templates": lazy(
     () => import("../modules/runly.documents/screens/DocumentTemplatesScreen.jsx"),
   ),
-  "atlas.documents:/templates/:id/editor": lazy(
+  "runly.documents:/templates/:id/editor": lazy(
     () => import("../modules/runly.documents/screens/DocumentTemplateEditorScreen.jsx"),
   ),
-  "atlas.documents:/generated": lazy(
+  "runly.documents:/generated": lazy(
     () => import("../modules/runly.documents/screens/GeneratedDocumentsScreen.jsx"),
   ),
-  "atlas.calendar:/calendar": lazy(
+  "runly.calendar:/calendar": lazy(
     () => import("../modules/runly.calendar/screens/CalendarScreen.jsx"),
   ),
-  "atlas.calendar:/": lazy(
+  "runly.calendar:/": lazy(
     () => import("../modules/runly.calendar/screens/CalendarScreen.jsx"),
   ),
-  // atlas.projects
-  "atlas.projects:/": lazy(
+  // runly.projects
+  "runly.projects:/": lazy(
     () => import("../modules/runly.projects/screens/ProjectsScreen.jsx"),
   ),
-  // atlas.chat
-  "atlas.chat:/": lazy(
+  // runly.chat
+  "runly.chat:/": lazy(
     () => import("../modules/runly.chat/screens/ChatScreen.jsx").then((m) => ({ default: m.ChatScreen })),
   ),
-  "atlas.chat:/chat/inbox": lazy(
+  "runly.chat:/chat/inbox": lazy(
     () => import("../modules/runly.chat/screens/ChatScreen.jsx").then((m) => ({ default: m.ChatScreen })),
   ),
-  "atlas.chat:/chat/external": lazy(
+  "runly.chat:/chat/external": lazy(
     () => import("../modules/runly.chat/screens/ExternalInboxScreen.jsx").then((m) => ({ default: m.ExternalInboxScreen })),
   ),
-  "atlas.chat:/chat/attachment/:id/edit": lazy(
+  "runly.chat:/chat/attachment/:id/edit": lazy(
     () => import("../modules/runly.chat/screens/ChatOfficeEditorScreen.jsx"),
   ),
-  "atlas.chat:/chat/templates": lazy(
+  "runly.chat:/chat/templates": lazy(
     () => import("../modules/runly.chat/screens/ChatTemplatesScreen.jsx").then((m) => ({ default: m.ChatTemplatesScreen })),
   ),
-  "atlas.catalog:/": lazy(
+  "runly.catalog:/": lazy(
     () => import("../modules/runly.catalog/screens/CatalogProductsScreen.jsx"),
   ),
-  "atlas.catalog:/categories": lazy(
+  "runly.catalog:/categories": lazy(
     () =>
       import("../modules/runly.catalog/screens/CatalogCategoriesScreen.jsx"),
   ),
-  "atlas.catalog:/inventory": lazy(
+  "runly.catalog:/inventory": lazy(
     () => import("../modules/runly.catalog/screens/CatalogInventoryScreen.jsx"),
   ),
-  "atlas.catalog:/:id": lazy(
+  "runly.catalog:/:id": lazy(
     () =>
       import("../modules/runly.catalog/screens/CatalogProductDetailScreen.jsx"),
   ),
-  "atlas.pos:/": lazy(
+  "runly.pos:/": lazy(
     () => import("../modules/runly.pos/screens/PosHomeRedirect.jsx"),
   ),
-  "atlas.pos:/pos/terminal": lazy(
+  "runly.pos:/pos/terminal": lazy(
     () => import("../modules/runly.pos/screens/PosTerminalScreen.jsx"),
   ),
-  "atlas.pos:/pos/tables": lazy(
+  "runly.pos:/pos/tables": lazy(
     () => import("../modules/runly.pos/screens/PosTablesScreen.jsx"),
   ),
-  "atlas.pos:/pos/floor-planner": lazy(
+  "runly.pos:/pos/floor-planner": lazy(
     () => import("../modules/runly.pos/screens/PosFloorPlannerScreen.jsx"),
   ),
-  "atlas.pos:/pos/stations": lazy(
+  "runly.pos:/pos/stations": lazy(
     () => import("../modules/runly.pos/screens/PosStationsScreen.jsx"),
   ),
-  "atlas.pos:/pos/orders": lazy(
+  "runly.pos:/pos/orders": lazy(
     () => import("../modules/runly.pos/screens/PosOrdersScreen.jsx"),
   ),
-  "atlas.pos:/pos/sessions": lazy(
+  "runly.pos:/pos/sessions": lazy(
     () => import("../modules/runly.pos/screens/PosSessionsScreen.jsx"),
   ),
-  "atlas.pos:/pos/settings": lazy(
+  "runly.pos:/pos/settings": lazy(
     () => import("../modules/runly.pos/screens/PosSettingsScreen.jsx"),
   ),
-  "atlas.pos:/pos/caja": lazy(
+  "runly.pos:/pos/caja": lazy(
     () => import("../modules/runly.pos/screens/CajaScreen.jsx"),
   ),
-  "atlas.pos:/pos/caja/historial": lazy(
+  "runly.pos:/pos/caja/historial": lazy(
     () => import("../modules/runly.pos/screens/PosSessionsScreen.jsx"),
   ),
-  "atlas.pos:/pos/admin/planos": lazy(
+  "runly.pos:/pos/admin/planos": lazy(
     () => import("../modules/runly.pos/screens/PosFloorPlannerScreen.jsx"),
   ),
-  "atlas.pos:/pos/comandero": lazy(
+  "runly.pos:/pos/comandero": lazy(
     () => import("../modules/runly.pos/screens/ComanderoScreen.jsx"),
   ),
-  "atlas.pos:/pos/comandero/mesa/:tableId": lazy(
+  "runly.pos:/pos/comandero/mesa/:tableId": lazy(
     () => import("../modules/runly.pos/screens/ComandaScreen.jsx"),
   ),
-  "atlas.pos:/pos/cocina": lazy(
+  "runly.pos:/pos/cocina": lazy(
     () => import("../modules/runly.pos/screens/CocinaScreen.jsx"),
   ),
-  "atlas.pos:/pos/admin": lazy(
+  "runly.pos:/pos/admin": lazy(
     () => import("../modules/runly.pos/screens/PosAdminScreen.jsx"),
   ),
-  "atlas.activity:/": lazy(
+  "runly.activity:/": lazy(
     () => import("../modules/runly.activity/ActivityFeedScreen.jsx"),
   ),
-  "atlas.notifications:/": lazy(
+  "runly.notifications:/": lazy(
     () =>
       import(
         "../modules/runly.notifications/NotificationsInboxScreen.jsx"
       ),
   ),
-  "atlas.notifications:/settings": lazy(
+  "runly.notifications:/settings": lazy(
     () =>
       import(
         "../modules/runly.notifications/NotificationSettingsScreen.jsx"
       ),
   ),
-  // atlas.notes
-  "atlas.notes:/": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
-  "atlas.notes:/notes": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
-  "atlas.notes:/notes/recent": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
-  "atlas.notes:/notes/shared": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
-  "atlas.notes:/notes/trash": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
-  // atlas.inventory
-  "atlas.inventory:/": lazy(
+  // runly.notes
+  "runly.notes:/": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
+  "runly.notes:/notes": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
+  "runly.notes:/notes/recent": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
+  "runly.notes:/notes/shared": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
+  "runly.notes:/notes/trash": lazy(() => import("../modules/runly.notes/NotesScreen.jsx")),
+  // runly.inventory
+  "runly.inventory:/": lazy(
     () => import("../modules/runly.inventory/screens/InventoryScreen.jsx"),
   ),
-  "atlas.inventory:/inventory": lazy(
+  "runly.inventory:/inventory": lazy(
     () => import("../modules/runly.inventory/screens/InventoryScreen.jsx"),
   ),
-  "atlas.inventory:/inventory/new": lazy(
+  "runly.inventory:/inventory/new": lazy(
     () => import("../modules/runly.inventory/screens/InventoryItemForm.jsx"),
   ),
-  "atlas.inventory:/inventory/:id": lazy(
+  "runly.inventory:/inventory/:id": lazy(
     () => import("../modules/runly.inventory/screens/InventoryItemDetail.jsx"),
   ),
-  "atlas.inventory:/inventory/catalogs": lazy(
+  "runly.inventory:/inventory/catalogs": lazy(
     () => import("../modules/runly.inventory/screens/InventoryCatalogsScreen.jsx"),
   ),
-  "atlas.inventory:/inventory/assignments": lazy(
+  "runly.inventory:/inventory/assignments": lazy(
     () => import("../modules/runly.inventory/screens/InventoryAssignmentsScreen.jsx"),
   ),
 };
@@ -470,7 +470,7 @@ export function ModuleOutlet() {
     if (isLoading || !module) return;
     if (isModuleAvailable(module)) return;
 
-    navigate("/app/m/atlas.core/modules", {
+    navigate("/app/m/runly.core/modules", {
       replace: true,
       state: { moduleWarning: unavailableMessage(module) },
     });
@@ -599,7 +599,7 @@ export function ModuleOutlet() {
     </Suspense>
   );
 
-  if (getLegacyModuleKey(moduleKey) === "atlas.pfm") {
+  if (moduleKey === "runly.pfm") {
     // h-full (not flex-1): <main> is a plain overflow-y-auto block, not a flex
     // container, so flex-1 here is inert and nothing below gets a resolved
     // height. h-full resolves against <main>'s definite height and lets the

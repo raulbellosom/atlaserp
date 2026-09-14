@@ -4,7 +4,7 @@ import { ChatServiceError } from "./chat-service.js";
 // Backs both the "1 channel per project" rule and the generic
 // future-proofing that motivated linked_module/linked_entity_id over a
 // project-specific column — this pair of columns is meant to support future
-// connectors beyond just atlas.projects, without another migration.
+// connectors beyond just runly.projects, without another migration.
 export function createChatChannelLinksService({ prisma }) {
   // linkedModule/linkedEntityId must travel together — a row with one set and
   // the other null is a "half-linked" state the partial unique index (added

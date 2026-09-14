@@ -8,7 +8,7 @@ import { componentRegistry } from "../../../lib/moduleComponentRegistry";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
 const API_BASE = getApiUrl();
-const BASE_PATH = "/app/m/atlas.fleet/vehicles";
+const BASE_PATH = "/app/m/runly.fleet/vehicles";
 
 const VEHICLE_TABLE = {
   key: "fleet.vehicle.table",
@@ -25,7 +25,7 @@ const VEHICLE_TABLE = {
         field: "cover_image_file_asset_id",
         label: "Imagen",
         sortable: false,
-        component: "atlas.fleet:VehicleImageCell",
+        component: "runly.fleet:VehicleImageCell",
       },
       { field: "plate", label: "Matricula", sortable: true, link: true },
       { field: "vehicle_brand_name", label: "Marca", sortable: false },
@@ -41,7 +41,7 @@ const VEHICLE_TABLE = {
         field: "status",
         label: "Estado",
         sortable: true,
-        component: "atlas.fleet:VehicleStatusBadge",
+        component: "runly.fleet:VehicleStatusBadge",
       },
       {
         field: "is_financed",
@@ -61,13 +61,13 @@ const VEHICLE_TABLE = {
         field: "driver_name",
         label: "Conductor",
         sortable: false,
-        hrefTemplate: "/app/m/atlas.fleet/drivers/:driver_id",
+        hrefTemplate: "/app/m/runly.fleet/drivers/:driver_id",
       },
       {
         field: "insurance_status",
         label: "Seguro",
         sortable: false,
-        component: "atlas.fleet:InsuranceBadgeCell",
+        component: "runly.fleet:InsuranceBadgeCell",
         defaultVisible: false,
       },
     ],
@@ -259,7 +259,7 @@ const VEHICLE_FORM = {
           removePath: "/fleet/vehicles/:id/documents/:docId",
           upload: {
             endpoint: "/files/upload",
-            moduleKey: "atlas.fleet",
+            moduleKey: "runly.fleet",
             entityType: "FleetVehicle",
           },
           signedUrl: { endpointTemplate: "/files/:fileId/signed-url" },
@@ -326,7 +326,7 @@ const VEHICLE_DETAIL = {
         label: "Operador",
         field: "driver_name",
         icon: "UserCheck",
-        hrefTemplate: "/app/m/atlas.fleet/drivers/:driver_id",
+        hrefTemplate: "/app/m/runly.fleet/drivers/:driver_id",
       },
       {
         label: "Poliza",
@@ -434,7 +434,7 @@ const VEHICLE_DETAIL = {
           titleField: "driver_name",
           subtitleFields: ["driver_license_number", "driver_phone"],
           fallbackTitle: "Sin conductor asignado",
-          hrefTemplate: "/app/m/atlas.fleet/drivers/:id",
+          hrefTemplate: "/app/m/runly.fleet/drivers/:id",
           icon: "UserCheck",
           avatarField: "driver_photo_asset_id",
           contactActions: [
@@ -457,7 +457,7 @@ const VEHICLE_DETAIL = {
           ],
           subtitleTypes: ["text", "text", "date"],
           fallbackTitle: "Sin poliza de seguro activa",
-          hrefTemplate: "/app/m/atlas.fleet/insurance/:id",
+          hrefTemplate: "/app/m/runly.fleet/insurance/:id",
           icon: "ShieldCheck",
         },
       },
@@ -477,7 +477,7 @@ const VEHICLE_DETAIL = {
           ],
           subtitleLabels: ["No.", "Cobertura:", "Vence:"],
           subtitleTypes: ["text", "text", "date"],
-          hrefTemplate: "/app/m/atlas.fleet/insurance/:id",
+          hrefTemplate: "/app/m/runly.fleet/insurance/:id",
           emptyMessage: "Este vehiculo no tiene polizas registradas.",
         },
       },
@@ -504,7 +504,7 @@ const VEHICLE_DETAIL = {
           removePath: "/fleet/vehicles/:id/documents/:docId",
           upload: {
             endpoint: "/files/upload",
-            moduleKey: "atlas.fleet",
+            moduleKey: "runly.fleet",
             entityType: "FleetVehicle",
           },
           fields: {

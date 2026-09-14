@@ -93,7 +93,7 @@ export default function MembershipsScreen() {
             <div className="space-y-2">
               {groups.map((g) => (
                 <div key={g.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] px-3 py-2">
-                  <button className="text-left" onClick={() => navigate(`/app/m/atlas.ledger/groups/${g.id}`)}>
+                  <button className="text-left" onClick={() => navigate(`/app/m/runly.ledger/groups/${g.id}`)}>
                     <div className="text-sm font-medium">{g.name}</div>
                     <div className="text-xs text-[hsl(var(--muted-foreground))] capitalize">
                       {g.role} · {g.member_count} miembro{Number(g.member_count) !== 1 ? 's' : ''}
@@ -116,7 +116,7 @@ export default function MembershipsScreen() {
             <div className="space-y-2">
               {accounts.map((a) => (
                 <div key={a.id} className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] px-3 py-2">
-                  <button className="text-left" onClick={() => navigate(`/app/m/atlas.ledger/accounts/${a.id}`)}>
+                  <button className="text-left" onClick={() => navigate(`/app/m/runly.ledger/accounts/${a.id}`)}>
                     <div className="text-sm font-medium">{a.name}</div>
                     <div className="text-xs text-[hsl(var(--muted-foreground))]">
                       {a.bank} · <span className="capitalize">{a.role}</span> · Propietario: {a.owner_name}

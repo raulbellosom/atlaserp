@@ -56,7 +56,7 @@ function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError || err instanceof GuestChatServiceError || err instanceof ChatPermissionsError || err instanceof ChatReactionsError || err instanceof ChatModerationServiceError) {
     return c.json({ error: err.message }, err.status);
   }
-  console.error("[atlas.chat]", err?.message ?? err);
+  console.error("[runly.chat]", err?.message ?? err);
   if (err?.stack) console.error(err.stack);
   return c.json({ error: fallback }, 500);
 }
@@ -124,7 +124,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       botId = row?.bot_id ?? null;
     }
     if (!botId) {
-      console.warn("[atlas.chat] MeridIAn reply: no bot profile found for conversation", conversationId);
+      console.warn("[runly.chat] MeridIAn reply: no bot profile found for conversation", conversationId);
     }
     const [msg] = await prisma.$queryRaw`
       INSERT INTO chat_messages (conversation_id, sender_user_id, sender_type, body, message_type, reply_to_message_id)
@@ -176,7 +176,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
         const actorProfileId = await resolveUserProfileId(prisma, authUserId);
         await meridianService.ensureMeridianConversation({ companyId: c.get("companyId") ?? null, actorProfileId });
       } catch (e) {
-        console.error("[atlas.chat] meridian ensure (list)", e?.message ?? e);
+        console.error("[runly.chat] meridian ensure (list)", e?.message ?? e);
       }
       const { limit, cursor, archived } = c.req.query();
       const result = await chatService.listConversations({
@@ -358,7 +358,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
             actorProfileId,
             actorAuthUserId: authUserId,
             triggerMessageId: result?.id ?? null,
-          }).catch((e) => console.error("[atlas.chat] meridian turn", e?.message ?? e));
+          }).catch((e) => console.error("[runly.chat] meridian turn", e?.message ?? e));
         } else if (
           (conv?.type === "channel" || conv?.type === "group" || conv?.type === "direct") &&
           result?.sender_type !== "assistant" &&
@@ -379,11 +379,11 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
               actorAuthUserId: authUserId,
               triggerMessageId: result?.id ?? null,
               mentionText: data.body,
-            }).catch((e) => console.error("[atlas.chat] meridian mention", e?.message ?? e));
+            }).catch((e) => console.error("[runly.chat] meridian mention", e?.message ?? e));
           }
         }
       } catch (e) {
-        console.error("[atlas.chat] meridian dispatch", e?.message ?? e);
+        console.error("[runly.chat] meridian dispatch", e?.message ?? e);
       }
 
       return c.json({ data: result }, 201);
@@ -567,7 +567,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
     }
   });
 
-  // GET /chat/channels/linked?module=atlas.projects&entityId=<uuid>
+  // GET /chat/channels/linked?module=runly.projects&entityId=<uuid>
   // Used by the source module's UI (e.g. a project's detail screen) to know
   // whether it already has a linked channel before rendering "Crear canal"
   // vs. "Ir al canal".

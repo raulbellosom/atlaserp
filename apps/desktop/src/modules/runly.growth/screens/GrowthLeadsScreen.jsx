@@ -45,7 +45,7 @@ const LEADS_BLUEPRINT = {
         sortable: true,
         type: "select",
         options: LEAD_STATUS_OPTIONS,
-        component: "atlas.growth:LeadStatusBadge",
+        component: "runly.growth:LeadStatusBadge",
       },
       {
         field: "priority",
@@ -53,7 +53,7 @@ const LEADS_BLUEPRINT = {
         sortable: false,
         type: "select",
         options: LEAD_PRIORITY_OPTIONS,
-        component: "atlas.growth:LeadPriorityBadge",
+        component: "runly.growth:LeadPriorityBadge",
         defaultVisible: false,
       },
       { field: "email", label: "Correo", sortable: false, defaultVisible: false },
@@ -163,7 +163,7 @@ export default function GrowthLeadsScreen() {
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
         componentRegistry={componentRegistry}
-        onView={(row) => navigate(`/app/m/atlas.growth/leads/${row.id}`)}
+        onView={(row) => navigate(`/app/m/runly.growth/leads/${row.id}`)}
         refreshSignal={refreshSignal}
       />
 

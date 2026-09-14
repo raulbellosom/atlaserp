@@ -27,13 +27,13 @@ function makePushHandler(entityType, prismaKey) {
 }
 
 const PUSH_MODULE_REGISTRY = {
-  'atlas.contacts': {
+  'runly.contacts': {
     strategy: 'last-write-wins',
     handlers: {
       contact: makePushHandler('contact', 'contact'),
     },
   },
-  'atlas.hr': {
+  'runly.hr': {
     strategy: 'last-write-wins',
     handlers: {
       employee: makePushHandler('employee', 'hrEmployee'),
@@ -48,7 +48,7 @@ const PUSH_MODULE_REGISTRY = {
       driver: makePushHandler('driver', 'fleetDriver'),
     },
   },
-  'atlas.catalog': {
+  'runly.catalog': {
     strategy: 'last-write-wins',
     handlers: {
       product: makePushHandler('product', 'catalogProduct'),
@@ -57,11 +57,11 @@ const PUSH_MODULE_REGISTRY = {
   },
 }
 
-// Runly-spelled keys alias the same handler config: fresh installs report
-// their module key as "runly.*", existing installs still report "atlas.*".
-PUSH_MODULE_REGISTRY['runly.contacts'] = PUSH_MODULE_REGISTRY['atlas.contacts']
-PUSH_MODULE_REGISTRY['runly.hr'] = PUSH_MODULE_REGISTRY['atlas.hr']
-PUSH_MODULE_REGISTRY['runly.catalog'] = PUSH_MODULE_REGISTRY['atlas.catalog']
+// Atlas-spelled keys alias the same handler config: existing installs still
+// report their module key as "atlas.*", fresh installs report "runly.*".
+PUSH_MODULE_REGISTRY['atlas.contacts'] = PUSH_MODULE_REGISTRY['runly.contacts']
+PUSH_MODULE_REGISTRY['atlas.hr'] = PUSH_MODULE_REGISTRY['runly.hr']
+PUSH_MODULE_REGISTRY['atlas.catalog'] = PUSH_MODULE_REGISTRY['runly.catalog']
 
 export function createSyncPushService({ prisma, registry }) {
   const moduleRegistry = registry ?? PUSH_MODULE_REGISTRY

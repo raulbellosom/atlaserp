@@ -248,7 +248,7 @@ export function createCallGuestService({
               eventType: "chat.call.guest_waiting",
               title: "Invitado esperando en la llamada",
               body: `${name} quiere unirse.`,
-              link: `/app/m/atlas.chat/chat/inbox/${call.conversationId}`,
+              link: `/app/m/runly.chat/chat/inbox/${call.conversationId}`,
               recipients: { userIds: [call.initiatedByUserId] },
               channels: ["in_app"],
               priority: "high",

@@ -31,25 +31,25 @@ export function listRegisteredHandlers() {
   return [...handlers.keys()]
 }
 
-// atlas.contacts cleanup
-registerModuleHandler('atlas.contacts', {
+// runly.contacts cleanup
+registerModuleHandler('runly.contacts', {
   async count({ prisma, companyId }) {
-    if (!companyId) throw new Error('atlas.contacts handler: companyId is required')
+    if (!companyId) throw new Error('runly.contacts handler: companyId is required')
     const contacts = await prisma.contact.count({ where: { companyId } })
     return [{ entity: 'Contact', rows: contacts, companyScoped: true }]
   },
 
   async purge({ tx, companyId }) {
-    if (!companyId) throw new Error('atlas.contacts handler: companyId is required')
+    if (!companyId) throw new Error('runly.contacts handler: companyId is required')
     const { count: contactsDeleted } = await tx.contact.deleteMany({ where: { companyId } })
     return contactsDeleted
   },
 })
 
-// atlas.hr cleanup
-registerModuleHandler('atlas.hr', {
+// runly.hr cleanup
+registerModuleHandler('runly.hr', {
   async count({ prisma, companyId }) {
-    if (!companyId) throw new Error('atlas.hr handler: companyId is required')
+    if (!companyId) throw new Error('runly.hr handler: companyId is required')
     const employees = await prisma.hrEmployee.count({ where: { companyId } })
     const departments = await prisma.hrDepartment.count({ where: { companyId } })
     const jobTitles = await prisma.hrJobTitle.count({ where: { companyId } })
@@ -61,7 +61,7 @@ registerModuleHandler('atlas.hr', {
   },
 
   async purge({ tx, companyId }) {
-    if (!companyId) throw new Error('atlas.hr handler: companyId is required')
+    if (!companyId) throw new Error('runly.hr handler: companyId is required')
     const { count: employeesDeleted } = await tx.hrEmployee.deleteMany({ where: { companyId } })
     const { count: departmentsDeleted } = await tx.hrDepartment.deleteMany({ where: { companyId } })
     const { count: jobTitlesDeleted } = await tx.hrJobTitle.deleteMany({ where: { companyId } })

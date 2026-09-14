@@ -1351,7 +1351,7 @@ app.get("/user/me", authMiddleware, async (c) => {
       isAdmin: tenant.isAdmin,
       // Distinct from isAdmin (company admin OR system admin): only a true
       // platform-scope admin can create new companies (see POST /companies)
-      // or manage another company's modules — a company-scoped atlas.admin
+      // or manage another company's modules — a company-scoped runly.admin
       // must not see those affordances.
       isSystemAdmin: tenant.isSystemAdmin,
       permissions: [...tenant.permissionSet].sort(),
@@ -1871,9 +1871,9 @@ app.put(
 // ── Companies: create a new tenant ──────────────────────────────────────────
 // Distinct from /company/profile|address|branding below (which always
 // operate on the REQUESTER'S active company). Gated to any admin of their
-// currently-active company (tenant.isAdmin — atlas.admin or system.admin),
+// currently-active company (tenant.isAdmin — runly.admin or system.admin),
 // not system.admin alone: in the common case of a single-company instance,
-// the owner's account is an atlas.admin for that one company, never
+// the owner's account is an runly.admin for that one company, never
 // system.admin (that role is seeded separately and often held by nobody in
 // practice) — restricting this to system.admin would make "create a second
 // company" unreachable for the exact person who needs it. Creating a new
@@ -1881,7 +1881,7 @@ app.put(
 // is not a cross-tenant privilege — just "can this admin spin up an
 // additional workspace they'll immediately own." Reuses the existing
 // company.profile.create permission (already seeded, already granted to
-// atlas.admin/system.admin via the isAdmin-gets-everything path) rather than
+// runly.admin/system.admin via the isAdmin-gets-everything path) rather than
 // inventing a new permission key just for this.
 app.post(
   "/companies",
@@ -2202,7 +2202,7 @@ app.get(
 // A role is editable/deletable/listable-in-detail by: (a) a system admin, for
 // any role, or (b) a company-scoped caller, only for a role that belongs to
 // THEIR OWN company. System roles (companyId === null, e.g.
-// atlas.admin/system.admin) are never touchable by a company-scoped caller,
+// runly.admin/system.admin) are never touchable by a company-scoped caller,
 // even one holding identity.roles.*/identity.permissions.* -- those
 // permissions govern a company's own custom roles, not the platform's shared
 // catalog. Returns null (→ 404 at the call site) rather than throwing, so
@@ -3560,7 +3560,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
       version: moduleRow.version ?? "0.1.0",
       schema: view.schema,
       enabled: view.enabled,
-      source: "atlas-view",
+      source: "runly-view",
       module: {
         key: moduleRow.key,
         name: moduleRow.name,
@@ -3813,7 +3813,7 @@ app.get("/public/blueprints", async (c) => {
           title: v.schema?.title,
           public: v.schema?.public,
         },
-        source: "atlas-view",
+        source: "runly-view",
       })),
     });
   } catch (err) {

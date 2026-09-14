@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// atlas.notes — canvas note type.
+// runly.notes — canvas note type.
 //
 // Note bodies (document notes) are not Zod-validated at the route today; this
 // module only adds the canvas-scene contract. Element internals are

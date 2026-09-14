@@ -48,7 +48,7 @@ export default function DocumentTemplatesScreen() {
       setCreateOpen(false);
       setForm({ key: "", name: "", description: "" });
       await queryClient.invalidateQueries({ queryKey: ["documents", "templates"] });
-      navigate(`/app/m/atlas.documents/templates/${created.id}/editor`);
+      navigate(`/app/m/runly.documents/templates/${created.id}/editor`);
     },
     onError: (error) => toast.error(error.message),
   });
@@ -74,7 +74,7 @@ export default function DocumentTemplatesScreen() {
         <button
           type="button"
           className="text-left font-medium hover:underline"
-          onClick={() => navigate(`/app/m/atlas.documents/templates/${row.original.id}/editor`)}
+          onClick={() => navigate(`/app/m/runly.documents/templates/${row.original.id}/editor`)}
         >
           {row.original.name}
           <span className="block text-xs text-[hsl(var(--muted-foreground))]">

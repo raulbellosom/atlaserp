@@ -34,7 +34,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
     return { companyId: resolved.tenant.companyId }
   }
 
-  // GET /sync/pull?modules=atlas.contacts,atlas.hr&cursor=ISO-timestamp
+  // GET /sync/pull?modules=runly.contacts,runly.hr&cursor=ISO-timestamp
   app.get('/sync/pull', async (c) => {
     try {
       const authUserId = c.get('authUserId')

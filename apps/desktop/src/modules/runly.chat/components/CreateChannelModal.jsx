@@ -75,7 +75,7 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
         description: description.trim() || undefined,
         isPublic,
         slug: effectiveSlug || undefined,
-        linkedModule: linkedProjectId ? "atlas.projects" : undefined,
+        linkedModule: linkedProjectId ? "runly.projects" : undefined,
         linkedEntityId: linkedProjectId ?? undefined,
       });
       onCreated?.(result?.data ?? result);

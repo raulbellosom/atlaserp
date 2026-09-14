@@ -66,7 +66,7 @@ export default function WalletsScreen() {
             key={w.id}
             variant="interactive"
             className="relative overflow-hidden p-5"
-            onClick={() => navigate(`/app/m/atlas.pfm/wallets/${w.id}`)}
+            onClick={() => navigate(`/app/m/runly.pfm/wallets/${w.id}`)}
           >
             <span
               aria-hidden="true"

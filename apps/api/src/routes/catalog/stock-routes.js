@@ -40,7 +40,7 @@ export function createStockRouter({ stockSvc, prisma, requirePermission, require
         entityType: 'CatalogProduct',
         entityId: c.req.param('id'),
         summary: `${actorName} ajustó stock ${sign} unidades${parsed.data.reason ? ` (${parsed.data.reason})` : ''}`,
-        link: `/m/atlas.catalog/${c.req.param('id')}`,
+        link: `/m/runly.catalog/${c.req.param('id')}`,
       })
       return c.json({ data }, 201)
     } catch (err) {

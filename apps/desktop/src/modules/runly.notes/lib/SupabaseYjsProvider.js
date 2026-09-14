@@ -69,7 +69,7 @@ export class SupabaseYjsProvider {
   async _init(atlas, token) {
     // 1. Load persisted server state
     try {
-      const res = await atlas.notes.getYDoc(this.noteId, token)
+      const res = await runly.notes.getYDoc(this.noteId, token)
       const serverState = extractServerYState(res)
       if (serverState) {
         Y.applyUpdate(this.ydoc, base64ToBytes(serverState), 'server-load')

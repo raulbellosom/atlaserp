@@ -210,7 +210,7 @@ export default function RoleEditorScreen() {
             <Button
               variant="outline"
               onClick={() =>
-                navigate("/app/m/atlas.identity/identity/roles")
+                navigate("/app/m/runly.identity/identity/roles")
               }
             >
               <ArrowLeft className="h-4 w-4" />
@@ -237,7 +237,7 @@ export default function RoleEditorScreen() {
             action={{
               label: "Volver a roles",
               onClick: () =>
-                navigate("/app/m/atlas.identity/identity/roles"),
+                navigate("/app/m/runly.identity/identity/roles"),
             }}
           />
         ) : (

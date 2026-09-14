@@ -147,7 +147,7 @@ export function createBudgetsService({ prisma, notificationService = null }) {
                 ? `Rebasaste tu presupuesto de ${name}`
                 : `Vas al ${Math.round(pct * 100)}% de tu presupuesto de ${name}`,
             body: `Llevas ${spent.toFixed(2)} de ${amount.toFixed(2)} este mes.`,
-            link: "/app/m/atlas.pfm/overview",
+            link: "/app/m/runly.pfm/overview",
             priority: level === "overage" ? "high" : "medium",
             recipients: { userIds: [r.owner_id] },
             dedupeKey: `pfm.budget.${r.id}.${monthKey}.${level}`,
@@ -155,7 +155,7 @@ export function createBudgetsService({ prisma, notificationService = null }) {
         });
         alerted += 1;
       } catch (err) {
-        console.error("[atlas.pfm] budget alert publish failed", r.id, err?.message ?? err);
+        console.error("[runly.pfm] budget alert publish failed", r.id, err?.message ?? err);
       }
     }
     return { evaluated: rows.length, alerted };

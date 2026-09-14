@@ -129,7 +129,7 @@ export default function Overview() {
         actions={
           <Button
             variant="outline"
-            onClick={() => navigate("/app/m/atlas.core/modules")}
+            onClick={() => navigate("/app/m/runly.core/modules")}
           >
             <LayoutGrid className="h-4 w-4 mr-1.5" />
             Catálogo de módulos

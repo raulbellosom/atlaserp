@@ -16,7 +16,7 @@ import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatP
 // conversation. Mirrors MessageReactionPicker.jsx's Popover + emoji-picker-react
 // pattern for the emoji button (but with a real PopoverTrigger, since the button
 // itself is the trigger here, not opened externally) and CompanyBranding.jsx's
-// uploadLogoMutation for the image button (FormData -> atlas.files.upload ->
+// uploadLogoMutation for the image button (FormData -> runly.files.upload ->
 // use the returned file id). `toast` comes from "sonner" directly, matching the
 // convention used by every other toast-using screen in this app (@runly/ui only
 // exports the <Toaster/> container, not the `toast()` function itself).
@@ -84,7 +84,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
 
   const linkMutation = useMutation({
     mutationFn: (linkedProjectId) => runly.chat.updateConversation(conversationId, {
-      linkedModule: linkedProjectId ? "atlas.projects" : null,
+      linkedModule: linkedProjectId ? "runly.projects" : null,
       linkedEntityId: linkedProjectId,
     }, token),
     onSuccess: () => {
@@ -108,7 +108,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     mutationFn: async (file) => {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("moduleKey", "atlas.chat");
+      formData.append("moduleKey", "runly.chat");
       formData.append("entityType", "ChatConversation");
       const uploaded = await runly.files.upload(formData, token);
       return uploaded?.data?.id ?? null;
@@ -324,13 +324,13 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
           <Label>Proyecto vinculado</Label>
           <ComboboxField
             options={projectsQuery.data ?? []}
-            value={conversation?.linked_module === "atlas.projects" ? conversation.linked_entity_id : null}
+            value={conversation?.linked_module === "runly.projects" ? conversation.linked_entity_id : null}
             onChange={(projectId) => linkMutation.mutate(projectId)}
             placeholder="Buscar proyecto..."
             emptyText={projectsQuery.isLoading ? "Cargando..." : "Sin resultados"}
             disabled={!canManage || linkMutation.isPending}
           />
-          {conversation?.linked_module === "atlas.projects" && canManage && (
+          {conversation?.linked_module === "runly.projects" && canManage && (
             <button
               type="button"
               onClick={() => linkMutation.mutate(null)}
@@ -354,7 +354,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
       {scheduleOpen && (
         <EventFormModal
           initialAttendeeIds={(conversation?.members ?? []).map((m) => m.userId)}
-          sourceModule="atlas.chat"
+          sourceModule="runly.chat"
           sourceEntityId={conversationId}
           onClose={() => setScheduleOpen(false)}
           onSaved={() => {

@@ -432,7 +432,7 @@ export default function DocumentTemplateEditorScreen() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate("/app/m/atlas.documents/templates")}
+            onClick={() => navigate("/app/m/runly.documents/templates")}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Volver
           </Button>

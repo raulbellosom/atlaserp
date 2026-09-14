@@ -47,7 +47,7 @@ function handleError(c, error) {
       error.status,
     );
   }
-  console.error("[atlas.growth]", error);
+  console.error("[runly.growth]", error);
   return c.json({ error: "Error interno de Growth." }, 500);
 }
 

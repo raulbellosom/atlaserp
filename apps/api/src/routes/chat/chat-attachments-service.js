@@ -65,7 +65,7 @@ export function createChatAttachmentsService({
       .createSignedUploadUrl(objectKey, { expiresIn: 300 });
 
     if (error) {
-      console.error("[atlas.chat] createSignedUploadUrl failed", { bucket: "runly-chat", key: objectKey, error });
+      console.error("[runly.chat] createSignedUploadUrl failed", { bucket: "runly-chat", key: objectKey, error });
       throw new ChatServiceError("Error generando URL de subida.", 500);
     }
 
@@ -109,7 +109,7 @@ export function createChatAttachmentsService({
       LIMIT 1
     `;
     if (!rows.length) {
-      console.error("[atlas.chat] getAttachmentSignedUrl: attachment not found or user not member", { attachmentId, profileId });
+      console.error("[runly.chat] getAttachmentSignedUrl: attachment not found or user not member", { attachmentId, profileId });
       throw new ChatServiceError("Adjunto no encontrado.", 404);
     }
 
@@ -121,7 +121,7 @@ export function createChatAttachmentsService({
     const signedUrl = await signedUrlWithVariant(supabaseAdmin, att.bucket, att.object_key, variant);
 
     if (!signedUrl) {
-      console.error("[atlas.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key });
+      console.error("[runly.chat] createSignedUrl failed", { bucket: att.bucket, key: att.object_key });
       throw new ChatServiceError("Error generando URL firmada.", 500);
     }
     setCachedSignedUrl(att.bucket, att.object_key, variant, signedUrl);
@@ -132,10 +132,10 @@ export function createChatAttachmentsService({
     try {
       const { error } = await supabaseAdmin.storage.from(bucket).remove([objectKey]);
       if (error) {
-        console.error("[atlas.chat] deleteAttachment: storage remove failed", { bucket, objectKey, error: error.message });
+        console.error("[runly.chat] deleteAttachment: storage remove failed", { bucket, objectKey, error: error.message });
       }
     } catch (err) {
-      console.error("[atlas.chat] deleteAttachment: storage remove threw", { bucket, objectKey, error: err?.message ?? err });
+      console.error("[runly.chat] deleteAttachment: storage remove threw", { bucket, objectKey, error: err?.message ?? err });
     }
   }
 

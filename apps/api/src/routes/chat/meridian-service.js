@@ -1,6 +1,6 @@
 // apps/api/src/routes/chat/meridian-service.js
 //
-// MeridIAn — the atlas.chat AI assistant (Spec 1). Owns: the per-company bot
+// MeridIAn — the runly.chat AI assistant (Spec 1). Owns: the per-company bot
 // user_profile, the per-user `meridian` conversation, an in-memory per-actor
 // rate limit, and (Task 7) the Groq tool-calling loop. Writes never happen via
 // the model — every tool is read-only; the only row MeridIAn creates is its
@@ -591,7 +591,7 @@ export function createMeridianService({
       await insertAssistantMessage({ conversationId, body: finalText });
     } catch (err) {
       replyInsertError = String(err?.message ?? err).slice(0, 200);
-      console.error("[atlas.chat] meridian reply insert failed", err);
+      console.error("[runly.chat] meridian reply insert failed", err);
     }
     try {
       await prisma.chatMeridianRun.create({
@@ -643,7 +643,7 @@ export function createMeridianService({
         routerError = c.routerError ?? null;
       }
     } catch (e) {
-      console.error("[atlas.chat] meridian classify", e?.message ?? e);
+      console.error("[runly.chat] meridian classify", e?.message ?? e);
     }
 
     // Serialize per conversation so replies stay in order.
@@ -743,7 +743,7 @@ export function createMeridianService({
       routerMs = c.ms;
       routerError = c.routerError ?? null;
     } catch (e) {
-      console.error("[atlas.chat] meridian mention classify", e?.message ?? e);
+      console.error("[runly.chat] meridian mention classify", e?.message ?? e);
     }
 
     let out;
@@ -756,7 +756,7 @@ export function createMeridianService({
     try {
       await insertAssistantMessage({ conversationId, body: out.text, replyToMessageId: triggerMessageId ?? null });
     } catch (err) {
-      console.error("[atlas.chat] meridian mention reply insert failed", err);
+      console.error("[runly.chat] meridian mention reply insert failed", err);
     }
     try {
       await prisma.chatMeridianRun.create({
@@ -840,7 +840,7 @@ export function createMeridianService({
       routerMs = c.ms;
       routerError = c.routerError ?? null;
     } catch (e) {
-      console.error("[atlas.chat] meridian panel classify", e?.message ?? e);
+      console.error("[runly.chat] meridian panel classify", e?.message ?? e);
     }
 
     let finalText = "";

@@ -49,7 +49,7 @@ export default function PosSettingsScreen() {
           actions={
             <Button
               variant="outline"
-              onClick={() => navigate('/app/m/atlas.pos/pos/admin/planos')}
+              onClick={() => navigate('/app/m/runly.pos/pos/admin/planos')}
             >
               <LayoutGrid size={16} />
               Editor de planos

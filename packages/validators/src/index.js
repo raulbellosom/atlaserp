@@ -581,7 +581,7 @@ export const moduleResetSchema = z
   });
 
 // ---------------------------------------------------------------------------
-// atlas.activity
+// runly.activity
 // ---------------------------------------------------------------------------
 
 const ACTIVITY_SEVERITIES = ["info", "success", "warning", "critical"];
@@ -646,7 +646,7 @@ export const ACTIVITY_CONSTANTS = {
 };
 
 // ---------------------------------------------------------------------------
-// atlas.notifications
+// runly.notifications
 // ---------------------------------------------------------------------------
 
 const NOTIFICATION_CHANNELS = ["in_app", "email", "web_push"];
@@ -714,7 +714,7 @@ export const NOTIFICATION_CONSTANTS = {
 };
 
 // ---------------------------------------------------------------------------
-// atlas.growth
+// runly.growth
 // ---------------------------------------------------------------------------
 
 export const GROWTH_LEAD_STATUSES = [

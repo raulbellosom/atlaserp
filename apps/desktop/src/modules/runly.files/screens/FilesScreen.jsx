@@ -259,7 +259,7 @@ export default function FilesScreen() {
         try {
           const formData = new FormData();
           formData.append("file", item._file);
-          formData.append("moduleKey", "atlas.files");
+          formData.append("moduleKey", "runly.files");
           formData.append("entityType", "AtlasFile");
           await runly.files.upload(formData, token);
           setUploadQueue((prev) =>
@@ -457,7 +457,7 @@ export default function FilesScreen() {
       const url = native
         ? (await runly.files.getAccess(file.id, token))?.data?.shareUrl
         : new URL(
-            `/app/m/atlas.files/files/${encodeURIComponent(file.id)}`,
+            `/app/m/runly.files/files/${encodeURIComponent(file.id)}`,
             window.location.origin,
           ).href;
       if (!url) {
@@ -478,7 +478,7 @@ export default function FilesScreen() {
     setDetailOpen(true);
     if (pushRoute) {
       navigate(
-        `/app/m/atlas.files/files/${encodeURIComponent(file.id)}${location.search}`,
+        `/app/m/runly.files/files/${encodeURIComponent(file.id)}${location.search}`,
       );
     }
   }
@@ -487,7 +487,7 @@ export default function FilesScreen() {
     setDetailOpen(false);
     setDetailFile(null);
     if (routeFileId) {
-      navigate(`/app/m/atlas.files/files${location.search}`, { replace: true });
+      navigate(`/app/m/runly.files/files${location.search}`, { replace: true });
     }
   }
 

@@ -245,7 +245,7 @@ export default function GroupScreen() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5">
         <button
-          onClick={() => navigate('/app/m/atlas.ledger/accounts')}
+          onClick={() => navigate('/app/m/runly.ledger/accounts')}
           className="flex items-center gap-1 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-3 transition-colors"
         >
           <ArrowLeft size={14} /> Cuentas
@@ -323,7 +323,7 @@ export default function GroupScreen() {
                 {accounts.map((account) => (
                   <div key={account.id} className="relative group/card">
                     <button
-                      onClick={() => navigate(`/app/m/atlas.ledger/accounts/${account.id}`)}
+                      onClick={() => navigate(`/app/m/runly.ledger/accounts/${account.id}`)}
                       className="w-full text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
                     >
                       <div className="font-semibold text-sm truncate pr-8">{account.name}</div>

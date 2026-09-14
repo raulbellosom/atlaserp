@@ -12,7 +12,7 @@ const sendSchema = z.object({ content: z.string().trim().min(1).max(2000) });
 
 function handleError(c, err, fallback) {
   if (err instanceof PfmServiceError) return c.json({ error: err.message }, err.status);
-  console.error("[atlas.pfm]", err);
+  console.error("[runly.pfm]", err);
   return c.json({ error: fallback }, 500);
 }
 

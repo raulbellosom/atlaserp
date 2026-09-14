@@ -111,7 +111,7 @@ export function createInvestmentsService({ prisma }) {
         });
         created += toInsert.length;
       } catch (err) {
-        console.error("[atlas.pfm] accrueYieldDue failed", w.id, err?.message ?? err);
+        console.error("[runly.pfm] accrueYieldDue failed", w.id, err?.message ?? err);
       }
     }
 

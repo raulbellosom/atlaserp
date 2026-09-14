@@ -2,17 +2,33 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { resolveBlueprintPresentation } from "../blueprint-layout-resolver.js";
 
-test("resolveBlueprintPresentation: defaults to atlas keys when unset", () => {
+test("resolveBlueprintPresentation: defaults to runly keys when unset", () => {
   const result = resolveBlueprintPresentation({});
-  assert.equal(result.shellKey, "atlas.dashboardShell");
-  assert.equal(result.layoutKey, "atlas.crudLayout");
+  assert.equal(result.shellKey, "runly.dashboardShell");
+  assert.equal(result.layoutKey, "runly.crudLayout");
   assert.equal(result.shellSource, "default");
   assert.equal(result.layoutSource, "default");
   assert.equal(result.unsupportedShellKey, null);
   assert.equal(result.unsupportedLayoutKey, null);
 });
 
-test("resolveBlueprintPresentation: respects canonical atlas keys", () => {
+test("resolveBlueprintPresentation: respects canonical runly keys", () => {
+  const result = resolveBlueprintPresentation({
+    tableBlueprint: {
+      schema: {
+        shell: "runly.dashboardShell",
+        layout: "runly.crudLayout",
+      },
+    },
+  });
+
+  assert.equal(result.shellKey, "runly.dashboardShell");
+  assert.equal(result.layoutKey, "runly.crudLayout");
+  assert.equal(result.shellSource, "table.schema.shell");
+  assert.equal(result.layoutSource, "table.schema.layout");
+});
+
+test("resolveBlueprintPresentation: supports the legacy atlas.dashboardShell/atlas.crudLayout literal keys", () => {
   const result = resolveBlueprintPresentation({
     tableBlueprint: {
       schema: {
@@ -22,10 +38,12 @@ test("resolveBlueprintPresentation: respects canonical atlas keys", () => {
     },
   });
 
-  assert.equal(result.shellKey, "atlas.dashboardShell");
-  assert.equal(result.layoutKey, "atlas.crudLayout");
+  assert.equal(result.shellKey, "runly.dashboardShell");
+  assert.equal(result.layoutKey, "runly.crudLayout");
   assert.equal(result.shellSource, "table.schema.shell");
   assert.equal(result.layoutSource, "table.schema.layout");
+  assert.equal(result.unsupportedShellKey, null);
+  assert.equal(result.unsupportedLayoutKey, null);
 });
 
 test("resolveBlueprintPresentation: supports legacy aliases main/default", () => {
@@ -40,8 +58,8 @@ test("resolveBlueprintPresentation: supports legacy aliases main/default", () =>
     },
   });
 
-  assert.equal(result.shellKey, "atlas.dashboardShell");
-  assert.equal(result.layoutKey, "atlas.crudLayout");
+  assert.equal(result.shellKey, "runly.dashboardShell");
+  assert.equal(result.layoutKey, "runly.crudLayout");
   assert.equal(result.shellSource, "page.schema.page.shell");
   assert.equal(result.layoutSource, "page.schema.layout");
   assert.equal(result.unsupportedShellKey, null);
@@ -58,8 +76,8 @@ test("resolveBlueprintPresentation: falls back and flags unsupported keys", () =
     },
   });
 
-  assert.equal(result.shellKey, "atlas.dashboardShell");
-  assert.equal(result.layoutKey, "atlas.crudLayout");
+  assert.equal(result.shellKey, "runly.dashboardShell");
+  assert.equal(result.layoutKey, "runly.crudLayout");
   assert.equal(result.unsupportedShellKey, "custom.altShell");
   assert.equal(result.unsupportedLayoutKey, "custom.twoColumn");
 });

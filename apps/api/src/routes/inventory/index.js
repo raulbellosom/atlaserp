@@ -1,6 +1,6 @@
 // apps/api/src/routes/inventory/index.js
 //
-// atlas.inventory HTTP routes. Extracted verbatim from apps/api/src/index.js
+// runly.inventory HTTP routes. Extracted verbatim from apps/api/src/index.js
 // (2026-08-30) so the entry point stays under the file-size limit. Auth is
 // applied by mountWithAuth(); every route still declares its own
 // requirePermission(...).

@@ -124,7 +124,7 @@ export default function CatalogsScreen() {
   const { table: tableBlueprint, form: formBlueprint } = CATALOG_BLUEPRINTS[catalogKey]
 
   const handleTabChange = useCallback((key) => {
-    navigate(`/app/m/atlas.fleet/catalogs/${key}`, { replace: true })
+    navigate(`/app/m/runly.fleet/catalogs/${key}`, { replace: true })
   }, [navigate])
 
   return (

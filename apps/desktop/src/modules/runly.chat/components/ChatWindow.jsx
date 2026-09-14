@@ -763,7 +763,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
             messages={messages}
             isLoadingMessages={isLoading}
             onShowAllFiles={showAllFiles}
-            onOpenConversation={(conv) => navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`)}
+            onOpenConversation={(conv) => navigate(`/app/m/runly.chat/chat/inbox/${conv.id}`)}
             onDeleted={onClose}
             callsEnabled={callsEnabled}
             callPending={callPending}

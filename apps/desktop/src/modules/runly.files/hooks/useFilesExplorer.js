@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { getFileKind } from "../lib/file-kind";
 
 const NAVIGABLE_ORIGIN_MODULES = new Set([
-  "atlas.files",
-  "atlas.company",
-  "atlas.contacts",
+  "runly.files",
+  "runly.company",
+  "runly.contacts",
 ]);
 
 function sortByValue(items, by, dir) {

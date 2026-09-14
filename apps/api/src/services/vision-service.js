@@ -1,6 +1,6 @@
 // apps/api/src/services/vision-service.js
 //
-// First AI integration in the repo. Vision LLM adapter for atlas.pfm receipt
+// First AI integration in the repo. Vision LLM adapter for runly.pfm receipt
 // parsing. Provider + model + key all come from env; with no key the caller
 // gets a 503 and the module still boots.
 import { isReasoningModel } from "./groq-model-helpers.js";

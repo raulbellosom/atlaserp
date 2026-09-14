@@ -50,10 +50,10 @@ export function CompanySwitcher() {
   const { companies, activeCompany, isLoading, setActiveCompany } = useActiveCompany();
   const { userProfile } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
-  // Any admin of their active company (atlas.admin or system.admin) can
+  // Any admin of their active company (runly.admin or system.admin) can
   // create additional companies — enforced server-side too, see
   // POST /companies. Not narrowed to system.admin alone: in the common
-  // single-company case the owner's own account is an atlas.admin, never
+  // single-company case the owner's own account is an runly.admin, never
   // system.admin, so that would make this unreachable for exactly the
   // person who needs it. Regular non-admin users' 0/1-company UX is
   // unchanged.

@@ -90,7 +90,7 @@ export default function GroupsScreen() {
             {groups.map((group) => (
               <button
                 key={group.id}
-                onClick={() => navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
+                onClick={() => navigate(`/app/m/runly.ledger/groups/${group.id}`)}
                 className="text-left p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors"
               >
                 <div className="flex items-center gap-2 mb-1">

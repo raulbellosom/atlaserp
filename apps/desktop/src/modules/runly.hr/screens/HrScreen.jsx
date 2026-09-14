@@ -205,12 +205,12 @@ export default function HrScreen() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => navigate("/app/m/atlas.hr/hr/org-chart")}
+              onClick={() => navigate("/app/m/runly.hr/hr/org-chart")}
             >
               Organigrama
             </Button>
             {canCreateEmployees && (
-              <Button onClick={() => navigate("/app/m/atlas.hr/hr/employees/new")}>
+              <Button onClick={() => navigate("/app/m/runly.hr/hr/employees/new")}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nuevo colaborador
               </Button>
@@ -223,7 +223,7 @@ export default function HrScreen() {
           blueprint: HR_EMPLOYEES_BLUEPRINT,
           token,
           companyId: activeCompanyId,
-          onView: (row) => navigate(`/app/m/atlas.hr/hr/employees/${row.id}`),
+          onView: (row) => navigate(`/app/m/runly.hr/hr/employees/${row.id}`),
           bulkActions,
         })}
       />

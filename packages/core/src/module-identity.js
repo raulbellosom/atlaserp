@@ -17,6 +17,10 @@ export function getLegacyModuleKey(key) {
   return typeof key === 'string' && key.startsWith('runly.') ? counterparts.get(key) ?? key : key;
 }
 
+export function getCurrentModuleKey(key) {
+  return typeof key === 'string' && key.startsWith('atlas.') ? counterparts.get(key) ?? key : key;
+}
+
 export function findModuleByKey(modules, key) {
   for (const candidate of getModuleKeyAliases(key)) {
     const module = modules.get(candidate);

@@ -20,15 +20,15 @@ describe("search providers", () => {
     assert.equal(bySource("employees").permission, "hr.employee.read");
     assert.equal(
       bySource("contacts").target("abc"),
-      "/app/m/atlas.contacts/contacts/abc",
+      "/app/m/runly.contacts/contacts/abc",
     );
     assert.equal(
       bySource("users").target("u1"),
-      "/app/m/atlas.identity/identity/users/u1",
+      "/app/m/runly.identity/identity/users/u1",
     );
     assert.equal(
       bySource("employees").target("e1"),
-      "/app/m/atlas.hr/hr/employees/e1",
+      "/app/m/runly.hr/hr/employees/e1",
     );
   });
 

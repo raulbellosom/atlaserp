@@ -39,7 +39,7 @@ const EVENT_CATALOG = [
   { eventType: 'pfm.budget.overage', title: 'Presupuesto excedido', description: 'Cuando tus gastos superan el presupuesto.', icon: ShieldAlert },
   { eventType: 'projects.task.reaction', title: 'Reacci?n en tarea', description: 'Cuando reaccionan a tu comentario en una tarea.', icon: CheckSquare2 },
   { eventType: 'inventory.item.reaction', title: 'Reacci?n en inventario', description: 'Cuando reaccionan a tu comentario en inventario.', icon: CheckSquare2 },
-  // atlas.chat
+  // runly.chat
   { eventType: 'chat.member.added', title: 'Invitación a un chat', description: 'Cuando te agregan a un canal o grupo.', icon: Users },
   { eventType: 'chat.mention.new', title: 'Mención en chat', description: 'Cuando te mencionan en una conversación.', icon: MessageCircle },
   { eventType: 'chat.thread.reply', title: 'Respuesta en un hilo', description: 'Cuando responden en un hilo en el que participas.', icon: MessageCircle },
@@ -58,7 +58,7 @@ const EVENT_CATALOG = [
     description: "Cuando alguien te llama o inicia una videollamada.",
     icon: PhoneCall,
   },
-  // atlas.projects
+  // runly.projects
   {
     eventType: "projects.member.added",
     title: "Nuevo miembro en proyecto",
@@ -101,14 +101,14 @@ const EVENT_CATALOG = [
     description: "El estado de una tarea asignada a ti cambio.",
     icon: CheckSquare2,
   },
-  // atlas.calendar
+  // runly.calendar
   {
     eventType: "calendar.event.reminder",
     title: "Recordatorio de calendario",
     description: "Alerta cuando un evento esta por comenzar.",
     icon: CalendarClock,
   },
-  // atlas.website
+  // runly.website
   {
     eventType: "website.sale.confirmed",
     title: "Venta confirmada",

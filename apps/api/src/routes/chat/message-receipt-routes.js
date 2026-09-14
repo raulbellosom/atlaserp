@@ -10,7 +10,7 @@ function handleError(c, err, fallback) {
   if (err instanceof ChatServiceError) {
     return c.json({ error: err.message }, err.status);
   }
-  console.error("[atlas.chat]", err?.message ?? err);
+  console.error("[runly.chat]", err?.message ?? err);
   if (err?.stack) console.error(err.stack);
   return c.json({ error: fallback }, 500);
 }

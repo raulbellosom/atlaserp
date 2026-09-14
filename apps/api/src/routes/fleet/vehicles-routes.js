@@ -50,7 +50,7 @@ function getActorIdFromContext(c) {
 
 function logRouteError({ route, moduleKey, operation, err }) {
   if (process.env.NODE_ENV === "production") return;
-  console.error("[atlas.fleet] route error", {
+  console.error("[runly.fleet] route error", {
     route,
     moduleKey,
     operation,
@@ -83,7 +83,7 @@ export default function createFleetRouter({
 }) {
   const app = new Hono();
   const service = createFleetService({ prisma });
-  const moduleKey = moduleContext?.moduleKey ?? "atlas.fleet";
+  const moduleKey = moduleContext?.moduleKey ?? "runly.fleet";
 
   app.get(
     "/fleet/vehicles/export",

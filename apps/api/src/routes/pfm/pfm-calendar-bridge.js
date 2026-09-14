@@ -1,10 +1,10 @@
 // apps/api/src/routes/pfm/pfm-calendar-bridge.js
 //
-// Best-effort mirror of atlas.pfm recurring rules onto atlas.calendar. Mirrors
+// Best-effort mirror of runly.pfm recurring rules onto runly.calendar. Mirrors
 // the projects-calendar-bridge.js contract: never throws into the caller; if the
 // calendar module is not installed, every method is a no-op.
 
-const SOURCE = "atlas.pfm";
+const SOURCE = "runly.pfm";
 
 function isCalendarAvailable(prisma) {
   return (
@@ -14,7 +14,7 @@ function isCalendarAvailable(prisma) {
 }
 
 function ruleToRruleJson(rrule) {
-  // Store the same compact shape pfm uses elsewhere; atlas.calendar treats
+  // Store the same compact shape pfm uses elsewhere; runly.calendar treats
   // recurrenceRule as opaque Json for display/expansion.
   return { ...rrule };
 }
@@ -84,7 +84,7 @@ export function createPfmCalendarBridge({ prisma }) {
       });
       return event.id;
     } catch (err) {
-      console.error("[atlas.pfm] pfm-calendar-bridge syncRuleEvent failed:", err?.message ?? err);
+      console.error("[runly.pfm] pfm-calendar-bridge syncRuleEvent failed:", err?.message ?? err);
       return null;
     }
   }
@@ -142,7 +142,7 @@ export function createPfmCalendarBridge({ prisma }) {
       });
       return event.id;
     } catch (err) {
-      console.error("[atlas.pfm] pfm-calendar-bridge syncCreditReminder failed:", err?.message ?? err);
+      console.error("[runly.pfm] pfm-calendar-bridge syncCreditReminder failed:", err?.message ?? err);
       return null;
     }
   }

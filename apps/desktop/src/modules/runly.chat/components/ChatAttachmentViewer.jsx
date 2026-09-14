@@ -12,7 +12,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 // file ever shared in the chat, not just the ones attached to the message
 // that was clicked — real attachments AND file-type entity references
 // together. Each entry resolves through whichever endpoint actually owns its
-// record: entity refs (`isEntityRef: true`) live in atlas.files and use the
+// record: entity refs (`isEntityRef: true`) live in runly.files and use the
 // generic files signed-url endpoint; real attachments live in
 // chat_attachments and use the chat-specific one. Callers that only ever
 // pass real attachments (e.g. ConversationMediaTab.jsx) are unaffected —
@@ -86,7 +86,7 @@ export function ChatAttachmentViewer({
         onOpenInOffice ??
         ((f) => {
           if (!office?.enabled) return;
-          // Entity references are atlas.files records; real chat attachments use
+          // Entity references are runly.files records; real chat attachments use
           // the dedicated chat WOPI scope.
           if (f?.isEntityRef) office.open(f.id);
           else office.openChatAttachment(f.id);

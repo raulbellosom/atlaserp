@@ -68,7 +68,7 @@ export function createStorefrontFilesService({ prisma, supabaseAdmin }) {
         mimeType,
         sizeBytes,
         visibility: visibility === 'PRIVATE' ? 'PRIVATE' : 'PUBLIC',
-        moduleKey: 'atlas.storefront',
+        moduleKey: 'runly.storefront',
         entityType: entityType ?? null,
         entityId: entityId ?? null,
         uploadedById: uploadedById ?? null,

@@ -249,7 +249,7 @@ export { useIsolatedScroll } from "./hooks/useIsolatedScroll.js";
 export { useLongPress, createLongPressController } from "./hooks/useLongPress.js";
 export { useSwipeToReply, createSwipeController } from "./hooks/useSwipeToReply.js";
 
-// atlas.activity
+// runly.activity
 export { ActivityTimeline } from "./components/ActivityTimeline.jsx";
 export { ActivityDrawer } from "./components/ActivityDrawer.jsx";
 export { ActivityBellTrigger } from "./components/ActivityBellTrigger.jsx";

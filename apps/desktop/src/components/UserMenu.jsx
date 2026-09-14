@@ -167,7 +167,7 @@ export function UserMenu({
         {(userProfile?.isAdmin ||
           userProfile?.permissions?.includes("platform.settings.manage")) && (
           <DropdownMenuItem
-            onClick={() => navigate("/app/m/atlas.core/settings")}
+            onClick={() => navigate("/app/m/runly.core/settings")}
             className="gap-2 cursor-pointer"
           >
             <Settings size={14} />

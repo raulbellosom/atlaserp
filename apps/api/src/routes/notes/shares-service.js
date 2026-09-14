@@ -196,7 +196,7 @@ export function createSharesService({ prisma, broadcaster, notificationService }
             eventType: 'notes.note.shared',
             title: 'Compartieron una nota contigo',
             body: `Ahora puedes ${permission === 'edit' ? 'editar' : 'leer'} "${context.title || 'Nota sin título'}"`.slice(0, 1000),
-            link: `/app/m/atlas.notes?note=${noteId}`,
+            link: `/app/m/runly.notes?note=${noteId}`,
             recipients: { userIds: [targetUserId] },
             channels: ['in_app', 'email', 'web_push'],
             sourceType: 'Note',

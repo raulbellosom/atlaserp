@@ -1,5 +1,5 @@
 // apps/desktop/src/modules/runly.chat/components/EntityFileViewer.jsx
-// Generic AdvancedFileViewer wrapper for arbitrary atlas.files records reached
+// Generic AdvancedFileViewer wrapper for arbitrary runly.files records reached
 // through a chat entity reference (or a picker preview) — as opposed to
 // ChatAttachmentViewer.jsx, which is for real chat_attachments rows and uses
 // the chat-specific getAttachmentSignedUrl endpoint. This resolves through

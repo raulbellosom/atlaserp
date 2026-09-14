@@ -18,7 +18,7 @@ import { runly } from "../../../lib/runly";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
 const API_BASE_URL = getApiUrl();
-const PROTECTED_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+const PROTECTED_ROLE_KEYS = new Set(["runly.admin", "system.admin"]);
 
 const USERS_BLUEPRINT = {
   key: "identity.users.table",
@@ -257,7 +257,7 @@ export default function UsersScreen() {
         description="Gestiona usuarios, roles y estado de acceso de la instancia."
         actions={
           canCreateUsers ? (
-            <Button onClick={() => navigate("/app/m/atlas.identity/identity/users/new")}>
+            <Button onClick={() => navigate("/app/m/runly.identity/identity/users/new")}>
               <UserPlus className="h-4 w-4" />
               Nuevo usuario
             </Button>
@@ -271,10 +271,10 @@ export default function UsersScreen() {
           token={token}
           companyId={activeCompanyId}
           apiBaseUrl={API_BASE_URL}
-          onView={(row) => navigate(`/app/m/atlas.identity/identity/users/${row.id}`)}
+          onView={(row) => navigate(`/app/m/runly.identity/identity/users/${row.id}`)}
           onEdit={
             canUpdateUsers
-              ? (row) => navigate(`/app/m/atlas.identity/identity/users/${row.id}/edit`)
+              ? (row) => navigate(`/app/m/runly.identity/identity/users/${row.id}/edit`)
               : undefined
           }
           onDelete={

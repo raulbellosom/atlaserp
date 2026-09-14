@@ -149,12 +149,12 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
   }, [allAttachments]);
 
   function handleViewInChat() {
-    navigate(`/app/m/atlas.chat/chat/inbox/${id}`);
+    navigate(`/app/m/runly.chat/chat/inbox/${id}`);
     onClose();
   }
 
   function handleViewFiles() {
-    navigate(`/app/m/atlas.chat/chat/inbox/${id}?view=files`);
+    navigate(`/app/m/runly.chat/chat/inbox/${id}?view=files`);
     onClose();
   }
 
@@ -376,7 +376,7 @@ function MiniChatWindowInner({ entry, index, edge, zIndex = 45, onClose, onMinim
               onDeleteAttachment={(attachmentId) => deleteAttachmentMutate(attachmentId)}
               deletingAttachmentId={isDeletingAttachment ? deletingAttachmentId : null}
               onHideForMe={(msgId) => setHiddenMsgIds((prev) => { const n = new Set(prev); n.add(msgId); return n; })}
-              onForward={() => { navigate(`/app/m/atlas.chat/chat/inbox/${id}`); onClose(); }}
+              onForward={() => { navigate(`/app/m/runly.chat/chat/inbox/${id}`); onClose(); }}
               hiddenMessageIds={hiddenMsgIds}
               onPinMessage={(messageId, pinned) => pinMutate({ messageId, pinned })}
               onToggleReaction={(messageId, emoji, attachmentId) => toggleReactionMutate({ messageId, emoji, attachmentId })}

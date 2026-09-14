@@ -143,7 +143,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   if (scheduled) {
     return (
       <EventFormModal
-        sourceModule="atlas.chat"
+        sourceModule="runly.chat"
         sourceEntityId={scheduled.targetId}
         initialAttendeeIds={memberIds}
         defaultVideoUrl={scheduled.link.url}

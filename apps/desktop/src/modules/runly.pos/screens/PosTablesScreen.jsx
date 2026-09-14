@@ -258,7 +258,7 @@ export default function PosTablesScreen({ comanderoMode = false }) {
 
   function navigateToOrder(table) {
     if (comanderoMode) {
-      navigate(`/app/m/atlas.pos/pos/comandero/mesa/${table.id}`)
+      navigate(`/app/m/runly.pos/pos/comandero/mesa/${table.id}`)
       return
     }
     const existingOrder = activeOrders.find((o) => o.tableId === table.id)
@@ -266,12 +266,12 @@ export default function PosTablesScreen({ comanderoMode = false }) {
       // Re-assert OCCUPIED + waiterId on the table — resuming an order used to
       // leave a table stuck on a stale AVAILABLE status if it had ever drifted.
       claimOrder.mutate(existingOrder.id)
-      navigate(`/app/m/atlas.pos/pos/terminal?order=${existingOrder.id}`)
+      navigate(`/app/m/runly.pos/pos/terminal?order=${existingOrder.id}`)
       return
     }
     createOrder.mutate(
       { outletId: effectiveOutletId, tableId: table.id, fulfillmentType: 'DINE_IN' },
-      { onSuccess: (res) => navigate(`/app/m/atlas.pos/pos/terminal?order=${(res?.data ?? res).id}`) },
+      { onSuccess: (res) => navigate(`/app/m/runly.pos/pos/terminal?order=${(res?.data ?? res).id}`) },
     )
   }
 
@@ -352,12 +352,12 @@ export default function PosTablesScreen({ comanderoMode = false }) {
         {
           onSuccess: (res) => {
             if (comanderoMode) {
-              navigate(`/app/m/atlas.pos/pos/comandero/mesa/${table.id}`)
+              navigate(`/app/m/runly.pos/pos/comandero/mesa/${table.id}`)
               return
             }
             const orderId = (res?.data ?? res)?.id
             if (!orderId) { toast.error('No se pudo obtener la orden'); return }
-            navigate(`/app/m/atlas.pos/pos/terminal?order=${orderId}`)
+            navigate(`/app/m/runly.pos/pos/terminal?order=${orderId}`)
           },
         }
       )

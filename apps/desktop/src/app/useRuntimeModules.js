@@ -28,12 +28,12 @@ export function useRuntimeModules() {
     [modulesQuery.data],
   );
 
-  // atlas.company's color is always the live company primary color so every
+  // runly.company's color is always the live company primary color so every
   // consumer (cards, sidebar, home screen, module outlet) stays in sync.
   const runtimeModulesResolved = useMemo(() => {
     if (!companyPrimaryColor) return runtimeModules;
     return runtimeModules.map((m) =>
-      getLegacyModuleKey(m.key) === "atlas.company" ? { ...m, color: companyPrimaryColor } : m,
+      getLegacyModuleKey(m.key) === "runly.company" ? { ...m, color: companyPrimaryColor } : m,
     );
   }, [runtimeModules, companyPrimaryColor]);
 

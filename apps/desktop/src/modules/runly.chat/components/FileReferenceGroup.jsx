@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.chat/components/FileReferenceGroup.jsx
 // Renders every "file" entity reference in a message (links to existing
-// atlas.files records, attached via the composer's entity-ref picker) as a
+// runly.files records, attached via the composer's entity-ref picker) as a
 // single group — instead of the generic EntityReferenceCard link chip.
 // Mirrors AttachmentsBlock/ImageGrid's layout for real attachments: images
 // lay out in a grid (1 / 2 side-by-side / 1+2 / 2x2+overflow). Clicks bubble
@@ -31,7 +31,7 @@ import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
 import { buildFileAssetOfficeActions } from "../lib/officeFileActions";
 
 // Right-click / long-press menu shared by both the image tiles and the file
-// rows of a file-reference group. Entity references are real atlas.files
+// rows of a file-reference group. Entity references are real runly.files
 // records, so "Abrir en editor de Office" reuses the existing office.open()
 // route; "Abrir en pestaña nueva" / "Descargar" resolve a `full` signed URL
 // lazily (never on mount — see useFileRefSignedUrl's enabled:false).

@@ -5,7 +5,7 @@ function handleError(c, err) {
   if (err instanceof CommentsServiceError) {
     return c.json({ error: err.message }, err.status);
   }
-  console.error('[atlas.growth] comments error', err);
+  console.error('[runly.growth] comments error', err);
   return c.json({ error: 'Error interno al procesar el comentario.' }, 500);
 }
 

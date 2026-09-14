@@ -144,7 +144,7 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
 
   function handleSelect(conv) {
     if (isMobile) {
-      navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`);
+      navigate(`/app/m/runly.chat/chat/inbox/${conv.id}`);
       close();
     } else {
       openChat(conv);
@@ -152,19 +152,19 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
   }
 
   function handleSelectExternal() {
-    navigate("/app/m/atlas.chat/chat/external");
+    navigate("/app/m/runly.chat/chat/external");
     close();
   }
 
   function handleViewAll() {
-    navigate("/app/m/atlas.chat/chat/inbox");
+    navigate("/app/m/runly.chat/chat/inbox");
     close();
   }
 
   function handleCreated(conv) {
     if (conv?.id) {
       if (isMobile) {
-        navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`);
+        navigate(`/app/m/runly.chat/chat/inbox/${conv.id}`);
       } else {
         openChat(conv);
       }

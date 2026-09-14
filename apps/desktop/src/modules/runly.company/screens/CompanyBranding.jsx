@@ -402,7 +402,7 @@ export default function CompanyBranding() {
     mutationFn: async (file) => {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("moduleKey", "atlas.company");
+      formData.append("moduleKey", "runly.company");
       formData.append("entityType", "BrandingConfig");
       const uploaded = await runly.files.upload(formData, token);
       const uploadedFile = uploaded?.data;

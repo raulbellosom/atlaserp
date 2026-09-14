@@ -121,7 +121,7 @@ export default function ProjectsScreen() {
   const linkedChannelQuery = useQuery({
     queryKey: ["project-linked-channel", effectiveId],
     queryFn: async () => {
-      const res = await runly.chat.getLinkedChannel("atlas.projects", effectiveId, token);
+      const res = await runly.chat.getLinkedChannel("runly.projects", effectiveId, token);
       return res?.data ?? null;
     },
     enabled: Boolean(effectiveId && token),
@@ -138,7 +138,7 @@ export default function ProjectsScreen() {
       return runly.chat.createChannel(
         {
           title: selectedProject?.name ?? "Proyecto",
-          linkedModule: "atlas.projects",
+          linkedModule: "runly.projects",
           linkedEntityId: effectiveId,
           memberUserIds,
         },
@@ -148,7 +148,7 @@ export default function ProjectsScreen() {
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["project-linked-channel", effectiveId] });
       const conversationId = res?.data?.id;
-      if (conversationId) navigate(`/app/m/atlas.chat/chat/inbox/${conversationId}`);
+      if (conversationId) navigate(`/app/m/runly.chat/chat/inbox/${conversationId}`);
     },
     onError: () => toast.error("No se pudo crear el canal."),
   });
@@ -156,7 +156,7 @@ export default function ProjectsScreen() {
   function handleChatChannelClick() {
     const existing = linkedChannelQuery.data;
     if (existing?.id) {
-      navigate(`/app/m/atlas.chat/chat/inbox/${existing.id}`);
+      navigate(`/app/m/runly.chat/chat/inbox/${existing.id}`);
     } else {
       createChannelMutation.mutate();
     }

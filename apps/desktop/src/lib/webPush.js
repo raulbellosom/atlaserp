@@ -1,7 +1,7 @@
 import { runly } from "./runly.js";
 import { isNative } from '@runly/core/native-runtime';
 
-const STORAGE_KEY = "atlas.notifications.webpush.subscriptionId";
+const STORAGE_KEY = "runly.notifications.webpush.subscriptionId";
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

@@ -236,7 +236,7 @@ export default function GrowthLeadDetailScreen() {
       removePath: "/growth/leads/:id/files/:docId",
       upload: {
         endpoint: "/files/upload",
-        moduleKey: "atlas.growth",
+        moduleKey: "runly.growth",
         entityType: "GrowthLead",
       },
       fields: {
@@ -302,7 +302,7 @@ export default function GrowthLeadDetailScreen() {
           <>
             <Button
               variant="outline"
-              onClick={() => navigate("/app/m/atlas.growth/leads")}
+              onClick={() => navigate("/app/m/runly.growth/leads")}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Volver
@@ -430,7 +430,7 @@ export default function GrowthLeadDetailScreen() {
                 showViewToggle
                 defaultViewMode="grid"
                 canRemoveItem={(item) =>
-                  item.raw?.moduleKey === "atlas.growth"
+                  item.raw?.moduleKey === "runly.growth"
                 }
                 onError={handleAttachmentsError}
                 prefetchedData={Array.isArray(filesData) ? filesData : filesData?.data}

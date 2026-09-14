@@ -167,7 +167,7 @@ export default function WebsiteBlogScreen() {
                       key={post.id}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(`/app/m/atlas.website/blog/${post.id}/editor`)
+                        navigate(`/app/m/runly.website/blog/${post.id}/editor`)
                       }
                     >
                       <TableCell className="font-medium text-[hsl(var(--foreground))]">
@@ -190,7 +190,7 @@ export default function WebsiteBlogScreen() {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(
-                                `/app/m/atlas.website/blog/${post.id}/editor`,
+                                `/app/m/runly.website/blog/${post.id}/editor`,
                               );
                             }}
                             className="text-xs text-[hsl(var(--primary))] hover:underline"
@@ -224,7 +224,7 @@ export default function WebsiteBlogScreen() {
         onOpenChange={setDialogOpen}
         onCreated={(post) => {
           queryClient.invalidateQueries({ queryKey: ["blog-posts", siteId] });
-          navigate(`/app/m/atlas.website/blog/${post.id}/editor`);
+          navigate(`/app/m/runly.website/blog/${post.id}/editor`);
         }}
       />
 

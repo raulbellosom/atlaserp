@@ -65,7 +65,7 @@ export default function EventDetailModal({
   const calColor = event.color || event.calendar?.color || "#6B46C1";
   const reminderMinutes = getPrimaryReminderMinutes(event);
   const reminderClock = formatReminderClock(event, reminderMinutes);
-  const isChatMeeting = event.sourceModule === "atlas.chat" && Boolean(event.sourceEntityId);
+  const isChatMeeting = event.sourceModule === "runly.chat" && Boolean(event.sourceEntityId);
   const deleteTitle = event._isRecurrenceInstance
     ? "Eliminar serie"
     : "Eliminar evento";

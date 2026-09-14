@@ -163,8 +163,8 @@ export default function TemplatePreviewScreen() {
       const msg = `${created} pagina${created !== 1 ? 's' : ''} creada${created !== 1 ? 's' : ''}`
       const skip = skipped > 0 ? ` · ${skipped} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)` : ''
       toast.success(msg + skip)
-      if (firstPageId) navigate(`/app/m/atlas.website/pages/${firstPageId}/editor`)
-      else navigate('/app/m/atlas.website/pages')
+      if (firstPageId) navigate(`/app/m/runly.website/pages/${firstPageId}/editor`)
+      else navigate('/app/m/runly.website/pages')
     },
     onError: (err) => toast.error(err.message),
   })
@@ -173,7 +173,7 @@ export default function TemplatePreviewScreen() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Plantilla no encontrada.</p>
-        <Button variant="outline" onClick={() => navigate('/app/m/atlas.website/templates')}>
+        <Button variant="outline" onClick={() => navigate('/app/m/runly.website/templates')}>
           Volver a plantillas
         </Button>
       </div>
@@ -197,7 +197,7 @@ export default function TemplatePreviewScreen() {
         {/* Header */}
         <div className="p-4 border-b border-[hsl(var(--border))]">
           <button
-            onClick={() => navigate('/app/m/atlas.website/templates')}
+            onClick={() => navigate('/app/m/runly.website/templates')}
             className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors mb-3 cursor-pointer"
           >
             <ArrowLeft size={13} />

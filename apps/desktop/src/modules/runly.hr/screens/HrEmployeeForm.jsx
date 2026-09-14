@@ -198,7 +198,7 @@ function FilesPanel({ employeeId, token }) {
     queryFn: () =>
       runly.files.list(
         {
-          moduleKey: "atlas.hr",
+          moduleKey: "runly.hr",
           entityType: "HrEmployee",
           sourceEntityId: employeeId,
           pageSize: 100,
@@ -218,7 +218,7 @@ function FilesPanel({ employeeId, token }) {
         }
         const fd = new FormData();
         fd.append("file", file);
-        fd.append("moduleKey", "atlas.hr");
+        fd.append("moduleKey", "runly.hr");
         fd.append("entityType", "HrEmployee");
         fd.append("entityId", employeeId);
         await runly.files.upload(fd, token);
@@ -629,7 +629,7 @@ export default function HrEmployeeForm({ employeeId }) {
       });
       queryClient.invalidateQueries({ queryKey: ["hr-employees"] });
       queryClient.invalidateQueries({ queryKey: ["hr-employee", employeeId] });
-      navigate(`/app/m/atlas.hr/hr/employees/${savedId}`);
+      navigate(`/app/m/runly.hr/hr/employees/${savedId}`);
     },
     onError: (err, _vars, toastId) => {
       toast.error(err?.message || "No se pudo guardar el colaborador", {
@@ -644,7 +644,7 @@ export default function HrEmployeeForm({ employeeId }) {
         throw new Error("Primero guarda el colaborador para cargar la foto.");
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("moduleKey", "atlas.hr");
+      fd.append("moduleKey", "runly.hr");
       fd.append("entityType", "HrEmployee");
       fd.append("entityId", selected.id);
       const upload = await runly.files.upload(fd, token);
@@ -724,8 +724,8 @@ export default function HrEmployeeForm({ employeeId }) {
   }
 
   function handleCancel() {
-    if (isNew) navigate("/app/m/atlas.hr/hr/employees");
-    else navigate(`/app/m/atlas.hr/hr/employees/${employeeId}`);
+    if (isNew) navigate("/app/m/runly.hr/hr/employees");
+    else navigate(`/app/m/runly.hr/hr/employees/${employeeId}`);
   }
 
   const canSubmit = isNew ? canCreate : canUpdate;
@@ -853,7 +853,7 @@ export default function HrEmployeeForm({ employeeId }) {
               type="button"
               className="font-medium text-[hsl(var(--primary))] hover:underline"
               onClick={() =>
-                navigate("/app/m/atlas.identity/identity/users/new")
+                navigate("/app/m/runly.identity/identity/users/new")
               }
             >
               Crear usuario

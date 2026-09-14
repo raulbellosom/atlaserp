@@ -120,7 +120,7 @@ export default function UserEditorScreen() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       toast.success("Usuario eliminado");
-      navigate("/app/m/atlas.identity/identity/users");
+      navigate("/app/m/runly.identity/identity/users");
     },
     onError: (err) => {
       try {
@@ -258,7 +258,7 @@ export default function UserEditorScreen() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => navigate("/app/m/atlas.identity/identity/users")}
+              onClick={() => navigate("/app/m/runly.identity/identity/users")}
             >
               <ArrowLeft className="h-4 w-4" />
               Volver a usuarios
@@ -268,13 +268,13 @@ export default function UserEditorScreen() {
               (isEditRoute ? (
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/app/m/atlas.identity/identity/users/${user.id}`)}
+                  onClick={() => navigate(`/app/m/runly.identity/identity/users/${user.id}`)}
                 >
                   Ver detalle
                 </Button>
               ) : (
                 <Button
-                  onClick={() => navigate(`/app/m/atlas.identity/identity/users/${user.id}/edit`)}
+                  onClick={() => navigate(`/app/m/runly.identity/identity/users/${user.id}/edit`)}
                 >
                   <Pencil className="h-4 w-4" />
                   Editar

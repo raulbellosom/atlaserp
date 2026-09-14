@@ -1,10 +1,10 @@
 const MODULE_LABELS = {
-  "atlas.core": "Runly Core",
-  "atlas.identity": "Identidad",
-  "atlas.files": "Archivos",
-  "atlas.company": "Empresa",
-  "atlas.contacts": "Contactos",
-  "atlas.hr": "Recursos Humanos",
+  "runly.core": "Runly Core",
+  "runly.identity": "Identidad",
+  "runly.files": "Archivos",
+  "runly.company": "Empresa",
+  "runly.contacts": "Contactos",
+  "runly.hr": "Recursos Humanos",
 };
 
 function getModuleLabel(moduleKey) {
@@ -12,50 +12,50 @@ function getModuleLabel(moduleKey) {
 }
 
 export function resolveFileOrigin(file) {
-  const detailPath = `/app/m/atlas.files/files/${file?.id ?? ""}`;
-  const moduleKey = file?.moduleKey ?? "atlas.files";
+  const detailPath = `/app/m/runly.files/files/${file?.id ?? ""}`;
+  const moduleKey = file?.moduleKey ?? "runly.files";
   const sourceEntityId = file?.metadata?.sourceEntityId ?? null;
 
-  if (moduleKey === "atlas.company") {
+  if (moduleKey === "runly.company") {
     return {
       label: "Logo de empresa",
       moduleLabel: getModuleLabel(moduleKey),
       detailPath,
-      originPath: "/app/m/atlas.company/company/branding",
+      originPath: "/app/m/runly.company/company/branding",
       originHint: "Logotipo y colores de marca",
     };
   }
 
-  if (moduleKey === "atlas.contacts") {
+  if (moduleKey === "runly.contacts") {
     return {
       label: "Modulo de contactos",
       moduleLabel: getModuleLabel(moduleKey),
       detailPath,
-      originPath: "/app/m/atlas.contacts/contacts",
+      originPath: "/app/m/runly.contacts/contacts",
       originHint: sourceEntityId
         ? `Relacionado con contacto ${sourceEntityId}`
         : "Relacionado con contactos",
     };
   }
 
-  if (moduleKey === "atlas.files") {
+  if (moduleKey === "runly.files") {
     return {
       label: "Modulo de archivos",
       moduleLabel: getModuleLabel(moduleKey),
       detailPath,
-      originPath: "/app/m/atlas.files/files",
+      originPath: "/app/m/runly.files/files",
       originHint: "Archivo cargado desde el explorador",
     };
   }
 
-  if (moduleKey === "atlas.hr") {
+  if (moduleKey === "runly.hr") {
     return {
       label: "Modulo de RH",
       moduleLabel: getModuleLabel(moduleKey),
       detailPath,
       originPath: sourceEntityId
-        ? `/app/m/atlas.hr/hr/employees/${sourceEntityId}`
-        : "/app/m/atlas.hr/hr/employees",
+        ? `/app/m/runly.hr/hr/employees/${sourceEntityId}`
+        : "/app/m/runly.hr/hr/employees",
       originHint: sourceEntityId
         ? `Relacionado con colaborador ${sourceEntityId}`
         : "Relacionado con colaboradores",

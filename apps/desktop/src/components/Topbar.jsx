@@ -168,7 +168,7 @@ export function Topbar({
                 sdk={runly}
                 token={token}
                 onSelect={setSelectedActivity}
-                onSeeAll={() => navigate("/app/m/atlas.activity")}
+                onSeeAll={() => navigate("/app/m/runly.activity")}
               />
             </span>
           )}
@@ -184,7 +184,7 @@ export function Topbar({
             <NotificationBell
               token={token}
               onNavigate={handleNotificationNavigate}
-              onSeeAll={() => navigate("/app/m/atlas.notifications")}
+              onSeeAll={() => navigate("/app/m/runly.notifications")}
             />
           )}
           {canInstall && activeModuleKey && (
@@ -203,7 +203,7 @@ export function Topbar({
             manualInstallReady={manualInstallReady}
             onInstall={onInstall}
             canReadActivity={canReadActivity}
-            onActivityOpen={() => navigate("/app/m/atlas.activity")}
+            onActivityOpen={() => navigate("/app/m/runly.activity")}
           />
         </div>
       </div>

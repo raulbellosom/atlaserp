@@ -60,7 +60,7 @@ function OrderDetailPanel({ orderId, onClose }) {
 
   function handleOpenInTerminal() {
     onClose()
-    navigate(`/app/m/atlas.pos/pos/terminal?order=${order.id}`)
+    navigate(`/app/m/runly.pos/pos/terminal?order=${order.id}`)
   }
 
   const body = (

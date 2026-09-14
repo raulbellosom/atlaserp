@@ -90,7 +90,7 @@ export function RealtimeProvider({ children }) {
           const convId = payload?.conversationId
           const openChats = useChatFloatStore.getState().openChats
           const isOpenAndVisible = convId && openChats.some((c) => c.id === convId && !c.minimized)
-          const isOnRoute = convId && window.location.pathname.includes(`/atlas.chat/chat/inbox/${convId}`)
+          const isOnRoute = convId && window.location.pathname.includes(`/runly.chat/chat/inbox/${convId}`)
           const cachedConversations = queryClient.getQueryData(['chat-conversations'])?.data ?? []
           const isMuted = convId && cachedConversations.some((c) => c.id === convId && c.is_muted)
           const dupKey = convId ? `c:chat.message.new|${payload.senderName}|${convId}` : null
@@ -100,7 +100,7 @@ export function RealtimeProvider({ children }) {
               duration: 5000,
               action: convId ? {
                 label: 'Ver',
-                onClick: () => navigate(`/app/m/atlas.chat/chat/inbox/${convId}`),
+                onClick: () => navigate(`/app/m/runly.chat/chat/inbox/${convId}`),
               } : undefined,
             })
           }

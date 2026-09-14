@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.pfm/components/PfmAssistantSidebar.jsx
 //
-// Collapsible right-hand sidebar for the atlas.pfm module. Mounted once by
-// ModuleOutlet while moduleKey === "atlas.pfm", so its state (open/closed,
+// Collapsible right-hand sidebar for the runly.pfm module. Mounted once by
+// ModuleOutlet while moduleKey === "runly.pfm", so its state (open/closed,
 // current thread, in-flight turn) survives navigation between PFM screens.
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";

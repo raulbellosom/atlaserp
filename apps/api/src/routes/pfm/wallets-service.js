@@ -215,7 +215,7 @@ export function createWalletsService({ prisma, calendarBridge = null }) {
       try {
         await calendarBridge.syncCreditReminder(normalizeWalletRow(wallet));
       } catch (err) {
-        console.error("[atlas.pfm] credit reminder sync failed", err?.message ?? err);
+        console.error("[runly.pfm] credit reminder sync failed", err?.message ?? err);
       }
     }
     return getWallet({ companyId, walletId: wallet.id, actorId });

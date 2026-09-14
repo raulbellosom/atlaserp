@@ -141,7 +141,7 @@ export function createCollaborationService({ prisma }) {
       actorId,
       input: {
         eventType: 'ledger.account_invite',
-        link: `/app/m/atlas.ledger/accounts/${accountId}`,
+        link: `/app/m/runly.ledger/accounts/${accountId}`,
         title: `Te compartieron la cuenta "${account.name}"`,
         body: `Rol asignado: ${role}`,
         recipients: { userIds: [targetUserId] },
@@ -191,7 +191,7 @@ export function createCollaborationService({ prisma }) {
         actorId,
         input: {
           eventType: 'ledger.access_revoked',
-          link: '/app/m/atlas.ledger/memberships',
+          link: '/app/m/runly.ledger/memberships',
           title: 'Se revocó tu acceso',
           body: `Ya no tienes acceso a la cuenta "${account.name}"`,
           recipients: { userIds: [targetUserId] },

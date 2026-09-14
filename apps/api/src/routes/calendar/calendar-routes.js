@@ -36,7 +36,7 @@ function handleError(c, err, fallback) {
     return c.json({ error: err.message || fallback }, err.status);
   }
   if (process.env.NODE_ENV !== "production")
-    console.error("[atlas.calendar]", err);
+    console.error("[runly.calendar]", err);
   return c.json({ error: fallback }, 500);
 }
 
@@ -530,7 +530,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
 
               if (process.env.NODE_ENV !== "production") {
                 console.error(
-                  "[atlas.calendar] google initial import dispatch failed",
+                  "[runly.calendar] google initial import dispatch failed",
                   error,
                 );
               }
@@ -642,7 +642,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
           entityType: "CalendarEvent",
           entityId: event.id,
           summary: `${actorName} creó el evento "${event.title ?? ""}"`.trim(),
-          link: `/app/m/atlas.calendar?eventId=${event.id}`,
+          link: `/app/m/runly.calendar?eventId=${event.id}`,
           payload: {
             title: event.title ?? null,
             calendarId: event.calendarId ?? null,
@@ -658,7 +658,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
             eventType: "calendar.event.invite",
             title: `Invitacion: ${event.title ?? "Evento"}`,
             body: `${actorName} te invito a un evento del calendario.`,
-            link: `/app/m/atlas.calendar?eventId=${event.id}`,
+            link: `/app/m/runly.calendar?eventId=${event.id}`,
             recipients: { userIds: attendeeUserIds },
             channels: ["in_app", "email", "web_push"],
             priority: "high",
@@ -742,7 +742,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
           entityId: event.id,
           summary:
             `${actorName} actualizó el evento "${event.title ?? ""}"`.trim(),
-          link: `/app/m/atlas.calendar?eventId=${event.id}`,
+          link: `/app/m/runly.calendar?eventId=${event.id}`,
           payload,
         });
         const attendeeUserIds = toAttendeeUserIds(event, userId);
@@ -757,7 +757,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
             eventType: "calendar.event.reschedule",
             title: `Evento actualizado: ${event.title ?? "Calendario"}`,
             body: `${actorName} actualizo horario o detalles del evento.`,
-            link: `/app/m/atlas.calendar?eventId=${event.id}`,
+            link: `/app/m/runly.calendar?eventId=${event.id}`,
             recipients: { userIds: attendeeUserIds },
             channels: ["in_app", "email", "web_push"],
             priority: "high",
@@ -814,7 +814,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
             eventType: "calendar.event.cancel",
             title: `Evento cancelado: ${title || "Calendario"}`,
             body: `${actorName} cancelo un evento programado.`,
-            link: "/app/m/atlas.calendar",
+            link: "/app/m/runly.calendar",
             recipients: { userIds: attendeeUserIds },
             channels: ["in_app", "email", "web_push"],
             priority: "high",
@@ -855,7 +855,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
           eventType: "calendar.event.invite",
           title: `Invitacion: ${event.title ?? "Evento"}`,
           body: `${actorName} te invito a un evento del calendario.`,
-          link: `/app/m/atlas.calendar?eventId=${event.id}`,
+          link: `/app/m/runly.calendar?eventId=${event.id}`,
           recipients: { userIds: [user_id] },
           channels: ["in_app", "email", "web_push"],
           priority: "high",

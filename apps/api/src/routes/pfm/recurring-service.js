@@ -211,7 +211,7 @@ export function createRecurringService({ prisma, wallets, calendarBridge }) {
       try {
         created += await materializeRule(rule, { now, horizonDays });
       } catch (err) {
-        console.error("[atlas.pfm] materializeRule failed", rule.id, err?.message ?? err);
+        console.error("[runly.pfm] materializeRule failed", rule.id, err?.message ?? err);
       }
     }
     return { processed: dueRules.length, created };
@@ -221,7 +221,7 @@ export function createRecurringService({ prisma, wallets, calendarBridge }) {
     try {
       await fn();
     } catch (err) {
-      console.error("[atlas.pfm] calendar bridge failed", err?.message ?? err);
+      console.error("[runly.pfm] calendar bridge failed", err?.message ?? err);
     }
   }
 

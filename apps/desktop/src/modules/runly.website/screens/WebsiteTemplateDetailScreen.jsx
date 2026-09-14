@@ -61,7 +61,7 @@ export default function WebsiteTemplateDetailScreen() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/app/m/atlas.website/templates')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/app/m/runly.website/templates')}>
           <ArrowLeft size={14} className="mr-1"/>
           Plantillas
         </Button>

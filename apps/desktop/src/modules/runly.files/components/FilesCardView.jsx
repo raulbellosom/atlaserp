@@ -75,7 +75,7 @@ export function FilesCardView({
             <Badge variant={file.enabled ? "success" : "secondary"}>
               {file.enabled ? "Activo" : "Deshabilitado"}
             </Badge>
-            <Badge variant="outline">{file.moduleKey || "atlas.files"}</Badge>
+            <Badge variant="outline">{file.moduleKey || "runly.files"}</Badge>
           </div>
           <div className="flex flex-wrap gap-1.5">
             <Button size="sm" variant="ghost" onClick={() => onPreview(file)}>

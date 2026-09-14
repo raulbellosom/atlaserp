@@ -141,7 +141,7 @@ export default function WebsiteWizard() {
       if (finalData.identity.logoFile) {
         const formData = new FormData();
         formData.append("file", finalData.identity.logoFile);
-        formData.append("moduleKey", "atlas.website");
+        formData.append("moduleKey", "runly.website");
         formData.append("entityType", "WebsiteSite");
         const uploadRes = await fetch(`${getApiUrl()}/files/upload`, {
           method: "POST",
@@ -208,11 +208,11 @@ export default function WebsiteWizard() {
       toast.success("Sitio creado correctamente", { id: ctx.toastId });
       queryClient.invalidateQueries({ queryKey: ["website-site"] });
       if (mode === "zip") {
-        navigate("/app/m/atlas.website/settings");
+        navigate("/app/m/runly.website/settings");
       } else if (firstPageId) {
-        navigate(`/app/m/atlas.website/pages/${firstPageId}/editor`);
+        navigate(`/app/m/runly.website/pages/${firstPageId}/editor`);
       } else {
-        navigate("/app/m/atlas.website/pages");
+        navigate("/app/m/runly.website/pages");
       }
     },
     onError: (err, _vars, ctx) => toast.error(err.message, { id: ctx.toastId }),

@@ -1,6 +1,6 @@
 import { createModuleComponentRegistry } from "./module-component-registry-core.js";
 
-// atlas.fleet static cell components (migrated from bundle to static import)
+// runly.fleet static cell components (migrated from bundle to static import)
 import VehicleStatusBadge from "../modules/runly.fleet/components/VehicleStatusBadge.jsx";
 import DriverStatusBadge from "../modules/runly.fleet/components/DriverStatusBadge.jsx";
 import DriverLicenseBadge from "../modules/runly.fleet/components/DriverLicenseBadge.jsx";
@@ -26,28 +26,28 @@ export const componentRegistry = createModuleComponentRegistry({
   warn: warnDev,
 });
 
-// Static registration for atlas.fleet core module components
+// Static registration for runly.fleet core module components
 componentRegistry.register(
-  "atlas.fleet:VehicleStatusBadge",
+  "runly.fleet:VehicleStatusBadge",
   VehicleStatusBadge,
 );
-componentRegistry.register("atlas.fleet:DriverStatusBadge", DriverStatusBadge);
-componentRegistry.register("atlas.fleet:DriverLicenseBadge", DriverLicenseBadge);
-componentRegistry.register("atlas.fleet:ReportStatusBadge", ReportStatusBadge);
-componentRegistry.register("atlas.fleet:DriverAvatarCell", DriverAvatarCell);
+componentRegistry.register("runly.fleet:DriverStatusBadge", DriverStatusBadge);
+componentRegistry.register("runly.fleet:DriverLicenseBadge", DriverLicenseBadge);
+componentRegistry.register("runly.fleet:ReportStatusBadge", ReportStatusBadge);
+componentRegistry.register("runly.fleet:DriverAvatarCell", DriverAvatarCell);
 componentRegistry.register(
-  "atlas.fleet:DriverAssignedVehicleCell",
+  "runly.fleet:DriverAssignedVehicleCell",
   DriverAssignedVehicleCell,
 );
-componentRegistry.register("atlas.fleet:VehicleImageCell", VehicleImageCell);
+componentRegistry.register("runly.fleet:VehicleImageCell", VehicleImageCell);
 componentRegistry.register(
-  "atlas.fleet:InsuranceBadgeCell",
+  "runly.fleet:InsuranceBadgeCell",
   InsuranceBadgeCell,
 );
-componentRegistry.register("atlas.fleet:CoverageTypeBadge", CoverageTypeBadge);
+componentRegistry.register("runly.fleet:CoverageTypeBadge", CoverageTypeBadge);
 
-componentRegistry.register("atlas.growth:LeadStatusBadge", LeadStatusBadge);
-componentRegistry.register("atlas.growth:LeadPriorityBadge", LeadPriorityBadge);
+componentRegistry.register("runly.growth:LeadStatusBadge", LeadStatusBadge);
+componentRegistry.register("runly.growth:LeadPriorityBadge", LeadPriorityBadge);
 
 // Dynamic bundle registration is done at runtime by ModuleBundleLoader
 // for modules that still use the bundle system (has_bundle=true).

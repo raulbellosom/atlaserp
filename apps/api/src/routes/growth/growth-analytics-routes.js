@@ -28,7 +28,7 @@ function handleError(c, error) {
   if (error instanceof GrowthAnalyticsServiceError) {
     return c.json({ error: error.message, code: error.code }, error.status);
   }
-  console.error("[atlas.growth.analytics]", error);
+  console.error("[runly.growth.analytics]", error);
   return c.json({ error: "Error interno de analitica Growth." }, 500);
 }
 

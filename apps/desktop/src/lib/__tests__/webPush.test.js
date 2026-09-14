@@ -28,7 +28,7 @@ test("clears stale stored subscription id when browser has no active push subscr
 
   const mockedWindow = {
     localStorage: createLocalStorageMock({
-      "atlas.notifications.webpush.subscriptionId": "server-sub-1",
+      "runly.notifications.webpush.subscriptionId": "server-sub-1",
     }),
     PushManager: class PushManagerMock {},
     Notification: { permission: "granted" },
@@ -90,7 +90,7 @@ test("returns the active browser subscription when present", async () => {
 
   const mockedWindow = {
     localStorage: createLocalStorageMock({
-      "atlas.notifications.webpush.subscriptionId": "server-sub-2",
+      "runly.notifications.webpush.subscriptionId": "server-sub-2",
     }),
     PushManager: class PushManagerMock {},
     Notification: { permission: "granted" },

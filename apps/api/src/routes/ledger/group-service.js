@@ -192,7 +192,7 @@ export function createGroupService({ prisma }) {
       actorId,
       input: {
         eventType: 'ledger.group_invite',
-        link: `/app/m/atlas.ledger/groups/${groupId}`,
+        link: `/app/m/runly.ledger/groups/${groupId}`,
         title: `Te invitaron al grupo "${group.name}"`,
         body: `Rol asignado: ${role}`,
         recipients: { userIds: [targetUserId] },
@@ -242,7 +242,7 @@ export function createGroupService({ prisma }) {
         actorId,
         input: {
           eventType: 'ledger.access_revoked',
-          link: '/app/m/atlas.ledger/memberships',
+          link: '/app/m/runly.ledger/memberships',
           title: 'Se revocó tu acceso',
           body: `Ya no tienes acceso al grupo "${group.name}"`,
           recipients: { userIds: [targetUserId] },

@@ -103,7 +103,7 @@ export function createProjectsCalendarBridge({ prisma }) {
         startAt,
         endAt,
         allDay: true,
-        sourceModule: "atlas.projects",
+        sourceModule: "runly.projects",
         sourceEntityId: task.id,
       };
       if (task.calendarEventId) {

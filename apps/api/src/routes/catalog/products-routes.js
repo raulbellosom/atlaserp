@@ -56,7 +56,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
         entityType: 'CatalogProduct',
         entityId: row.id,
         summary: `${actorName} creó el producto "${row.name}"`,
-        link: `/m/atlas.catalog/${row.id}`,
+        link: `/m/runly.catalog/${row.id}`,
       })
       return c.json({ data: row }, 201)
     } catch (err) {
@@ -81,7 +81,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
         entityType: 'CatalogProduct',
         entityId: row.id,
         summary: `${actorName} actualizó el producto "${row.name}"`,
-        link: `/m/atlas.catalog/${row.id}`,
+        link: `/m/runly.catalog/${row.id}`,
       })
       return c.json({ data: row })
     } catch (err) {
@@ -104,7 +104,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
         entityType: 'CatalogProduct',
         entityId: row.id,
         summary: `${actorName} publicó el producto "${row.name}"`,
-        link: `/m/atlas.catalog/${row.id}`,
+        link: `/m/runly.catalog/${row.id}`,
       })
       return c.json({ data: row })
     } catch (err) {
@@ -126,7 +126,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
         entityType: 'CatalogProduct',
         entityId: row.id,
         summary: `${actorName} despublicó el producto "${row.name}"`,
-        link: `/m/atlas.catalog/${row.id}`,
+        link: `/m/runly.catalog/${row.id}`,
       })
       return c.json({ data: row })
     } catch (err) {

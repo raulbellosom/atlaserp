@@ -1,4 +1,4 @@
-// Registry key: atlas.fleet:ReportStatusBadge
+// Registry key: runly.fleet:ReportStatusBadge
 // Props: { status: 'draft' | 'finalized' }
 import { Badge } from "@runly/ui";
 

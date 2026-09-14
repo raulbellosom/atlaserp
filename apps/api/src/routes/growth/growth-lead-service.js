@@ -159,7 +159,7 @@ export function createGrowthLeadService({
               ? "Nuevo lead asignado"
               : "Lead asignado",
           body: lead.name || lead.email || "Lead web",
-          link: `/app/m/atlas.growth/leads/${lead.id}`,
+          link: `/app/m/runly.growth/leads/${lead.id}`,
           recipients: { userIds: [lead.assigneeUserId] },
           channels: ["in_app", "email", "web_push"],
           priority: lead.priority === "high" ? "high" : "medium",

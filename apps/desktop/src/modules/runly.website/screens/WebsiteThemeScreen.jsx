@@ -186,7 +186,7 @@ export default function WebsiteThemeScreen() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate("/app/m/atlas.website/templates")}
+            onClick={() => navigate("/app/m/runly.website/templates")}
           >
             Cambiar plantilla
           </Button>

@@ -49,7 +49,7 @@ function handleRouteError(
   if (err instanceof FleetServiceError)
     return c.json({ error: err.message }, err.status);
   if (process.env.NODE_ENV !== "production") {
-    console.error("[atlas.fleet] route error", {
+    console.error("[runly.fleet] route error", {
       route,
       moduleKey,
       operation,
@@ -66,7 +66,7 @@ export function createInsuranceRouter({
 }) {
   const app = new Hono();
   const service = createInsuranceService({ prisma });
-  const moduleKey = moduleContext?.moduleKey ?? "atlas.fleet";
+  const moduleKey = moduleContext?.moduleKey ?? "runly.fleet";
 
   // GET /fleet/insurance/export
   app.get(

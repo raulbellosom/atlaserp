@@ -68,7 +68,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
         entityType: 'CatalogCategory',
         entityId: row.id,
         summary: `${actorName} creó la categoría "${row.name}"`,
-        link: `/m/atlas.catalog/categories`,
+        link: `/m/runly.catalog/categories`,
       })
       return c.json({ data: row }, 201)
     } catch (err) {
@@ -93,7 +93,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
         entityType: 'CatalogCategory',
         entityId: row.id,
         summary: `${actorName} actualizó la categoría "${row.name}"`,
-        link: `/m/atlas.catalog/categories`,
+        link: `/m/runly.catalog/categories`,
       })
       return c.json({ data: row })
     } catch (err) {
@@ -116,7 +116,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
         entityType: 'CatalogCategory',
         entityId: c.req.param('id'),
         summary: `${actorName} eliminó la categoría "${existing?.name ?? c.req.param('id')}"`,
-        link: `/m/atlas.catalog/categories`,
+        link: `/m/runly.catalog/categories`,
       })
       return c.json({ ok: true })
     } catch (err) {

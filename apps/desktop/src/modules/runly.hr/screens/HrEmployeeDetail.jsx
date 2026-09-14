@@ -397,7 +397,7 @@ function OrgChartPanel({ employee }) {
               lastName={supervisor.lastName}
               status={supervisor.status}
               onClick={() =>
-                navigate(`/app/m/atlas.hr/hr/employees/${supervisor.id}`)
+                navigate(`/app/m/runly.hr/hr/employees/${supervisor.id}`)
               }
             />
             <OrgConnector />
@@ -434,7 +434,7 @@ function OrgChartPanel({ employee }) {
                   lastName={r.lastName}
                   status={r.status}
                   onClick={() =>
-                    navigate(`/app/m/atlas.hr/hr/employees/${r.id}`)
+                    navigate(`/app/m/runly.hr/hr/employees/${r.id}`)
                   }
                 />
               ))}
@@ -468,7 +468,7 @@ function FilesPanel({ employeeId, token }) {
     queryFn: () =>
       runly.files.list(
         {
-          moduleKey: "atlas.hr",
+          moduleKey: "runly.hr",
           entityType: "HrEmployee",
           sourceEntityId: employeeId,
           pageSize: 100,
@@ -884,7 +884,7 @@ export default function HrEmployeeDetail({ employeeId }) {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => navigate("/app/m/atlas.hr/hr/employees")}
+          onClick={() => navigate("/app/m/runly.hr/hr/employees")}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver
@@ -928,7 +928,7 @@ export default function HrEmployeeDetail({ employeeId }) {
       {/* back */}
       <button
         type="button"
-        onClick={() => navigate("/app/m/atlas.hr/hr/employees")}
+        onClick={() => navigate("/app/m/runly.hr/hr/employees")}
         className="inline-flex items-center gap-1.5 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -1014,7 +1014,7 @@ export default function HrEmployeeDetail({ employeeId }) {
               <Button
                 variant="outline"
                 onClick={() =>
-                  navigate(`/app/m/atlas.hr/hr/employees/${employeeId}/edit`)
+                  navigate(`/app/m/runly.hr/hr/employees/${employeeId}/edit`)
                 }
               >
                 <Edit3 className="mr-2 h-4 w-4" />

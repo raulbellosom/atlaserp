@@ -158,9 +158,9 @@ export function ConversationProfilePanel({
 
   // Resolve a signed avatar URL at a given variant. Direct chats go through
   // the chat-specific member-avatar endpoint — the generic files endpoint
-  // (atlas.files.getSignedUrl) 404s on identity avatar files, and the identity
+  // (runly.files.getSignedUrl) 404s on identity avatar files, and the identity
   // endpoint needs a permission chat users lack. Group/channel avatars are
-  // real company files, so those still resolve through atlas.files.
+  // real company files, so those still resolve through runly.files.
   const resolveAvatarSignedUrl = useCallback(
     async (variant) => {
       const token = session?.access_token;

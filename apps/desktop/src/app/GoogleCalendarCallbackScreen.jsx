@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { AppLoader } from '../components/AppLoader'
 import { useFinishGoogleCalendarConnect } from '../modules/runly.calendar/hooks/useGoogleCalendarData'
 
-const CALENDAR_RETURN_PATH = '/app/m/atlas.calendar/calendar'
+const CALENDAR_RETURN_PATH = '/app/m/runly.calendar/calendar'
 
 function buildGoogleErrorMessage(errorCode) {
   if (errorCode === 'access_denied') {

@@ -241,8 +241,8 @@ export function CallsProvider({ children }) {
         tag: `call:${call.id}`,
         data: {
           link: call.conversationId
-            ? `/app/m/atlas.chat/chat/inbox/${call.conversationId}`
-            : "/app/m/atlas.chat/chat/inbox",
+            ? `/app/m/runly.chat/chat/inbox/${call.conversationId}`
+            : "/app/m/runly.chat/chat/inbox",
           callId: call.id,
         },
         requireInteraction: true,
@@ -316,7 +316,7 @@ export function CallsProvider({ children }) {
     if (!token || !userProfile?.id) return undefined;
     return native.events.subscribe(async (event) => {
       if (event.kind === 'chat') {
-        navigate(`/app/m/atlas.chat/chat/inbox/${encodeURIComponent(event.targetId)}`);
+        navigate(`/app/m/runly.chat/chat/inbox/${encodeURIComponent(event.targetId)}`);
         return true;
       }
       if (config.loading || config.mode === 'unavailable') return false;

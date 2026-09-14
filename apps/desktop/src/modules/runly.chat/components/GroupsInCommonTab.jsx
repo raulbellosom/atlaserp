@@ -74,7 +74,7 @@ export function GroupsInCommonTab({ otherUserId }) {
         <button
           key={g.id}
           type="button"
-          onClick={() => navigate(`/app/m/atlas.chat/chat/inbox/${g.id}`)}
+          onClick={() => navigate(`/app/m/runly.chat/chat/inbox/${g.id}`)}
           className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[hsl(var(--muted))] text-left transition-colors"
         >
           <GroupAvatar avatarUrl={g.avatarUrl} avatarEmoji={g.avatarEmoji} title={g.title} />

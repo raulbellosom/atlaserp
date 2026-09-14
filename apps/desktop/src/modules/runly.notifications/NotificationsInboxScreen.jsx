@@ -194,7 +194,7 @@ export default function NotificationsInboxScreen() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate("/app/m/atlas.notifications/settings")}
+              onClick={() => navigate("/app/m/runly.notifications/settings")}
             >
               Configuración
             </Button>

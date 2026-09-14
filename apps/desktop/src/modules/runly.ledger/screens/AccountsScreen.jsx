@@ -288,19 +288,19 @@ export default function AccountsScreen() {
         {effectiveTab === 'offline' && (
           offlineAccounts.length === 0
             ? <EmptyState icon={Landmark} title="Sin cuentas en cache" description="Sincroniza ledger mientras estés conectado para consultarlo offline después." />
-            : <AccountGrid accounts={offlineAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
+            : <AccountGrid accounts={offlineAccounts} onSelect={(id) => navigate(`/app/m/runly.ledger/accounts/${id}`)} />
         )}
 
         {effectiveTab === 'own' && (
           ownAccounts.length === 0
             ? <EmptyState icon={Landmark} title="Sin cuentas personales" description="Crea una cuenta para registrar tus movimientos." action={{ label: 'Nueva cuenta', onClick: () => setNewAccOpen(true) }} />
-            : <AccountGrid accounts={ownAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} onEdit={openEdit} />
+            : <AccountGrid accounts={ownAccounts} onSelect={(id) => navigate(`/app/m/runly.ledger/accounts/${id}`)} onEdit={openEdit} />
         )}
 
         {effectiveTab === 'shared' && (
           sharedAccounts.length === 0
             ? <EmptyState icon={Users} title="Sin cuentas compartidas" description="Nadie ha compartido cuentas contigo todavía." />
-            : <AccountGrid accounts={sharedAccounts} onSelect={(id) => navigate(`/app/m/atlas.ledger/accounts/${id}`)} />
+            : <AccountGrid accounts={sharedAccounts} onSelect={(id) => navigate(`/app/m/runly.ledger/accounts/${id}`)} />
         )}
 
         {effectiveTab === 'groups' && (
@@ -312,10 +312,10 @@ export default function AccountsScreen() {
                     <div
                       key={group.id}
                       className="relative group p-4 rounded-xl border border-[hsl(var(--border))] hover:border-[hsl(var(--ring))] hover:bg-[hsl(var(--muted)/0.4)] transition-colors cursor-pointer"
-                      onClick={() => navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
+                      onClick={() => navigate(`/app/m/runly.ledger/groups/${group.id}`)}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/app/m/atlas.ledger/groups/${group.id}`)}
+                      onKeyDown={(e) => e.key === 'Enter' && navigate(`/app/m/runly.ledger/groups/${group.id}`)}
                     >
                       {group.my_role === 'admin' && (
                         <button

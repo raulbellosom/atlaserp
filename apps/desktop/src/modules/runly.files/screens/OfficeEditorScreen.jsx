@@ -24,7 +24,7 @@ export default function OfficeEditorScreen() {
   const close = useCallback(() => {
     saved();
     const returnTo = state?.officeReturnTo;
-    navigate(typeof returnTo === 'string' && returnTo.startsWith('/app/') && !returnTo.endsWith('/edit') ? returnTo : '/app/m/atlas.files/files');
+    navigate(typeof returnTo === 'string' && returnTo.startsWith('/app/') && !returnTo.endsWith('/edit') ? returnTo : '/app/m/runly.files/files');
   }, [navigate, saved, state]);
   const download = useCallback(async () => {
     try {

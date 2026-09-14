@@ -1,4 +1,4 @@
-// Registry key: atlas.fleet:InsuranceBadgeCell
+// Registry key: runly.fleet:InsuranceBadgeCell
 // Props (insurance list): { value: 'active' | 'expired' | 'disabled' } — from `status` column
 // Props (vehicle list):   { insurance_status: 'active' | 'expired' | 'none' }
 import { Badge } from "@runly/ui";

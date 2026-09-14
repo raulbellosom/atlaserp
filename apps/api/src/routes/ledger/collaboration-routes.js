@@ -9,7 +9,7 @@ import { getActivityContext } from '../../services/activity-publisher.js'
 
 function handleError(c, err, fallback) {
   if (err instanceof CollaborationServiceError) return c.json({ error: err.message }, err.status)
-  if (process.env.NODE_ENV !== 'production') console.error('[atlas.ledger/collab]', err)
+  if (process.env.NODE_ENV !== 'production') console.error('[runly.ledger/collab]', err)
   return c.json({ error: fallback }, 500)
 }
 

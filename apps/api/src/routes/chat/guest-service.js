@@ -92,7 +92,7 @@ async function autoAssign(prisma, conversationId, companyId) {
 }
 
 // ------------------------------------------------------------------
-// Non-blocking lead capture in atlas.growth
+// Non-blocking lead capture in runly.growth
 // ------------------------------------------------------------------
 async function captureGrowthLead(prisma, { companyId, email, name, trackingCode }) {
   try {
@@ -258,7 +258,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
       `.catch(() => {});
     }
 
-    // Non-blocking: capture lead in atlas.growth (pass trackingCode for metadata)
+    // Non-blocking: capture lead in runly.growth (pass trackingCode for metadata)
     if (email && companyId) {
       setImmediate(() => captureGrowthLead(prisma, { companyId, email, name, trackingCode }));
     }
@@ -440,7 +440,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
                 eventType: "chat.new_guest_message",
                 title: "Nuevo mensaje de visitante",
                 body: preview,
-                link: `/app/m/atlas.chat/chat/external`,
+                link: `/app/m/runly.chat/chat/external`,
                 recipients: { userIds: [assignedUserId.toString()] },
                 channels: ["in_app", "web_push"],
                 priority: "medium",
@@ -464,7 +464,7 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
                   eventType: "chat.new_guest_message",
                   title: "Nuevo mensaje de visitante sin asignar",
                   body: preview,
-                  link: `/app/m/atlas.chat/chat/external`,
+                  link: `/app/m/runly.chat/chat/external`,
                   recipients: { userIds: operators.map((op) => op.id.toString()) },
                   channels: ["in_app", "web_push"],
                   priority: "medium",

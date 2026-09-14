@@ -20,7 +20,7 @@ const contactsProvider = {
   label: "Contactos",
   permission: "contacts.contacts.read",
   icon: "ContactRound",
-  target: (id) => `/app/m/atlas.contacts/contacts/${id}`,
+  target: (id) => `/app/m/runly.contacts/contacts/${id}`,
   async run({ prisma, companyId, q, limit }) {
     const rows = await prisma.contact.findMany({
       where: {
@@ -52,7 +52,7 @@ const usersProvider = {
   label: "Usuarios",
   permission: "identity.users.read",
   icon: "Users",
-  target: (id) => `/app/m/atlas.identity/identity/users/${id}`,
+  target: (id) => `/app/m/runly.identity/identity/users/${id}`,
   async run({ prisma, companyId, q, limit }) {
     const rows = await prisma.membership.findMany({
       where: {
@@ -93,7 +93,7 @@ const employeesProvider = {
   label: "Empleados",
   permission: "hr.employee.read",
   icon: "UserCheck",
-  target: (id) => `/app/m/atlas.hr/hr/employees/${id}`,
+  target: (id) => `/app/m/runly.hr/hr/employees/${id}`,
   async run({ prisma, companyId, q, limit }) {
     const rows = await prisma.hrEmployee.findMany({
       where: {

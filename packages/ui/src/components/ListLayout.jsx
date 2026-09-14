@@ -14,7 +14,7 @@ import { cn } from "../lib/utils.js";
  * switcher with localStorage persistence, pagination row, and empty/error/loading states.
  *
  * Props:
- *   storageKey        — used for localStorage view preference (e.g. "atlas.files")
+ *   storageKey        — used for localStorage view preference (e.g. "runly.files")
  *   loading / error / empty — data states
  *   search / onSearchChange / searchPlaceholder — search bar
  *   views             — array of enabled view modes: ['table','cards','grid']

@@ -33,10 +33,10 @@ function makeHandler(entityType, prismaKey) {
 }
 
 const SYNC_MODULE_REGISTRY = {
-  'atlas.contacts': {
+  'runly.contacts': {
     handlers: [makeHandler('contact', 'contact')],
   },
-  'atlas.hr': {
+  'runly.hr': {
     handlers: [
       makeHandler('employee', 'hrEmployee'),
       makeHandler('department', 'hrDepartment'),
@@ -49,7 +49,7 @@ const SYNC_MODULE_REGISTRY = {
       makeHandler('driver', 'fleetDriver'),
     ],
   },
-  'atlas.calendar': {
+  'runly.calendar': {
     handlers: [
       {
         entityType: 'calendar',
@@ -89,14 +89,14 @@ const SYNC_MODULE_REGISTRY = {
       },
     ],
   },
-  'atlas.catalog': {
+  'runly.catalog': {
     handlers: [
       makeHandler('product', 'catalogProduct'),
       makeHandler('category', 'catalogCategory'),
     ],
   },
-  'atlas.ledger': {
-    // atlas.ledger accounts are NOT company-wide: each account is private to its
+  'runly.ledger': {
+    // runly.ledger accounts are NOT company-wide: each account is private to its
     // owner unless explicitly shared via ledger_account_member/ledger_group_member
     // (see apps/api/src/routes/ledger/ledger-service.js canReadAccount). The generic
     // makeHandler() only filters by companyId, which would silently sync every
@@ -176,13 +176,13 @@ const SYNC_MODULE_REGISTRY = {
   },
 }
 
-// Runly-spelled keys alias the same handler config: fresh installs report
-// their module key as "runly.*", existing installs still report "atlas.*".
-SYNC_MODULE_REGISTRY['runly.contacts'] = SYNC_MODULE_REGISTRY['atlas.contacts']
-SYNC_MODULE_REGISTRY['runly.hr'] = SYNC_MODULE_REGISTRY['atlas.hr']
-SYNC_MODULE_REGISTRY['runly.calendar'] = SYNC_MODULE_REGISTRY['atlas.calendar']
-SYNC_MODULE_REGISTRY['runly.catalog'] = SYNC_MODULE_REGISTRY['atlas.catalog']
-SYNC_MODULE_REGISTRY['runly.ledger'] = SYNC_MODULE_REGISTRY['atlas.ledger']
+// Atlas-spelled keys alias the same handler config: existing installs still
+// report their module key as "atlas.*", fresh installs report "runly.*".
+SYNC_MODULE_REGISTRY['atlas.contacts'] = SYNC_MODULE_REGISTRY['runly.contacts']
+SYNC_MODULE_REGISTRY['atlas.hr'] = SYNC_MODULE_REGISTRY['runly.hr']
+SYNC_MODULE_REGISTRY['atlas.calendar'] = SYNC_MODULE_REGISTRY['runly.calendar']
+SYNC_MODULE_REGISTRY['atlas.catalog'] = SYNC_MODULE_REGISTRY['runly.catalog']
+SYNC_MODULE_REGISTRY['atlas.ledger'] = SYNC_MODULE_REGISTRY['runly.ledger']
 
 export function createSyncService({ prisma }) {
   // activeCompanyId: the caller's validated active company, resolved by the

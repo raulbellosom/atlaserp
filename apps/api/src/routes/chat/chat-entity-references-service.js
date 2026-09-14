@@ -33,7 +33,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
         return {
           entityType, recordId, title: row.name,
           subtitle: row.phone ?? row.email ?? null,
-          url: `/app/m/atlas.contacts/contacts/${recordId}`,
+          url: `/app/m/runly.contacts/contacts/${recordId}`,
         };
       }
       if (entityType === "file") {
@@ -41,7 +41,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
         if (!row) return null;
         return {
           entityType, recordId, title: row.originalName, subtitle: null,
-          url: `/app/m/atlas.files/files/${recordId}`,
+          url: `/app/m/runly.files/files/${recordId}`,
           mimeType: row.mimeType ?? null,
           sizeBytes: row.sizeBytes ?? null,
         };
@@ -52,7 +52,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
         return {
           entityType, recordId, title: `${row.firstName} ${row.lastName}`.trim(),
           subtitle: row.jobTitleRef?.name ?? row.jobTitle ?? row.departmentRef?.name ?? row.department ?? null,
-          url: `/app/m/atlas.hr/hr/employees/${recordId}`,
+          url: `/app/m/runly.hr/hr/employees/${recordId}`,
           // hrService already includes both the employee's own profile photo
           // and their linked user account's avatar — prefer the employee
           // record's own photo, fall back to the account avatar.
@@ -65,7 +65,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
         const row = await projectsService.getProject(recordId, ctx.profileId);
         return {
           entityType, recordId, title: row.name, subtitle: null,
-          url: `/app/m/atlas.projects/${recordId}`,
+          url: `/app/m/runly.projects/${recordId}`,
           color: row.color ?? null,
           icon: row.icon ?? null,
         };
@@ -76,7 +76,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
         return {
           entityType, recordId, title: row.title,
           subtitle: row.status?.name ?? null,
-          url: `/app/m/atlas.projects/tasks/${recordId}`,
+          url: `/app/m/runly.projects/tasks/${recordId}`,
         };
       }
       if (entityType === "calendar_event") {
@@ -89,7 +89,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           : startDate.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
         return {
           entityType, recordId, title: row.title, subtitle,
-          url: `/app/m/atlas.calendar/events/${recordId}`,
+          url: `/app/m/runly.calendar/events/${recordId}`,
         };
       }
       if (entityType === "ledger_account") {
@@ -107,7 +107,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           entityType, recordId,
           title: row.bank ? `${row.name} · ${row.bank}` : row.name,
           subtitle,
-          url: `/app/m/atlas.ledger/accounts/${recordId}`,
+          url: `/app/m/runly.ledger/accounts/${recordId}`,
           currency: row.currency ?? null,
           balance: row.current_balance != null ? Number(row.current_balance) : null,
         };

@@ -138,7 +138,7 @@ export function createCallService({
       where: {
         id: calendarEventId,
         enabled: true,
-        sourceModule: "atlas.chat",
+        sourceModule: "runly.chat",
         sourceEntityId: conversationId,
       },
       select: { id: true },
@@ -277,7 +277,7 @@ export function createCallService({
             eventType: "chat.call.busy_attempt",
             title: "Llamada mientras estabas ocupado",
             body: `${profile.displayName || "Alguien"} intento iniciar una ${kind === "VIDEO" ? "videollamada" : "llamada"}.`,
-            link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+            link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
             recipients: { userIds: recipientIds },
             channels: ["in_app"],
             priority: "medium",
@@ -473,7 +473,7 @@ export function createCallService({
               eventType: "chat.call.incoming",
               title: profile.displayName || "Llamada entrante",
               body: kind === "VIDEO" ? "Videollamada entrante" : "Llamada entrante",
-              link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+              link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
               recipients: { userIds: recipientIds },
               channels: ["in_app", "web_push"],
               priority: "critical",
@@ -828,7 +828,7 @@ export function createCallService({
             body: kind === "VIDEO"
               ? "Te invitaron a una videollamada"
               : "Te invitaron a una llamada",
-            link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+            link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
             recipients: { userIds: targetIds },
             channels: ["in_app", "web_push"],
             priority: "critical",

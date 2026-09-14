@@ -31,7 +31,7 @@ const REPORT_TABLES = {
         { field: 'folio', label: 'Folio', sortable: true, defaultVisible: false },
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'vehicle_plate', label: 'Vehiculo' },
-        { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
+        { field: 'status', label: 'Estado', sortable: true, component: 'runly.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
         { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
@@ -56,7 +56,7 @@ const REPORT_TABLES = {
         { field: 'folio', label: 'Folio', sortable: true, defaultVisible: false },
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'vehicle_plate', label: 'Vehiculo' },
-        { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
+        { field: 'status', label: 'Estado', sortable: true, component: 'runly.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
         { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
@@ -82,7 +82,7 @@ const REPORT_TABLES = {
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'vehicle_plate', label: 'Vehiculo' },
         { field: 'repair_priority', label: 'Prioridad' },
-        { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
+        { field: 'status', label: 'Estado', sortable: true, component: 'runly.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
         { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
@@ -108,7 +108,7 @@ const REPORT_TABLES = {
         { field: 'title', label: 'Titulo', sortable: true, link: true },
         { field: 'other_category_label', label: 'Categoria', defaultVisible: false },
         { field: 'vehicle_plate', label: 'Vehiculo' },
-        { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:ReportStatusBadge' },
+        { field: 'status', label: 'Estado', sortable: true, component: 'runly.fleet:ReportStatusBadge' },
         { field: 'report_date', label: 'Fecha', type: 'date', sortable: true },
         { field: 'total_cost', label: 'Total', type: 'currency', sortable: true, defaultVisible: false },
       ],
@@ -144,19 +144,19 @@ export default function ReportsScreen() {
   const currentBlueprint = REPORT_TABLES[reportType]
 
   const handleTabChange = useCallback((tab) => {
-    navigate(`/app/m/atlas.fleet/reports/${tab}`, { replace: true })
+    navigate(`/app/m/runly.fleet/reports/${tab}`, { replace: true })
   }, [navigate])
 
   const handleView = useCallback((row) => {
-    navigate(`/app/m/atlas.fleet/reports/${row.id}`)
+    navigate(`/app/m/runly.fleet/reports/${row.id}`)
   }, [navigate])
 
   const handleEdit = useCallback((row) => {
-    navigate(`/app/m/atlas.fleet/reports/${reportType}/${row.id}/edit`)
+    navigate(`/app/m/runly.fleet/reports/${reportType}/${row.id}/edit`)
   }, [navigate, reportType])
 
   const handleCreate = useCallback(() => {
-    navigate(`/app/m/atlas.fleet/reports/${reportType}/new`)
+    navigate(`/app/m/runly.fleet/reports/${reportType}/new`)
   }, [navigate, reportType])
 
   return (

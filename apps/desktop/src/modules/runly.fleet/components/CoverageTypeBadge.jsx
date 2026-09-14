@@ -1,4 +1,4 @@
-// Registry key: atlas.fleet:CoverageTypeBadge
+// Registry key: runly.fleet:CoverageTypeBadge
 // Props: { value: 'basic' | 'comprehensive' | 'third_party' | 'other' | string }
 import { Badge } from "@runly/ui";
 

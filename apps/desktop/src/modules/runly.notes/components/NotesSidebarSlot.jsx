@@ -35,7 +35,7 @@ export function NotesSidebarSlot() {
   }
 
   function handleFolderClick(folderId) {
-    navigate(`/app/m/atlas.notes/notes?folder=${folderId}`)
+    navigate(`/app/m/runly.notes/notes?folder=${folderId}`)
   }
 
   return (

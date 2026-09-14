@@ -192,7 +192,7 @@ export default function InventoryItemForm() {
     listPath: '/inventory/items/:id/files',
     addPath: '/inventory/items/:id/files',
     removePath: '/inventory/items/:id/files/:docId',
-    upload: { endpoint: '/files/upload', moduleKey: 'atlas.inventory', entityType: 'InvItem' },
+    upload: { endpoint: '/files/upload', moduleKey: 'runly.inventory', entityType: 'InvItem' },
     fields: { fileAssetId: 'fileAssetId' },
     signedUrl: { endpointTemplate: '/files/:fileId/signed-url' },
   }), [])
@@ -203,15 +203,15 @@ export default function InventoryItemForm() {
       if (isEdit) {
         await updateItem.mutateAsync({ id, ...payload })
         toast.success('Activo actualizado')
-        navigate(`/app/m/atlas.inventory/inventory/${id}`)
+        navigate(`/app/m/runly.inventory/inventory/${id}`)
       } else {
         const result = await createItem.mutateAsync(payload)
         const newId = result?.data?.id ?? result?.id
         toast.success('Activo creado')
         if (newId) {
-          navigate(`/app/m/atlas.inventory/inventory/${newId}`)
+          navigate(`/app/m/runly.inventory/inventory/${newId}`)
         } else {
-          navigate('/app/m/atlas.inventory/inventory')
+          navigate('/app/m/runly.inventory/inventory')
         }
       }
     } catch (err) {

@@ -97,7 +97,7 @@ export default function InventoryAssignmentsScreen() {
                   <tr
                     key={r.id}
                     onClick={() => {
-                      if (r.itemId) navigate(`/app/m/atlas.inventory/inventory/${r.itemId}`)
+                      if (r.itemId) navigate(`/app/m/runly.inventory/inventory/${r.itemId}`)
                     }}
                     className="cursor-pointer border-b border-[hsl(var(--border)/0.5)] last:border-0 hover:bg-[hsl(var(--muted)/0.5)] transition-colors"
                   >

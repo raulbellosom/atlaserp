@@ -33,7 +33,7 @@ function handleError(c, err, fallback) {
   ) return c.json({ error: err.message }, err.status)
   if (Number.isInteger(err?.status) && err.status >= 400 && err.status < 600)
     return c.json({ error: err.message || fallback }, err.status)
-  if (process.env.NODE_ENV !== 'production') console.error('[atlas.projects]', err)
+  if (process.env.NODE_ENV !== 'production') console.error('[runly.projects]', err)
   return c.json({ error: fallback }, 500)
 }
 

@@ -5,7 +5,7 @@ import { OfficeDocumentEditor } from '@runly/ui';
 import { runly } from '../../../lib/runly';
 import { useAuth } from '../../../auth/AuthProvider';
 
-// Full-screen WOPI editor for a chat attachment. Twin of atlas.files'
+// Full-screen WOPI editor for a chat attachment. Twin of runly.files'
 // OfficeEditorScreen, but mints its session through the chat endpoint
 // (POST /chat/attachments/:id/office/session) and returns to the chat.
 export default function ChatOfficeEditorScreen() {
@@ -31,7 +31,7 @@ export default function ChatOfficeEditorScreen() {
     navigate(
       typeof returnTo === 'string' && returnTo.startsWith('/app/') && !returnTo.endsWith('/edit')
         ? returnTo
-        : '/app/m/atlas.chat',
+        : '/app/m/runly.chat',
     );
   }, [navigate, saved, state]);
   return (

@@ -133,7 +133,7 @@ export function FilesWorkspaceTable({
           header: "Origen",
           cell: ({ row }) => (
             <span className="text-xs whitespace-nowrap">
-              {row.original.moduleKey === "atlas.files"
+              {row.original.moduleKey === "runly.files"
                 ? "Archivos"
                 : (row.original.moduleKey ?? "Adjunto").replace(/^atlas\./, "")}
             </span>

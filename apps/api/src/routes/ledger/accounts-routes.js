@@ -22,7 +22,7 @@ function handleError(c, err, fallback) {
   if (err instanceof LedgerServiceError)
     return c.json({ error: err.message }, err.status);
   if (process.env.NODE_ENV !== "production")
-    console.error("[atlas.ledger]", err);
+    console.error("[runly.ledger]", err);
   return c.json({ error: fallback }, 500);
 }
 
@@ -417,7 +417,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         );
         return new Response(buffer, { status: 200, headers: c.res.headers });
       } catch (err) {
-        console.error("[atlas.ledger:export/xlsx]", err);
+        console.error("[runly.ledger:export/xlsx]", err);
         return handleError(c, err, "No se pudo exportar el archivo Excel.");
       }
     },
@@ -451,7 +451,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         );
         return new Response(csv, { status: 200, headers: c.res.headers });
       } catch (err) {
-        console.error("[atlas.ledger:export/csv]", err);
+        console.error("[runly.ledger:export/csv]", err);
         return handleError(c, err, "No se pudo exportar el CSV.");
       }
     },
@@ -501,7 +501,7 @@ export function createAccountsRouter({ prisma, requirePermission }) {
         );
         return new Response(buffer, { status: 200, headers: c.res.headers });
       } catch (err) {
-        console.error("[atlas.ledger:export/pdf]", err);
+        console.error("[runly.ledger:export/pdf]", err);
         return handleError(c, err, "No se pudo exportar el PDF.");
       }
     },

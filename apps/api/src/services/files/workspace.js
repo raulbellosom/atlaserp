@@ -58,7 +58,7 @@ export function createFilesWorkspace({
       )
         return null;
       return new URL(
-        `/app/m/atlas.files/files/${encodeURIComponent(fileId)}`,
+        `/app/m/runly.files/files/${encodeURIComponent(fileId)}`,
         base.origin,
       ).href;
     } catch {

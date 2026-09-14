@@ -102,7 +102,7 @@ export default function InventoryItemDetail() {
     listPath: '/inventory/items/:id/files',
     addPath: '/inventory/items/:id/files',
     removePath: '/inventory/items/:id/files/:docId',
-    upload: { endpoint: '/files/upload', moduleKey: 'atlas.inventory', entityType: 'InvItem' },
+    upload: { endpoint: '/files/upload', moduleKey: 'runly.inventory', entityType: 'InvItem' },
     fields: { fileAssetId: 'fileAssetId' },
     signedUrl: { endpointTemplate: '/files/:fileId/signed-url' },
   }), [])
@@ -128,7 +128,7 @@ export default function InventoryItemDetail() {
   const handleDelete = async () => {
     await deleteItem.mutateAsync(id)
     toast.success('Activo eliminado correctamente')
-    navigate('/app/m/atlas.inventory/inventory')
+    navigate('/app/m/runly.inventory/inventory')
   }
 
   const customEntries = item.customValues
@@ -149,7 +149,7 @@ export default function InventoryItemDetail() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/app/m/atlas.inventory/inventory/${id}/edit`)}
+              onClick={() => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
             >
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               Editar

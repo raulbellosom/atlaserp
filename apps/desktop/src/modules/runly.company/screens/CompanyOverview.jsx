@@ -307,7 +307,7 @@ export default function CompanyOverview() {
             title="Perfil"
             description="Datos legales e identificacion"
             cta="Editar perfil"
-            onClick={() => navigate("/app/m/atlas.company/company")}
+            onClick={() => navigate("/app/m/runly.company/company")}
             empty={!profile?.name && !isLoading}
           >
             {isLoading ? (
@@ -349,7 +349,7 @@ export default function CompanyOverview() {
             title="Direccion"
             description="Domicilio fiscal y ubicacion"
             cta="Editar direccion"
-            onClick={() => navigate("/app/m/atlas.company/company/address")}
+            onClick={() => navigate("/app/m/runly.company/company/address")}
             empty={!addressLine && !isLoading}
           >
             {isLoading ? (
@@ -399,7 +399,7 @@ export default function CompanyOverview() {
             title="Marca visual"
             description="Logo y paleta de colores"
             cta="Editar marca"
-            onClick={() => navigate("/app/m/atlas.company/company/branding")}
+            onClick={() => navigate("/app/m/runly.company/company/branding")}
             empty={!branding && !isLoading}
           >
             {isLoading ? (
@@ -481,17 +481,17 @@ export default function CompanyOverview() {
                     profile?.name && profile?.legalName && profile?.rfc,
                   ),
                   label: "Datos legales",
-                  path: "/app/m/atlas.company/company",
+                  path: "/app/m/runly.company/company",
                 },
                 {
                   ok: Boolean(address?.country && address?.city),
                   label: "Direccion",
-                  path: "/app/m/atlas.company/company/address",
+                  path: "/app/m/runly.company/company/address",
                 },
                 {
                   ok: Boolean(branding?.logoFileId),
                   label: "Logotipo",
-                  path: "/app/m/atlas.company/company/branding",
+                  path: "/app/m/runly.company/company/branding",
                 },
               ].map(({ ok, label, path }) => (
                 <button

@@ -221,7 +221,7 @@ export function createChatSearchService({ prisma }) {
       const code = err?.code ?? err?.meta?.code;
       const msg = String(err?.message ?? "");
       const timedOut = code === "57014" || /canceling statement|statement timeout/i.test(msg);
-      console.warn("[atlas.chat] message search failed", {
+      console.warn("[runly.chat] message search failed", {
         conversationId: conversationId ?? null,
         tokenCount: tokens.length,
         code: code ?? null,

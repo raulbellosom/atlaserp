@@ -443,11 +443,11 @@ export default function HrOrgChartScreen() {
 
   function openDetail(id) {
     if (ds.current.hasMoved) return;
-    navigate(`/app/m/atlas.hr/hr/employees/${id}`);
+    navigate(`/app/m/runly.hr/hr/employees/${id}`);
   }
 
   function openUser(userProfileId) {
-    navigate(`/app/m/atlas.identity/identity/users/${userProfileId}`);
+    navigate(`/app/m/runly.identity/identity/users/${userProfileId}`);
   }
 
   function updateRoot(value) {

@@ -41,13 +41,13 @@ export function ChannelEventsTab({ conversationId }) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["channel-events", conversationId],
     queryFn: () => runly.calendar.listEvents(token, {
-      start, end, source_module: "atlas.chat", source_entity_id: conversationId,
+      start, end, source_module: "runly.chat", source_entity_id: conversationId,
     }),
     enabled: Boolean(token && conversationId),
     staleTime: 30_000,
   });
 
-  // atlas.calendar.listEvents returns the events array directly (not wrapped
+  // runly.calendar.listEvents returns the events array directly (not wrapped
   // in { data: [...] }) — confirmed against EntityReferencePicker.jsx's
   // calendar_event case (`(res ?? []).map(...)`) and useCalendarData.js's
   // useCalendarEvents/useYearEvents, both of which return the SDK call's

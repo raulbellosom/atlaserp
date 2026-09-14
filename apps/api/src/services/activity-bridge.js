@@ -75,25 +75,25 @@ const TRANSLATORS = {
     type: "catalog.product.create",
     summary: `${actorName(actor)} creó el producto ${safeStr(after?.name)}`,
     severity: "success",
-    link: entityId ? `/m/atlas.catalog/${entityId}` : undefined,
+    link: entityId ? `/m/runly.catalog/${entityId}` : undefined,
   }),
   "catalog.product.update": ({ actor, entityId, after }) => ({
     type: "catalog.product.update",
     summary: `${actorName(actor)} actualizó el producto ${safeStr(after?.name)}`,
     severity: "info",
-    link: entityId ? `/m/atlas.catalog/${entityId}` : undefined,
+    link: entityId ? `/m/runly.catalog/${entityId}` : undefined,
   }),
   "catalog.product.publish": ({ actor, entityId, after }) => ({
     type: "catalog.product.publish",
     summary: `${actorName(actor)} publicó el producto ${safeStr(after?.name)}`,
     severity: "success",
-    link: entityId ? `/m/atlas.catalog/${entityId}` : undefined,
+    link: entityId ? `/m/runly.catalog/${entityId}` : undefined,
   }),
   "catalog.product.unpublish": ({ actor, entityId, after }) => ({
     type: "catalog.product.unpublish",
     summary: `${actorName(actor)} despublicó el producto ${safeStr(after?.name)}`,
     severity: "warning",
-    link: entityId ? `/m/atlas.catalog/${entityId}` : undefined,
+    link: entityId ? `/m/runly.catalog/${entityId}` : undefined,
   }),
   "catalog.product.delete": ({ actor }) => ({
     type: "catalog.product.delete",
@@ -104,13 +104,13 @@ const TRANSLATORS = {
     type: "catalog.category.create",
     summary: `${actorName(actor)} creó la categoría ${safeStr(after?.name)}`,
     severity: "success",
-    link: "/m/atlas.catalog/categories",
+    link: "/m/runly.catalog/categories",
   }),
   "catalog.category.update": ({ actor, after }) => ({
     type: "catalog.category.update",
     summary: `${actorName(actor)} actualizó la categoría ${safeStr(after?.name)}`,
     severity: "info",
-    link: "/m/atlas.catalog/categories",
+    link: "/m/runly.catalog/categories",
   }),
   "catalog.category.delete": ({ actor }) => ({
     type: "catalog.category.delete",
@@ -121,7 +121,7 @@ const TRANSLATORS = {
     type: "catalog.stock.adjust",
     summary: `${actorName(actor)} registró un ajuste de stock`,
     severity: "info",
-    link: entityId ? `/m/atlas.catalog/${entityId}` : undefined,
+    link: entityId ? `/m/runly.catalog/${entityId}` : undefined,
   }),
 };
 

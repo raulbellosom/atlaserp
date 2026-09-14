@@ -92,7 +92,7 @@ export default function InventoryScreen() {
         title="Inventario"
         description="Gestiona y rastrea todos los activos de la empresa"
         actions={
-          <Button onClick={() => navigate('/app/m/atlas.inventory/inventory/new')}>
+          <Button onClick={() => navigate('/app/m/runly.inventory/inventory/new')}>
             <Plus className="mr-2 h-4 w-4" />
             Nuevo item
           </Button>
@@ -110,9 +110,9 @@ export default function InventoryScreen() {
             queryFn: () => runly.inventory.getItem(row.id, token),
             staleTime: 5 * 60 * 1000,
           })
-          navigate(`/app/m/atlas.inventory/inventory/${row.id}`)
+          navigate(`/app/m/runly.inventory/inventory/${row.id}`)
         }}
-        onEdit={row => navigate(`/app/m/atlas.inventory/inventory/${row.id}/edit`)}
+        onEdit={row => navigate(`/app/m/runly.inventory/inventory/${row.id}/edit`)}
         onDelete={row => setConfirmDelete(row)}
         refreshSignal={refreshSignal}
       />

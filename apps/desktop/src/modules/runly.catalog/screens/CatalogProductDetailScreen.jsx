@@ -127,7 +127,7 @@ export default function CatalogProductDetailScreen() {
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
-            onClick={() => navigate('/app/m/atlas.catalog')}
+            onClick={() => navigate('/app/m/runly.catalog')}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

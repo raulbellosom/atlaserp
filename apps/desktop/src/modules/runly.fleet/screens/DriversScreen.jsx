@@ -8,7 +8,7 @@ import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
-const BASE_PATH = '/app/m/atlas.fleet/drivers'
+const BASE_PATH = '/app/m/runly.fleet/drivers'
 
 const DRIVER_TABLE = {
   key: 'fleet.driver.table',
@@ -21,16 +21,16 @@ const DRIVER_TABLE = {
     searchable: true,
     searchPlaceholder: 'Buscar chofer...',
     columns: [
-      { field: 'photo_asset_id_resolved', label: 'Foto', sortable: false, component: 'atlas.fleet:DriverAvatarCell' },
+      { field: 'photo_asset_id_resolved', label: 'Foto', sortable: false, component: 'runly.fleet:DriverAvatarCell' },
       { field: 'full_name', label: 'Nombre completo', sortable: true, link: true },
       { field: 'phone', label: 'Telefono', sortable: false },
       { field: 'license_number', label: 'No. Licencia', sortable: true },
       { field: 'license_type', label: 'Tipo licencia', sortable: false, defaultVisible: false },
       { field: 'license_expiry_date', label: 'Vencimiento', sortable: true, type: 'date' },
-      { field: 'license_status', label: 'Licencia', sortable: false, component: 'atlas.fleet:DriverLicenseBadge' },
-      { field: 'assigned_plate', label: 'Vehiculo', sortable: false, component: 'atlas.fleet:DriverAssignedVehicleCell' },
+      { field: 'license_status', label: 'Licencia', sortable: false, component: 'runly.fleet:DriverLicenseBadge' },
+      { field: 'assigned_plate', label: 'Vehiculo', sortable: false, component: 'runly.fleet:DriverAssignedVehicleCell' },
       { field: 'hr_employee_name', label: 'Colaborador RH', sortable: false, defaultVisible: false },
-      { field: 'status', label: 'Estado', sortable: true, component: 'atlas.fleet:DriverStatusBadge' },
+      { field: 'status', label: 'Estado', sortable: true, component: 'runly.fleet:DriverStatusBadge' },
     ],
     actions: [{ label: 'Crear chofer', permission: 'fleet.drivers.create', variant: 'primary' }],
     rowActions: [
@@ -83,7 +83,7 @@ const DRIVER_FORM = {
           listPath: '/fleet/drivers/:id/documents',
           addPath: '/fleet/drivers/:id/documents',
           removePath: '/fleet/drivers/:id/documents/:docId',
-          upload: { endpoint: '/files/upload', moduleKey: 'atlas.fleet', entityType: 'FleetDriver' },
+          upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetDriver' },
           signedUrl: { endpointTemplate: '/files/:fileId/signed-url' },
           fields: {
             id: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type',
@@ -139,7 +139,7 @@ const DRIVER_DETAIL = {
           { field: 'license_number', label: 'No. Licencia', icon: 'Hash' },
           { field: 'license_type', label: 'Tipo licencia', icon: 'Tag' },
           { field: 'license_expiry_date', label: 'Vencimiento', type: 'date', icon: 'CalendarDays' },
-          { field: 'license_status', label: 'Estado licencia', icon: 'ShieldAlert', component: 'atlas.fleet:DriverLicenseBadge' },
+          { field: 'license_status', label: 'Estado licencia', icon: 'ShieldAlert', component: 'runly.fleet:DriverLicenseBadge' },
           { field: 'status', label: 'Estado', icon: 'Activity' },
         ],
       },
@@ -151,7 +151,7 @@ const DRIVER_DETAIL = {
           listPath: '/fleet/drivers/:id/documents',
           addPath: '/fleet/drivers/:id/documents',
           removePath: '/fleet/drivers/:id/documents/:docId',
-          upload: { endpoint: '/files/upload', moduleKey: 'atlas.fleet', entityType: 'FleetDriver' },
+          upload: { endpoint: '/files/upload', moduleKey: 'runly.fleet', entityType: 'FleetDriver' },
           fields: {
             associationId: 'id', fileAssetId: 'file_asset_id', documentType: 'document_type',
             label: 'label', createdAt: 'created_at', enabled: 'enabled',

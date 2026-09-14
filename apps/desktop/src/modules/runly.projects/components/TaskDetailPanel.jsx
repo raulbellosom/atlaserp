@@ -218,7 +218,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
     listPath: `/projects/${projectId}/tasks/:id/attachments`,
     addPath: `/projects/${projectId}/tasks/:id/attachments`,
     removePath: `/projects/${projectId}/tasks/:id/attachments/:docId`,
-    upload: { endpoint: "/files/upload", moduleKey: "atlas.projects", entityType: "Task" },
+    upload: { endpoint: "/files/upload", moduleKey: "runly.projects", entityType: "Task" },
     fields: { fileAssetId: "id" },
     signedUrl: { endpointTemplate: "/files/:fileId/signed-url" },
   }), [projectId]);

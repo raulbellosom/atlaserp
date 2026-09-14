@@ -758,7 +758,7 @@ export function createStorefrontCaptureService({
               eventType: "growth.lead.created",
               title: "Nuevo lead asignado",
               body: notification.title,
-              link: `/app/m/atlas.growth/leads/${notification.leadId}`,
+              link: `/app/m/runly.growth/leads/${notification.leadId}`,
               recipients: { userIds: [notification.userId] },
               channels: ["in_app", "email", "web_push"],
               priority:

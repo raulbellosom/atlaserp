@@ -183,7 +183,7 @@ export function createReceiptsService({
         await processReceipt({ receiptId: r.id });
         processed += 1;
       } catch (err) {
-        console.error("[atlas.pfm] processReceipt failed", r.id, err?.message ?? err);
+        console.error("[runly.pfm] processReceipt failed", r.id, err?.message ?? err);
       }
     }
     return { processed };

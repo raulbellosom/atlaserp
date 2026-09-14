@@ -12,7 +12,7 @@ export function isOfficeOpenable(file) {
 }
 
 // Menu entries for a file that IS a FileAsset (entity reference in chat, or the
-// atlas.files viewer). `office` = useOfficeActions() context. `signedUrl` may be
+// runly.files viewer). `office` = useOfficeActions() context. `signedUrl` may be
 // null (still resolving) — the "open in new tab" entry resolves it lazily via
 // `onResolveUrl` when given.
 export function buildFileAssetOfficeActions({ office, fileAssetId, file, signedUrl, onResolveUrl }) {

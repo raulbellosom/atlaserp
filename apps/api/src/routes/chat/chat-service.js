@@ -91,7 +91,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
           eventType: 'chat.member.added',
           title: conversation.type === 'channel' ? 'Te agregaron a un canal' : 'Te agregaron a un grupo',
           body: `Ahora eres miembro de "${conversation.title || 'Chat'}"`.slice(0, 1000),
-          link: `/app/m/atlas.chat/chat/inbox/${conversation.id}`,
+          link: `/app/m/runly.chat/chat/inbox/${conversation.id}`,
           recipients: { userIds: recipients },
           channels: ['in_app', 'email', 'web_push'],
           sourceType: 'chat_conversation',
@@ -713,7 +713,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
         // A malformed-but-regex-matching mention token (e.g. one that fails
         // Postgres's uuid parser) must never block sending the message itself —
         // degrade to "no mentions resolved" instead of failing the whole request.
-        console.error("[atlas.chat] mention resolution failed, sending without mentions", err?.message ?? err);
+        console.error("[runly.chat] mention resolution failed, sending without mentions", err?.message ?? err);
       }
     }
     const hasMentions = mentionResult.userIds.length || mentionResult.roleIds.length || mentionResult.everyone || mentionResult.here;
@@ -886,7 +886,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                     ? `${senderName} · ${conversationTitle}`
                     : `Nuevo mensaje de ${senderName}`,
                   body: emailPreview,
-                  link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+                  link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
                   recipients: { userIds: [uid] },
                   channels: ["email"],
                   priority: "medium",
@@ -936,7 +936,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                   eventType: "chat.thread.reply",
                   title: "Nueva respuesta en un hilo",
                   body: preview,
-                  link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+                  link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
                   recipients: { userIds: threadRecipientIds },
                   channels: ["in_app", "web_push"],
                   priority: "medium",
@@ -955,7 +955,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 eventType: "chat.message.new",
                 title: "Nuevo mensaje de chat",
                 body: preview,
-                link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+                link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: recipientIds },
                 channels: ["in_app", "web_push"],
                 priority: "medium",
@@ -975,7 +975,7 @@ export function createChatService({ prisma, supabaseAdmin, notificationService =
                 eventType: "chat.mention.new",
                 title: `Te mencionó ${senderName}`,
                 body: preview,
-                link: `/app/m/atlas.chat/chat/inbox/${conversationId}`,
+                link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
                 recipients: { userIds: mentionResult.notifyUserIds },
                 channels: ["in_app", "email", "web_push"],
                 priority: "high",

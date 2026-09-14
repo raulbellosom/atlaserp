@@ -161,7 +161,7 @@ export default function ImportWizard() {
     },
     onSuccess: (data) => {
       toast.success(`${data.inserted} movimientos importados.`)
-      navigate(`/app/m/atlas.ledger/accounts/${accountId}`)
+      navigate(`/app/m/runly.ledger/accounts/${accountId}`)
     },
     onError: (err) => toast.error(err.message),
   })
@@ -174,7 +174,7 @@ export default function ImportWizard() {
       {/* ── Account context header (matches AccountScreen layout) ──────── */}
       <div className="px-6 pt-5 pb-4 border-b border-[hsl(var(--border))] shrink-0">
         <button
-          onClick={() => navigate(`/app/m/atlas.ledger/accounts/${accountId}`)}
+          onClick={() => navigate(`/app/m/runly.ledger/accounts/${accountId}`)}
           className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-1.5 transition-colors"
         >
           <ArrowLeft size={11} />

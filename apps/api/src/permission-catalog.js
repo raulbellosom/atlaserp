@@ -960,7 +960,7 @@ export const PERMISSION_CATALOG = {
     order: 65,
   },
 
-  // atlas.website
+  // runly.website
   "website.access": {
     displayNameEs: "Acceso al Sitio web",
     descriptionEs: "Permite acceder al modulo de sitio web.",
@@ -1369,7 +1369,7 @@ export const PERMISSION_CATALOG = {
     order: 100,
   },
   // -----------------------------------------------------------------------
-  // atlas.chat
+  // runly.chat
   // -----------------------------------------------------------------------
   "chat.access": {
     displayNameEs: "Acceder a Chat",
@@ -1408,7 +1408,7 @@ export const PERMISSION_CATALOG = {
     order: 60,
   },
   // -----------------------------------------------------------------------
-  // atlas.inventory
+  // runly.inventory
   // -----------------------------------------------------------------------
   "inventory.access": {
     displayNameEs: "Acceder a Inventario",
@@ -1471,7 +1471,7 @@ export const PERMISSION_CATALOG = {
     order: 50,
   },
   // -----------------------------------------------------------------------
-  // atlas.notes
+  // runly.notes
   // -----------------------------------------------------------------------
   "notes.access": {
     displayNameEs: "Acceder a Notas",
@@ -1576,7 +1576,7 @@ export const PERMISSION_CATALOG = {
     order: 53,
   },
   // -----------------------------------------------------------------------
-  // atlas.calendar
+  // runly.calendar
   // -----------------------------------------------------------------------
   "calendar.access": {
     displayNameEs: "Acceder al calendario",
@@ -1639,7 +1639,7 @@ export const PERMISSION_CATALOG = {
     order: 40,
   },
   // -----------------------------------------------------------------------
-  // atlas.catalog
+  // runly.catalog
   // -----------------------------------------------------------------------
   "catalog.access": {
     displayNameEs: "Acceder al catalogo",

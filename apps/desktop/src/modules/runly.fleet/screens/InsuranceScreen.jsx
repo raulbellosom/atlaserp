@@ -8,7 +8,7 @@ import { componentRegistry } from '../../../lib/moduleComponentRegistry'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
-const BASE_PATH = '/app/m/atlas.fleet/insurance'
+const BASE_PATH = '/app/m/runly.fleet/insurance'
 
 const INSURANCE_TABLE = {
   key: 'fleet.insurance_policy.table',
@@ -23,7 +23,7 @@ const INSURANCE_TABLE = {
       { field: 'vehicle_plate', label: 'Matricula', sortable: false },
       { field: 'insurer_name', label: 'Aseguradora', sortable: true },
       { field: 'policy_number', label: 'No. Poliza', sortable: true, link: true },
-      { field: 'coverage_type', label: 'Cobertura', sortable: false, component: 'atlas.fleet:CoverageTypeBadge' },
+      { field: 'coverage_type', label: 'Cobertura', sortable: false, component: 'runly.fleet:CoverageTypeBadge' },
       { field: 'start_date', label: 'Inicio vigencia', sortable: true, type: 'date', defaultVisible: false },
       { field: 'expiry_date', label: 'Fin vigencia', sortable: true, type: 'date' },
       { field: 'is_active', label: 'Estado', sortable: false, type: 'boolean' },

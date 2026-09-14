@@ -253,7 +253,7 @@ export default function AccountScreen() {
           <div className="min-w-0 flex-1">
             <button
               type="button"
-              onClick={() => navigate("/app/m/atlas.ledger/accounts")}
+              onClick={() => navigate("/app/m/runly.ledger/accounts")}
               className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-1.5 transition-colors"
             >
               <ArrowLeft size={11} />
@@ -330,7 +330,7 @@ export default function AccountScreen() {
               size="sm"
               disabled={isUsingLocalLedger}
               onClick={() =>
-                navigate(`/app/m/atlas.ledger/accounts/${accountId}/import`)
+                navigate(`/app/m/runly.ledger/accounts/${accountId}/import`)
               }
             >
               <Upload size={12} />

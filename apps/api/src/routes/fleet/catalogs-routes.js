@@ -36,7 +36,7 @@ function getActorIdFromContext(c) {
 function handleRouteError(c, err, { fallbackError, route, moduleKey, operation }) {
   if (err instanceof FleetServiceError) return c.json({ error: err.message }, err.status)
   if (process.env.NODE_ENV !== 'production') {
-    console.error('[atlas.fleet] route error', { route, moduleKey, operation, error: { name: err?.name, message: err?.message, stack: err?.stack } })
+    console.error('[runly.fleet] route error', { route, moduleKey, operation, error: { name: err?.name, message: err?.message, stack: err?.stack } })
   }
   return c.json({ error: fallbackError }, 500)
 }
@@ -44,7 +44,7 @@ function handleRouteError(c, err, { fallbackError, route, moduleKey, operation }
 export function createCatalogsRouter({ prisma, requirePermission, moduleContext, cache = null }) {
   const app = new Hono()
   const service = createCatalogService({ prisma })
-  const moduleKey = moduleContext?.moduleKey ?? 'atlas.fleet'
+  const moduleKey = moduleContext?.moduleKey ?? 'runly.fleet'
 
   function catalogGet(key, fn) {
     if (!cache) return fn()

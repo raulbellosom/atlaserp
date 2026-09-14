@@ -129,7 +129,7 @@ export default function OverviewScreen() {
                   <button
                     type="button"
                     className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
-                    onClick={() => navigate("/app/m/atlas.pfm/budgets")}
+                    onClick={() => navigate("/app/m/runly.pfm/budgets")}
                   >
                     Ver todos
                   </button>
@@ -143,7 +143,7 @@ export default function OverviewScreen() {
                   <button
                     type="button"
                     className="text-xs font-medium text-[hsl(var(--primary))] hover:underline"
-                    onClick={() => navigate("/app/m/atlas.pfm/budgets")}
+                    onClick={() => navigate("/app/m/runly.pfm/budgets")}
                   >
                     Ver todas
                   </button>
@@ -151,7 +151,7 @@ export default function OverviewScreen() {
               >
                 <GoalRings
                   goals={goals}
-                  onContribute={() => navigate("/app/m/atlas.pfm/budgets")}
+                  onContribute={() => navigate("/app/m/runly.pfm/budgets")}
                 />
               </SectionCard>
             </div>

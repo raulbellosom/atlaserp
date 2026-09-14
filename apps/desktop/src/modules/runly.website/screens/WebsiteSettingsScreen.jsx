@@ -261,7 +261,7 @@ export default function WebsiteSettingsScreen() {
           title="No hay sitio configurado"
           description="Completa el asistente de configuracion para activar estas opciones."
           action={
-            <Button onClick={() => navigate('/app/m/atlas.website')}>
+            <Button onClick={() => navigate('/app/m/runly.website')}>
               Ir al asistente
             </Button>
           }

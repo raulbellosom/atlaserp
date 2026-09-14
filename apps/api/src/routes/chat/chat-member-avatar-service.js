@@ -5,7 +5,7 @@ import { resolveUserProfileId } from "./chat-service.js";
 // Membership-gated full-resolution avatar signing for chat.
 //
 // Why this exists instead of reusing an existing endpoint:
-//  - `atlas.files.getSignedUrl` (GET /files/:id/signed-url) runs
+//  - `runly.files.getSignedUrl` (GET /files/:id/signed-url) runs
 //    `ensureFileBelongsToCompany`, which requires the FileAsset's entityType to
 //    be a company entity and entityId === companyId. Identity avatars are
 //    created by uploadIdentityAvatar() with entityType "UserProfile" /

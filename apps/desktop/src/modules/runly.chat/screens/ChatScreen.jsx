@@ -71,17 +71,17 @@ function ChatScreenInner() {
 
   function handleSelect(conv, messageId) {
     const qs = messageId ? `?msg=${encodeURIComponent(messageId)}` : "";
-    navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}${qs}`, { replace: Boolean(conversationIdFromUrl) });
+    navigate(`/app/m/runly.chat/chat/inbox/${conv.id}${qs}`, { replace: Boolean(conversationIdFromUrl) });
   }
 
   function handleCreated(conv) {
     if (conv?.id) {
-      navigate(`/app/m/atlas.chat/chat/inbox/${conv.id}`, { replace: Boolean(conversationIdFromUrl) });
+      navigate(`/app/m/runly.chat/chat/inbox/${conv.id}`, { replace: Boolean(conversationIdFromUrl) });
     }
   }
 
   function handleClose() {
-    navigate("/app/m/atlas.chat/chat/inbox", { replace: true });
+    navigate("/app/m/runly.chat/chat/inbox", { replace: true });
   }
 
   const { handlers: backSwipe } = useSwipeToReply({

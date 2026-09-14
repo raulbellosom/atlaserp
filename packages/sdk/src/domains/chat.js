@@ -76,7 +76,7 @@ export function createChatDomain(request, withAuthHeaders, toQueryString) {
         headers: withAuthHeaders(token),
       }),
 
-    // module: e.g. "atlas.projects". entityId: the linked record's id.
+    // module: e.g. "runly.projects". entityId: the linked record's id.
     // Returns { data: conversation | null } — used to decide "Crear canal"
     // vs. "Ir al canal" before the user clicks anything.
     getLinkedChannel: (module, entityId, token) =>

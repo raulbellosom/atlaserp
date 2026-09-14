@@ -27,7 +27,7 @@ export function useCalendars() {
         if (!db) return { owned: [], shared: [] };
         const records = await db.offline_records
           .where("moduleKey")
-          .equals("atlas.calendar")
+          .equals("runly.calendar")
           .filter((r) => r.entityType === "calendar")
           .toArray();
         // Shared calendars are not cached in Tier 2; only owned calendars are pulled
@@ -122,7 +122,7 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
         const endMs = end ? new Date(end).getTime() : null;
         const records = await db.offline_records
           .where("moduleKey")
-          .equals("atlas.calendar")
+          .equals("runly.calendar")
           .filter((r) => r.entityType === "event")
           .toArray();
         return records
@@ -164,7 +164,7 @@ export function useYearEvents(year, calendarIds = [], enabled = true) {
         const endMs = yearEnd.getTime();
         const records = await db.offline_records
           .where("moduleKey")
-          .equals("atlas.calendar")
+          .equals("runly.calendar")
           .filter((r) => r.entityType === "event")
           .toArray();
         return records

@@ -84,11 +84,11 @@ test('launch paths avoid double prefixes and catalog collisions cannot authorize
 });
 
 test('built-in implementations resolve both spellings, preserve exact priority and keep custom blueprint fallback', () => {
-  const screenMap = Object.fromEntries(OFFICIAL_MODULE_KEY_PAIRS.map(({ legacy }) => [`${legacy}:/`, { module: legacy }]));
+  const screenMap = Object.fromEntries(OFFICIAL_MODULE_KEY_PAIRS.map(({ current }) => [`${current}:/`, { module: current }]));
   const blueprint = {};
   for (const { legacy, current } of OFFICIAL_MODULE_KEY_PAIRS) {
-    assert.equal(resolveScreen(screenMap, current, '/', blueprint), screenMap[`${legacy}:/`]);
-    assert.equal(resolveScreen(screenMap, legacy, '/', blueprint), screenMap[`${legacy}:/`]);
+    assert.equal(resolveScreen(screenMap, current, '/', blueprint), screenMap[`${current}:/`]);
+    assert.equal(resolveScreen(screenMap, legacy, '/', blueprint), screenMap[`${current}:/`]);
     assert.equal(hasBuiltInModule(screenMap, current), true);
   }
   const exact = {};
@@ -111,7 +111,7 @@ test('parameterized built-in screens retain route matching under Runly keys', ()
   ];
   for (const [module, path, route] of cases) {
     const screen = {};
-    const map = { [`atlas.${module}:${route}`]: screen };
+    const map = { [`runly.${module}:${route}`]: screen };
     assert.equal(resolveScreen(map, `runly.${module}`, path), screen);
     assert.equal(resolveScreen(map, `atlas.${module}`, path), screen);
   }

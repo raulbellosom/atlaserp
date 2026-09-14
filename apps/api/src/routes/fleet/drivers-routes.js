@@ -54,7 +54,7 @@ function handleRouteError(
   if (err instanceof FleetServiceError)
     return c.json({ error: err.message }, err.status);
   if (process.env.NODE_ENV !== "production") {
-    console.error("[atlas.fleet] route error", {
+    console.error("[runly.fleet] route error", {
       route,
       moduleKey,
       operation,
@@ -72,7 +72,7 @@ export function createDriversRouter({
 }) {
   const app = new Hono();
   const service = createDriverService({ prisma });
-  const moduleKey = moduleContext?.moduleKey ?? "atlas.fleet";
+  const moduleKey = moduleContext?.moduleKey ?? "runly.fleet";
 
   app.get(
     "/fleet/drivers/export",

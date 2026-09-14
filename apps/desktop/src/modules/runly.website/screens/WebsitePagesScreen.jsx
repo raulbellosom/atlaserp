@@ -193,7 +193,7 @@ export default function WebsitePagesScreen() {
                   className="relative rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all group"
                 >
                   <button
-                    onClick={() => navigate(`/app/m/atlas.website/pages/${page.id}/editor`)}
+                    onClick={() => navigate(`/app/m/runly.website/pages/${page.id}/editor`)}
                     className="text-left w-full"
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">

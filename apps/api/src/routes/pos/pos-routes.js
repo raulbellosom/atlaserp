@@ -69,7 +69,7 @@ function context(c) {
 function handleError(c, err, fallback) {
   if (err instanceof PosServiceError) return c.json({ error: err.message }, err.status);
   if (err?.name === "ZodError") return c.json({ error: zodMessage(err) }, 400);
-  if (process.env.NODE_ENV !== "production") console.error("[atlas.pos]", err);
+  if (process.env.NODE_ENV !== "production") console.error("[runly.pos]", err);
   return c.json({ error: fallback }, 500);
 }
 

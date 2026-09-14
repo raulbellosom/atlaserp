@@ -66,7 +66,7 @@ function RoleRow({ role, navigate }) {
   return (
     <button
       type="button"
-      onClick={() => navigate(`/app/m/atlas.identity/identity/roles/${role.id}`)}
+      onClick={() => navigate(`/app/m/runly.identity/identity/roles/${role.id}`)}
       className="flex items-center gap-3 px-4 py-3 border-b border-[hsl(var(--border))]/60 last:border-b-0 hover:bg-[hsl(var(--muted))]/20 transition-colors w-full text-left"
     >
       <Shield className="h-4 w-4 text-[hsl(var(--muted-foreground))] shrink-0" />
@@ -132,7 +132,7 @@ export default function IdentityOverview() {
         description="Gestiona usuarios, roles y permisos del sistema."
         actions={
           canReadUsers && (
-            <Button onClick={() => navigate("/app/m/atlas.identity/identity/users")}>
+            <Button onClick={() => navigate("/app/m/runly.identity/identity/users")}>
               <Users className="h-4 w-4" />
               Ver usuarios
             </Button>
@@ -188,14 +188,14 @@ export default function IdentityOverview() {
             icon={Users}
             title="Usuarios"
             description="Administra cuentas, estado y perfiles de acceso"
-            href="/app/m/atlas.identity/identity/users"
+            href="/app/m/runly.identity/identity/users"
             color={brandColor}
           />
           <QuickLink
             icon={Shield}
             title="Roles y permisos"
             description="Define roles y asigna permisos granulares por modulo"
-            href="/app/m/atlas.identity/identity/roles"
+            href="/app/m/runly.identity/identity/roles"
             color={violet}
           />
         </div>
@@ -210,7 +210,7 @@ export default function IdentityOverview() {
             </p>
             <button
               type="button"
-              onClick={() => navigate("/app/m/atlas.identity/identity/roles")}
+              onClick={() => navigate("/app/m/runly.identity/identity/roles")}
               className="text-xs hover:underline cursor-pointer"
               style={{ color: brandColor }}
             >

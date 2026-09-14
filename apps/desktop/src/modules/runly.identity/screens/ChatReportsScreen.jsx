@@ -85,7 +85,7 @@ export default function ChatReportsScreen() {
       <PageHeader
         eyebrow="Runly Identity"
         title="Reportes de chat"
-        description="Revisa reportes de usuarios filtrados desde atlas.chat."
+        description="Revisa reportes de usuarios filtrados desde runly.chat."
       />
 
       {canRead ? (

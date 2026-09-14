@@ -6,7 +6,7 @@ import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
-const BASE_PATH = '/app/m/atlas.ledger/types'
+const BASE_PATH = '/app/m/runly.ledger/types'
 
 const TYPES_TABLE = {
   key: 'ledger.types.table',

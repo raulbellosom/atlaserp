@@ -610,7 +610,7 @@ function EditorEmptyRoute({ routePath, onCreatePage, isCreating }) {
             {isCreating ? 'Creando...' : `Crear pagina "${isRoot ? 'Inicio' : routePath}"`}
           </button>
           <a
-            href="/app/m/atlas.website/pages"
+            href="/app/m/runly.website/pages"
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors underline"
           >
             Ver todas las paginas

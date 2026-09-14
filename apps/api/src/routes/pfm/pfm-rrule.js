@@ -1,6 +1,6 @@
 // apps/api/src/routes/pfm/pfm-rrule.js
 //
-// Minimal recurrence-date math for atlas.pfm. All dates are treated as UTC
+// Minimal recurrence-date math for runly.pfm. All dates are treated as UTC
 // calendar days (time component ignored / normalized to 00:00:00Z).
 //
 // rrule shape: { freq: 'DAILY'|'WEEKLY'|'MONTHLY'|'YEARLY', interval?: number,

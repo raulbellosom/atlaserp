@@ -17,7 +17,7 @@ function handleError(c, err, fallback) {
   if (err instanceof FilesServiceError || (err?.name === "FilesServiceError" && err?.status)) {
     return c.json({ error: err.message || fallback }, err.status ?? 500);
   }
-  console.error("[atlas.pfm]", err);
+  console.error("[runly.pfm]", err);
   return c.json({ error: fallback }, 500);
 }
 

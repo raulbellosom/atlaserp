@@ -1,4 +1,4 @@
-// Registry key: atlas.fleet:DriverLicenseBadge
+// Registry key: runly.fleet:DriverLicenseBadge
 // Props: { license_status, license_days_to_expiry } — computed server-side in driver-service.js
 import { Badge } from "@runly/ui";
 

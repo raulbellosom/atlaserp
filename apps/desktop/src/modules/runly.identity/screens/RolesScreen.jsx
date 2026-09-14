@@ -477,7 +477,7 @@ export default function RolesScreen() {
   }
 
   const handleNavigate = (id) =>
-    navigate(`/app/m/atlas.identity/identity/roles/${id}`);
+    navigate(`/app/m/runly.identity/identity/roles/${id}`);
   const handleToggle = (id, enabled) =>
     toggleRoleMutation.mutate({ id, enabled });
 

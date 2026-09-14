@@ -259,7 +259,7 @@ export function RunlyApp() {
             <main className="flex-1 min-h-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
               <Outlet />
             </main>
-            {!(getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === "atlas.chat" && isFullscreen) && (
+            {!(getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === "runly.chat" && isFullscreen) && (
               <BrandFooter className="hidden lg:flex" />
             )}
           </div>

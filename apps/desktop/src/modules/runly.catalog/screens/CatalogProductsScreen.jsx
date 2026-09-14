@@ -105,7 +105,7 @@ export default function CatalogProductsScreen() {
     onSuccess: res => {
       toast.success('Producto creado')
       queryClient.invalidateQueries({ queryKey: ['catalog-products'] })
-      navigate(`/app/m/atlas.catalog/${res.data.id}`)
+      navigate(`/app/m/runly.catalog/${res.data.id}`)
     },
     onError: err => toast.error(err?.message ?? 'No se pudo crear el producto'),
   })
@@ -144,8 +144,8 @@ export default function CatalogProductsScreen() {
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
-        onView={row => navigate(`/app/m/atlas.catalog/${row.id}`)}
-        onEdit={canUpdate ? row => navigate(`/app/m/atlas.catalog/${row.id}`) : undefined}
+        onView={row => navigate(`/app/m/runly.catalog/${row.id}`)}
+        onEdit={canUpdate ? row => navigate(`/app/m/runly.catalog/${row.id}`) : undefined}
         onDelete={canDelete ? row => setConfirmDelete(row) : undefined}
         refreshSignal={refreshSignal}
       />

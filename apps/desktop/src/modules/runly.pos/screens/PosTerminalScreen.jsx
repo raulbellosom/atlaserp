@@ -20,8 +20,8 @@ import SessionOpenDialog from '../components/SessionOpenDialog'
 import SessionCloseDialog from '../components/SessionCloseDialog'
 import WaiterShiftsPanel, { WaiterShiftsBadgeCount } from '../components/WaiterShiftsPanel'
 
-const LS_OUTLET = 'atlas.pos.outletId'
-const LS_TERMINAL = 'atlas.pos.terminalId'
+const LS_OUTLET = 'runly.pos.outletId'
+const LS_TERMINAL = 'runly.pos.terminalId'
 
 function SetupCard({ outlets, terminals, onConfirm }) {
   const [outletId, setOutletId] = useState('')
@@ -377,7 +377,7 @@ export default function PosTerminalScreen({ cajaTools = false }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => navigate('/app/m/atlas.pos/pos/caja/historial')}
+                  onClick={() => navigate('/app/m/runly.pos/pos/caja/historial')}
                   className="h-7 text-xs px-2.5 gap-1.5"
                 >
                   <History size={13} />

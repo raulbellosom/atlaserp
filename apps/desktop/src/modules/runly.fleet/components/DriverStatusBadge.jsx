@@ -1,4 +1,4 @@
-// Registry key: atlas.fleet:DriverStatusBadge
+// Registry key: runly.fleet:DriverStatusBadge
 // Props: { status: 'active' | 'inactive' | 'suspended' }
 import { Badge } from "@runly/ui";
 

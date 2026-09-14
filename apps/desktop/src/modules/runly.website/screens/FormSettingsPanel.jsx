@@ -116,7 +116,7 @@ export default function FormSettingsPanel({ form, token, assignees, turnstileCon
           <SwitchField
             id={`form-${form.id}-lead`}
             label="Crear lead automáticamente"
-            description="Guarda cada envío como un lead en atlas.growth"
+            description="Guarda cada envío como un lead en runly.growth"
             checked={settings.createsLead}
             onChange={checked => set('createsLead', checked)}
           />

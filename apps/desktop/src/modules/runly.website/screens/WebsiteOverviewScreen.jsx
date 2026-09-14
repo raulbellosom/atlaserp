@@ -195,7 +195,7 @@ export default function WebsiteOverviewScreen() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div
             className="cursor-pointer"
-            onClick={() => navigate("/app/m/atlas.website/pages")}
+            onClick={() => navigate("/app/m/runly.website/pages")}
           >
             <StatCard
               label="Pag. publicadas"
@@ -206,7 +206,7 @@ export default function WebsiteOverviewScreen() {
           </div>
           <div
             className="cursor-pointer"
-            onClick={() => navigate("/app/m/atlas.website/pages")}
+            onClick={() => navigate("/app/m/runly.website/pages")}
           >
             <StatCard
               label="Borradores"
@@ -217,7 +217,7 @@ export default function WebsiteOverviewScreen() {
           </div>
           <div
             className="cursor-pointer"
-            onClick={() => navigate("/app/m/atlas.website/blog")}
+            onClick={() => navigate("/app/m/runly.website/blog")}
           >
             <StatCard
               label="Posts de blog"
@@ -228,7 +228,7 @@ export default function WebsiteOverviewScreen() {
           </div>
           <div
             className="cursor-pointer"
-            onClick={() => navigate("/app/m/atlas.website/forms")}
+            onClick={() => navigate("/app/m/runly.website/forms")}
           >
             <StatCard
               label="Envios de formulario"

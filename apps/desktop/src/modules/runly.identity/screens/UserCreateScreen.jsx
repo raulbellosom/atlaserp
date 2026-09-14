@@ -61,7 +61,7 @@ export default function UserCreateScreen() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       toast.success("Usuario creado correctamente");
-      navigate("/app/m/atlas.identity/identity/users");
+      navigate("/app/m/runly.identity/identity/users");
     },
     onError: (err) => {
       try {
@@ -100,7 +100,7 @@ export default function UserCreateScreen() {
         eyebrow="Runly Identity"
         title="Nuevo usuario"
         actions={
-          <Button variant="outline" onClick={() => navigate("/app/m/atlas.identity/identity/users")}>
+          <Button variant="outline" onClick={() => navigate("/app/m/runly.identity/identity/users")}>
             <ArrowLeft className="h-4 w-4" />
             Volver a usuarios
           </Button>

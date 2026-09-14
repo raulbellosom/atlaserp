@@ -129,7 +129,7 @@ export default function WalletDetailScreen() {
                 <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Ajustar saldo
               </Button>
             )}
-            <Button variant="ghost" onClick={() => navigate("/app/m/atlas.pfm/wallets")}>
+            <Button variant="ghost" onClick={() => navigate("/app/m/runly.pfm/wallets")}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Carteras
             </Button>
           </div>

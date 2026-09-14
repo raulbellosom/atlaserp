@@ -1,4 +1,4 @@
-// inventory-service.js — business logic layer for atlas.inventory module
+// inventory-service.js — business logic layer for runly.inventory module
 import { parseMentionIds } from '../lib/mention-utils.js'
 import { createActivityService } from './activity-service.js';
 import { createActivityBridge } from './activity-bridge.js';
@@ -293,7 +293,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     await bridge.logAndPublish({
       auditEntry: {
         actorId: creatorProfileId ?? 'system',
-        moduleKey: 'atlas.inventory',
+        moduleKey: 'runly.inventory',
         entityType: 'InvItem',
         entityId: created.id,
         action: 'inventory.item.created',
@@ -408,7 +408,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     await bridge.logAndPublish({
       auditEntry: {
         actorId: 'system',
-        moduleKey: 'atlas.inventory',
+        moduleKey: 'runly.inventory',
         entityType: 'InvItem',
         entityId: id,
         action: 'inventory.item.updated',
@@ -457,7 +457,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     await bridge.logAndPublish({
       auditEntry: {
         actorId: actorProfileId ?? 'system',
-        moduleKey: 'atlas.inventory',
+        moduleKey: 'runly.inventory',
         entityType: 'InvItem',
         entityId: itemId,
         action: 'inventory.item.assigned',
@@ -501,7 +501,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     await bridge.logAndPublish({
       auditEntry: {
         actorId: 'system',
-        moduleKey: 'atlas.inventory',
+        moduleKey: 'runly.inventory',
         entityType: 'InvItem',
         entityId: itemId,
         action: 'inventory.item.returned',

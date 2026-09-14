@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.chat/lib/meridian.js
 //
-// Pure helpers for the MeridIAn AI assistant surfaces in atlas.chat (Spec 1).
+// Pure helpers for the MeridIAn AI assistant surfaces in runly.chat (Spec 1).
 // No React, no network — safe to unit-test with node --test.
 
 export const MERIDIAN_NAME = "MeridIAn";

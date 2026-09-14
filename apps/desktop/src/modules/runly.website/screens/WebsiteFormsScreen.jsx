@@ -314,7 +314,7 @@ function NewFormDialog({ open, onOpenChange, siteId, token, assignees, turnstile
             <SwitchField
               id="nf-lead"
               label="Crear lead automáticamente"
-              description="Registra cada envío como lead en atlas.growth"
+              description="Registra cada envío como lead en runly.growth"
               checked={data.createsLead}
               onChange={v => set('createsLead', v)}
             />

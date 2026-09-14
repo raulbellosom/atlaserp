@@ -61,7 +61,7 @@ export class ModuleRegistry {
 
   /**
    * Given a URL path, returns the module whose navigation paths match.
-   * Matches by prefix so /app/m/atlas.contacts/list matches atlas.contacts.
+   * Matches by prefix so /app/m/runly.contacts/list matches runly.contacts.
    */
   getModuleByPath(path) {
     // Check for /app/m/:moduleKey pattern first

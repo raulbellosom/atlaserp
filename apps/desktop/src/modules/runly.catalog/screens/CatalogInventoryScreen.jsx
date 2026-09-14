@@ -86,7 +86,7 @@ export default function CatalogInventoryScreen() {
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}
-        onView={row => navigate(`/app/m/atlas.catalog/${row.id}`)}
+        onView={row => navigate(`/app/m/runly.catalog/${row.id}`)}
       />
     </div>
   )

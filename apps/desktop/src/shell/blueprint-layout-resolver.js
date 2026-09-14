@@ -1,13 +1,15 @@
-const DASHBOARD_SHELL_KEY = "atlas.dashboardShell";
-const CRUD_LAYOUT_KEY = "atlas.crudLayout";
+const DASHBOARD_SHELL_KEY = "runly.dashboardShell";
+const CRUD_LAYOUT_KEY = "runly.crudLayout";
 
 const SHELL_ALIASES = new Map([
+  ["runly.dashboardshell", DASHBOARD_SHELL_KEY],
   ["atlas.dashboardshell", DASHBOARD_SHELL_KEY],
   ["main", DASHBOARD_SHELL_KEY],
   ["default", DASHBOARD_SHELL_KEY],
 ]);
 
 const LAYOUT_ALIASES = new Map([
+  ["runly.crudlayout", CRUD_LAYOUT_KEY],
   ["atlas.crudlayout", CRUD_LAYOUT_KEY],
   ["main", CRUD_LAYOUT_KEY],
   ["default", CRUD_LAYOUT_KEY],

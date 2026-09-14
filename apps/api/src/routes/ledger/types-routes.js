@@ -6,7 +6,7 @@ import { getCompanyId, getValidationErrorMessage } from './service-helpers.js'
 
 function handleError(c, err, fallback) {
   if (err instanceof LedgerServiceError) return c.json({ error: err.message }, err.status)
-  if (process.env.NODE_ENV !== 'production') console.error('[atlas.ledger:types]', err)
+  if (process.env.NODE_ENV !== 'production') console.error('[runly.ledger:types]', err)
   return c.json({ error: fallback }, 500)
 }
 

@@ -136,7 +136,7 @@ export default function ContactsScreen() {
       setSheetOpen(true);
     } else if (urlContactQuery.isError) {
       toast.error("No se pudo cargar el contacto.");
-      navigate("/app/m/atlas.contacts/contacts");
+      navigate("/app/m/runly.contacts/contacts");
     }
   }, [urlContactId, urlContactQuery.data, urlContactQuery.isError, navigate]);
 
@@ -153,11 +153,11 @@ export default function ContactsScreen() {
   function closeSheet() {
     setSheetOpen(false);
     setEditingContact(null);
-    if (urlContactId) navigate("/app/m/atlas.contacts/contacts");
+    if (urlContactId) navigate("/app/m/runly.contacts/contacts");
   }
 
   function openCreate() {
-    if (urlContactId) navigate("/app/m/atlas.contacts/contacts");
+    if (urlContactId) navigate("/app/m/runly.contacts/contacts");
     setEditingContact(null);
     setSheetOpen(true);
   }
@@ -165,7 +165,7 @@ export default function ContactsScreen() {
   function openEdit(contact) {
     setEditingContact(contact);
     setSheetOpen(true);
-    navigate(`/app/m/atlas.contacts/contacts/${contact.id}`);
+    navigate(`/app/m/runly.contacts/contacts/${contact.id}`);
   }
 
   const createMutation = useMutation({
