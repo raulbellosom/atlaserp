@@ -1,5 +1,5 @@
-Read `AGENTS.md`, `docs/ai-context/ame3-modules.md`, and `docs/ai-context/ame3-runtime-capabilities.md` first.
-Follow AME3 rules exactly.
+Read `AGENTS.md`, `docs/ai-context/rme3-modules.md`, and `docs/ai-context/rme3-runtime-capabilities.md` first.
+Follow RME3 rules exactly.
 Custom React components in `components/index.js` are compiled at install time by esbuild and are available without rebuilding the web image — no image rebuild is ever needed for module UI.
 Use the normal automatic JSX runtime. Do not add `/** @jsxRuntime classic */`, `/** @jsx createElement */`, or `import { createElement } from 'react'` in module components.
 Never import `toast` from `@runly/ui`; use `import { toast } from 'sonner'`.

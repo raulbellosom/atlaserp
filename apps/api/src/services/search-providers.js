@@ -2,7 +2,7 @@
 //
 // Each provider is permission-gated by the route; `run` is pure data access and
 // never sees the Hono context. All three v1 sources are core Prisma-managed
-// tables (not AME3), so model accessors are fine here.
+// tables (not RME3), so model accessors are fine here.
 
 function firstNonEmpty(...values) {
   for (const value of values) {

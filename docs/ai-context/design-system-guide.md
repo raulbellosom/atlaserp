@@ -95,6 +95,6 @@ There is no shared "drawer" abstraction distinct from `Sheet` — a right-side s
 - Tailwind config (mostly vestigial under Tailwind v4's `@source`-based scanning): `apps/desktop/tailwind.config.js`
 - Component library: `packages/ui/src/components/*.jsx`, barrel at `packages/ui/src/index.js`
 - Field-type wrappers (Text/Select/Date/etc.): `packages/ui/src/components/FormFields.jsx`
-- Blueprint renderer (AME3 CUSTOM/TABLE/FORM views): `packages/ui/src/atlas-renderer/*` — see `docs/ai-context/ame3-runtime-capabilities.md` for its component inventory
+- Blueprint renderer (RME3 CUSTOM/TABLE/FORM views): `packages/ui/src/atlas-renderer/*` — see `docs/ai-context/rme3-runtime-capabilities.md` for its component inventory
 - Prior architecture decision this guide extends: `docs/superpowers/decisions/2026-05-13-ame3-renderer-ui-reuse-and-glassic-design.md`
 - Full audit + fix backlog: `docs/superpowers/decisions/2026-08-24-design-system-unification-audit.md`

@@ -1,7 +1,7 @@
-# Atlas ERP - Project Status
+# Runly ERP - Project Status
 
 Last verified: 2026-05-25
-Current phase: AME3 Phase 4 complete, Phase 5 retired, Phase 6 renderer complete, Phase 7 cleanup complete
+Current phase: RME3 Phase 4 complete, Phase 5 retired, Phase 6 renderer complete, Phase 7 cleanup complete
 
 ## Implemented
 
@@ -24,17 +24,17 @@ Current phase: AME3 Phase 4 complete, Phase 5 retired, Phase 6 renderer complete
 
 All above are seeded/managed as `core: true`, `uninstallable: false` in official snapshots.
 
-### AME3 and manifests
-- AME3 discovery/sync is the primary source for module lifecycle metadata.
+### RME3 and manifests
+- RME3 discovery/sync is the primary source for module lifecycle metadata.
 - Official manifest snapshots are maintained in `apps/api/src/manifests/official/`.
 - `packages/maps` has been decommissioned and removed.
 
 ## Current roadmap highlights
 
-### AME3 status
-- Phase 1: complete (`@atlas/module-engine` foundation)
+### RME3 status
+- Phase 1: complete (`@runly/module-engine` foundation)
 - Phase 2: complete (route loader + custom module baseline)
-- Phase 3: complete (Atlas ORM + blueprint renderer)
+- Phase 3: complete (Runly ORM + blueprint renderer)
 - Phase 4: complete (filesystem discovery + lifecycle/component sync)
 - Phase 5: retired (official module relocation not required)
 - Phase 6: generic CRUD renderer baseline complete
@@ -56,4 +56,4 @@ All above are seeded/managed as `core: true`, `uninstallable: false` in official
 - JavaScript-only codebase.
 - UI text in Spanish; code/docs/comments in English.
 - Prisma baseline pinned to `^7`.
-- Frontend consumes business data only via `@atlas/sdk`.
+- Frontend consumes business data only via `@runly/sdk`.

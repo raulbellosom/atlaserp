@@ -1,4 +1,4 @@
-# AME3 Troubleshooting
+# RME3 Troubleshooting
 
 ## Common Failures
 

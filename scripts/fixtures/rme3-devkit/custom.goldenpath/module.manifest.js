@@ -5,7 +5,7 @@ export default defineRunlyModule({
   name: 'Golden Path',
   version: '0.1.0',
   kind: 'FEATURE',
-  description: 'Fixture minimo para validar installer mode de AME3.',
+  description: 'Fixture minimo para validar installer mode de RME3.',
   icon: 'Boxes',
   color: '#2563eb',
   pwa: {

@@ -1,4 +1,4 @@
-﻿# Atlas ERP - Tasks and Roadmap
+﻿# Runly ERP - Tasks and Roadmap
 
 ## Runly migration [IN PROGRESS]
 
@@ -41,7 +41,7 @@ Verified: 2026-09-13 (27 node:test checks passed; local/external Compose image d
 
 Stage 2 verified: 2026-09-13 (50 targeted tests passed across PWA/ETag, email, PDF/Excel branding, manifests, notifications and invitations; Vite build and scoped ESLint passed; JSON/native/PWA identities and technical tokens preserved). React Doctor: 38 existing-component maintainability warnings, 52/100; no control-flow or layout changes were made. A broken local API dependency link was repaired with frozen-lockfile installation; dependency manifests and lockfile unchanged. Spec: `docs/superpowers/specs/2026-09-13-runly-visible-branding-design.md`; evidence: `docs/superpowers/plans/2026-09-13-runly-visible-branding.md`. Assets/palette and saved customer names preserved; no native builds, database operations or deployment.
 
-Stage 3a verified: 2026-09-13 (focused package/importmap, bundler, installer, Dev Kit, AME3 and storefront SDK tests passed; frozen installation, Vite and SDK builds passed; ESLint zero errors). External dependency resolutions preserved. React Doctor: 58 existing-code warnings across the expanded scope, 48/100; frontend changes in this stage are import-scope replacements only. Public npm package renamed locally to `@raulbellosom/runly-sdk`, publication pending. No database, native identity, customer-folder or deployment operations. Evidence: `docs/superpowers/plans/2026-09-13-runly-packages-devkit.md`.
+Stage 3a verified: 2026-09-13 (focused package/importmap, bundler, installer, Dev Kit, RME3 and storefront SDK tests passed; frozen installation, Vite and SDK builds passed; ESLint zero errors). External dependency resolutions preserved. React Doctor: 58 existing-code warnings across the expanded scope, 48/100; frontend changes in this stage are import-scope replacements only. Public npm package renamed locally to `@raulbellosom/runly-sdk`, publication pending. No database, native identity, customer-folder or deployment operations. Evidence: `docs/superpowers/plans/2026-09-13-runly-packages-devkit.md`.
 
 Stage 3b verified: 2026-09-13 (88 distinct focused tests passed, including Compose config with synthetic files, bootstrap, runtime aliases, secret/settings preservation and Vite substitutions; web build, scoped ESLint, installer syntax and Rust formatting passed). React Doctor unchanged at 58 warnings, 48/100. Runtime inputs prefer Runly with legacy fallback; installer-managed process overrides beat saved values. Native app IDs, module keys, volumes and storefront globals remain unchanged. No actual installer run, customer env changes, DB operations, native build or publication/deployment. Evidence: `docs/superpowers/plans/2026-09-13-runly-environment.md`.
 
@@ -563,11 +563,11 @@ Plans: `docs/superpowers/plans/2026-05-30-atlas-catalog-plan-A.md`, `...-plan-B.
 
 Verified: 2026-06-20 (4 screens present in `apps/desktop/src/modules/atlas.catalog/screens/`; `catalog/` route folder confirmed in `apps/api/src/routes/`)
 
-## Fleet: AME3 → Desktop Module Migration [COMPLETE]
+## Fleet: RME3 → Desktop Module Migration [COMPLETE]
 
 Plans: `docs/superpowers/plans/2026-06-06-fleet-screens-migration.md`, `2026-06-06-sdk-migration-calendar-fleet.md`, `2026-06-06-ledger-cleanup-modules-official.md`
 
-- [x] Migrated from AME3 (`modules/custom/custom.fleet/`) to core desktop module (`atlas.fleet`)
+- [x] Migrated from RME3 (`modules/custom/custom.fleet/`) to core desktop module (`atlas.fleet`)
 - [x] Fleet API moved to `apps/api/src/routes/fleet/` (full service layer retained)
 - [x] Desktop screens: `VehiclesScreen`, `DriversScreen`, `ReportsScreen`, `ReportFormPage`, `ReportDetailScreen`, `InsuranceScreen`, `CatalogsScreen`
 - [x] SDK migration for fleet + calendar domains; `modules/custom/` is now empty
@@ -631,7 +631,7 @@ Verified: 2026-05-31 (`pnpm prisma migrate deploy` → applied `20260531000000_a
 - [x] Replace Prisma ID defaults from `cuid()` to UUID v7 (`@default(uuid(7)) @db.Uuid`) across domain models.
 - [x] Align shared validators and module validators to UUID-based ID contracts.
 - [x] Remove `custom.fleet` company hash bridge and require real UUID company scope.
-- [x] Normalize AME3 SQL generation and fleet dynamic DDL to UUID v7 defaults (`uuidv7()`).
+- [x] Normalize RME3 SQL generation and fleet dynamic DDL to UUID v7 defaults (`uuidv7()`).
 - [x] Add destructive baseline migration for full reset strategy (`20260524000000_uuid_v7_global_cutover`).
 - [x] Add forward fleet migration to normalize legacy text reference columns to UUID (`V009_uuid_reference_columns.sql`).
 - [x] Add CI guardrail to block `cuid(` and `.cuid(` reintroduction in source code.
@@ -949,27 +949,27 @@ Verified: 2026-05-09 (`node --check` all 7 modified/created service and route fi
 
 ---
 
-## AME3 — Atlas Module Engine v3
+## RME3 — Runly Module Engine v3
 
-> Atlas ERP is no longer an ERP with modules. Atlas ERP is a module engine that ships ERP modules.
+> Runly ERP is no longer an ERP with modules. Runly ERP is a module engine that ships ERP modules.
 
 Architecture: `docs/architecture/runly-module-engine-v3.md`  
 Custom modules guide: `docs/03_custom_modules.md`  
 Module system: `docs/02_module_system.md`
 
-**No new module work should extend the old system.** Old code (`packages/maps/`, transitional Prisma models, manual route mounting) may remain temporarily only to keep the app running during migration. Any new feature waits for the relevant AME3 layer or builds it first.
+**No new module work should extend the old system.** Old code (`packages/maps/`, transitional Prisma models, manual route mounting) may remain temporarily only to keep the app running during migration. Any new feature waits for the relevant RME3 layer or builds it first.
 
-### AME3 Phase 1 — Package Foundation and Lifecycle v2
+### RME3 Phase 1 — Package Foundation and Lifecycle v2
 
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-engine-foundation.md`  
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-engine-foundation.md`
 
-- [x] `docs/architecture/runly-module-engine-v3.md` — master AME3 architecture document
+- [x] `docs/architecture/runly-module-engine-v3.md` — master RME3 architecture document
 - [x] `docs/03_custom_modules.md` — custom module developer guide
-- [x] `docs/02_module_system.md` — module system rewrite (AME3-first)
+- [x] `docs/02_module_system.md` — module system rewrite (RME3-first)
 - [x] `docs/01_erp_architecture.md` — updated architecture reference
 - [x] `README.md` — updated module system and architecture sections
-- [x] `docs/00_project_status.md` — AME3 direction and roadmap added
+- [x] `docs/00_project_status.md` — RME3 direction and roadmap added
 - [x] Module Lifecycle v2 (Phase 9.5): `Permission.active`, dry-run, reset, purge-data, cleanup registry
 - [x] _Spec approved_ → Create `packages/module-engine/` — exports `defineAtlasModule`, `defineModel`, `defineView`, `definePage`
 - [x] _Spec approved_ → Create `modules/custom/` directory with `README.md` and `.gitkeep`
@@ -977,7 +977,7 @@ Module system: `docs/02_module_system.md`
 
 Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 test files — 61 tests, 0 fail [15 define-module, 14 define-model, 22 sql-generator, 10 checksum]; 16 named exports verified importable from packages/module-engine/src/index.js; pnpm --filter ./apps/desktop build:web exits 0)
 
-### AME3 Phase 2 — Folder Structure and Custom Sample Module
+### RME3 Phase 2 — Folder Structure and Custom Sample Module
 
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-custom-fleet-module.md`  
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-custom-fleet-module.md`
@@ -990,16 +990,16 @@ Verified: 2026-05-09 (node --check 13 source files — all pass; node --test 4 t
 
 Verified: 2026-05-20 (`node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check modules/custom/custom.fleet/module.manifest.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
-### AME3 Phase 3 — Atlas ORM and Blueprint Renderer [COMPLETE]
+### RME3 Phase 3 — Runly ORM and Blueprint Renderer [COMPLETE]
 
 **Spec:** `docs/superpowers/specs/2026-05-10-ame3-atlas-orm-blueprint-renderer-design.md`  
 **Plan:** `docs/superpowers/plans/2026-05-10-ame3-atlas-orm-blueprint-renderer.md`
 
 - [x] Add `AtlasModel`, `AtlasField`, `AtlasView`, `ModuleMigration` to `prisma/schema.prisma` — Verified: 2026-05-13 (migration applied, tables confirmed)
-- [x] Atlas ORM: provisions `atlas_*` tables from `defineModel` declarations, forward-only — Verified: 2026-05-13 (`fleet_vehicle`, `fleet_maintenance` provisioned by ORM hook)
+- [x] Runly ORM: provisions `atlas_*` tables from `defineModel` declarations, forward-only — Verified: 2026-05-13 (`fleet_vehicle`, `fleet_maintenance` provisioned by ORM hook)
 - [x] Blueprint renderer: `AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`, `AtlasCardView`, `AtlasTableToolbar`, `AtlasSortMenu` — Verified: 2026-05-13 (build passes, browser renders list/detail/form)
 - [x] Component Registry: `registry.register(key, component)` from module `components/index.js` — Verified: 2026-05-13 (route-loader-service loads components on boot)
-- [x] First full AME3 module end-to-end: zero Prisma edits, zero manual route mounting, zero manual screen registration — Verified: 2026-05-13 (`custom.fleet` installs, provisions tables, mounts routes, and renders via `BlueprintCrudScreen` fallback with no hardcoded SCREEN_MAP entry)
+- [x] First full RME3 module end-to-end: zero Prisma edits, zero manual route mounting, zero manual screen registration — Verified: 2026-05-13 (`custom.fleet` installs, provisions tables, mounts routes, and renders via `BlueprintCrudScreen` fallback with no hardcoded SCREEN_MAP entry)
 - [x] Route Loader lifecycle wiring: install/retry-install/enable reload routes; disable/uninstall/clear-error/cleanup unload routes — in-memory state matches DB without API restart — Verified: 2026-05-14 (static checks + build pass; runtime validation pending API restart)
 
 ### custom.fleet Operational Expansion [COMPLETE]
@@ -1008,7 +1008,7 @@ Verified: 2026-05-20 (`node --check apps/api/src/services/route-loader-service.j
 **Plan:** `docs/superpowers/plans/2026-05-14-custom-fleet-operational-expansion.md`
 
 - [x] Additive migrations: `fleet_vehicle` expansion columns (`vehicle_type_id`, `vehicle_brand_id`, `economic_group_number`, `economic_individual_number`, `photo_asset_id`) and `fleet_maintenance` expansion columns (`maintenance_type_id`, `title`, `status`, `driver_id`, `started_at`, `odometer_km`, `provider`, `currency`) — Verified: 2026-05-16 (all columns present in DB)
-- [x] Seven new fleet tables provisioned via Atlas ORM: `fleet_driver`, `fleet_vehicle_type`, `fleet_vehicle_brand`, `fleet_maintenance_type`, `fleet_vehicle_document`, `fleet_driver_document`, `fleet_maintenance_document` — Verified: 2026-05-16 (all 9 fleet tables present in DB)
+- [x] Seven new fleet tables provisioned via Runly ORM: `fleet_driver`, `fleet_vehicle_type`, `fleet_vehicle_brand`, `fleet_maintenance_type`, `fleet_vehicle_document`, `fleet_driver_document`, `fleet_maintenance_document` — Verified: 2026-05-16 (all 9 fleet tables present in DB)
 - [x] Fleet service layer split: `fleet-service.js` → domain files (`driver-service.js`, `maintenance-service.js`, `catalog-service.js`) + `service-helpers.js` shared utilities — Verified: 2026-05-16 (34/34 node --check pass)
 - [x] Driver CRUD API: full lifecycle with license fields, document associations, file resolution — Verified: 2026-05-16 (POST 201, GET 200, PATCH 200, PATCH/enabled 200)
 - [x] Maintenance CRUD API: expanded schema with `type` enum, status lifecycle, odometer, cost, provider — Verified: 2026-05-16 (POST 201 `type:preventive`, GET 200, PATCH 200, PATCH/enabled 200)
@@ -1140,7 +1140,7 @@ Plan: Fleet reportes V2 (maintenance/service/repair/other, strict typed flows)
 
 Verified: 2026-05-22 (`node --check modules/custom/custom.fleet/api/reports-service.js`; `node --check modules/custom/custom.fleet/api/reports-routes.js`; `node --check modules/custom/custom.fleet/api/vehicles-routes.js`; `node --check modules/custom/custom.fleet/validators/index.js`; `node --check modules/custom/custom.fleet/module.manifest.js`; `Get-ChildItem modules/custom/custom.fleet/views/reports*.js | ForEach-Object { node --check $_.FullName }`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
-### AME3 Phase 4 — Discovery as Primary Source
+### RME3 Phase 4 — Discovery as Primary Source
 
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-discovery-sync.md`  
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-discovery-sync.md`
@@ -1153,9 +1153,9 @@ Verified: 2026-05-22 (`node --check modules/custom/custom.fleet/api/reports-serv
 
 Verified: 2026-05-20 (`node --check apps/api/src/routes/modules.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/module-metadata-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --test packages/module-engine/src/__tests__/define-module.test.js`; `node --test packages/module-engine/src/__tests__/sql-generator.test.js`)
 
-### AME3 Hardening — Discovery/Lifecycle/Route Loader
+### RME3 Hardening — Discovery/Lifecycle/Route Loader
 
-- [x] G1 package import hardening: API AME3 services now resolve `@atlas/module-engine` through workspace dependency (`@atlas/api` direct dependency added)
+- [x] G1 package import hardening: API RME3 services now resolve `@atlas/module-engine` through workspace dependency (`@atlas/api` direct dependency added)
 - [x] G2 discovery checksum enforcement: manifest migration checksums are validated during discovery (`MANIFEST_MIGRATION_CHECKSUM_MISMATCH` fail-fast)
 - [x] G3 dependency cycle guard: required dependency cycle detection added for lifecycle install/sync and `/modules/sync` dependency reconciliation (`DEPENDENCY_CYCLE_DETECTED`)
 - [x] G4 route collision visibility: route loader now detects `METHOD + PATH` collisions, keeps first owner, and marks conflicting module route loader state as `ERROR` with collision metadata
@@ -1166,20 +1166,20 @@ Verified: 2026-05-20 (`node --check apps/api/src/routes/modules.js`; `node --che
 
 Verified: 2026-05-20 (`node --check apps/api/src/services/module-dependency-utils.js`; `node --check apps/api/src/services/module-discovery-service.js`; `node --check apps/api/src/services/module-migration-service.js`; `node --check apps/api/src/services/module-lifecycle-service.js`; `node --check apps/api/src/services/route-loader-service.js`; `node --check apps/api/src/routes/modules.js`; `node --check packages/module-engine/src/define-view.js`; `node --check packages/validators/src/index.js`; `node --test packages/module-engine/src/__tests__/define-view.test.js packages/validators/src/__tests__/module-lifecycle-schemas.test.js apps/api/src/services/__tests__/module-dependency-utils.test.js apps/api/src/services/__tests__/module-discovery-service.test.js apps/api/src/services/__tests__/route-loader-service.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
-### AME3 Phase 5 — Official Module Relocation to modules/official/ [RETIRED]
+### RME3 Phase 5 — Official Module Relocation to modules/official/ [RETIRED]
 
 Architecture decision: as of 2026-05-25, relocating the six official base modules to `modules/official/` is no longer required.
-Official modules remain in their current workspace locations, and AME3 continues through renderer completion and `packages/maps` decommission.
+Official modules remain in their current workspace locations, and RME3 continues through renderer completion and `packages/maps` decommission.
 
-- [x] Decision recorded: remove official-module relocation as a required AME3 gate.
-- [x] Roadmap realigned: subsequent AME3 phases no longer depend on module folder relocation.
+- [x] Decision recorded: remove official-module relocation as a required RME3 gate.
+- [x] Roadmap realigned: subsequent RME3 phases no longer depend on module folder relocation.
 
 Verified: 2026-05-25 (architecture decision documented in `docs/TASKS.md` and `AGENTS.md`)
 
-### AME3 Phase 6 — Generic CRUD Blueprint Renderer
+### RME3 Phase 6 — Generic CRUD Blueprint Renderer
 
-**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`  
-**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-crud-blueprint-renderer.md`
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-rme3-crud-blueprint-renderer.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-rme3-crud-blueprint-renderer.md`
 
 - [x] Kickoff audit complete: renderer primitives (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) and runtime registry wiring are present and actively used by `custom.fleet` routes.
 - [x] _Spec approved_ → `AtlasTable` fully renders TABLE blueprints with sort, filter, and pagination controls.
@@ -1191,10 +1191,10 @@ Verified: 2026-05-25 (architecture decision documented in `docs/TASKS.md` and `A
 
 Verified: 2026-05-25 (`rg -n "filterValues|sortBy|sortDir|pagination|TablePaginationFooter" packages/ui/src/atlas-renderer/AtlasTable.jsx packages/ui/src/atlas-renderer/AtlasTableToolbar.jsx packages/ui/src/atlas-renderer/TablePaginationFooter.jsx`; `rg -n "normalizeSections|handleSubmit|relation|inlineCreate|AttachmentsPanel" packages/ui/src/atlas-renderer/AtlasForm.jsx packages/ui/src/atlas-renderer/atlas-form-schema.js`; `rg -n "readOnly|AttachmentsPanel" packages/ui/src/atlas-renderer/AtlasDetail.jsx`; `rg -n "AtlasTable|AtlasForm|AtlasDetail|mode=\"create\"|mode=\"edit\"" packages/ui/src/atlas-renderer/AtlasCrudView.jsx`; `node --test packages/ui/src/atlas-renderer/__tests__/renderer-adapters.test.js`; `pnpm.cmd --filter @atlas/desktop build:web`)
 
-### AME3 Phase 7 — Remove packages/maps
+### RME3 Phase 7 — Remove packages/maps
 
-**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-remove-packages-maps.md`  
-**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-remove-packages-maps.md`
+**Required spec:** `docs/superpowers/specs/YYYY-MM-DD-rme3-remove-packages-maps.md`  
+**Required plan:** `docs/superpowers/plans/YYYY-MM-DD-rme3-remove-packages-maps.md`
 
 - [x] Kickoff inventory completed for `packages/maps` decommission: direct runtime/seed/test import points identified in API, desktop, and Prisma seed flows.
 - [x] Desktop decommission cut #1 complete: removed `@atlas/maps` dependency/alias/import usage from runtime merge and module catalog install flow.

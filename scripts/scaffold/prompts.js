@@ -18,7 +18,7 @@ export async function runInteractivePrompts() {
 }
 
 export async function collectInteractiveConfig({ ask, log = console.log }) {
-    log('\nAME3 Module Scaffolder')
+    log('\nRME3 Module Scaffolder')
     log('======================\n')
 
     const key = await askRequired(ask, 'Module key (ej. custom.crm): ')

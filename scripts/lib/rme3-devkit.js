@@ -8,8 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '..', '..')
 
 const DEVKIT_DOC_FILES = [
-  'docs/ai-context/ame3-modules.md',
-  'docs/ai-context/ame3-runtime-capabilities.md',
+  'docs/ai-context/rme3-modules.md',
+  'docs/ai-context/rme3-runtime-capabilities.md',
   'docs/ai-context/runly-storefront-sdk.md',
   'docs/02_module_system.md',
   'docs/03_core_modules.md',
@@ -64,8 +64,8 @@ function extractPromptStarter(source) {
   const start = source.indexOf(heading)
   if (start === -1) {
     return [
-      'Read `AGENTS.md`, `docs/ai-context/ame3-modules.md`, and `docs/ai-context/ame3-runtime-capabilities.md` first.',
-      'Follow AME3 rules exactly.',
+      'Read `AGENTS.md`, `docs/ai-context/rme3-modules.md`, and `docs/ai-context/rme3-runtime-capabilities.md` first.',
+      'Follow RME3 rules exactly.',
     ].join('\n')
   }
 
@@ -84,7 +84,7 @@ function extractPromptStarter(source) {
 
 function buildTroubleshootingMarkdown(contract) {
   return [
-    '# AME3 Troubleshooting',
+    '# RME3 Troubleshooting',
     '',
     '## Common Failures',
     '',
@@ -107,22 +107,22 @@ function buildTroubleshootingMarkdown(contract) {
 
 function buildReadme(runtimeContract) {
   return [
-    '# Runly ERP Dev Kit (AME3)',
+    '# Runly ERP Dev Kit (RME3)',
     '',
     'This folder is generated from Runly ERP and downloaded into `custom-modules/_runly-devkit/`. Existing `_atlas-devkit/` installations are reused in place.',
     '',
     '## Start Here',
     '',
     '1. Read `AGENTS.md`.',
-    '2. Read `docs/ai-context/ame3-modules.md`.',
-    '3. Read `docs/ai-context/ame3-runtime-capabilities.md`.',
+    '2. Read `docs/ai-context/rme3-modules.md`.',
+    '3. Read `docs/ai-context/rme3-runtime-capabilities.md`.',
     '4. If generating code with AI, paste `prompt-starter.txt` first.',
     '5. If the module uses a CUSTOM view, compare it against `golden-path-module/` before debugging.',
     '',
     '## Important Files',
     '',
     '- `capabilities.runtime.json` — machine-readable contract for imports, UI exports, and CUSTOM requirements.',
-    '- `troubleshooting.md` — common AME3 installer-mode failures and fixes.',
+    '- `troubleshooting.md` — common RME3 installer-mode failures and fixes.',
     '- `golden-path-module/` — minimal working module with CRUD + CUSTOM dashboard.',
     '- `docs/module-quality-standards.md` — shared UX and behavioral standards.',
     '',
@@ -159,9 +159,9 @@ async function writeTextFile(targetDir, relativePath, content) {
   await fs.writeFile(destination, content, 'utf8')
 }
 
-export async function buildAme3RuntimeContract() {
+export async function buildRme3RuntimeContract() {
   const uiIndexSource = await readRepoFile('packages', 'ui', 'src', 'index.js')
-  const runtimeDoc = await readRepoFile('docs', 'ai-context', 'ame3-runtime-capabilities.md')
+  const runtimeDoc = await readRepoFile('docs', 'ai-context', 'rme3-runtime-capabilities.md')
 
   return {
     generatedAt: new Date().toISOString(),
@@ -209,11 +209,11 @@ export async function buildAme3RuntimeContract() {
   }
 }
 
-export async function exportAme3Devkit({ outDir }) {
+export async function exportRme3Devkit({ outDir }) {
   const targetDir = path.resolve(outDir)
-  const fixtureSourceDir = path.join(REPO_ROOT, 'scripts', 'fixtures', 'ame3-devkit', 'custom.goldenpath')
+  const fixtureSourceDir = path.join(REPO_ROOT, 'scripts', 'fixtures', 'rme3-devkit', 'custom.goldenpath')
   const fixtureTargetDir = path.join(targetDir, 'golden-path-module')
-  const runtimeContract = await buildAme3RuntimeContract()
+  const runtimeContract = await buildRme3RuntimeContract()
 
   await fs.rm(targetDir, { recursive: true, force: true }).catch(() => {})
   await fs.mkdir(targetDir, { recursive: true })

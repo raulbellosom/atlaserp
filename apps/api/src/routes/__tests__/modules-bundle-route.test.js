@@ -9,7 +9,7 @@ import { createModuleBundlerService } from '../../services/module-bundler-servic
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..', '..')
-const FIXTURE_ROOT = path.join(REPO_ROOT, 'scripts', 'fixtures', 'ame3-devkit', 'custom.goldenpath')
+const FIXTURE_ROOT = path.join(REPO_ROOT, 'scripts', 'fixtures', 'rme3-devkit', 'custom.goldenpath')
 const BUNDLE_PATH = path.join(REPO_ROOT, 'apps', 'api', 'bundles', 'custom.goldenpath.js')
 
 async function copyDir(sourceDir, targetDir) {

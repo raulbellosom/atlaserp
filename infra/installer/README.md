@@ -75,9 +75,9 @@ chmod +x bootstrap-local.sh
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente con las credenciales del stack local.
-4. Descarga el Dev Kit AME3 exportado a `custom-modules/_runly-devkit/` (siempre actualizado
+4. Descarga el Dev Kit RME3 exportado a `custom-modules/_runly-devkit/` (siempre actualizado
    desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
-   guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
+   guias RME3, `capabilities.runtime.json`, `prompt-starter.txt`,
    `troubleshooting.md` y `golden-path-module/`.
 5. Hace `docker pull` de API, worker y web (y de LiveKit + Redis cuando
    `LIVEKIT_MODE=embedded`). Luego ejecuta `docker image prune -f`
@@ -144,9 +144,9 @@ npm.cmd run runly:external
 
 1. Valida que `.env.external` existe y tiene las credenciales.
 2. Valida que Docker Compose esta disponible.
-3. Descarga el Dev Kit AME3 exportado a `custom-modules/_runly-devkit/` (siempre actualizado
+3. Descarga el Dev Kit RME3 exportado a `custom-modules/_runly-devkit/` (siempre actualizado
    desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
-   guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
+   guias RME3, `capabilities.runtime.json`, `prompt-starter.txt`,
    `troubleshooting.md` y `golden-path-module/`.
 4. Hace `docker pull` de API, worker y web (y de LiveKit + Redis cuando
    `LIVEKIT_MODE=embedded`). Luego ejecuta `docker image prune -f`
@@ -161,7 +161,7 @@ npm.cmd run runly:external
 npm run runly:external        # instalacion / actualizacion completa
 npm run runly:external:docs   # solo descarga/refresca el Dev Kit
 npm run runly:external:quick  # reinicio rapido sin pull ni migraciones
-node ./setup-external.mjs --skip-dev-kit       # omite descarga del Dev Kit AME3
+node ./setup-external.mjs --skip-dev-kit       # omite descarga del Dev Kit RME3
 ```
 
 ### Comandos simples recomendados
@@ -299,7 +299,7 @@ curl -X POST http://localhost:4010/modules/custom.mymodule/install \
 
 ### Validacion rapida en la UI
 
-Para validar que AME3 quedo bien actualizado en un workspace installer-mode:
+Para validar que RME3 quedo bien actualizado en un workspace installer-mode:
 
 1. Ejecuta `node .\setup-local.mjs` (o `node ./setup-external.mjs` en external mode).
 2. Abre `http://localhost:5173`.
@@ -380,8 +380,8 @@ curl http://localhost:4010/modules/custom.mymodule/bundle.js
 
 Empieza aqui:
 - `custom-modules/_runly-devkit/README.md`
-- `custom-modules/_runly-devkit/docs/ai-context/ame3-modules.md`
-- `custom-modules/_runly-devkit/docs/ai-context/ame3-runtime-capabilities.md`
+- `custom-modules/_runly-devkit/docs/ai-context/rme3-modules.md`
+- `custom-modules/_runly-devkit/docs/ai-context/rme3-runtime-capabilities.md`
 - `custom-modules/_runly-devkit/capabilities.runtime.json`
 
 ---

@@ -1,19 +1,19 @@
-# AME3 Custom Modules — AI Reference Guide
+# RME3 Custom Modules — AI Reference Guide
 
-This is the single source of truth for creating and modifying custom AME3 modules in Runly ERP v2.
+This is the single source of truth for creating and modifying custom RME3 modules in Runly ERP v2.
 Read this document before touching any file under `modules/custom/`.
 
 ---
 
-## 1. What is AME3
+## 1. What is RME3
 
-Runly ERP v2 uses Atlas Module Engine v3 (AME3) for all ERP feature modules. A module is a
+Runly ERP v2 uses Runly Module Engine v3 (RME3) for all ERP feature modules. A module is a
 self-contained directory under `modules/custom/<moduleKey>/` that declares its own data models,
 views, pages, API routes, and permissions. The Atlas Core reads these declarations and drives
 all behavior from them.
 
 **The golden rule — a module must never require editing:**
-- `prisma/schema.prisma` — AME3 tables are managed by Atlas ORM via `defineModel`
+- `prisma/schema.prisma` — RME3 tables are managed by Runly ORM via `defineModel`
 - `apps/api/src/index.js` — routes auto-load via Route Loader at boot
 - `apps/desktop/src/main.jsx` — pages are declared inside the module
 - `packages/validators/src/index.js` — validators live inside `validators/` in the module
@@ -27,8 +27,8 @@ For installer-mode workspaces, the official authoring flow is:
 Existing installations may use `_atlas-devkit/`; use that directory in the steps below when present.
 
 1. Read `custom-modules/_runly-devkit/AGENTS.md`
-2. Read `custom-modules/_runly-devkit/docs/ai-context/ame3-modules.md`
-3. Read `custom-modules/_runly-devkit/docs/ai-context/ame3-runtime-capabilities.md`
+2. Read `custom-modules/_runly-devkit/docs/ai-context/rme3-modules.md`
+3. Read `custom-modules/_runly-devkit/docs/ai-context/rme3-runtime-capabilities.md`
 4. Copy `custom-modules/_runly-devkit/golden-path-module/`
 5. Rename it to your new module key and edit the files directly
 
@@ -253,7 +253,7 @@ export function createContactService({ prisma }) {
 
 ### 4.2 `prisma.$queryRaw` — tagged template literal
 
-AME3 module tables do NOT exist in `prisma/schema.prisma`. Prisma model accessors like
+RME3 module tables do NOT exist in `prisma/schema.prisma`. Prisma model accessors like
 `prisma.contact.findMany()` will throw at runtime. Use tagged template literals for
 static queries and `$queryRawUnsafe` for dynamic WHERE clauses.
 
@@ -297,12 +297,12 @@ const rows = await prisma.contact.findMany({ where: { companyId } }) // model do
 | `custom.fleet` | `fleet` | `vehicle` | `fleet_vehicle` |
 | `custom.inventory` | `inventory` | `product` | `inventory_product` |
 
-Never prefix with `atlas_` manually — that was the old convention. Atlas ORM uses
+Never prefix with `atlas_` manually — that was the old convention. Runly ORM uses
 `${slug}_${entity}` directly.
 
 ### 4.4 UUID — the database generates it
 
-Every AME3 table's `id` column has `DEFAULT uuidv7()` in PostgreSQL. Never generate
+Every RME3 table's `id` column has `DEFAULT uuidv7()` in PostgreSQL. Never generate
 UUIDs in JavaScript. Use `INSERT ... RETURNING *` to get the generated ID.
 
 ```js
@@ -352,7 +352,7 @@ const rows = await prisma.$queryRaw`
 ### 4.6 AuditLog on every mutation
 
 Every `create`, `update`, and `setEnabled` call must write an audit log entry.
-`prisma.auditLog` IS a Prisma model (it's a core table, not an AME3 table — this
+`prisma.auditLog` IS a Prisma model (it's a core table, not an RME3 table — this
 is the one case where you use a Prisma model accessor).
 
 ```js
@@ -557,8 +557,8 @@ navigation: [
 
 | Never do this | Why | Correct approach |
 |---|---|---|
-| Edit `prisma/schema.prisma` for a module table | AME3 tables are managed by Atlas ORM | Declare fields in `defineModel`, run `/modules/sync` |
-| `prisma.contact.findMany()` for AME3 tables | The Prisma model doesn't exist | `prisma.$queryRaw` or `prisma.$queryRawUnsafe` |
+| Edit `prisma/schema.prisma` for a module table | RME3 tables are managed by Runly ORM | Declare fields in `defineModel`, run `/modules/sync` |
+| `prisma.contact.findMany()` for RME3 tables | The Prisma model doesn't exist | `prisma.$queryRaw` or `prisma.$queryRawUnsafe` |
 | Declare service functions at module scope | `prisma` is not in scope → ReferenceError at runtime | All functions inside `createXxxService({ prisma })` |
 | `const id = uuidv7()` in JavaScript | UUIDs must be DB-generated | `INSERT ... RETURNING *` — let the DB produce the ID |
 | `DELETE FROM crm_contact WHERE id = $1` | Breaks audit trail, violates soft-delete contract | `UPDATE ... SET enabled = false` via `setXxxEnabled` |

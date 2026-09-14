@@ -1,6 +1,6 @@
 // Schema bootstrap for the atlas.fleet report tables.
 //
-// These are Atlas ORM (AME3) tables — not managed by prisma/schema.prisma — so
+// These are Runly ORM (RME3) tables — not managed by prisma/schema.prisma — so
 // the service provisions them lazily on first use with idempotent DDL. Extracted
 // from reports-service.js to keep that file under the 1000-line limit.
 

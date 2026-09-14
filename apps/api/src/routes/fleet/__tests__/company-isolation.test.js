@@ -6,7 +6,7 @@
 //      company_id sourced from the request body).
 //   2. Every read query the services emit is scoped by `company_id`.
 //
-// The services are AME3 (raw SQL) services, so we stub `$queryRaw` /
+// The services are RME3 (raw SQL) services, so we stub `$queryRaw` /
 // `$queryRawUnsafe` / `$executeRawUnsafe` and assert on the SQL shape.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

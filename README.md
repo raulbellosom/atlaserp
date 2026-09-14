@@ -1,13 +1,13 @@
 # Runly ERP
 
-Migration from Atlas ERP is in progress. Distribution now targets GitHub
+Renamed from Atlas ERP. Distribution targets GitHub
 `raulbellosom/runly-erp` and Docker Hub `raulbellosom/runlyerp`. Workspace
-packages use `@runly/*`, with `@atlas/*` aliases for existing modules. Installer
-commands use `runly:*`, with `atlas:*` aliases. Environment inputs use `RUNLY_*`
-and `VITE_RUNLY_*`, falling back to their Atlas counterparts. Module keys and
-Docker service/volume identities remain unchanged until their migration stages.
-New images and `Runly-ERP-Setup.exe` must be published before rolling out
-these distribution changes. See the [migration plan](docs/superpowers/plans/2026-09-13-runly-distribution.md).
+packages use `@runly/*`, with `@atlas/*` aliases kept only for existing custom
+modules authored against the old import scope. Installer commands use `runly:*`.
+Environment inputs use `RUNLY_*` and `VITE_RUNLY_*` — there is no `ATLAS_*`
+fallback. Module keys and Docker service/volume identities are already renamed.
+New images and `Runly-ERP-Setup.exe` must be published before existing
+installations pick up these changes. See the [migration plan](docs/superpowers/plans/2026-09-13-runly-distribution.md) for the historical record.
 
 Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Hono API, Prisma, and a dedicated self-hosted Supabase instance.
 
@@ -32,7 +32,7 @@ powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
 See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, optional LiveKit calls, image tags, and reset commands.
-The installer also downloads an exported AME3 Dev Kit to `custom-modules/_runly-devkit/`, including `capabilities.runtime.json`, `prompt-starter.txt`, `troubleshooting.md`, and a `golden-path-module/` sample for installer-mode module development.
+The installer also downloads an exported RME3 Dev Kit to `custom-modules/_runly-devkit/`, including `capabilities.runtime.json`, `prompt-starter.txt`, `troubleshooting.md`, and a `golden-path-module/` sample for installer-mode module development.
 Existing installations reuse `custom-modules/_atlas-devkit/` when present. Both package scopes resolve to the same implementation; no module rewrite is required for this stage. See the [package migration plan](docs/superpowers/plans/2026-09-13-runly-packages-devkit.md).
 
 Stop and reset (from the installer directory):
@@ -44,16 +44,13 @@ node stop-local.mjs --reset   # full wipe — removes containers, volumes, gener
 
 ## Contributor setup (cloning the repo)
 
-### Runly environment compatibility
+### Runly environment variables
 
-Use `RUNLY_*` (and `VITE_RUNLY_*` for Vite) in new configuration. The corresponding
-`ATLAS_*` / `VITE_ATLAS_*` value is used when the Runly key is absent. Explicit empty
-values do not revive an old value; existing validation/default rules still apply.
-For installer-managed settings, process overrides beat saved values regardless of
-which spelling they use. New generated assignments use Runly names; existing
-custom settings and Office secrets survive refreshes. Deploy matching Runly images
-before switching configuration names; older images may only understand Atlas.
-See the [environment migration evidence](docs/superpowers/plans/2026-09-13-runly-environment.md).
+Configuration uses `RUNLY_*` (and `VITE_RUNLY_*` for Vite) only — there is no
+`ATLAS_*` fallback. Update any existing `.env` file to the `RUNLY_*` names before
+pulling a new image or starting the app; existing custom settings and Office
+secrets survive the rename. See the [environment migration evidence](docs/superpowers/plans/2026-09-13-runly-environment.md)
+for the historical record.
 
 ### 1. Fill environment variables
 
@@ -112,7 +109,7 @@ pnpm dev
 Open `http://localhost:5173` or run `pnpm dev:tauri` for the native window.
 
 When Office is enabled in the root `.env` with a localhost CODE URL, both commands
-also start `collabora-dev` in the Docker `atlaserp` group. See the
+also start `collabora-dev` in the Docker `runlyerp` group. See the
 [development Office configuration](docs/deployment/office-collabora.md#development-with-pnpm-dev-on-docker-desktop).
 
 ## Dev commands
@@ -182,45 +179,45 @@ apps/
   worker/      Background job handler
 packages/
   core/           Module registry, event bus, manifest contract
-  module-engine/  @runly/module-engine (defineAtlasModule, defineModel, defineView, definePage)
+  module-engine/  @runly/module-engine (defineRunlyModule, defineModel, defineView, definePage)
   ui/             Shared React components
-  sdk/            Atlas API client (createAtlasClient)
+  sdk/            Runly API client (createRunlyClient)
   validators/     Zod schemas shared between API and frontend
 modules/
   custom/      Community and partner modules
   official/    Optional curated official distributions
 prisma/
-  schema.prisma   Atlas Core stable models + AME3 metadata tables
+  schema.prisma   Runly Core stable models + RME3 metadata tables
   seed.js         Seeds module lifecycle metadata, roles, permissions
 ```
 
 Request flow:
-`React -> @runly/sdk -> Hono API -> Zod validation -> Prisma / Atlas ORM -> Supabase PostgreSQL`
+`React -> @runly/sdk -> Hono API -> Zod validation -> Prisma / Runly ORM -> Supabase PostgreSQL`
 
 No direct database access from the frontend.
 
 ## Module system
 
-Runly ERP is a module engine. New AME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, API endpoints, and React components.
+Runly ERP is a module engine. New RME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, API endpoints, and React components.
 
 - Core modules (`core: true`, `uninstallable: false`):
-  - `atlas.core`
-  - `atlas.identity`
-  - `atlas.files`
-  - `atlas.company`
-  - `atlas.contacts`
-  - `atlas.hr`
+  - `runly.core`
+  - `runly.identity`
+  - `runly.files`
+  - `runly.company`
+  - `runly.contacts`
+  - `runly.hr`
 - Custom modules: `custom.*` or `community.*` in `modules/custom/`
 - Official manifest snapshots: `apps/api/src/manifests/official/`
 
-New modules use `defineAtlasModule` from `@runly/module-engine`.
+New modules use `defineRunlyModule` from `@runly/module-engine`.
 
-Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild is needed for module-local UI changes. The frontend loads bundles via dynamic `import()` at startup. If you change the shared module runtime in `apps/desktop` (for example importmap/shims/externals) or credentialed cross-origin API behavior in `apps/api`, publish fresh `web` and/or `api` images and recreate the installer containers. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@runly/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
+Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild is needed for module-local UI changes. The frontend loads bundles via dynamic `import()` at startup. If you change the shared module runtime in `apps/desktop` (for example importmap/shims/externals) or credentialed cross-origin API behavior in `apps/api`, publish fresh `web` and/or `api` images and recreate the installer containers. See `docs/ai-context/rme3-runtime-capabilities.md` for the full `@runly/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
 
 For installer-mode workspaces, the authoritative module-authoring bundle lives in `custom-modules/_runly-devkit/`. Start with:
 - `README.md`
-- `docs/ai-context/ame3-modules.md`
-- `docs/ai-context/ame3-runtime-capabilities.md`
+- `docs/ai-context/rme3-modules.md`
+- `docs/ai-context/rme3-runtime-capabilities.md`
 - `capabilities.runtime.json`
 - `troubleshooting.md`
 - `golden-path-module/`
@@ -229,13 +226,13 @@ See:
 - `docs/02_module_system.md`
 - `docs/03_custom_modules.md`
 - `docs/architecture/runly-module-engine-v3.md`
-- `docs/ai-context/ame3-runtime-capabilities.md`
+- `docs/ai-context/rme3-runtime-capabilities.md`
 - `docs/TASKS.md`
 
 ## Notes
 
 Office editing is optional: the `office` installer profile adds Collabora CODE for
-DOCX/XLSX/PPTX inside Files and supported attachments. Atlas retains Storage,
+DOCX/XLSX/PPTX inside Files and supported attachments. Runly retains Storage,
 permissions and recoverable revisions. See [Office deployment and troubleshooting](docs/deployment/office-collabora.md)
 for configuration, CODE licensing/support limitations and verification.
 

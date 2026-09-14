@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { defineAtlasModule, validateManifest } from '../define-module.js'
+import { defineRunlyModule, validateManifest } from '../define-module.js'
 import { ModuleEngineError } from '../errors.js'
 
 const VALID = {
@@ -16,27 +16,27 @@ const VALID = {
   },
 }
 
-test('defineAtlasModule - returns manifest with key preserved', () => {
-  const r = defineAtlasModule(VALID)
+test('defineRunlyModule - returns manifest with key preserved', () => {
+  const r = defineRunlyModule(VALID)
   assert.equal(r.key, 'custom.fleet')
   assert.equal(r.name, 'Flota')
   assert.equal(r.version, '0.1.0')
 })
 
-test('defineAtlasModule - applies default kind when omitted', () => {
-  const r = defineAtlasModule({ key: 'custom.demo', name: 'Demo', version: '0.1.0' })
+test('defineRunlyModule - applies default kind when omitted', () => {
+  const r = defineRunlyModule({ key: 'custom.demo', name: 'Demo', version: '0.1.0' })
   assert.equal(r.kind, 'FEATURE')
 })
 
-test('defineAtlasModule - applies empty permissions and navigation by default', () => {
-  const r = defineAtlasModule(VALID)
+test('defineRunlyModule - applies empty permissions and navigation by default', () => {
+  const r = defineRunlyModule(VALID)
   assert.deepEqual(r.permissions, [])
   assert.deepEqual(r.navigation, [])
   assert.deepEqual(r.migrations, [])
 })
 
-test('defineAtlasModule - accepts manifest migrations with checksum', () => {
-  const r = defineAtlasModule({
+test('defineRunlyModule - accepts manifest migrations with checksum', () => {
+  const r = defineRunlyModule({
     ...VALID,
     migrations: [
       {
@@ -48,10 +48,10 @@ test('defineAtlasModule - accepts manifest migrations with checksum', () => {
   assert.equal(r.migrations.length, 1)
 })
 
-test('defineAtlasModule - throws for invalid migrations checksum', () => {
+test('defineRunlyModule - throws for invalid migrations checksum', () => {
   assert.throws(
     () =>
-      defineAtlasModule({
+      defineRunlyModule({
         ...VALID,
         migrations: [{ path: './migrations/V001.sql', checksum: 'abc' }],
       }),
@@ -59,58 +59,58 @@ test('defineAtlasModule - throws for invalid migrations checksum', () => {
   )
 })
 
-test('defineAtlasModule - throws ModuleEngineError (not plain Error) when key is missing', () => {
+test('defineRunlyModule - throws ModuleEngineError (not plain Error) when key is missing', () => {
   assert.throws(
-    () => defineAtlasModule({ name: 'Flota', version: '0.1.0' }),
+    () => defineRunlyModule({ name: 'Flota', version: '0.1.0' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('key')
   )
 })
 
-test('defineAtlasModule - throws when name is missing', () => {
+test('defineRunlyModule - throws when name is missing', () => {
   assert.throws(
-    () => defineAtlasModule({ key: 'custom.fleet', version: '0.1.0' }),
+    () => defineRunlyModule({ key: 'custom.fleet', version: '0.1.0' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('name')
   )
 })
 
-test('defineAtlasModule - throws when version is missing', () => {
+test('defineRunlyModule - throws when version is missing', () => {
   assert.throws(
-    () => defineAtlasModule({ key: 'custom.fleet', name: 'Flota' }),
+    () => defineRunlyModule({ key: 'custom.fleet', name: 'Flota' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('version')
   )
 })
 
-test('defineAtlasModule - throws when version is not semver', () => {
+test('defineRunlyModule - throws when version is not semver', () => {
   assert.throws(
-    () => defineAtlasModule({ key: 'custom.fleet', name: 'Flota', version: 'latest' }),
+    () => defineRunlyModule({ key: 'custom.fleet', name: 'Flota', version: 'latest' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('version')
   )
 })
 
-test('defineAtlasModule - throws when kind is invalid', () => {
+test('defineRunlyModule - throws when kind is invalid', () => {
   assert.throws(
-    () => defineAtlasModule({ ...VALID, kind: 'UNKNOWN' }),
+    () => defineRunlyModule({ ...VALID, kind: 'UNKNOWN' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('kind')
   )
 })
 
-test('defineAtlasModule - throws when key has path traversal', () => {
+test('defineRunlyModule - throws when key has path traversal', () => {
   assert.throws(
-    () => defineAtlasModule({ ...VALID, key: '../evil' }),
+    () => defineRunlyModule({ ...VALID, key: '../evil' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('key')
   )
 })
 
-test('defineAtlasModule - throws when key has no dot separator', () => {
+test('defineRunlyModule - throws when key has no dot separator', () => {
   assert.throws(
-    () => defineAtlasModule({ ...VALID, key: 'fleet' }),
+    () => defineRunlyModule({ ...VALID, key: 'fleet' }),
     (err) => err instanceof ModuleEngineError && err.message.includes('key')
   )
 })
 
-test('defineAtlasModule - throws when navigation item lacks permissionKey', () => {
+test('defineRunlyModule - throws when navigation item lacks permissionKey', () => {
   assert.throws(
-    () => defineAtlasModule({ ...VALID, navigation: [{ label: 'X', path: '/x' }] }),
+    () => defineRunlyModule({ ...VALID, navigation: [{ label: 'X', path: '/x' }] }),
     (err) => err instanceof ModuleEngineError && err.message.includes('permissionKey')
   )
 })
@@ -171,8 +171,8 @@ test('validateManifest - rejects non-hex module colors', () => {
   assert.ok(result.errors.some((error) => error.includes('color')))
 })
 
-test('defineAtlasModule - derives a relative start path for legacy modules', () => {
-  const module = defineAtlasModule({
+test('defineRunlyModule - derives a relative start path for legacy modules', () => {
+  const module = defineRunlyModule({
     key: 'custom.legacy',
     name: 'Legacy',
     version: '1.0.0',
@@ -188,8 +188,8 @@ test('defineAtlasModule - derives a relative start path for legacy modules', () 
   assert.equal(module.pwa.startPath, '/dashboard')
 })
 
-test('defineAtlasModule - falls back safely for unsupported legacy icons', () => {
-  const module = defineAtlasModule({
+test('defineRunlyModule - falls back safely for unsupported legacy icons', () => {
+  const module = defineRunlyModule({
     key: 'custom.legacy',
     name: 'Legacy',
     version: '1.0.0',

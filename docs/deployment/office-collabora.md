@@ -6,7 +6,7 @@ CODE is the free **Development Edition**, intended for testing and small teams, 
 
 ## Install
 
-Apply the normal Atlas migrations and regenerate Prisma before running updated API code (`pnpm db:generate`; deployment runs `pnpm db:migrate`). The migration adds recovery revisions, leases and a database guard for lifecycle mutations. Do not apply a second AME3 table sync for these core tables.
+Apply the normal Atlas migrations and regenerate Prisma before running updated API code (`pnpm db:generate`; deployment runs `pnpm db:migrate`). The migration adds recovery revisions, leases and a database guard for lifecycle mutations. Do not apply a second RME3 table sync for these core tables.
 
 For the local installer, put `RUNLY_OFFICE_ENABLED=true` in `infra/installer/.env.local` or the process environment, then run `node infra/installer/setup-local.mjs`. It defaults to browser `http://localhost:9980`, browser host `http://localhost:5173`, internal CODE `http://collabora:9980` and WOPI `http://api:4010`.
 

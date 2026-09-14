@@ -1,9 +1,9 @@
 # Runly ERP — Custom Modules
 
-This document explains how to create a custom module for Runly ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md).
+This document explains how to create a custom module for Runly ERP using Runly Module Engine v3 (RME3). For the full architectural rationale and roadmap, see [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md).
 
 For installer-mode runtime limits/capabilities (blueprints, components, and available frontend libraries), read:
-- [docs/ai-context/ame3-runtime-capabilities.md](ai-context/ame3-runtime-capabilities.md)
+- [docs/ai-context/rme3-runtime-capabilities.md](ai-context/rme3-runtime-capabilities.md)
 
 ---
 
@@ -13,14 +13,14 @@ Every new module requires an approved spec and implementation plan before any co
 
 | Document | Path convention | Required sections |
 |---|---|---|
-| Spec | `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` | 15 required — see Section 14.3 of [runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) |
-| Plan | `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` | 7 required — see Section 14.4 of [runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) |
+| Spec | `docs/superpowers/specs/YYYY-MM-DD-rme3-<moduleKey>-design.md` | 15 required — see Section 14.3 of [runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) |
+| Plan | `docs/superpowers/plans/YYYY-MM-DD-rme3-<moduleKey>.md` | 7 required — see Section 14.4 of [runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) |
 
 **Module creation workflow (14 steps):**
 
-1. Write module spec at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md`
+1. Write module spec at `docs/superpowers/specs/YYYY-MM-DD-rme3-<moduleKey>-design.md`
 2. Get spec approved (explicit confirmation — not implied)
-3. Write implementation plan at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md`
+3. Write implementation plan at `docs/superpowers/plans/YYYY-MM-DD-rme3-<moduleKey>.md`
 4. Get plan approved (explicit confirmation — not implied)
 5. Create module folder at `modules/custom/<moduleKey>/`
 6. Write `module.manifest.js` using `defineRunlyModule`
@@ -31,7 +31,7 @@ Every new module requires an approved spec and implementation plan before any co
 11. Write `validators/index.js`
 12. Register cleanup handler if `resettable: true` or `supportsDataPurge: true`
 13. If the module has React components: write `components/index.js` exporting `register()` and place component files in `components/`
-14. Call `POST /modules/sync`, install from catalog, run the AME3 checklist below
+14. Call `POST /modules/sync`, install from catalog, run the RME3 checklist below
 
 If any step reveals a deviation from the approved spec or plan, stop and revise before continuing.
 
@@ -52,12 +52,12 @@ A custom module must never require editing any of the following files:
 | File | Reason it must not be touched |
 |---|---|
 | `packages/maps/src/feature-modules.js` | Deprecated |
-| `prisma/schema.prisma` | Module tables are managed by Atlas ORM |
+| `prisma/schema.prisma` | Module tables are managed by Runly ORM |
 | `apps/api/src/index.js` | Routes are auto-loaded by Route Loader |
 | `apps/desktop/src/main.jsx` or any hardcoded route file | Pages are declared in the module |
 | `packages/validators/src/index.js` | Validators live in `validators/index.js` inside the module |
 
-If the AME3 layer needed to avoid these edits is not yet available, wait for it. Do not extend the old system.
+If the RME3 layer needed to avoid these edits is not yet available, wait for it. Do not extend the old system.
 
 ---
 
@@ -197,7 +197,7 @@ export default defineRunlyModule({
 
 ## Model declarations
 
-Models define the entities owned by the module. The Atlas ORM reads these and provisions the physical tables, with no Prisma migration authored by the module developer.
+Models define the entities owned by the module. The Runly ORM reads these and provisions the physical tables, with no Prisma migration authored by the module developer.
 
 ```js
 // modules/custom/custom.deliveries/models/shipment.model.js
@@ -231,7 +231,7 @@ export default defineModel({
 })
 ```
 
-Available in Phase 3. In Phase 1–2, module-owned tables must be added as transitional Prisma models and migrated into Atlas ORM during Phase 5.
+Available in Phase 3. In Phase 1–2, module-owned tables must be added as transitional Prisma models and migrated into Runly ORM during Phase 5.
 
 ---
 
@@ -388,7 +388,7 @@ export const updateShipmentSchema = createShipmentSchema.partial()
 
 Required when `resettable: true` or `supportsDataPurge: true`. Must scope all deletes to the active company. Delete child rows before parent rows to respect FK constraints.
 
-AME3 tables are not Prisma models — use `prisma.$queryRaw` tagged template literals, never `prisma.<model>` accessors.
+RME3 tables are not Prisma models — use `prisma.$queryRaw` tagged template literals, never `prisma.<model>` accessors.
 
 ```js
 // modules/custom/custom.deliveries/api/deliveries-cleanup.js
@@ -484,7 +484,7 @@ import { toast } from 'sonner'
 | Node.js built-ins (`fs`, `path`) | No | Browser environment only |
 | `exceljs`, `pdfkit`, `sharp` | No | API-only; use in `api/` not `components/` |
 
-See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@runly/ui` component inventory.
+See `docs/ai-context/rme3-runtime-capabilities.md` for the full `@runly/ui` component inventory.
 
 ### CUSTOM kind view — full screen
 
@@ -531,9 +531,9 @@ Important distinction:
 
 Use this checklist after completing the 13-step SDD workflow above. An item is complete only when tested.
 
-**Prerequisite:** Approved spec at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` and approved plan at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` must exist before any item below is checked.
+**Prerequisite:** Approved spec at `docs/superpowers/specs/YYYY-MM-DD-rme3-<moduleKey>-design.md` and approved plan at `docs/superpowers/plans/YYYY-MM-DD-rme3-<moduleKey>.md` must exist before any item below is checked.
 
-### AME3 checklist (Phase 2+)
+### RME3 checklist (Phase 2+)
 
 - [ ] Create `modules/custom/<moduleKey>/module.manifest.js` using `defineRunlyModule`
 - [ ] Module key uses `custom.*` or `community.*` namespace
@@ -548,7 +548,7 @@ Use this checklist after completing the 13-step SDD workflow above. An item is c
 - [ ] Business logic in `api/*-service.js`, not in route handlers
 - [ ] Module-local validators in `validators/index.js`
 - [ ] Cleanup handler registered if `resettable: true` or `supportsDataPurge: true`
-- [ ] Cleanup handler uses `prisma.$queryRaw` — never `prisma.<model>` accessors for AME3 tables
+- [ ] Cleanup handler uses `prisma.$queryRaw` — never `prisma.<model>` accessors for RME3 tables
 - [ ] If module has components: `components/index.js` exports async `register(registry)` function
 - [ ] If module has components: CUSTOM kind views declared in `views/*.custom.js` for full screens
 - [ ] Call `POST /modules/sync` after placing the module directory
@@ -561,13 +561,13 @@ Use this checklist after completing the 13-step SDD workflow above. An item is c
 - [ ] Reset with `{ confirmation: "ACEPTO" }` succeeds; module remains installed
 - [ ] AuditLog entry exists for each lifecycle operation
 
-### Phase 1–2 temporary steps (until AME3 layers are available)
+### Phase 1–2 temporary steps (until RME3 layers are available)
 
-These steps are required only while the Atlas ORM, Route Loader, and Blueprint renderer are not yet built. They are not part of the target architecture.
+These steps are required only while the Runly ORM, Route Loader, and Blueprint renderer are not yet built. They are not part of the target architecture.
 
 | Temporary step | Replaced by |
 |---|---|
-| Add Prisma model to `prisma/schema.prisma` | Atlas ORM `defineModel` (Phase 3) |
+| Add Prisma model to `prisma/schema.prisma` | Runly ORM `defineModel` (Phase 3) |
 | Mount routes in `apps/api/src/index.js` | Route Loader auto-discovery (Phase 4) |
 | Add screens to `apps/desktop/src/` | Blueprint-driven pages via `definePage` (Phase 6) |
 | Add validators to `packages/validators/src/index.js` | Module-local `validators/index.js` (Phase 2) |

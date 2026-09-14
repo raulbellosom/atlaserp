@@ -1,7 +1,7 @@
 import { ModuleEngineError } from './errors.js'
 
 // In-memory registry of model definitions (results of defineModel).
-// Keyed by model.key. The Atlas ORM (Phase 3) will query this to know which tables to provision.
+// Keyed by model.key. The Runly ORM (Phase 3) will query this to know which tables to provision.
 export class ModelRegistry {
   #models = new Map()
 

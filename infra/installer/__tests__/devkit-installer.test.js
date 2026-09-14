@@ -39,13 +39,13 @@ test('installer devkit downloader uses the exported manifest and writes nested f
       files: [
         'README.md',
         'capabilities.runtime.json',
-        'docs/ai-context/ame3-runtime-capabilities.md',
+        'docs/ai-context/rme3-runtime-capabilities.md',
         'golden-path-module/module.manifest.js',
       ],
     }),
     'infra/installer/devkit-export/README.md': '# Devkit\n',
     'infra/installer/devkit-export/capabilities.runtime.json': '{"ok":true}\n',
-    'infra/installer/devkit-export/docs/ai-context/ame3-runtime-capabilities.md': '# Runtime\n',
+    'infra/installer/devkit-export/docs/ai-context/rme3-runtime-capabilities.md': '# Runtime\n',
     'infra/installer/devkit-export/golden-path-module/module.manifest.js': 'export default {}\n',
   }
 
@@ -81,7 +81,7 @@ test('installer devkit downloader uses the exported manifest and writes nested f
       'infra/installer/devkit-export/manifest.json',
       'infra/installer/devkit-export/README.md',
       'infra/installer/devkit-export/capabilities.runtime.json',
-      'infra/installer/devkit-export/docs/ai-context/ame3-runtime-capabilities.md',
+      'infra/installer/devkit-export/docs/ai-context/rme3-runtime-capabilities.md',
       'infra/installer/devkit-export/golden-path-module/module.manifest.js',
     ]
   )
@@ -89,7 +89,7 @@ test('installer devkit downloader uses the exported manifest and writes nested f
   assert.match(await fs.readFile(path.join(outDir, 'README.md'), 'utf8'), /Devkit/)
   assert.match(await fs.readFile(path.join(outDir, 'capabilities.runtime.json'), 'utf8'), /ok/)
   assert.match(
-    await fs.readFile(path.join(outDir, 'docs', 'ai-context', 'ame3-runtime-capabilities.md'), 'utf8'),
+    await fs.readFile(path.join(outDir, 'docs', 'ai-context', 'rme3-runtime-capabilities.md'), 'utf8'),
     /Runtime/
   )
   assert.match(

@@ -7,7 +7,7 @@ import { dirname, resolve } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Bare specifiers that AME3 module bundles declare as external (must stay in sync
+// Bare specifiers that RME3 module bundles declare as external (must stay in sync
 // with BUNDLE_EXTERNALS in apps/api/src/services/module-bundler-service.js).
 // The importmap plugins below map these specifiers to URLs the browser can resolve
 // both in dev (Vite /@id/ virtual modules) and in production (shim entry files).
@@ -190,7 +190,7 @@ export default defineConfig({
       // Without this, Rolldown tree-shakes exports like `Alert` from the atlas-ui
       // chunk when the main app never imports them directly — the shim's
       // `export * from '@runly/ui'` then appears to provide no such export at
-      // runtime, breaking AME3 module bundles that use those components.
+      // runtime, breaking RME3 module bundles that use those components.
       preserveEntrySignatures: "allow-extension",
       input: {
         index: resolve(__dirname, "index.html"),
@@ -248,7 +248,7 @@ export default defineConfig({
           // NOTE: @runly/ui, @runly/sdk, @runly/validators are intentionally NOT
           // in manualChunks. Rolldown has a CJS-interop bug when React is imported
           // from a separate manual chunk — the chunk captures React as null, breaking
-          // hooks in AME3 module bundles that use those packages via the shim.
+          // hooks in RME3 module bundles that use those packages via the shim.
           // Letting Rolldown auto-split them into a shared chunk (created from the
           // main HTML entry) avoids the issue. preserveEntrySignatures ensures all
           // exports remain accessible through the shims.

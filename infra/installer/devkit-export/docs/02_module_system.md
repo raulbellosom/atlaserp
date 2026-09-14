@@ -1,6 +1,6 @@
-# Atlas ERP - Module System (AME3)
+# Runly ERP - Module System (RME3)
 
-Atlas ERP is a module engine. Each ERP capability is modeled as a module that declares its own lifecycle metadata, permissions, navigation, data models, views, and optional API/component extensions.
+Runly ERP is a module engine. Each ERP capability is modeled as a module that declares its own lifecycle metadata, permissions, navigation, data models, views, and optional API/component extensions.
 
 ## Module locations
 
@@ -13,12 +13,12 @@ Atlas ERP is a module engine. Each ERP capability is modeled as a module that de
 
 ## Manifest standard
 
-Every AME3 module uses `defineAtlasModule` in `module.manifest.js`.
+Every RME3 module uses `defineRunlyModule` in `module.manifest.js`.
 
 ```js
-import { defineAtlasModule } from '@runly/module-engine'
+import { defineRunlyModule } from '@runly/module-engine'
 
-export default defineAtlasModule({
+export default defineRunlyModule({
   key: 'custom.fleet',
   name: 'Flota',
   version: '0.1.0',
@@ -53,13 +53,13 @@ export default defineAtlasModule({
 
 ## Prisma boundary
 
-Prisma manages platform/core models and AME3 metadata models.
+Prisma manages platform/core models and RME3 metadata models.
 
-Module-owned business tables should be declared through Atlas ORM (`defineModel`) and managed by the AME3 DDL pipeline, not by adding Prisma tables for new module work.
+Module-owned business tables should be declared through Runly ORM (`defineModel`) and managed by the RME3 DDL pipeline, not by adding Prisma tables for new module work.
 
 ## Views and blueprints
 
-Module views are declared with `defineView` and rendered by the AME3 renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`).
+Module views are declared with `defineView` and rendered by the RME3 renderer (`RunlyTable`, `RunlyForm`, `RunlyDetail`, `RunlyCrudView`).
 
 See `docs/08_blueprints.md` for supported blueprint field types.
 
@@ -71,7 +71,7 @@ DISCOVERED -> UNINSTALLED <-> INSTALLED <-> DISABLED
                            ERROR
 ```
 
-- `AtlasModule.status` stores lifecycle state.
+- `RunlyModule.status` stores lifecycle state.
 - Core modules are protected (`core: true`, `uninstallable: false`).
 - Destructive lifecycle operations require dry-run + explicit confirmation.
 
@@ -89,7 +89,7 @@ Navigation entries require `permissionKey`, and API routes must enforce matching
 
 ## New module checklist
 
-1. Create `modules/custom/<moduleKey>/module.manifest.js` with `defineAtlasModule`.
+1. Create `modules/custom/<moduleKey>/module.manifest.js` with `defineRunlyModule`.
 2. Add entities in `models/*.model.js` with `defineModel`.
 3. Add blueprints/views in `views/*.js` with `defineView`.
 4. Add pages in `pages/*.page.js` with `definePage`.

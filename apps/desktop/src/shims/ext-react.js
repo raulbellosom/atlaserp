@@ -1,7 +1,7 @@
 // Explicit named re-exports for React.
 // Using 'export *' for CJS modules is unreliable across bundlers — Rolldown may
 // not synthesize named exports from module.exports when used in a shim entry.
-// Explicit listing guarantees every hook and utility is available to AME3 bundles.
+// Explicit listing guarantees every hook and utility is available to RME3 bundles.
 export {
   Children,
   Component,

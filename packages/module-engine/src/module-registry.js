@@ -1,7 +1,7 @@
 import { ModuleEngineError } from './errors.js'
 import { findModuleByKey } from '@runly/core'
 
-// In-memory registry of module manifests (results of defineAtlasModule).
+// In-memory registry of module manifests (results of defineRunlyModule).
 // The discovery service (Phase 2) will maintain the singleton instance in apps/api.
 export class ModuleRegistry {
   #modules = new Map()

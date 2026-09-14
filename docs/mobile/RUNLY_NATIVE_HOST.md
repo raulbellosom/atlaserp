@@ -68,7 +68,7 @@ Cambios de React, CSS y módulos requieren despliegue web. Cambios Kotlin/Swift/
 | Calls | LiveKit administra medios, rooms y participantes. La aceptación sigue siendo explícita, con autorización API y control de sesión por dispositivo. |
 | Notificaciones | Hono dispone de servicio, entregas, preferencias y suscripciones Web Push VAPID. `systemNotifications` queda como fachada compatible sobre bridge central para Tauri y conserva el camino browser/SW. |
 | PWA/SW | `sw-notifications.js` hace network-only en navegaciones, push y notificationclick, sin precache de la aplicación. Mobile no registra ese worker; limpia sólo una inscripción Atlas previa en su WebView. |
-| Vite/AME3 | Assets con hash; shims de imports externos tienen URL estable. Módulos AME3 pueden traer código cliente. Es código de confianza de la SPA: revisar módulos instalados como parte de su cadena de suministro. |
+| Vite/RME3 | Assets con hash; shims de imports externos tienen URL estable. Módulos RME3 pueden traer código cliente. Es código de confianza de la SPA: revisar módulos instalados como parte de su cadena de suministro. |
 | Nginx | HTML, runtime config y shims revalidan/no-store. Se agrega CSP específica para host móvil. |
 | Routing | BrowserRouter: /app/login, /app/m/:moduleKey/*, notas/llamadas públicas y callback Google Calendar. Mobile privilegia sólo /app/ y descendientes. |
 | Deep links | Se agrega atlas://chat/ID y atlas://call/ID con cola nativa, validación y ACK. |
@@ -94,7 +94,7 @@ Controles implementados:
 
 La CSP es un contrato de despliegue, no sólo una opción local: debe mantenerse en **todas** las respuestas HTML de `/app/`, incluidos redirects/error pages/cache/CDN. El preflight valida la entrada; no reemplaza una configuración correcta del servidor. No quitarla para habilitar Collabora u otros iframes. Esos flujos necesitan navegador externo o un WebView separado sin IPC en una fase posterior. Web/PWA conserva sus frames actuales.
 
-Esta política restringe frames/objetos; no se presenta como una CSP completa contra XSS. Scripts de Runly y módulos autorizados comparten privilegios limitados. Auditar dependencias y aplicar una CSP de scripts compatible con AME3 es una defensa adicional.
+Esta política restringe frames/objetos; no se presenta como una CSP completa contra XSS. Scripts de Runly y módulos autorizados comparten privilegios limitados. Auditar dependencias y aplicar una CSP de scripts compatible con RME3 es una defensa adicional.
 
 ## Configuración y desarrollo
 

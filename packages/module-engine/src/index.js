@@ -1,10 +1,13 @@
-// @runly/module-engine — Atlas Module Engine v3 public API
+// @runly/module-engine — Runly Module Engine v3 public API
 // Phase 1: error class, manifest/model/view/page declarations and validators,
 //          registries, SQL generator, migration safety guard, model checksum.
 
 export { ModuleEngineError }             from './errors.js'
-export { defineAtlasModule,
-         defineAtlasModule as defineRunlyModule,
+export { defineRunlyModule,
+         // Kept for the @atlas/* package-scope compatibility system (vite.config.js):
+         // a custom RME3 module authored against the old @atlas/module-engine import
+         // must still find this exact export.
+         defineRunlyModule as defineAtlasModule,
          validateManifest,
          validateModulePwaIdentity }     from './define-module.js'
 export { defineModel,

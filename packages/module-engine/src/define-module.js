@@ -237,7 +237,7 @@ export function validateManifest(manifest, options = {}) {
 }
 
 // Validates and returns the manifest with defaults applied. Throws ModuleEngineError on invalid input.
-export function defineAtlasModule(manifest) {
+export function defineRunlyModule(manifest) {
   const { valid, errors } = validateManifest(manifest, { allowLegacyPwa: true })
   if (!valid) {
     throw new ModuleEngineError(`Invalid module manifest: ${errors.join('; ')}`, 'AME_INVALID_MANIFEST')

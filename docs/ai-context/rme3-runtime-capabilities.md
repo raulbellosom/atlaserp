@@ -1,4 +1,4 @@
-# AME3 Runtime Capabilities (Installer Mode)
+# RME3 Runtime Capabilities (Installer Mode)
 
 This document defines what custom modules can use when Runly ERP is installed from Docker images (without full source build).
 
@@ -24,8 +24,8 @@ Installer mode means:
 
 ## What Works in Installer Mode
 
-- AME3 module manifest (`defineRunlyModule`)
-- Module models (`defineModel`) and Atlas ORM provisioning flow
+- RME3 module manifest (`defineRunlyModule`)
+- Module models (`defineModel`) and Runly ORM provisioning flow
 - Module API routes, services, validators
 - Module lifecycle operations (`sync`, install, uninstall, reset)
 - Blueprint-driven views and pages (TABLE, FORM, DETAIL, CUSTOM)
@@ -545,8 +545,8 @@ Authoritative source of all included packages: `apps/desktop/package.json`
 
 Use this instruction before generating module code:
 
-> Read `AGENTS.md`, `docs/ai-context/ame3-modules.md`, and `docs/ai-context/ame3-runtime-capabilities.md` first.
-> Follow AME3 rules exactly.
+> Read `AGENTS.md`, `docs/ai-context/rme3-modules.md`, and `docs/ai-context/rme3-runtime-capabilities.md` first.
+> Follow RME3 rules exactly.
 > Custom React components in `components/index.js` are compiled at install time by esbuild and are available without rebuilding the web image — no image rebuild is ever needed for module UI.
 > Use the normal automatic JSX runtime. Do not add `/** @jsxRuntime classic */`, `/** @jsx createElement */`, or `import { createElement } from 'react'` in module components.
 > Never import `toast` from `@runly/ui`; use `import { toast } from 'sonner'`.

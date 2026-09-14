@@ -12,15 +12,16 @@ test('installer package.json exposes simple cross-platform scripts for local, ex
   assert.equal(packageJson.private, true)
   assert.equal(packageJson.type, 'module')
   for (const key of ['local', 'local:docs', 'external', 'external:docs', 'stop:local', 'stop:external']) {
-    assert.equal(scripts[`runly:${key}`], scripts[`atlas:${key}`])
+    assert.equal(typeof scripts[`runly:${key}`], 'string')
+    assert.equal(scripts[`atlas:${key}`], undefined, `legacy atlas:${key} script must not be reintroduced`)
   }
 
-  assert.equal(scripts['atlas:local'], 'node ./setup-local.mjs')
-  assert.equal(scripts['atlas:local:docs'], 'node ./setup-local.mjs --docs-only')
-  assert.equal(scripts['atlas:external'], 'node ./setup-external.mjs')
-  assert.equal(scripts['atlas:external:docs'], 'node ./setup-external.mjs --docs-only')
-  assert.equal(scripts['atlas:stop:local'], 'node ./stop-local.mjs')
-  assert.equal(scripts['atlas:stop:external'], 'node ./stop-external.mjs')
+  assert.equal(scripts['runly:local'], 'node ./setup-local.mjs')
+  assert.equal(scripts['runly:local:docs'], 'node ./setup-local.mjs --docs-only')
+  assert.equal(scripts['runly:external'], 'node ./setup-external.mjs')
+  assert.equal(scripts['runly:external:docs'], 'node ./setup-external.mjs --docs-only')
+  assert.equal(scripts['runly:stop:local'], 'node ./stop-local.mjs')
+  assert.equal(scripts['runly:stop:external'], 'node ./stop-external.mjs')
 })
 
 test('installer README advertises npm script shortcuts after bootstrap download', async () => {

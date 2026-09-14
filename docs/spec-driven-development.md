@@ -1,4 +1,4 @@
-# Spec-Driven Development — Atlas ERP
+# Spec-Driven Development — Runly ERP
 
 ## 1. Definition
 
@@ -179,11 +179,11 @@ Every spec file must contain the following 28 sections in this order. "N/A" is a
 
 ## 5. Atlas Module Checklist
 
-Every new feature module must complete all items in this checklist before the implementation is considered done. New modules use AME3 (`defineAtlasModule`). See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) for the SDD mandate.
+Every new feature module must complete all items in this checklist before the implementation is considered done. New modules use RME3 (`defineRunlyModule`). See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) for the SDD mandate.
 
-- [ ] 1. Spec created at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md`
-- [ ] 2. Implementation plan created at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md`
-- [ ] 3. Module manifest at `modules/custom/<moduleKey>/module.manifest.js` using `defineAtlasModule`
+- [ ] 1. Spec created at `docs/superpowers/specs/YYYY-MM-DD-rme3-<moduleKey>-design.md`
+- [ ] 2. Implementation plan created at `docs/superpowers/plans/YYYY-MM-DD-rme3-<moduleKey>.md`
+- [ ] 3. Module manifest at `modules/custom/<moduleKey>/module.manifest.js` using `defineRunlyModule`
 - [ ] 4. Module key uses `custom.*` or `community.*` namespace (`atlas.*` is reserved for the Atlas team)
 - [ ] 5. Granular permissions declared in manifest:
   - `module.access`
@@ -212,7 +212,7 @@ Before a spec is considered complete, it must explicitly answer every question b
 
 **Manifest:**
 - What is the module key? (Use `custom.*` or `community.*` namespace; `atlas.*` is reserved)
-- Where does the manifest live? (`modules/custom/<moduleKey>/module.manifest.js` — uses `defineAtlasModule`, not `createModuleManifest`)
+- Where does the manifest live? (`modules/custom/<moduleKey>/module.manifest.js` — uses `defineRunlyModule`, not `createModuleManifest`)
 - What modules does it declare as dependencies?
 - Is it `kind: 'FEATURE'` and `lifecycle.uninstallable: true`?
 
@@ -232,17 +232,17 @@ Before a spec is considered complete, it must explicitly answer every question b
 - What is the request and response shape for each endpoint?
 
 **Data:**
-- What entities does the module own? (declared via `defineModel` in AME3; transitional Prisma model in Phase 1–2 only)
-- Does the feature require a new forward migration? (Atlas ORM migration in Phase 3+; Prisma migration in Phase 1–2 only)
+- What entities does the module own? (declared via `defineModel` in RME3; transitional Prisma model in Phase 1–2 only)
+- Does the feature require a new forward migration? (Runly ORM migration in Phase 3+; Prisma migration in Phase 1–2 only)
 
 **Validators:**
-- What Zod schemas are required? (module-local `validators/index.js` in AME3; `@runly/validators` only for truly shared contracts)
+- What Zod schemas are required? (module-local `validators/index.js` in RME3; `@runly/validators` only for truly shared contracts)
 
 **SDK:**
 - What SDK domain and methods are required in `@runly/sdk`?
 
 **Frontend:**
-- What views are required? (declared via `defineView` in AME3; Phase 1–2 only: screen files under `apps/desktop/src/modules/`)
+- What views are required? (declared via `defineView` in RME3; Phase 1–2 only: screen files under `apps/desktop/src/modules/`)
 - Which existing `@runly/ui` components can be reused?
 
 **Documentation:**

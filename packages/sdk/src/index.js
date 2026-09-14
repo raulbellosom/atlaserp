@@ -2449,6 +2449,6 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId } = {}) {
 }
 
 // Kept for the @atlas/* package-scope compatibility system (vite.config.js):
-// a custom AME3 module authored against the old @atlas/sdk import must still
+// a custom RME3 module authored against the old @atlas/sdk import must still
 // find this exact export.
 export { createRunlyClient as createAtlasClient };

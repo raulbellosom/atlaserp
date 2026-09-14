@@ -39,7 +39,7 @@ export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryp
       // never trust the client-supplied values for these. A tampered request
       // (or one sent directly with curl, bypassing the storefront UI entirely)
       // must not be able to set its own price. catalog_product/catalog_product_variant
-      // are AME3-managed tables (no prisma.<model> accessor) — use $queryRaw,
+      // are RME3-managed tables (no prisma.<model> accessor) — use $queryRaw,
       // same convention as catalog-public-service.js.
       const productIds = [...new Set(items.map((i) => String(i.productId)))]
       const products = await prisma.$queryRaw`

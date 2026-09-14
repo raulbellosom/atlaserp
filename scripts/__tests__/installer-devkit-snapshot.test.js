@@ -24,9 +24,9 @@ async function collectRelativeFiles(rootDir) {
 }
 
 test('installer devkit snapshot stays in sync with the export generator', async () => {
-  const mod = await import('../lib/ame3-devkit.js')
+  const mod = await import('../lib/rme3-devkit.js')
   const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-devkit-snapshot-'))
-  await mod.exportAme3Devkit({ outDir })
+  await mod.exportRme3Devkit({ outDir })
 
   const snapshotDir = path.resolve('infra/installer/devkit-export')
   const exportedFiles = await collectRelativeFiles(outDir)
@@ -50,7 +50,7 @@ test('installer devkit snapshot stays in sync with the export generator', async 
     'AGENTS.md',
     'prompt-starter.txt',
     'troubleshooting.md',
-    'docs/ai-context/ame3-runtime-capabilities.md',
+    'docs/ai-context/rme3-runtime-capabilities.md',
     'golden-path-module/module.manifest.js',
   ]) {
     const generatedContent = await fs.readFile(path.join(outDir, relativePath), 'utf8')
