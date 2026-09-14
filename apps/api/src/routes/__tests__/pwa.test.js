@@ -74,7 +74,7 @@ const modules = new Map([
 
 function createApp({ loadLogo } = {}) {
   const prisma = {
-    atlasModule: {
+    runlyModule: {
       findUnique: async ({ where }) => modules.get(where.key) ?? null,
     },
   }

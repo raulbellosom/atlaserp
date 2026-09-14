@@ -28,7 +28,7 @@ async function upsertSystemRole({ key, name, description, system = true, enabled
 async function upsertModule(manifest) {
   const isCore = manifest.core === true;
   const lifecycleConfig = manifest.lifecycle ?? null;
-  return prisma.atlasModule.upsert({
+  return prisma.runlyModule.upsert({
     where: { key: manifest.key },
     update: {
       name: manifest.name,
@@ -112,7 +112,7 @@ async function main() {
 
   // Set active=false for permissions belonging to uninstalled or disabled modules.
   // This ensures feature module permissions are not effective until the module is installed.
-  const uninstalledModules = await prisma.atlasModule.findMany({
+  const uninstalledModules = await prisma.runlyModule.findMany({
     where: {
       OR: [
         { status: { not: "INSTALLED" } },

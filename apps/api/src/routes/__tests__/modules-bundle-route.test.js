@@ -34,7 +34,7 @@ test('GET /modules/:key/bundle.js serves a built bundle for the installer-mode g
   process.env.ATLAS_MODULES_DIR = externalRoot
 
   const prisma = {
-    atlasModule: {
+    runlyModule: {
       async findUnique({ where, select }) {
         if (where.key !== 'custom.goldenpath') return null
         const row = {

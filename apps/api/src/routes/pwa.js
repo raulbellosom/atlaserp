@@ -48,7 +48,7 @@ function isAvailableModule(moduleRow) {
 async function findPwaModule(prisma, moduleKey) {
   if (!MODULE_KEY_RE.test(moduleKey)) return null
 
-  const moduleRow = await prisma.atlasModule.findUnique({
+  const moduleRow = await prisma.runlyModule.findUnique({
     where: { key: moduleKey },
     select: {
       key: true,

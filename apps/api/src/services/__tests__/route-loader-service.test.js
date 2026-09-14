@@ -98,7 +98,7 @@ function createPrismaMock(modules) {
   const moduleMap = new Map(modules.map((row) => [row.key, { ...row }]))
 
   return {
-    atlasModule: {
+    runlyModule: {
       async findUnique({ where, select }) {
         const row = moduleMap.get(where.key)
         if (!row) return null

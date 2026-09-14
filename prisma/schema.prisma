@@ -162,7 +162,7 @@ enum PosExternalProvider {
   @@map("pos_external_provider")
 }
 
-model AtlasModule {
+model RunlyModule {
   id String @id @default(uuid(7)) @db.Uuid
   key            String   @unique
   name           String
@@ -190,7 +190,7 @@ model AtlasModule {
   @@map("runly_module")
 }
 
-// Per-company module enablement, layered on top of AtlasModule (the
+// Per-company module enablement, layered on top of RunlyModule (the
 // instance-wide "is this module installed at all" catalog, unchanged). See
 // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §9.4
 model CompanyModule {
@@ -203,7 +203,7 @@ model CompanyModule {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   company Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  module  AtlasModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  module  RunlyModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, moduleId])
   @@index([companyId, enabled])
@@ -217,8 +217,8 @@ model ModuleDependency {
   versionRange String? @map("version_range")
   optional       Boolean @default(false)
 
-  module         AtlasModule @relation("ModuleDependencies", fields: [moduleId], references: [id], onDelete: Cascade)
-  dependency     AtlasModule @relation("RequiredByModules", fields: [dependencyId], references: [id], onDelete: Restrict)
+  module         RunlyModule @relation("ModuleDependencies", fields: [moduleId], references: [id], onDelete: Cascade)
+  dependency     RunlyModule @relation("RequiredByModules", fields: [dependencyId], references: [id], onDelete: Restrict)
 
   @@unique([moduleId, dependencyId])
   @@map("module_dependency")
@@ -235,14 +235,14 @@ model Blueprint {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  module      AtlasModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  module      RunlyModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@index([moduleId])
   @@index([enabled])
   @@map("blueprint")
 }
 
-model AtlasModel {
+model RunlyModel {
   id String @id @default(uuid(7)) @db.Uuid
   moduleKey String @map("module_key")
   name          String @unique
@@ -255,14 +255,14 @@ model AtlasModel {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  fields        AtlasField[]
-  views         AtlasView[]
+  fields        RunlyField[]
+  views         RunlyView[]
 
   @@index([moduleKey])
   @@map("runly_model")
 }
 
-model AtlasField {
+model RunlyField {
   id String @id @default(uuid(7)) @db.Uuid
   modelId String @db.Uuid @map("model_id")
   name         String
@@ -276,13 +276,13 @@ model AtlasField {
   validation   Json?
   order        Int @default(0)
 
-  model        AtlasModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  model        RunlyModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
 
   @@unique([modelId, name])
   @@map("runly_field")
 }
 
-model AtlasView {
+model RunlyView {
   id String @id @default(uuid(7)) @db.Uuid
   moduleKey String @map("module_key")
   key        String @unique
@@ -294,7 +294,7 @@ model AtlasView {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  model      AtlasModel? @relation(fields: [modelName], references: [name], onDelete: SetNull, onUpdate: Cascade)
+  model      RunlyModel? @relation(fields: [modelName], references: [name], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([moduleKey])
   @@index([modelName])
@@ -492,7 +492,7 @@ model Permission {
   active      Boolean @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
-  module      AtlasModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  module      RunlyModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   roles       RolePermission[]
   userGrants  UserPermissionGrant[]
 

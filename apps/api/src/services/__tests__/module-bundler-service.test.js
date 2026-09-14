@@ -64,7 +64,7 @@ describe('module-bundler-service', () => {
       )
 
       mockPrisma = {
-        atlasModule: {
+        runlyModule: {
           findUnique: async () => ({ bundleHash: null }),
           update: async () => ({}),
         },

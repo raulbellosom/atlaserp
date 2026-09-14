@@ -369,7 +369,7 @@ async function upsertDiscoveredModuleError({ prisma, record }) {
     },
   };
 
-  return prisma.atlasModule.upsert({
+  return prisma.runlyModule.upsert({
     where: { key },
     update: {
       name,
@@ -408,7 +408,7 @@ export async function syncDiscoveredModuleDependencies({
   moduleKey,
   dependencies = [],
 }) {
-  const moduleRow = await prisma.atlasModule.findUnique({
+  const moduleRow = await prisma.runlyModule.findUnique({
     where: { key: moduleKey },
     select: { id: true, key: true },
   });
@@ -448,7 +448,7 @@ export async function syncDiscoveredModuleDependencies({
     });
     if (cycleIds) {
       const involvedIds = [...new Set(cycleIds)];
-      const moduleRows = await prisma.atlasModule.findMany({
+      const moduleRows = await prisma.runlyModule.findMany({
         where: { id: { in: involvedIds } },
         select: { id: true, key: true },
       });
@@ -592,7 +592,7 @@ export function createModulesRouter({
       };
     }
 
-    const moduleRow = await prisma.atlasModule.findUnique({
+    const moduleRow = await prisma.runlyModule.findUnique({
       where: { key: moduleKey },
       select: { key: true, status: true, enabled: true },
     });
@@ -682,7 +682,7 @@ export function createModulesRouter({
     requirePermission("core.modules.read"),
     async (c) => {
       try {
-        const modules = await prisma.atlasModule.findMany({
+        const modules = await prisma.runlyModule.findMany({
           orderBy: [{ core: "desc" }, { name: "asc" }],
           include: {
             dependencies: {
@@ -720,7 +720,7 @@ export function createModulesRouter({
     requirePermission("core.modules.read"),
     async (c) => {
       try {
-        const modules = await prisma.atlasModule.findMany({
+        const modules = await prisma.runlyModule.findMany({
           orderBy: [{ core: "desc" }, { name: "asc" }],
           include: {
             dependencies: {
@@ -789,7 +789,7 @@ export function createModulesRouter({
         await publishActivityFromContext(prisma, c, {
           type: "core.module.install",
           severity: "success",
-          entityType: "AtlasModule",
+          entityType: "RunlyModule",
           entityId: moduleKey,
           summary: `${actorName} instaló el módulo ${moduleKey}`,
         });
@@ -1038,7 +1038,7 @@ export function createModulesRouter({
 
           const existingRowsForBump =
             customKeysForBump.length > 0
-              ? await prisma.atlasModule.findMany({
+              ? await prisma.runlyModule.findMany({
                   where: { key: { in: customKeysForBump } },
                   select: { key: true, version: true, lifecycleConfig: true },
                 })
@@ -1133,7 +1133,7 @@ export function createModulesRouter({
 
         const customModuleRows =
           customModuleKeys.length > 0
-            ? await prisma.atlasModule.findMany({
+            ? await prisma.runlyModule.findMany({
                 where: { key: { in: customModuleKeys } },
                 select: {
                   key: true,
@@ -1458,7 +1458,7 @@ export function createModulesRouter({
             .map((r) => r.key),
         ]);
 
-        const dbCustomRows = await prisma.atlasModule.findMany({
+        const dbCustomRows = await prisma.runlyModule.findMany({
           where: requestedModuleKey
             ? { key: requestedModuleKey }
             : { key: { startsWith: "custom." } },
@@ -1477,7 +1477,7 @@ export function createModulesRouter({
             const existingLifecycle = isPlainObject(row.lifecycleConfig)
               ? row.lifecycleConfig
               : {};
-            await prisma.atlasModule.update({
+            await prisma.runlyModule.update({
               where: { key: row.key },
               data: {
                 enabled: false,
@@ -1494,7 +1494,7 @@ export function createModulesRouter({
             staleSync.disabled++;
             staleSync.keys.push({ key: row.key, action: "disabled_missing_files" });
           } else {
-            await prisma.atlasModule.delete({ where: { key: row.key } });
+            await prisma.runlyModule.delete({ where: { key: row.key } });
             staleSync.removed++;
             staleSync.keys.push({ key: row.key, action: "removed" });
           }
@@ -1588,7 +1588,7 @@ export function createModulesRouter({
     async (c) => {
       try {
         const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
-        const mod = await prisma.atlasModule.findUnique({
+        const mod = await prisma.runlyModule.findUnique({
           where: { key },
           include: {
             dependencies: {
@@ -1667,7 +1667,7 @@ export function createModulesRouter({
     async (c) => {
       try {
         const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
-        const mod = await prisma.atlasModule.findUnique({
+        const mod = await prisma.runlyModule.findUnique({
           where: { key },
           select: { key: true },
         });
@@ -1893,7 +1893,7 @@ export function createModulesRouter({
         await publishActivityFromContext(prisma, c, {
           type: "core.module.disable",
           severity: "warning",
-          entityType: "AtlasModule",
+          entityType: "RunlyModule",
           entityId: key,
           summary: `${actorName} deshabilitó el módulo ${key}`,
         });
@@ -1930,7 +1930,7 @@ export function createModulesRouter({
         await publishActivityFromContext(prisma, c, {
           type: "core.module.enable",
           severity: "info",
-          entityType: "AtlasModule",
+          entityType: "RunlyModule",
           entityId: key,
           summary: `${actorName} habilitó el módulo ${key}`,
         });
@@ -1970,7 +1970,7 @@ export function createModulesRouter({
         await publishActivityFromContext(prisma, c, {
           type: "core.module.uninstall",
           severity: "critical",
-          entityType: "AtlasModule",
+          entityType: "RunlyModule",
           entityId: key,
           summary: `${actorName} desinstaló el módulo ${key} (preservando datos)`,
         });
@@ -2057,7 +2057,7 @@ export function createModulesRouter({
         await publishActivityFromContext(prisma, c, {
           type: "core.module.uninstall",
           severity: "critical",
-          entityType: "AtlasModule",
+          entityType: "RunlyModule",
           entityId: key,
           summary: `${actorName} desinstaló el módulo ${key} (${mode})`,
         });
@@ -2131,7 +2131,7 @@ export function createModulesRouter({
         await publishActivityFromContext(prisma, c, {
           type: "core.module.reset",
           severity: "warning",
-          entityType: "AtlasModule",
+          entityType: "RunlyModule",
           entityId: key,
           summary: `${actorName} reinició el módulo ${key}`,
         });
@@ -2150,7 +2150,7 @@ export function createModulesRouter({
     async (c) => {
       try {
         const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
-        const mod = await prisma.atlasModule.findUnique({ where: { key } });
+        const mod = await prisma.runlyModule.findUnique({ where: { key } });
         if (!mod) return c.json({ error: "Modulo no encontrado." }, 404);
         if (mod.status !== "INSTALLED" || !mod.enabled) {
           return c.json(
@@ -2179,7 +2179,7 @@ export function createModulesRouter({
       return c.json({ error: "Clave de modulo invalida." }, 400);
     }
 
-    const moduleRow = await prisma.atlasModule.findUnique({
+    const moduleRow = await prisma.runlyModule.findUnique({
       where: { key },
       select: {
         status: true,

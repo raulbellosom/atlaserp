@@ -605,7 +605,7 @@ function requireModuleAccess(moduleKey) {
     const { tenant } = resolved;
     c.set("companyId", tenant.companyId);
     c.set("tenantContext", tenant);
-    const moduleRow = await prisma.atlasModule.findUnique({
+    const moduleRow = await prisma.runlyModule.findUnique({
       where: { key: moduleKey },
       select: {
         key: true,
@@ -3452,7 +3452,7 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
   // Invalidated by module lifecycle events (same points as blueprints:raw).
   let modulesRaw = cacheGet("runtime:modules:raw");
   if (!modulesRaw) {
-    modulesRaw = await prisma.atlasModule.findMany({
+    modulesRaw = await prisma.runlyModule.findMany({
       orderBy: [{ core: "desc" }, { name: "asc" }],
       include: {
         dependencies: {
@@ -3509,7 +3509,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
         where: { enabled: true },
         include: { module: true },
       }),
-      prisma.atlasModule.findMany({
+      prisma.runlyModule.findMany({
         where: { status: "INSTALLED", enabled: true },
         select: {
           id: true,
@@ -3524,17 +3524,17 @@ app.get("/blueprints", authMiddleware, async (c) => {
         },
       }),
     ]);
-    const atlasViews = await prisma.atlasView.findMany({
+    const runlyViews = await prisma.runlyView.findMany({
       where: {
         enabled: true,
         moduleKey: { in: installedModuleRows.map((row) => row.key) },
       },
     });
-    blueprintRaw = { blueprints, installedModuleRows, atlasViews };
+    blueprintRaw = { blueprints, installedModuleRows, runlyViews };
     cacheSet("blueprints:raw", blueprintRaw, TTL.BLUEPRINTS);
   }
 
-  const { blueprints, installedModuleRows, atlasViews } = blueprintRaw;
+  const { blueprints, installedModuleRows, runlyViews } = blueprintRaw;
   const moduleRowsByKey = new Map(
     installedModuleRows.map((row) => [row.key, row]),
   );
@@ -3558,7 +3558,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
     });
   }
 
-  for (const view of atlasViews) {
+  for (const view of runlyViews) {
     const moduleRow = moduleRowsByKey.get(view.moduleKey);
     if (!moduleRow) continue;
     if (!userCanAccessModule(tenant, moduleRow)) continue;
@@ -3597,7 +3597,7 @@ app.get(
       return c.json({ error: "No autorizado." }, 403);
     }
     const [modules, companyModules] = await Promise.all([
-      prisma.atlasModule.findMany({
+      prisma.runlyModule.findMany({
         where: { status: "INSTALLED" },
         select: { id: true, key: true, name: true, core: true },
       }),
@@ -3634,7 +3634,7 @@ app.patch(
     if (typeof body.enabled !== "boolean") {
       return c.json({ error: "El campo enabled es obligatorio." }, 422);
     }
-    const moduleRow = await prisma.atlasModule.findUnique({
+    const moduleRow = await prisma.runlyModule.findUnique({
       where: { id: moduleId },
       select: { core: true },
     });
@@ -3643,7 +3643,7 @@ app.patch(
       return c.json({ error: "Los modulos core no se pueden deshabilitar por empresa." }, 400);
     }
     // No cache to bust here: runtime:modules:raw / blueprints:raw cache the
-    // instance-wide AtlasModule/Blueprint rows, which this toggle never
+    // instance-wide RunlyModule/Blueprint rows, which this toggle never
     // changes — per-company enablement is read fresh from CompanyModule on
     // every request (see companyModuleService.listDisabledModuleIds above).
     const result = await companyModuleService.setEnabled({
@@ -3805,7 +3805,7 @@ app.get("/public/blueprints", async (c) => {
     const cacheKey = "public:blueprints:raw";
     let publicViews = cacheGet(cacheKey);
     if (!publicViews) {
-      publicViews = await prisma.atlasView.findMany({
+      publicViews = await prisma.runlyView.findMany({
         where: {
           type: "CUSTOM",
           enabled: true,
@@ -3841,7 +3841,7 @@ app.get("/public/modules", async (c) => {
     const cacheKey = "public:modules:raw";
     let modulesRaw = cacheGet(cacheKey);
     if (!modulesRaw) {
-      modulesRaw = await prisma.atlasModule.findMany({
+      modulesRaw = await prisma.runlyModule.findMany({
         where: { status: "INSTALLED", enabled: true },
         orderBy: [{ core: "desc" }, { name: "asc" }],
         select: {

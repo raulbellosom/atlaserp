@@ -7,7 +7,7 @@ function fixture({ rows = [{ id: 'fixture-core', key: 'atlas.core', core: true, 
   const queries = [];
   const permissions = [];
   const prisma = {
-    atlasModule: { findUnique: async ({ where }) => { queries.push(where.key); return rows.find(row => row.key === where.key) ?? null; } },
+    runlyModule: { findUnique: async ({ where }) => { queries.push(where.key); return rows.find(row => row.key === where.key) ?? null; } },
     permission: { count: async () => 0 },
     moduleDependency: { findMany: async () => [] },
   };
@@ -62,6 +62,6 @@ test('missing official records preserve the requested key and lookup errors prop
     assert.equal(await resolvePersistedModuleKey(f.prisma, key), key);
     assert.equal((await f.app.request(`/${key}/lifecycle`)).status, 404);
   }
-  const prisma = { atlasModule: { findUnique: async () => { throw new Error('database unavailable'); } } };
+  const prisma = { runlyModule: { findUnique: async () => { throw new Error('database unavailable'); } } };
   await assert.rejects(resolvePersistedModuleKey(prisma, 'atlas.core'), /database unavailable/);
 });

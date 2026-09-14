@@ -39,7 +39,7 @@ test('cleanup aliases share implementations and preserve exact registrations', (
 test('lifecycle sync preserves Runly core protection and UUIDs without trusting custom core flags', async () => {
   const rows = new Map();
   const prisma = {
-    atlasModule: {
+    runlyModule: {
       findUnique: async ({ where }) => rows.get(where.key) ?? null,
       create: async ({ data }) => { const row = { id: `fixture-${data.key}`, ...data }; rows.set(data.key, row); return row; },
       update: async ({ where, data }) => { const row = { ...rows.get(where.key), ...data }; rows.set(where.key, row); return row; },
@@ -73,7 +73,7 @@ function syncDependencyFixture() {
   const writes = [];
   const rows = [{ id: 'module-id', key: 'custom.demo' }, { id: 'core-id', key: 'runly.core' }];
   const prisma = {
-    atlasModule: {
+    runlyModule: {
       findUnique: async ({ where }) => rows.find(row => row.key === where.key),
       findMany: async ({ where }) => rows.filter(row => where.key ? where.key.in.includes(row.key) : where.id.in.includes(row.id)),
     },

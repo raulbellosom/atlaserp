@@ -49,12 +49,12 @@ function patchSections(sections) {
 }
 
 async function main() {
-  const view = await prisma.atlasView.findUnique({
+  const view = await prisma.runlyView.findUnique({
     where: { key: "fleet.vehicle.form" },
   });
 
   if (!view) {
-    console.error("Error: fleet.vehicle.form AtlasView not found in database.");
+    console.error("Error: fleet.vehicle.form RunlyView not found in database.");
     process.exit(1);
   }
 
@@ -94,7 +94,7 @@ async function main() {
     process.exit(0);
   }
 
-  await prisma.atlasView.update({
+  await prisma.runlyView.update({
     where: { key: "fleet.vehicle.form" },
     data: { schema: patchedSchema },
   });

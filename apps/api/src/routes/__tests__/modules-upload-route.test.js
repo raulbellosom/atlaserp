@@ -49,7 +49,7 @@ test('POST /modules/:key/upload recibe multipart, extrae el ZIP y responde con e
   const permissionCalls = []
   const app = createModulesRouter({
     prisma: {
-      atlasModule: { findUnique: async () => null },
+      runlyModule: { findUnique: async () => null },
     },
     authMiddleware: async (_c, next) => next(),
     requirePermission: (permission) => async (_c, next) => {

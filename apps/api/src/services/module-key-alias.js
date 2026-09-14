@@ -5,8 +5,8 @@ import { getModuleKeyAliases } from '@runly/core';
 export async function resolvePersistedModuleKey(prisma, key) {
   const [, counterpart] = getModuleKeyAliases(key);
   if (!counterpart) return key;
-  const exact = await prisma.atlasModule.findUnique({ where: { key }, select: { key: true } });
+  const exact = await prisma.runlyModule.findUnique({ where: { key }, select: { key: true } });
   if (exact) return key;
-  const alias = await prisma.atlasModule.findUnique({ where: { key: counterpart }, select: { key: true } });
+  const alias = await prisma.runlyModule.findUnique({ where: { key: counterpart }, select: { key: true } });
   return alias?.key ?? key;
 }

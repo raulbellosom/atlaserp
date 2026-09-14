@@ -67,7 +67,7 @@ export const atlasCoreMap = createModuleManifest({
       "instance.config.update": "core.instance.update",
     },
     models: {
-      AtlasModule: {
+      RunlyModule: {
         read: "core.modules.read",
         create: "core.modules.create",
         update: "core.modules.update",
@@ -81,7 +81,7 @@ export const atlasCoreMap = createModuleManifest({
       kind: "ENTITY",
       version: "0.1.0",
       schema: {
-        entity: "AtlasModule",
+        entity: "RunlyModule",
         label: "Modulo",
         fields: [
           { name: "key", label: "Clave", type: "text", required: true },

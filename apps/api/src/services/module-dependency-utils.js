@@ -51,7 +51,7 @@ export function normalizeManifestDependencies(dependencies = []) {
 export async function loadManifestDependencies(db, dependencies = []) {
   const normalized = normalizeManifestDependencies(dependencies)
   const keys = [...new Set(normalized.flatMap(dep => getModuleKeyAliases(dep.key)))]
-  const rows = keys.length ? await db.atlasModule.findMany({
+  const rows = keys.length ? await db.runlyModule.findMany({
     where: { key: { in: keys } }, select: { id: true, key: true },
   }) : []
   const byKey = new Map(rows.map(row => [row.key, row]))

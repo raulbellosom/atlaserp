@@ -241,7 +241,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
   }
 
   async function markModuleRouteError(moduleKey, errorMessage, details = null) {
-    const mod = await prisma.atlasModule.findUnique({
+    const mod = await prisma.runlyModule.findUnique({
       where: { key: moduleKey },
       select: { lifecycleConfig: true },
     })
@@ -253,7 +253,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       updatedAt: new Date().toISOString(),
       ...(details && typeof details === 'object' ? details : {}),
     }
-    await prisma.atlasModule.update({
+    await prisma.runlyModule.update({
       where: { key: moduleKey },
       data: {
         lifecycleConfig: {
@@ -265,7 +265,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
   }
 
   async function markModuleRouteLoaded(moduleKey, apiPath) {
-    const mod = await prisma.atlasModule.findUnique({
+    const mod = await prisma.runlyModule.findUnique({
       where: { key: moduleKey },
       select: { lifecycleConfig: true },
     })
@@ -273,7 +273,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     const lifecycleConfig = toPlainObject(mod.lifecycleConfig)
     const existing = toPlainObject(lifecycleConfig.routeLoader)
     if (existing.status === 'LOADED') return
-    await prisma.atlasModule.update({
+    await prisma.runlyModule.update({
       where: { key: moduleKey },
       data: {
         lifecycleConfig: {
@@ -461,7 +461,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
     routerMap.delete(key)
     unloadModuleRoutes(key)
     unloadModuleComponents(key)
-    const moduleRow = await prisma.atlasModule.findUnique({
+    const moduleRow = await prisma.runlyModule.findUnique({
       where: { key },
       select: { key: true, status: true, enabled: true, manifest: true, lifecycleConfig: true },
     })
@@ -521,7 +521,7 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       enabled: true,
       ...(normalizedFilter ? { key: { in: normalizedFilter } } : {}),
     }
-    const installedModules = await prisma.atlasModule.findMany({
+    const installedModules = await prisma.runlyModule.findMany({
       where: whereClause,
       orderBy: [{ core: 'desc' }, { key: 'asc' }],
       select: {

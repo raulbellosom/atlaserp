@@ -1,4 +1,4 @@
-// Per-company module enablement. AtlasModule stays the instance-wide "is this
+// Per-company module enablement. RunlyModule stays the instance-wide "is this
 // module installed on this deployment" catalog; CompanyModule adds the
 // missing per-tenant dimension: a company only sees a module in
 // /runtime/modules and /blueprints when it's both globally INSTALLED and

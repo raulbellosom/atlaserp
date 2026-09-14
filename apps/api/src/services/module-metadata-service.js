@@ -88,7 +88,7 @@ export function createModuleMetadataService({ prisma }) {
     const type = toRequiredString(safeField.type, 'field.type')
     const safeOrder = Number.isInteger(order) && order >= 0 ? order : 0
 
-    return tx.atlasField.upsert({
+    return tx.runlyField.upsert({
       where: {
         modelId_name: {
           modelId: safeModelId,
@@ -146,14 +146,14 @@ export function createModuleMetadataService({ prisma }) {
         ? safeModel.pluralLabel.trim()
         : null
 
-    const existingByTable = await tx.atlasModel.findUnique({
+    const existingByTable = await tx.runlyModel.findUnique({
       where: { tableName },
       select: { id: true, name: true, moduleKey: true },
     })
 
     if (existingByTable && existingByTable.name !== modelName && existingByTable.moduleKey !== safeModuleKey) {
       throw new Error(
-        `AtlasModel tableName collision: "${tableName}" already belongs to "${existingByTable.name}", cannot remap to "${modelName}"`
+        `RunlyModel tableName collision: "${tableName}" already belongs to "${existingByTable.name}", cannot remap to "${modelName}"`
       )
     }
 
@@ -169,7 +169,7 @@ export function createModuleMetadataService({ prisma }) {
 
     // Preserve declared model names and migrate legacy same-table rows within the same module.
     if (existingByTable && existingByTable.name !== modelName) {
-      const remapped = await tx.atlasModel.update({
+      const remapped = await tx.runlyModel.update({
         where: { id: existingByTable.id },
         data: {
           ...modelData,
@@ -190,7 +190,7 @@ export function createModuleMetadataService({ prisma }) {
         })
       }
       const activeFieldNames = normalizeFieldNameSet(safeModel.fields)
-      const staleFields = await tx.atlasField.findMany({
+      const staleFields = await tx.runlyField.findMany({
         where: { modelId: remapped.id },
         select: { id: true, name: true },
       })
@@ -198,7 +198,7 @@ export function createModuleMetadataService({ prisma }) {
         .filter((row) => !activeFieldNames.has(row.name))
         .map((row) => row.id)
       if (staleFieldIds.length > 0) {
-        await tx.atlasField.updateMany({
+        await tx.runlyField.updateMany({
           where: { id: { in: staleFieldIds } },
           data: {
             readonly: true,
@@ -211,13 +211,13 @@ export function createModuleMetadataService({ prisma }) {
         })
       }
     }
-      return tx.atlasModel.findUnique({
+      return tx.runlyModel.findUnique({
         where: { id: remapped.id },
         include: { fields: true, views: true },
       })
     }
 
-    const upserted = await tx.atlasModel.upsert({
+    const upserted = await tx.runlyModel.upsert({
       where: { name: modelName },
       update: modelData,
       create: {
@@ -241,7 +241,7 @@ export function createModuleMetadataService({ prisma }) {
         })
       }
       const activeFieldNames = normalizeFieldNameSet(safeModel.fields)
-      const staleFields = await tx.atlasField.findMany({
+      const staleFields = await tx.runlyField.findMany({
         where: { modelId: upserted.id },
         select: { id: true, name: true },
       })
@@ -249,7 +249,7 @@ export function createModuleMetadataService({ prisma }) {
         .filter((row) => !activeFieldNames.has(row.name))
         .map((row) => row.id)
       if (staleFieldIds.length > 0) {
-        await tx.atlasField.updateMany({
+        await tx.runlyField.updateMany({
           where: { id: { in: staleFieldIds } },
           data: {
             readonly: true,
@@ -263,7 +263,7 @@ export function createModuleMetadataService({ prisma }) {
       }
     }
 
-    return tx.atlasModel.findUnique({
+    return tx.runlyModel.findUnique({
       where: { id: upserted.id },
       include: { fields: true, views: true },
     })
@@ -285,7 +285,7 @@ export function createModuleMetadataService({ prisma }) {
 
     const modelName = resolveModelNameFromAliases(rawModelName, modelAliases)
 
-    return tx.atlasView.upsert({
+    return tx.runlyView.upsert({
       where: { key },
       update: {
         moduleKey: safeModuleKey,
@@ -337,7 +337,7 @@ export function createModuleMetadataService({ prisma }) {
         }).filter(Boolean)
       )
       if (activeModelNames.size > 0) {
-        await tx.atlasModel.updateMany({
+        await tx.runlyModel.updateMany({
           where: {
             moduleKey,
             name: { notIn: [...activeModelNames.values()] },
@@ -346,7 +346,7 @@ export function createModuleMetadataService({ prisma }) {
           data: { enabled: false },
         })
       } else {
-        await tx.atlasModel.updateMany({
+        await tx.runlyModel.updateMany({
           where: { moduleKey, enabled: true },
           data: { enabled: false },
         })
@@ -360,7 +360,7 @@ export function createModuleMetadataService({ prisma }) {
           .filter(Boolean)
       )
       if (activeViewKeys.size > 0) {
-        await tx.atlasView.updateMany({
+        await tx.runlyView.updateMany({
           where: {
             moduleKey,
             key: { notIn: [...activeViewKeys.values()] },
@@ -369,7 +369,7 @@ export function createModuleMetadataService({ prisma }) {
           data: { enabled: false },
         })
       } else {
-        await tx.atlasView.updateMany({
+        await tx.runlyView.updateMany({
           where: { moduleKey, enabled: true },
           data: { enabled: false },
         })
@@ -385,7 +385,7 @@ export function createModuleMetadataService({ prisma }) {
 
   async function listModels({ moduleKey }) {
     const safeModuleKey = toRequiredString(moduleKey, 'moduleKey')
-    return prisma.atlasModel.findMany({
+    return prisma.runlyModel.findMany({
       where: { moduleKey: safeModuleKey },
       orderBy: { name: 'asc' },
       include: {
@@ -397,7 +397,7 @@ export function createModuleMetadataService({ prisma }) {
 
   async function getModelByName(name) {
     const safeName = toRequiredString(name, 'name')
-    return prisma.atlasModel.findUnique({
+    return prisma.runlyModel.findUnique({
       where: { name: safeName },
       include: {
         fields: { orderBy: { order: 'asc' } },
@@ -408,7 +408,7 @@ export function createModuleMetadataService({ prisma }) {
 
   async function listViews({ moduleKey }) {
     const safeModuleKey = toRequiredString(moduleKey, 'moduleKey')
-    return prisma.atlasView.findMany({
+    return prisma.runlyView.findMany({
       where: { moduleKey: safeModuleKey },
       orderBy: { key: 'asc' },
     })
@@ -416,7 +416,7 @@ export function createModuleMetadataService({ prisma }) {
 
   async function getViewByKey(key) {
     const safeKey = toRequiredString(key, 'key')
-    return prisma.atlasView.findUnique({
+    return prisma.runlyView.findUnique({
       where: { key: safeKey },
     })
   }

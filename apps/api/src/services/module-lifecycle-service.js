@@ -134,7 +134,7 @@ export function createModuleLifecycleService({ prisma }) {
 
       if (cycleIds) {
         const involvedIds = [...new Set(cycleIds)]
-        const moduleRows = await tx.atlasModule.findMany({
+        const moduleRows = await tx.runlyModule.findMany({
           where: { id: { in: involvedIds } },
           select: { id: true, key: true },
         })
@@ -185,7 +185,7 @@ export function createModuleLifecycleService({ prisma }) {
       data: {
         actorId: actorId ?? null,
         moduleKey: 'runly.core',
-        entityType: 'AtlasModule',
+        entityType: 'RunlyModule',
         entityId: entityId ?? null,
         action,
         before: before ?? null,
@@ -197,7 +197,7 @@ export function createModuleLifecycleService({ prisma }) {
   // ── Manifest upsert helpers ───────────────────────────────────────────────
 
   async function resolveRecoverableOwnedTables(moduleKey, lifecycleConfig) {
-    const moduleModels = await prisma.atlasModel.findMany({
+    const moduleModels = await prisma.runlyModel.findMany({
       where: { moduleKey },
       select: { tableName: true },
     })
@@ -234,7 +234,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function dryRunFailedInstallCleanup({ key }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
 
     const ownedTables = await resolveRecoverableOwnedTables(mod.key, mod.lifecycleConfig)
@@ -260,10 +260,10 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function dryRunOwnedTablePurge({ key }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
 
-    // Use ownedTables directly from the manifest lifecycle config — no AtlasModel
+    // Use ownedTables directly from the manifest lifecycle config — no RunlyModel
     // intersection required. The manifest is the authoritative declaration.
     const ownedTables = uniqueStrings(toPlainObject(mod.lifecycleConfig).ownedTables)
       .map(toModuleTableName)
@@ -297,7 +297,7 @@ export function createModuleLifecycleService({ prisma }) {
       throw new ModuleLifecycleError('Modo de recuperacion invalido.', 400)
     }
 
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (mod.core) {
       throw new ModuleLifecycleError('Los modulos base no pueden limpiarse por este flujo.', 409)
@@ -360,7 +360,7 @@ export function createModuleLifecycleService({ prisma }) {
         },
         lastError: priorError,
       }
-      const result = await tx.atlasModule.update({
+      const result = await tx.runlyModule.update({
         where: { key },
         data: { status: 'UNINSTALLED', enabled: false, lifecycleConfig: nextLifecycleConfig },
       })
@@ -398,7 +398,7 @@ export function createModuleLifecycleService({ prisma }) {
     err,
   }) {
     if (!moduleKey) return
-    const mod = await prisma.atlasModule.findUnique({ where: { key: moduleKey } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key: moduleKey } })
     if (!mod) return
 
     const stage = classifyInstallFailureStage(err)
@@ -420,7 +420,7 @@ export function createModuleLifecycleService({ prisma }) {
 
     await prisma.$transaction(async (tx) => {
       await deactivateModulePermissions(tx, mod.id)
-      await tx.atlasModule.update({
+      await tx.runlyModule.update({
         where: { key: moduleKey },
         data: {
           status: 'ERROR',
@@ -448,7 +448,7 @@ export function createModuleLifecycleService({ prisma }) {
 
   async function clearLastInstallError(moduleKey) {
     if (!moduleKey) return
-    const mod = await prisma.atlasModule.findUnique({ where: { key: moduleKey } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key: moduleKey } })
     if (!mod) return
     const lifecycleConfig = toPlainObject(mod.lifecycleConfig)
     if (!Object.prototype.hasOwnProperty.call(lifecycleConfig, 'lastError')) {
@@ -456,7 +456,7 @@ export function createModuleLifecycleService({ prisma }) {
     }
     const nextLifecycleConfig = { ...lifecycleConfig }
     delete nextLifecycleConfig.lastError
-    await prisma.atlasModule.update({
+    await prisma.runlyModule.update({
       where: { key: moduleKey },
       data: { lifecycleConfig: nextLifecycleConfig },
     })
@@ -638,7 +638,7 @@ export function createModuleLifecycleService({ prisma }) {
   // ── ORM migration helpers ─────────────────────────────────────────────────
 
   async function applyModuleOrmMigrations({ moduleKey, actorId }) {
-    const models = await prisma.atlasModel.findMany({
+    const models = await prisma.runlyModel.findMany({
       where: { moduleKey },
       select: { schema: true },
     })
@@ -702,7 +702,7 @@ export function createModuleLifecycleService({ prisma }) {
     let installViews = []
 
     if (requestedKey) {
-      const existing = await prisma.atlasModule.findUnique({
+      const existing = await prisma.runlyModule.findUnique({
         where: { key: requestedKey },
         select: { lifecycleConfig: true },
       })
@@ -784,7 +784,7 @@ export function createModuleLifecycleService({ prisma }) {
       }
 
       result = await prisma.$transaction(async (tx) => {
-        const existing = await tx.atlasModule.findUnique({
+        const existing = await tx.runlyModule.findUnique({
           where: { key: installManifest.key },
           select: { lifecycleConfig: true },
         })
@@ -794,7 +794,7 @@ export function createModuleLifecycleService({ prisma }) {
         }
         delete mergedLifecycleConfig.lastError
 
-        const upserted = await tx.atlasModule.upsert({
+        const upserted = await tx.runlyModule.upsert({
           where: { key: installManifest.key },
           update: {
             name: installManifest.name,
@@ -877,7 +877,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function getModuleInstallError({ key }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     return {
       key: mod.key,
@@ -923,7 +923,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function retryInstallModule({ key, actorId, requestId = null }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (!mod.manifest || typeof mod.manifest !== 'object') {
       throw new ModuleLifecycleError('El modulo no tiene manifiesto persistido para reintentar.', 409)
@@ -983,7 +983,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function disableModule({ key, actorId }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (mod.core || !mod.uninstallable) {
       throw new ModuleLifecycleError('Los modulos base no pueden deshabilitarse.', 409)
@@ -1007,7 +1007,7 @@ export function createModuleLifecycleService({ prisma }) {
 
     return prisma.$transaction(async (tx) => {
       await deactivateModulePermissions(tx, mod.id)
-      const updated = await tx.atlasModule.update({
+      const updated = await tx.runlyModule.update({
         where: { key },
         data: { status: 'DISABLED', enabled: false },
       })
@@ -1024,7 +1024,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function enableModule({ key, actorId }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (mod.status === 'UNINSTALLED') {
       throw new ModuleLifecycleError('No se puede habilitar un modulo desinstalado.', 409)
@@ -1050,7 +1050,7 @@ export function createModuleLifecycleService({ prisma }) {
 
     return prisma.$transaction(async (tx) => {
       await activateModulePermissions(tx, mod.id)
-      const updated = await tx.atlasModule.update({
+      const updated = await tx.runlyModule.update({
         where: { key },
         data: { status: 'INSTALLED', enabled: true },
       })
@@ -1071,7 +1071,7 @@ export function createModuleLifecycleService({ prisma }) {
       throw new ModuleLifecycleError('Modo de desinstalacion invalido.', 400)
     }
 
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (mod.core || !mod.uninstallable) {
       throw new ModuleLifecycleError('Los modulos base no pueden desinstalarse.', 409)
@@ -1164,7 +1164,7 @@ export function createModuleLifecycleService({ prisma }) {
         }
       }
 
-      const updated = await tx.atlasModule.update({
+      const updated = await tx.runlyModule.update({
         where: { key },
         data: { status: 'UNINSTALLED', enabled: false },
       })
@@ -1190,7 +1190,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function resetModule({ key, companyId, actorId }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
     if (mod.core) {
       throw new ModuleLifecycleError('Los modulos base no pueden reiniciarse.', 409)
@@ -1225,7 +1225,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function dryRunUninstall({ key, mode = 'preserve-data', companyId }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) {
       // Module was never synced/installed — no DB row, no orphaned data possible.
       // Return a safe empty result so the install modal can render without errors.
@@ -1299,7 +1299,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function dryRunReset({ key, companyId }) {
-    const mod = await prisma.atlasModule.findUnique({ where: { key } })
+    const mod = await prisma.runlyModule.findUnique({ where: { key } })
     if (!mod) throw new ModuleLifecycleError('Modulo no encontrado.', 404)
 
     const lc = mod.lifecycleConfig ?? {}
@@ -1334,7 +1334,7 @@ export function createModuleLifecycleService({ prisma }) {
     // Process each module in its own short transaction to avoid timeout on large permission sets
     for (const manifest of manifests) {
       await prisma.$transaction(async (tx) => {
-        const existing = await tx.atlasModule.findUnique({ where: { key: manifest.key } })
+        const existing = await tx.runlyModule.findUnique({ where: { key: manifest.key } })
         const isCore = isOfficialCoreModuleKey(manifest.key)
         const lifecycleConfig = manifest.lifecycle ?? null
 
@@ -1350,7 +1350,7 @@ export function createModuleLifecycleService({ prisma }) {
         }
 
         if (existing) {
-          await tx.atlasModule.update({
+          await tx.runlyModule.update({
             where: { key: manifest.key },
             data: {
               ...data,
@@ -1360,7 +1360,7 @@ export function createModuleLifecycleService({ prisma }) {
           })
           updated++
         } else {
-          await tx.atlasModule.create({
+          await tx.runlyModule.create({
             data: {
               ...data,
               key: manifest.key,
@@ -1371,7 +1371,7 @@ export function createModuleLifecycleService({ prisma }) {
           added++
         }
 
-        const mod = await tx.atlasModule.findUnique({ where: { key: manifest.key } })
+        const mod = await tx.runlyModule.findUnique({ where: { key: manifest.key } })
         const isInstalled = mod.status === 'INSTALLED' && mod.enabled
         await upsertManifestPermissions(tx, mod.id, manifest.key, manifest.permissions ?? [], isInstalled)
         await upsertManifestBlueprints(tx, mod.id, manifest.blueprints ?? [])
@@ -1390,7 +1390,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function runModuleSeed({ moduleKey, actorId, _lifecycleConfig = null }) {
-    const row = await prisma.atlasModule.findUnique({
+    const row = await prisma.runlyModule.findUnique({
       where: { key: moduleKey },
       select: { lifecycleConfig: true },
     })
@@ -1420,7 +1420,7 @@ export function createModuleLifecycleService({ prisma }) {
       data: {
         actorId: actorId ?? null,
         moduleKey: 'runly.core',
-        entityType: 'AtlasModule',
+        entityType: 'RunlyModule',
         entityId: null,
         action: 'atlas.module.seed',
         before: null,
@@ -1432,7 +1432,7 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function runModuleTeardown({ moduleKey, actorId }) {
-    const row = await prisma.atlasModule.findUnique({
+    const row = await prisma.runlyModule.findUnique({
       where: { key: moduleKey },
       select: { lifecycleConfig: true },
     })
@@ -1462,7 +1462,7 @@ export function createModuleLifecycleService({ prisma }) {
       data: {
         actorId: actorId ?? null,
         moduleKey: 'runly.core',
-        entityType: 'AtlasModule',
+        entityType: 'RunlyModule',
         entityId: null,
         action: 'atlas.module.teardown',
         before: null,

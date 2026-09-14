@@ -94,7 +94,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     const newHash = await computeSourceHash(componentsDir)
 
     if (!force) {
-      const row = await prisma.atlasModule.findUnique({
+      const row = await prisma.runlyModule.findUnique({
         where: { key },
         select: { bundleHash: true },
       })
@@ -130,7 +130,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
       console.warn(`[bundler] Storage upload failed for ${key}:`, storageErr.message)
     }
 
-    await prisma.atlasModule.update({
+    await prisma.runlyModule.update({
       where: { key },
       data: { hasBundle: true, bundleHash: newHash },
     })
@@ -155,7 +155,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     }
 
     try {
-      await prisma.atlasModule.update({
+      await prisma.runlyModule.update({
         where: { key },
         data: { hasBundle: false, bundleHash: null },
       })
@@ -171,7 +171,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
 
     let modules
     try {
-      modules = await prisma.atlasModule.findMany({
+      modules = await prisma.runlyModule.findMany({
         where: { status: 'INSTALLED', enabled: true, hasBundle: true },
         select: { key: true },
       })
@@ -192,7 +192,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
 
           if (error || !data) {
             console.warn(`[bundler] Could not restore bundle for ${key}: ${error?.message ?? 'no data'}`)
-            await prisma.atlasModule.update({
+            await prisma.runlyModule.update({
               where: { key },
               data: { hasBundle: false, bundleHash: null },
             })
@@ -205,7 +205,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
         } catch (restoreErr) {
           console.warn(`[bundler] restore failed for ${key}:`, restoreErr.message)
           try {
-            await prisma.atlasModule.update({ where: { key }, data: { hasBundle: false, bundleHash: null } })
+            await prisma.runlyModule.update({ where: { key }, data: { hasBundle: false, bundleHash: null } })
           } catch {
             // ignore secondary DB failure
           }
@@ -216,7 +216,7 @@ export function createModuleBundlerService({ prisma, supabaseAdmin }) {
     // Auto-build bundles for installed modules that have components/ but has_bundle=false
     let modulesWithoutBundle
     try {
-      modulesWithoutBundle = await prisma.atlasModule.findMany({
+      modulesWithoutBundle = await prisma.runlyModule.findMany({
         where: { status: 'INSTALLED', enabled: true, hasBundle: false },
         select: { key: true },
       })

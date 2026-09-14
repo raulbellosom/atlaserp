@@ -157,11 +157,11 @@ export async function purgeModuleFiles(key, modulesDir) {
 /**
  * Hard-deletes all DB records for a module inside a Prisma transaction.
  * Requires module.status !== 'INSTALLED' || module.enabled === false.
- * Deletion order: AtlasField → AtlasModel → Blueprint → AtlasModule.
+ * Deletion order: RunlyField → RunlyModel → Blueprint → RunlyModule.
  */
 export async function purgeModuleFromDb(key, prisma) {
   return prisma.$transaction(async (tx) => {
-    const module = await tx.atlasModule.findUnique({ where: { key } });
+    const module = await tx.runlyModule.findUnique({ where: { key } });
     if (!module) {
       throw Object.assign(new Error('MODULE_NOT_FOUND'), { statusCode: 404 });
     }
@@ -169,17 +169,17 @@ export async function purgeModuleFromDb(key, prisma) {
       throw Object.assign(new Error('MODULE_MUST_BE_UNINSTALLED'), { statusCode: 409 });
     }
 
-    const models = await tx.atlasModel.findMany({
+    const models = await tx.runlyModel.findMany({
       where: { moduleKey: key },
       select: { id: true },
     });
     const modelIds = models.map(m => m.id);
     if (modelIds.length > 0) {
-      await tx.atlasField.deleteMany({ where: { modelId: { in: modelIds } } });
+      await tx.runlyField.deleteMany({ where: { modelId: { in: modelIds } } });
     }
-    await tx.atlasModel.deleteMany({ where: { moduleKey: key } });
+    await tx.runlyModel.deleteMany({ where: { moduleKey: key } });
     await tx.blueprint.deleteMany({ where: { moduleKey: key } });
-    await tx.atlasModule.delete({ where: { key } });
+    await tx.runlyModule.delete({ where: { key } });
 
     return { moduleKey: key };
   });

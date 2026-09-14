@@ -56,7 +56,7 @@ test('formatDependencyCycle renders readable key path', () => {
 
 function dependencyDatabase(rows) {
   const queries = []
-  return { queries, atlasModule: { findMany: async query => {
+  return { queries, runlyModule: { findMany: async query => {
     queries.push(query)
     return rows.filter(row => query.where.key.in.includes(row.key))
   } } }

@@ -1,7 +1,7 @@
 /**
  * sync-fleet-blueprints.mjs
  *
- * Discovers all atlas.fleet / custom.fleet AtlasView rows in the database and
+ * Discovers all atlas.fleet / custom.fleet RunlyView rows in the database and
  * applies targeted schema patches to fix known issues and improvements:
  *
  *  1.  Replace `custom.fleet:*` component keys → `atlas.fleet:*`
@@ -608,7 +608,7 @@ async function main() {
       : "Syncing fleet blueprints...\n",
   );
 
-  const views = await prisma.atlasView.findMany({
+  const views = await prisma.runlyView.findMany({
     where: {
       moduleKey: { in: ["custom.fleet", "atlas.fleet"] },
     },
@@ -656,7 +656,7 @@ async function main() {
           `  ${diff ? "~" : "="} ${view.key}${diff ? " [would update]" : " [no change]"}`,
         );
       } else {
-        await prisma.atlasView.update({
+        await prisma.runlyView.update({
           where: { key: view.key },
           data: { schema: patchedSchema },
         });
