@@ -37,6 +37,17 @@ test('release environment cannot be replaced by a user URL or development origin
   assert.equal(resolveEnvironment('development', 'http://192.168.1.5:5173', 'dev'), 'http://192.168.1.5:5173')
 })
 
+test('production/staging origins can be overridden by the deployer\'s own environment variables', () => {
+  process.env.RUNLY_NATIVE_PRODUCTION_URL = 'https://real-customer-instance.example'
+  try {
+    assert.equal(resolveEnvironment('production', null, 'build'), 'https://real-customer-instance.example')
+  } finally {
+    delete process.env.RUNLY_NATIVE_PRODUCTION_URL
+  }
+  // No env var set -> falls back to the checked-in placeholder, never a real instance.
+  assert.equal(resolveEnvironment('production', null, 'build'), 'https://app.example.com')
+})
+
 test('remote capability is restricted to main, selected origin/app path, and minimal commands', () => {
   const config = makeConfig('https://app.example.com')
   const [shell, remote] = config.app.security.capabilities

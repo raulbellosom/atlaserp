@@ -121,12 +121,22 @@ pnpm native:android build production --aab
 pnpm native:android build staging --debug --apk
 
 # Desarrollo con emulador (10.0.2.2 apunta al host Windows)
-$env:ATLAS_NATIVE_DEV_ORIGIN = 'http://10.0.2.2:5173'
-$env:ATLAS_NATIVE_TARGET = 'x86_64'
+$env:RUNLY_NATIVE_DEV_ORIGIN = 'http://10.0.2.2:5173'
+$env:RUNLY_NATIVE_TARGET = 'x86_64'
 pnpm native:android build development --debug --apk
 ```
 
-ABI por defecto: aarch64; `ATLAS_NATIVE_TARGET` acepta aarch64, armv7, i686, x86_64. En teléfono físico usar IP LAN y Vite escuchando en esa interfaz; revisar firewall. `localhost` es el teléfono/emulador, salvo `adb reverse`. API y Supabase también deben ser alcanzables desde el dispositivo. Nunca usar el endpoint local del PC en una configuración distribuida.
+ABI por defecto: aarch64; `RUNLY_NATIVE_TARGET` acepta aarch64, armv7, i686, x86_64. En teléfono físico usar IP LAN y Vite escuchando en esa interfaz; revisar firewall. `localhost` es el teléfono/emulador, salvo `adb reverse`. API y Supabase también deben ser alcanzables desde el dispositivo. Nunca usar el endpoint local del PC en una configuración distribuida.
+
+Los orígenes `production`/`staging` **nunca** deben quedar hardcoded en `environments.json` — ese archivo solo trae `https://app.example.com` / `https://staging.example.com` como marcador, para que un build sin configurar falle contra un dominio obviamente falso en vez de apuntar en silencio a la instancia de otra instalación. Cada despliegue real fija sus propios orígenes vía variables de entorno del proceso (no en `.env`, no en runtime) antes de compilar:
+
+```powershell
+$env:RUNLY_NATIVE_PRODUCTION_URL = 'https://tu-dominio-real.com'
+$env:RUNLY_NATIVE_STAGING_URL = 'https://staging.tu-dominio-real.com'
+pnpm native:android build production --apk
+```
+
+Esto no reabre el modelo de seguridad del manifiesto de confianza: el origen se resuelve una sola vez, en build-time, hacia `tauri.native.generated.json`; nunca se vuelve a leer en runtime desde un formulario, deep link o localStorage. Solo cambia de dónde sale el valor en el momento de compilar (variable de entorno del que despliega, no un JSON versionado con el dominio de otra instalación).
 
 `dev` es un alias de build debug del host estable, no inicia el dev server de Tauri ni instala automáticamente el APK. Instalarlo con `adb install -r <apk>`; después los cambios web se sirven remotamente. Así el shell siempre queda empaquetado y no depende de un servidor de assets de desarrollo para recuperarse. No es necesario reconstruir el host al editar React.
 

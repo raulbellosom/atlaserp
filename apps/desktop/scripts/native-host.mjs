@@ -16,10 +16,26 @@ function isDevelopmentHost(host) {
     && (parts[0] === 127 || parts[0] === 10 || (parts[0] === 192 && parts[1] === 168) || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31))
 }
 
+// Production/staging origins come from the deployer's own environment
+// variables, never from a value checked into this starter template — the
+// repo only ships a placeholder in environments.json as a non-real fallback
+// so an unconfigured build fails loudly against app.example.com instead of
+// silently pointing at someone else's instance. This does NOT reopen the
+// "pinned build-time trust manifest" security property environments.json
+// exists for: the origin is still resolved once, at build time, into the
+// generated tauri.native.generated.json — never re-read at runtime from a
+// form, deep link, or localStorage — so sourcing it from an env var the
+// deployer controls at build time is exactly as safe as a JSON literal.
+function resolvePinnedOrigin(name) {
+  if (name === 'production') return (process.env.RUNLY_NATIVE_PRODUCTION_URL ?? process.env.ATLAS_NATIVE_PRODUCTION_URL) || environments.production
+  if (name === 'staging') return (process.env.RUNLY_NATIVE_STAGING_URL ?? process.env.ATLAS_NATIVE_STAGING_URL) || environments.staging
+  throw new Error('Unknown native environment')
+}
+
 export function resolveEnvironment(name, devOrigin, action, debug = false) {
   if (!['production', 'staging', 'development'].includes(name)) throw new Error('Unknown native environment')
   if (name === 'development' && action === 'build' && !debug) throw new Error('Development origins are debug-only; use dev or --debug')
-  const url = new URL(name === 'development' ? (devOrigin || 'http://10.0.2.2:5173') : environments[name])
+  const url = new URL(name === 'development' ? (devOrigin || 'http://10.0.2.2:5173') : resolvePinnedOrigin(name))
   if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Expected an origin without credentials/path/query')
   if (name !== 'development' && url.protocol !== 'https:') throw new Error('HTTPS required')
   if (name === 'development' && !['https:', 'http:'].includes(url.protocol)) throw new Error('HTTP(S) required')
@@ -64,7 +80,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (action === 'config') console.log(configPath)
   else {
     const extra = process.argv.slice(5)
-    if (extra.some((arg) => !['--debug', '--apk', '--aab'].includes(arg))) throw new Error('Only --debug/--apk/--aab supported; use ATLAS_NATIVE_TARGET for ABI')
+    if (extra.some((arg) => !['--debug', '--apk', '--aab'].includes(arg))) throw new Error('Only --debug/--apk/--aab supported; use RUNLY_NATIVE_TARGET for ABI')
     const target = (process.env.RUNLY_NATIVE_TARGET ?? process.env.ATLAS_NATIVE_TARGET) || 'aarch64'
     if (!['aarch64', 'armv7', 'i686', 'x86_64'].includes(target)) throw new Error('Invalid Android target')
     const cli = resolve(desktop, 'node_modules/@tauri-apps/cli/tauri.js')
