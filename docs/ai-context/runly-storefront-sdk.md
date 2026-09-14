@@ -1,4 +1,4 @@
-# Atlas Storefront SDK - AI Context Reference
+# Runly Storefront SDK - AI Context Reference
 
 Migration: `@raulbellosom/runly-sdk` is the new local package name. Publish it before switching external npm installations; existing `@raulbellosom/atlas-sdk` consumers remain compatible.
 

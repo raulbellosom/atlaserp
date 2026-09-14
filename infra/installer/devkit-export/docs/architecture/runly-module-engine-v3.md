@@ -749,7 +749,7 @@ This spec must cover: the `@runly/module-engine` package structure, the `defineA
 **Required spec:** `docs/superpowers/specs/YYYY-MM-DD-ame3-module-engine-package.md`  
 **Required plan:** `docs/superpowers/plans/YYYY-MM-DD-ame3-module-engine-package.md`
 
-- [x] Master architecture document (`docs/architecture/atlas-module-engine-v3.md`)
+- [x] Master architecture document (`docs/architecture/runly-module-engine-v3.md`)
 - [x] Custom modules developer guide (`docs/03_custom_modules.md`)
 - [x] Module system rewrite (`docs/02_module_system.md`)
 - [x] SDD mandate for AME3 (this section)

@@ -228,7 +228,7 @@ For installer-mode workspaces, the authoritative module-authoring bundle lives i
 See:
 - `docs/02_module_system.md`
 - `docs/03_custom_modules.md`
-- `docs/architecture/atlas-module-engine-v3.md`
+- `docs/architecture/runly-module-engine-v3.md`
 - `docs/ai-context/ame3-runtime-capabilities.md`
 - `docs/TASKS.md`
 

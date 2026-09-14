@@ -179,7 +179,7 @@ Every spec file must contain the following 28 sections in this order. "N/A" is a
 
 ## 5. Atlas Module Checklist
 
-Every new feature module must complete all items in this checklist before the implementation is considered done. New modules use AME3 (`defineAtlasModule`). See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) for the SDD mandate.
+Every new feature module must complete all items in this checklist before the implementation is considered done. New modules use AME3 (`defineAtlasModule`). See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) for the SDD mandate.
 
 - [ ] 1. Spec created at `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md`
 - [ ] 2. Implementation plan created at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md`

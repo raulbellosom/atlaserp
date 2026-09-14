@@ -10,12 +10,12 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..')
 const DEVKIT_DOC_FILES = [
   'docs/ai-context/ame3-modules.md',
   'docs/ai-context/ame3-runtime-capabilities.md',
-  'docs/ai-context/atlas-storefront-sdk.md',
+  'docs/ai-context/runly-storefront-sdk.md',
   'docs/02_module_system.md',
   'docs/03_core_modules.md',
   'docs/03_custom_modules.md',
   'docs/module-quality-standards.md',
-  'docs/architecture/atlas-module-engine-v3.md',
+  'docs/architecture/runly-module-engine-v3.md',
 ]
 
 function uniqueSorted(values) {

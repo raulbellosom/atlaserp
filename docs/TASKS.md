@@ -74,7 +74,7 @@ Verified: 2026-09-13 (35 backend/preparation and 18 browser/runtime/worker tests
 
 ## Atlas Native Host Android [IMPLEMENTED; ERP acceptance pending]
 
-Spec: `docs/superpowers/specs/2026-09-11-atlas-native-host-design.md`. Evidence and operation: `docs/mobile/ATLAS_NATIVE_HOST.md`.
+Spec: `docs/superpowers/specs/2026-09-11-atlas-native-host-design.md`. Evidence and operation: `docs/mobile/RUNLY_NATIVE_HOST.md`.
 
 - [x] Remote Android host, local recovery, exact-origin IPC, centralized bridge and queued deep links.
 - [x] ARM64 debug APK with production origin; x86_64 emulator verified bridge, media, notifications, deep links, external navigation and fallback.
@@ -953,7 +953,7 @@ Verified: 2026-05-09 (`node --check` all 7 modified/created service and route fi
 
 > Atlas ERP is no longer an ERP with modules. Atlas ERP is a module engine that ships ERP modules.
 
-Architecture: `docs/architecture/atlas-module-engine-v3.md`  
+Architecture: `docs/architecture/runly-module-engine-v3.md`  
 Custom modules guide: `docs/03_custom_modules.md`  
 Module system: `docs/02_module_system.md`
 
@@ -964,7 +964,7 @@ Module system: `docs/02_module_system.md`
 **Required spec:** `docs/superpowers/specs/2026-05-09-ame3-module-engine-foundation.md`  
 **Required plan:** `docs/superpowers/plans/2026-05-09-ame3-module-engine-foundation.md`
 
-- [x] `docs/architecture/atlas-module-engine-v3.md` — master AME3 architecture document
+- [x] `docs/architecture/runly-module-engine-v3.md` — master AME3 architecture document
 - [x] `docs/03_custom_modules.md` — custom module developer guide
 - [x] `docs/02_module_system.md` — module system rewrite (AME3-first)
 - [x] `docs/01_erp_architecture.md` — updated architecture reference

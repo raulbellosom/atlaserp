@@ -4,7 +4,7 @@
 
 Atlas ERP is a desktop-first, full-stack modular ERP. The desktop app is a Tauri + React shell. All business logic lives in a Node.js/Hono API. Data is stored in a dedicated self-hosted Supabase instance.
 
-Atlas ERP is a **module engine that ships ERP modules**. The Atlas Module Engine v3 (AME3) is the primary module architecture. See [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) for the full specification.
+Atlas ERP is a **module engine that ships ERP modules**. The Atlas Module Engine v3 (AME3) is the primary module architecture. See [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) for the full specification.
 
 ## Stack
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T00:26:28.591Z",
+  "generatedAt": "2026-09-14T20:14:09.947Z",
   "externals": [
     "@atlas/sdk",
     "@atlas/ui",
@@ -37,6 +37,7 @@
     "AtlasForm",
     "AtlasTable",
     "AttachmentsPanel",
+    "AuthAtmosphere",
     "Avatar",
     "AvatarFallback",
     "AvatarImage",
@@ -282,6 +283,7 @@
     "AtlasForm",
     "AtlasTable",
     "AttachmentsPanel",
+    "AuthAtmosphere",
     "Avatar",
     "AvatarFallback",
     "AvatarImage",

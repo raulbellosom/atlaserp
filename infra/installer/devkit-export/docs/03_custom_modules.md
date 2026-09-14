@@ -1,6 +1,6 @@
 # Runly ERP — Custom Modules
 
-This document explains how to create a custom module for Runly ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md).
+This document explains how to create a custom module for Runly ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md).
 
 For installer-mode runtime limits/capabilities (blueprints, components, and available frontend libraries), read:
 - [docs/ai-context/ame3-runtime-capabilities.md](ai-context/ame3-runtime-capabilities.md)
@@ -13,8 +13,8 @@ Every new module requires an approved spec and implementation plan before any co
 
 | Document | Path convention | Required sections |
 |---|---|---|
-| Spec | `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` | 15 required — see Section 14.3 of [atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) |
-| Plan | `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` | 7 required — see Section 14.4 of [atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md) |
+| Spec | `docs/superpowers/specs/YYYY-MM-DD-ame3-<moduleKey>-design.md` | 15 required — see Section 14.3 of [runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) |
+| Plan | `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md` | 7 required — see Section 14.4 of [runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) |
 
 **Module creation workflow (14 steps):**
 

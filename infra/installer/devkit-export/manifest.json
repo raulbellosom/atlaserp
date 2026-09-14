@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-14T00:26:28.591Z",
+  "generatedAt": "2026-09-14T20:14:09.947Z",
   "repoPath": "infra/installer/devkit-export",
   "files": [
     "AGENTS.md",
@@ -10,8 +10,8 @@
     "docs/03_custom_modules.md",
     "docs/ai-context/ame3-modules.md",
     "docs/ai-context/ame3-runtime-capabilities.md",
-    "docs/ai-context/atlas-storefront-sdk.md",
-    "docs/architecture/atlas-module-engine-v3.md",
+    "docs/ai-context/runly-storefront-sdk.md",
+    "docs/architecture/runly-module-engine-v3.md",
     "docs/module-quality-standards.md",
     "golden-path-module/api/index.js",
     "golden-path-module/components/index.js",
