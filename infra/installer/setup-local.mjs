@@ -295,7 +295,7 @@ async function writeLiveKitArtifacts(config) {
       fs.rm(legacyLiveKitExternalProxyFile, { force: true }),
     ]);
     console.log(
-      `  External TLS: Atlas will not modify the host reverse proxy; proxy ${config.domain} to 127.0.0.1:7880.`,
+      `  External TLS: Runly will not modify the host reverse proxy; proxy ${config.domain} to 127.0.0.1:7880.`,
     );
   } else {
     await Promise.all([
@@ -468,7 +468,7 @@ SUPABASE_ANON_KEY=${envMap.get("ANON_KEY")}
 SUPABASE_SERVICE_ROLE_KEY=${envMap.get("SERVICE_ROLE_KEY")}
 SUPABASE_JWT_SECRET=${envMap.get("JWT_SECRET")}
 
-# Keep Atlas JWT aligned with Supabase local JWT secret.
+# Keep Runly JWT aligned with Supabase local JWT secret.
 JWT_SECRET=${envMap.get("JWT_SECRET")}
 
 DATABASE_URL=${containerDbUrl}
@@ -503,7 +503,7 @@ GROQ_BASE_URL=${groqBaseUrl}
 PFM_VISION_MODEL=${pfmVisionModel}
 PFM_VISION_TIMEOUT_MS=${pfmVisionTimeout}
 
-# ── Atlas Calls / LiveKit ──────────────────────────────────────────────────
+# ── Runly Calls / LiveKit ──────────────────────────────────────────────────
 LIVEKIT_MODE=${liveKit.mode}
 LIVEKIT_DOMAIN=${liveKit.domain}
 LIVEKIT_TLS_MODE=${liveKit.tlsMode}
@@ -600,7 +600,7 @@ async function main() {
   if (skipPull) {
     console.log("[6/8] Skipping image pull (--skip-pull). Using local images.");
   } else {
-    console.log("[6/8] Pulling Atlas local runtime images...");
+    console.log("[6/8] Pulling Runly local runtime images...");
     resolvedApiImage = pullWithRetry(apiImage, "API");
     resolvedWorkerImage = pullWithRetry(workerImage, "Worker");
     resolvedWebImage = pullWithRetry(webImage, "Web");
@@ -628,12 +628,12 @@ async function main() {
     resolvedApiImage, "pnpm", "db:seed",
   ]);
 
-  console.log("[8/8] Starting Atlas local profile...");
+  console.log("[8/8] Starting Runly local profile...");
   if (!office.enabled) run("docker", ["compose", ...composeFiles, "--profile", "office", "stop", "collabora"]);
   removeInactiveLiveKitServices(liveKit);
   const liveKitProfiles = getLiveKitComposeProfiles(liveKit)
     .flatMap((profile) => ["--profile", profile]);
-  // Limit forced restarts to Atlas/Calls: an unchanged editor must keep its sessions.
+  // Limit forced restarts to Runly/Calls: an unchanged editor must keep its sessions.
   const services = ["runly-api-local", "runly-worker-local", "runly-web-local",
     ...(liveKit.mode === "embedded" ? ["livekit-redis", "livekit", ...(liveKit.managedTls ? ["livekit-caddy"] : [])] : [])];
   run(
@@ -661,8 +661,8 @@ async function main() {
 
   console.log("");
   console.log("Local installation is ready:");
-  console.log("- Atlas web: http://localhost:5173");
-  console.log("- Atlas API: http://localhost:4010");
+  console.log("- Runly web: http://localhost:5173");
+  console.log("- Runly API: http://localhost:4010");
   console.log("- Supabase API gateway: http://localhost:54321");
   console.log("- Supabase Studio: http://localhost:54323");
   if (liveKit.mode !== "disabled") console.log(`- LiveKit: ${liveKit.publicUrl}`);

@@ -16,7 +16,7 @@ if (-not $SkipBootstrapRefresh) {
     if ($parseErrors.Count) { throw "Downloaded bootstrap has invalid PowerShell syntax." }
     if ((Get-FileHash -LiteralPath $PSCommandPath).Hash -ne (Get-FileHash -LiteralPath $bootstrapDownload).Hash) {
       Move-Item -LiteralPath $bootstrapDownload -Destination $PSCommandPath -Force
-      Write-Host "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
+      Write-Host "[runly-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
       $forwarded = @{} + $PSBoundParameters
       $forwarded.SkipBootstrapRefresh = $true
       & $PSCommandPath @forwarded
@@ -43,7 +43,7 @@ $files = @(
   "stop-local.sh"
 )
 
-Write-Host "[atlas-bootstrap] Descargando instalador local en $PWD"
+Write-Host "[runly-bootstrap] Descargando instalador local en $PWD"
 
 foreach ($file in $files) {
   $outFile = Join-Path $PWD $file
@@ -57,12 +57,12 @@ foreach ($file in $files) {
 New-Item -ItemType Directory -Force -Path (Join-Path $PWD "custom-modules") | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $PWD ".secrets/firebase") | Out-Null
 
-Write-Host "[atlas-bootstrap] Archivos listos."
+Write-Host "[runly-bootstrap] Archivos listos."
 if ($SkipRun) {
-  Write-Host "[atlas-bootstrap] Ejecucion omitida. Usa: npm.cmd run runly:local"
+  Write-Host "[runly-bootstrap] Ejecucion omitida. Usa: npm.cmd run runly:local"
   exit 0
 }
 
-Write-Host "[atlas-bootstrap] Iniciando instalacion local..."
+Write-Host "[runly-bootstrap] Iniciando instalacion local..."
 & npm.cmd run runly:local
 exit $LASTEXITCODE

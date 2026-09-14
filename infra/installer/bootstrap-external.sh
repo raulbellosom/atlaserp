@@ -14,7 +14,7 @@ if [[ "${RUNLY_BOOTSTRAP_REFRESHED-${ATLAS_BOOTSTRAP_REFRESHED:-}}" != "external
     chmod +x "$bootstrap_download"
     mv -f "$bootstrap_download" "$bootstrap_path"
     trap - EXIT
-    echo "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
+    echo "[runly-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
     exec env RUNLY_BOOTSTRAP_REFRESHED=external ATLAS_BOOTSTRAP_REFRESHED=external bash "$bootstrap_path" "$@"
   fi
   rm -f "$bootstrap_download"
@@ -36,7 +36,7 @@ files=(
   .env.external.example
 )
 
-echo "[atlas-bootstrap] Descargando instalador external en $(pwd)"
+echo "[runly-bootstrap] Descargando instalador external en $(pwd)"
 
 for file in "${files[@]}"; do
   mkdir -p "$(dirname "$file")"
@@ -50,5 +50,5 @@ if [[ ! -f .env.external ]]; then
   cp .env.external.example .env.external
 fi
 
-echo "[atlas-bootstrap] Archivos listos."
-echo "[atlas-bootstrap] Siguiente paso: edita .env.external y luego ejecuta npm run runly:external"
+echo "[runly-bootstrap] Archivos listos."
+echo "[runly-bootstrap] Siguiente paso: edita .env.external y luego ejecuta npm run runly:external"

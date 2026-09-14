@@ -5,7 +5,7 @@ import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
 import { configureFirebase } from "./lib/firebase-config.mjs";
 // setup-external.mjs
 //
-// Production setup: Atlas ERP against an external (self-hosted or cloud) Supabase.
+// Production setup: Runly ERP against an external (self-hosted or cloud) Supabase.
 // Does NOT require npx or a local Supabase installation.
 //
 // Usage:
@@ -149,9 +149,9 @@ const OPTIONAL_VAR_GROUPS = [
   {
     header: [
       "# ── Deployment (CORS + public URLs) ─────────────────────────────────────────",
-      "# Set these when exposing Atlas on a public domain (VPS + Nginx).",
-      "# CORS_ORIGIN: public URL of the Atlas web app (e.g. https://atlas.yourdomain.com).",
-      "# ATLAS_API_URL: public URL of the Atlas API (e.g. https://api.yourdomain.com).",
+      "# Set these when exposing Runly on a public domain (VPS + Nginx).",
+      "# CORS_ORIGIN: public URL of the Runly web app (e.g. https://runly.yourdomain.com).",
+      "# ATLAS_API_URL: public URL of the Runly API (e.g. https://api.yourdomain.com).",
       "#   The web container reads ATLAS_API_URL at startup to reach the API from the browser.",
     ],
     vars: [
@@ -202,7 +202,7 @@ const OPTIONAL_VAR_GROUPS = [
   },
   {
     header: [
-      "# ── Atlas Calls / LiveKit ──────────────────────────────────────────────────",
+      "# ── Runly Calls / LiveKit ──────────────────────────────────────────────────",
       "# embedded starts LiveKit + Redis; external uses an existing RTC server; disabled hides calls.",
     ],
     vars: [
@@ -303,7 +303,7 @@ async function writeLiveKitArtifacts(config) {
       fs.rm(legacyLiveKitExternalProxyFile, { force: true }),
     ]);
     console.log(
-      `  External TLS: Atlas will not modify Nginx or certificates; proxy ${config.domain} to 127.0.0.1:7880.`,
+      `  External TLS: Runly will not modify Nginx or certificates; proxy ${config.domain} to 127.0.0.1:7880.`,
     );
   } else {
     await Promise.all([
@@ -603,7 +603,7 @@ async function main() {
   if (skipPull || upOnly) {
     console.log("[4/5] Skipping image pull.");
   } else {
-    console.log("[4/5] Pulling Atlas images...");
+    console.log("[4/5] Pulling Runly images...");
     resolvedApiImage    = pullWithRetry(apiImage,    "API");
     resolvedWorkerImage = pullWithRetry(workerImage, "Worker");
     resolvedWebImage    = pullWithRetry(webImage,    "Web");
@@ -635,12 +635,12 @@ async function main() {
   }
 
   // ── 6. Start containers ────────────────────────────────────────────────────
-  console.log("\nStarting Atlas (external profile)...");
+  console.log("\nStarting Runly (external profile)...");
   if (!office.enabled) run("docker", ["compose", ...composeFiles, "--profile", "office", "stop", "collabora"]);
   removeInactiveLiveKitServices(liveKit);
   const liveKitProfiles = getLiveKitComposeProfiles(liveKit)
     .flatMap((profile) => ["--profile", profile]);
-  // Limit forced restarts to Atlas/Calls: an unchanged editor must keep its sessions.
+  // Limit forced restarts to Runly/Calls: an unchanged editor must keep its sessions.
   const services = ["runly-api-external", "runly-worker-external", "runly-web-external",
     ...(liveKit.mode === "embedded" ? ["livekit-redis", "livekit", ...(liveKit.managedTls ? ["livekit-caddy"] : [])] : [])];
   run(
@@ -667,7 +667,7 @@ async function main() {
   await checkOfficeRuntime(office);
 
   console.log("");
-  console.log("Atlas ERP is ready (external mode):");
+  console.log("Runly ERP is ready (external mode):");
   console.log("  Web:  http://localhost:5173");
   console.log("  API:  http://localhost:4010");
   if (liveKit.mode !== "disabled") console.log(`  LiveKit: ${liveKit.publicUrl}`);

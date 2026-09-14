@@ -16,7 +16,7 @@ if (-not $SkipBootstrapRefresh) {
     if ($parseErrors.Count) { throw "Downloaded bootstrap has invalid PowerShell syntax." }
     if ((Get-FileHash -LiteralPath $PSCommandPath).Hash -ne (Get-FileHash -LiteralPath $bootstrapDownload).Hash) {
       Move-Item -LiteralPath $bootstrapDownload -Destination $PSCommandPath -Force
-      Write-Host "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
+      Write-Host "[runly-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
       $forwarded = @{} + $PSBoundParameters
       $forwarded.SkipBootstrapRefresh = $true
       & $PSCommandPath @forwarded
@@ -42,7 +42,7 @@ $files = @(
   ".env.external.example"
 )
 
-Write-Host "[atlas-bootstrap] Descargando instalador external en $PWD"
+Write-Host "[runly-bootstrap] Descargando instalador external en $PWD"
 
 foreach ($file in $files) {
   $outFile = Join-Path $PWD $file
@@ -60,5 +60,5 @@ if (-not $SkipEnvCopy -and -not (Test-Path ".\.env.external")) {
   Copy-Item ".\.env.external.example" ".\.env.external"
 }
 
-Write-Host "[atlas-bootstrap] Archivos listos."
-Write-Host "[atlas-bootstrap] Siguiente paso: edita .env.external y luego ejecuta npm.cmd run runly:external"
+Write-Host "[runly-bootstrap] Archivos listos."
+Write-Host "[runly-bootstrap] Siguiente paso: edita .env.external y luego ejecuta npm.cmd run runly:external"

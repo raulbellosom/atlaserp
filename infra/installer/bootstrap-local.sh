@@ -12,7 +12,7 @@ if [[ "${RUNLY_BOOTSTRAP_REFRESHED-${ATLAS_BOOTSTRAP_REFRESHED:-}}" != "local" ]
     chmod +x "$bootstrap_download"
     mv -f "$bootstrap_download" "$bootstrap_path"
     trap - EXIT
-    echo "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
+    echo "[runly-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
     exec env RUNLY_BOOTSTRAP_REFRESHED=local ATLAS_BOOTSTRAP_REFRESHED=local bash "$bootstrap_path" "$@"
   fi
   rm -f "$bootstrap_download"
@@ -35,7 +35,7 @@ files=(
   stop-local.sh
 )
 
-echo "[atlas-bootstrap] Descargando instalador local en $(pwd)"
+echo "[runly-bootstrap] Descargando instalador local en $(pwd)"
 
 for file in "${files[@]}"; do
   mkdir -p "$(dirname "$file")"
@@ -45,11 +45,11 @@ done
 mkdir -p custom-modules
 mkdir -p -m 700 .secrets/firebase
 
-echo "[atlas-bootstrap] Archivos listos."
+echo "[runly-bootstrap] Archivos listos."
 if [[ "${1:-}" == "--skip-run" ]]; then
-  echo "[atlas-bootstrap] Ejecucion omitida. Usa: npm run runly:local"
+  echo "[runly-bootstrap] Ejecucion omitida. Usa: npm run runly:local"
   exit 0
 fi
 
-echo "[atlas-bootstrap] Iniciando instalacion local..."
+echo "[runly-bootstrap] Iniciando instalacion local..."
 exec npm run runly:local

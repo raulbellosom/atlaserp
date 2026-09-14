@@ -83,5 +83,5 @@ export async function checkOfficeRuntime(office, fetchImpl = fetch) {
     const response = await fetchImpl('http://127.0.0.1:9980/hosting/discovery', { signal: AbortSignal.timeout(5000), redirect: 'error' });
     if (!response.ok) throw new Error();
     console.log('Office: CODE discovery is reachable. Verify the public URL and WebSocket through your proxy.');
-  } catch { console.warn('Office: CODE is still starting or unavailable. Atlas remains usable; check docker compose --profile office ps.'); }
+  } catch { console.warn('Office: CODE is still starting or unavailable. Runly remains usable; check docker compose --profile office ps.'); }
 }
