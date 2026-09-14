@@ -84,152 +84,157 @@ export function LoginScreen({ returnTo = '/app' }) {
   }
 
   return (
-    <div className="relative h-dvh overflow-hidden bg-background text-foreground lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)]">
+    <div className="relative h-dvh overflow-hidden bg-background text-foreground">
       <AuthAtmosphere />
 
-      {/* Hero — desktop only; matches the setup wizard's atmosphere so both
-          auth-adjacent screens read as one product. Never shows a specific
-          company's branding: this screen is shared across every company on
-          the instance, before one is picked/activated. */}
-      <section className="hidden lg:flex relative z-10 flex-col justify-between gap-10 px-13 py-12">
-        <img
-          src={logo}
-          alt="Runly"
-          className="h-7.5 w-auto object-contain"
-          draggable={false}
-        />
+      {/* Caps how wide the layout grows on ultra-wide monitors — past this
+          point extra space becomes side margins instead of stretching the
+          hero column and pushing the form card further from it. */}
+      <div className="relative h-dvh max-w-350 mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)]">
+        {/* Hero — desktop only; matches the setup wizard's atmosphere so both
+            auth-adjacent screens read as one product. Never shows a specific
+            company's branding: this screen is shared across every company on
+            the instance, before one is picked/activated. */}
+        <section className="hidden lg:flex relative z-10 flex-col justify-between gap-10 px-13 py-12">
+          <img
+            src={logo}
+            alt="Runly"
+            className="h-7.5 w-auto object-contain"
+            draggable={false}
+          />
 
-        <div className="flex flex-col gap-8 max-w-md">
-          <div className="flex flex-col gap-4">
-            <h1 className="text-[clamp(2rem,3.6vw,3rem)] font-bold leading-[1.08] tracking-tight text-foreground text-pretty">
-              Bienvenido de vuelta a Runly.
-            </h1>
-            <p className="text-[15px] leading-relaxed text-muted-foreground max-w-[36ch]">
-              Ingresa para continuar donde lo dejaste.
-            </p>
-          </div>
-
-          <ul className="flex flex-col gap-3" role="list">
-            {SIDEBAR_FEATURES.map(({ icon: Icon, label }) => (
-              <li
-                key={label}
-                className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 glass"
-              >
-                <span
-                  className="shrink-0 w-8 h-8 rounded-[10px] grid place-items-center text-(--brand-primary)"
-                  style={{
-                    background:
-                      'linear-gradient(140deg,rgba(253,96,22,.24),rgba(249,162,27,.10))',
-                    border: '1px solid rgba(253,96,22,.32)',
-                  }}
-                >
-                  <Icon size={15} aria-hidden="true" />
-                </span>
-                <span className="text-sm font-medium text-foreground">{label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-          <span>Runly ERP · {RUNLY_EDITION_NAME}</span>
-          <span>v0.1.0</span>
-        </div>
-      </section>
-
-      {/* Form panel */}
-      <section className="relative z-10 h-dvh box-border flex px-4 py-4 sm:px-8 sm:py-8 lg:px-10">
-        <div className="relative w-full max-w-md mx-auto my-auto lg:max-w-none lg:my-0 flex flex-col rounded-[26px] glass-shell px-6 py-7 sm:px-9 sm:py-9">
-          <div className="flex items-center gap-4 mb-7">
-            <img
-              src={logo}
-              alt="Runly"
-              className="h-6 w-auto object-contain lg:hidden"
-              draggable={false}
-            />
-            <div className="ml-auto">
-              <ThemeToggle />
+          <div className="flex flex-col gap-8 max-w-md">
+            <div className="flex flex-col gap-4">
+              <h1 className="text-[clamp(2rem,3.6vw,3rem)] font-bold leading-[1.08] tracking-tight text-foreground text-pretty">
+                Bienvenido de vuelta a Runly.
+              </h1>
+              <p className="text-[15px] leading-relaxed text-muted-foreground max-w-[36ch]">
+                Ingresa para continuar donde lo dejaste.
+              </p>
             </div>
+
+            <ul className="flex flex-col gap-3" role="list">
+              {SIDEBAR_FEATURES.map(({ icon: Icon, label }) => (
+                <li
+                  key={label}
+                  className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 glass"
+                >
+                  <span
+                    className="shrink-0 w-8 h-8 rounded-md grid place-items-center text-(--brand-primary)"
+                    style={{
+                      background:
+                        'linear-gradient(140deg,rgba(253,96,22,.24),rgba(249,162,27,.10))',
+                      border: '1px solid rgba(253,96,22,.32)',
+                    }}
+                  >
+                    <Icon size={15} aria-hidden="true" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          <div className="flex flex-col gap-1.5 mb-7">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Runly ERP
-            </p>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
-              Bienvenido de nuevo
-            </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Ingresa para continuar donde lo dejaste.
-            </p>
+          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            <span>Runly ERP · {RUNLY_EDITION_NAME}</span>
+            <span>v0.1.0</span>
           </div>
+        </section>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-            <TextField
-              id="email"
-              icon={Mail}
-              label="Correo electrónico"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="tu@empresa.com"
-              required
-            />
-            <PasswordField
-              id="password"
-              icon={Lock}
-              label="Contraseña"
-              autoComplete="current-password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+        {/* Form panel */}
+        <section className="relative z-10 h-dvh box-border flex px-4 py-4 sm:px-8 sm:py-8 lg:px-10">
+          <div className="relative w-full max-w-md mx-auto my-auto lg:max-w-none lg:my-0 flex flex-col rounded-[26px] glass-shell px-6 py-7 sm:px-9 sm:py-9">
+            <div className="flex items-center gap-4 mb-7">
+              <img
+                src={logo}
+                alt="Runly"
+                className="h-6 w-auto object-contain lg:hidden"
+                draggable={false}
+              />
+              <div className="ml-auto">
+                <ThemeToggle />
+              </div>
+            </div>
 
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
+            <div className="flex flex-col gap-1.5 mb-7">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Runly ERP
               </p>
-            )}
-
-            <Button
-              type="submit"
-              variant="gradient"
-              style={CTA_GRADIENT}
-              className="w-full justify-center"
-              disabled={loading || !email || !password}
-              aria-busy={loading}
-            >
-              {loading ? 'Verificando credenciales...' : 'Acceder al sistema'}
-              {!loading && <ArrowRight size={15} />}
-            </Button>
-          </form>
-
-          <div className="text-center space-y-2 mt-6">
-            <button
-              type="button"
-              onClick={() => setShowForgotMessage(v => !v)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
-            >
-              ¿Olvidaste tu contraseña?
-            </button>
-            {showForgotMessage && (
-              <p className="text-xs text-muted-foreground">
-                Contacta al administrador del sistema para restablecer tu acceso.
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                Bienvenido de nuevo
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Ingresa para continuar donde lo dejaste.
               </p>
-            )}
-            {isTauriRuntime() ? (
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+              <TextField
+                id="email"
+                icon={Mail}
+                label="Correo electrónico"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="tu@empresa.com"
+                required
+              />
+              <PasswordField
+                id="password"
+                icon={Lock}
+                label="Contraseña"
+                autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                variant="gradient"
+                style={CTA_GRADIENT}
+                className="w-full justify-center"
+                disabled={loading || !email || !password}
+                aria-busy={loading}
+              >
+                {loading ? 'Verificando credenciales...' : 'Acceder al sistema'}
+                {!loading && <ArrowRight size={15} />}
+              </Button>
+            </form>
+
+            <div className="text-center space-y-2 mt-6">
               <button
                 type="button"
-                onClick={handleChangeServer}
-                className="text-sm text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
+                onClick={() => setShowForgotMessage(v => !v)}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
               >
-                Cambiar servidor
+                ¿Olvidaste tu contraseña?
               </button>
-            ) : null}
+              {showForgotMessage && (
+                <p className="text-xs text-muted-foreground">
+                  Contacta al administrador del sistema para restablecer tu acceso.
+                </p>
+              )}
+              {isTauriRuntime() ? (
+                <button
+                  type="button"
+                  onClick={handleChangeServer}
+                  className="text-sm text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
+                >
+                  Cambiar servidor
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }
