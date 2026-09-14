@@ -227,6 +227,7 @@ Never hardcode a one-off component inside a module screen when the same pattern 
 
 - **JavaScript only** - no TypeScript in this repo yet
 - **No emojis** in UI or documentation
+- **Current release edition**: **"Jaguar"** (previously "Meridian"). This is a marketing/edition name, separate from the semver in `package.json`. Single source of truth: `RUNLY_EDITION_NAME` in `apps/desktop/src/lib/appConfig.js` — import and reuse it, never re-hardcode the string, wherever an edition/version label appears in the UI (setup wizard hero badge + footer, login footer, an eventual "About" screen, etc.). When the edition changes again, update only that constant.
 - **All UI text in Spanish** - code, docs, and comments in English
 - **Tailwind** for all styles - no CSS modules or styled-components
 - **React Hook Form + Zod** for forms

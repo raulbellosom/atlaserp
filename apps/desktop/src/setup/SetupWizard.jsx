@@ -5,18 +5,19 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Layers,
   Building2,
-  Shield,
-  Zap,
   User,
   Palette,
   ClipboardCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { AuthAtmosphere, Button } from "@runly/ui";
 import { atlas } from "../lib/atlas";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { useBrandingStore } from "../stores/branding";
+import { ThemeToggle } from "../components/ThemeToggle";
+import { SetupHero } from "./SetupHero";
+import { SetupInitView } from "./SetupInitView";
 import { StepAdmin } from "./StepAdmin";
 import { StepCompany } from "./StepCompany";
 import { StepBranding } from "./StepBranding";
@@ -26,55 +27,30 @@ const STEPS = [
   {
     label: "Cuenta admin",
     icon: User,
-    subtitle: "Esto define quién tiene el control total.",
     title: "Cuenta de administrador",
     description: "Esta será la cuenta principal del sistema.",
   },
   {
     label: "Tu empresa",
     icon: Building2,
-    subtitle: "El punto de partida de toda tu operación.",
     title: "Tu empresa",
     description: "Información básica de la organización.",
   },
   {
     label: "Identidad visual",
     icon: Palette,
-    subtitle: "La cara de Runly en tu instancia.",
     title: "Identidad visual",
     description: "Personalización visual de la instancia.",
   },
   {
     label: "Confirmar",
     icon: ClipboardCheck,
-    subtitle: "Un último vistazo antes de arrancar.",
     title: "Revisar y confirmar",
     description: "Verifica los datos antes de inicializar.",
   },
 ];
 
-const FEATURES = [
-  {
-    icon: Layers,
-    title: "Modular por diseño",
-    desc: "Cada módulo que instalas tiene un propósito. Sin dependencias ocultas, sin peso extra.",
-  },
-  {
-    icon: Building2,
-    title: "Multi-empresa",
-    desc: "Varias organizaciones bajo una sola instancia, con datos completamente separados.",
-  },
-  {
-    icon: Shield,
-    title: "Datos en tu servidor",
-    desc: "Sin intermediarios. Tus datos viven donde tú decides.",
-  },
-  {
-    icon: Zap,
-    title: "Rendimiento real",
-    desc: "Diseñado para producción desde el primer día. Rápido donde importa.",
-  },
-];
+const CTA_GRADIENT = { backgroundImage: "linear-gradient(120deg,#FD6016,#E4262A)" };
 
 const slideVariants = {
   enter: (dir) => ({ x: dir > 0 ? 36 : -36, opacity: 0 }),
@@ -88,6 +64,7 @@ export function SetupWizard() {
   const setBranding = useBrandingStore((s) => s.setBranding);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [showInit, setShowInit] = useState(false);
   const stepRef = useRef(null);
   const [formData, setFormData] = useState({
     adminFirstName: "",
@@ -159,12 +136,12 @@ export function SetupWizard() {
         applyBrandTheme(status?.branding?.primaryColor);
         setBranding(status?.branding ?? null);
       } catch {}
-      navigate("/app/login", { replace: true });
     },
   });
 
   function handleNext() {
     if (step === STEPS.length - 1) {
+      setShowInit(true);
       mutation.mutate();
       return;
     }
@@ -185,382 +162,199 @@ export function SetupWizard() {
   function handleGoToStep(i) {
     if (i >= step || mutation.isPending) return;
     mutation.reset();
+    setShowInit(false);
     setDirection(-1);
     setStep(i);
   }
 
+  function handleRestart() {
+    mutation.reset();
+    setShowInit(false);
+    setDirection(-1);
+    setStep(0);
+  }
+
   const stepProps = { ref: stepRef, data: formData, onChange: handleChange };
+  const effectiveStep = showInit ? STEPS.length : step;
+  const tasks = [
+    { label: "Base de datos aprovisionada", meta: "postgres" },
+    {
+      label: "Esquema de empresa creado",
+      meta: formData.companyName?.trim() || "empresa",
+    },
+    { label: "Cuenta de administrador", meta: "1 usuario" },
+    { label: "Módulos base instalados", meta: "4 módulos" },
+  ];
 
   return (
-    <div className="h-dvh overflow-hidden bg-background lg:grid lg:grid-cols-2">
-      {/* ── LEFT PANEL: Branding — desktop only ── */}
-      <div
-        className="hidden lg:flex relative flex-col justify-between px-14 py-12 overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(145deg, #0C172D 0%, #132646 55%, #0C172D 100%)",
-        }}
-      >
-        {/* Glow orbs */}
-        <div
-          className="pointer-events-none absolute -top-40 -left-40 w-150 h-150 rounded-full opacity-20"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(253,96,22,0.85) 0%, transparent 65%)",
-          }}
-        />
-        <div
-          className="pointer-events-none absolute -bottom-20 -right-20 w-120 h-120 rounded-full opacity-10"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(19,38,70,0.85) 0%, transparent 65%)",
-          }}
-        />
-        {/* Subtle grid */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.035]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
+    <div className="relative h-dvh overflow-hidden bg-background text-foreground lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,720px)]">
+      <AuthAtmosphere />
+      <SetupHero />
 
-        {/* Header wordmark */}
-        <motion.div
-          className="relative z-10 flex flex-col gap-1.5"
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <img
-            src="/runly/runly-logo-dark.png"
-            alt="Runly ERP"
-            className="h-8 w-auto object-contain"
-            draggable={false}
-          />
-          <p
-            className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-            style={{ color: "rgba(255,255,255,0.4)" }}
-          >
-            Business in motion.
-          </p>
-        </motion.div>
-
-        {/* Hero + features */}
-        <motion.div
-          className="relative z-10 flex flex-col gap-10"
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
-        >
-          <div>
-            <h1 className="text-4xl xl:text-5xl font-bold tracking-tight text-white leading-[1.1]">
-              Gestión empresarial
-              <br />
-              <span style={{ color: "#FD8B2A" }}>sin límites.</span>
-            </h1>
-            <p
-              className="mt-4 text-sm xl:text-base leading-relaxed max-w-xs"
-              style={{ color: "rgba(255,255,255,0.45)" }}
-            >
-              Configura tu instancia en minutos. Todo bajo tu control, en tu
-              infraestructura.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {FEATURES.map((f, i) => (
-              <motion.div
-                key={f.title}
-                className="flex items-start gap-3.5 rounded-xl p-3.5"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                }}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  duration: 0.45,
-                  delay: 0.18 + i * 0.08,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-              >
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: "rgba(253,139,42,0.24)" }}
-                >
-                  <f.icon size={15} style={{ color: "#FD8B2A" }} />
-                </div>
-                <div>
-                  <p
-                    className="text-sm font-semibold"
-                    style={{ color: "rgba(255,255,255,0.88)" }}
+      <section className="relative z-10 h-dvh box-border flex px-4 py-4 sm:px-8 sm:py-8 lg:px-10">
+        <div className="relative w-full flex flex-col gap-6 rounded-[26px] glass-shell px-5 py-6 sm:px-8 sm:py-7 overflow-hidden">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1 flex-1 min-w-0">
+              {STEPS.flatMap((s, i) => {
+                const nodes = [
+                  <div
+                    key={`step-${i}`}
+                    className="flex flex-col items-center gap-1.5 shrink-0"
                   >
-                    {f.title}
-                  </p>
-                  <p
-                    className="text-xs mt-0.5 leading-relaxed"
-                    style={{ color: "rgba(255,255,255,0.42)" }}
-                  >
-                    {f.desc}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Footer */}
-        <div className="relative z-10 flex items-center justify-between">
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.22)" }}>
-            Runly ERP
-          </p>
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.18)" }}>
-            v0.1.0
-          </p>
-        </div>
-      </div>
-
-      {/* ── RIGHT PANEL / FULL SCREEN on mobile: Form ── */}
-      <div className="flex flex-col h-dvh overflow-hidden bg-background">
-        {/* Mobile/Tablet branding header — hidden on desktop */}
-        <motion.div
-          className="lg:hidden shrink-0 relative overflow-hidden"
-          style={{
-            background:
-              "linear-gradient(145deg, #0C172D 0%, #132646 55%, #0C172D 100%)",
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {/* Glow orbs */}
-          <div
-            className="pointer-events-none absolute -top-20 -left-20 w-72 h-72 rounded-full opacity-20"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(253,96,22,0.85) 0%, transparent 65%)",
-            }}
-          />
-          <div
-            className="pointer-events-none absolute -bottom-10 -right-10 w-52 h-52 rounded-full opacity-10"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(19,38,70,0.85) 0%, transparent 65%)",
-            }}
-          />
-          {/* Grid texture */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.03]"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-              backgroundSize: "44px 44px",
-            }}
-          />
-
-          {/* Logo + headline */}
-          <div className="relative z-10 px-5 sm:px-8 pt-5 pb-3">
-            <div className="flex flex-col gap-1 mb-3">
-              <img
-                src="/runly/runly-logo-dark.png"
-                alt="Runly ERP"
-                className="h-6 w-auto object-contain"
-                draggable={false}
-              />
-              <p
-                className="text-[9px] font-semibold uppercase tracking-[0.18em]"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
-                Business in motion.
-              </p>
-            </div>
-            <p className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-[1.15]">
-              Gestión empresarial{" "}
-              <span style={{ color: "#FD8B2A" }}>sin límites.</span>
-            </p>
-            <p
-              className="text-xs mt-1.5"
-              style={{ color: "rgba(255,255,255,0.42)" }}
-            >
-              Configura tu instancia en minutos. Todo bajo tu control.
-            </p>
-          </div>
-
-          {/* Feature chips — horizontal scroll */}
-          <div className="relative z-10 flex gap-2 px-5 sm:px-8 pb-5 overflow-x-auto scrollbar-none">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-2 shrink-0"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.09)",
-                }}
-              >
-                <f.icon size={12} style={{ color: "#FD8B2A" }} />
-                <span
-                  className="text-[11px] font-medium whitespace-nowrap"
-                  style={{ color: "rgba(255,255,255,0.80)" }}
-                >
-                  {f.title}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Scrollable form area */}
-        <div className="flex-1 overflow-auto">
-          <div className="flex flex-col px-5 sm:px-8 lg:px-10 xl:px-14 py-8 lg:py-10">
-            <div className="w-full max-w-100 mx-auto flex flex-col">
-              {/* Steps progress — part of the form flow */}
-              <motion.div
-                className="flex items-start w-full mb-7"
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {STEPS.flatMap((s, i) => {
-                  const nodes = [
-                    <div
-                      key={`step-${i}`}
-                      className="flex flex-col items-center gap-1.5 shrink-0"
-                    >
-                      {i < step ? (
-                        <button
-                          type="button"
-                          onClick={() => handleGoToStep(i)}
-                          title={`Editar: ${s.label}`}
-                          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-primary text-primary-foreground transition-all duration-200 hover:ring-4 hover:ring-primary/25 hover:scale-105"
-                        >
-                          <Check size={11} strokeWidth={2.5} />
-                        </button>
-                      ) : (
-                        <div
-                          className={[
-                            "w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300",
-                            i === step
-                              ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
-                              : "bg-muted text-muted-foreground",
-                          ].join(" ")}
-                        >
-                          <s.icon size={12} strokeWidth={1.75} />
-                        </div>
-                      )}
-                      <span
-                        onClick={i < step ? () => handleGoToStep(i) : undefined}
+                    {i < effectiveStep ? (
+                      <button
+                        type="button"
+                        onClick={() => handleGoToStep(i)}
+                        title={`Editar: ${s.label}`}
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center text-white transition-transform duration-200 hover:scale-105 cursor-pointer"
+                        style={{
+                          background: "linear-gradient(140deg,#FD6016,#E4262A)",
+                          boxShadow: "0 6px 18px rgba(253,96,22,.35)",
+                        }}
+                      >
+                        <Check size={13} strokeWidth={2.5} />
+                      </button>
+                    ) : (
+                      <div
                         className={[
-                          "text-[9px] sm:text-[10px] font-medium whitespace-nowrap transition-colors duration-300",
-                          i < step
-                            ? "text-primary/70 hover:text-primary cursor-pointer"
-                            : i === step
-                              ? "text-foreground"
-                              : "text-muted-foreground/60",
+                          "w-7 h-7 sm:w-8 sm:h-8 rounded-full grid place-items-center transition-all duration-300",
+                          i === effectiveStep
+                            ? "glass-tinted-brand text-(--brand-primary) ring-2 ring-(--brand-primary)/30"
+                            : "glass-subtle text-foreground/40",
                         ].join(" ")}
                       >
-                        {s.label}
-                      </span>
-                    </div>,
-                  ];
-                  if (i < STEPS.length - 1) {
-                    nodes.push(
-                      <div
-                        key={`conn-${i}`}
-                        className={[
-                          "h-px flex-1 mx-1.5 sm:mx-2 mt-3 sm:mt-3.5 transition-all duration-500",
-                          i < step ? "bg-primary" : "bg-border",
-                        ].join(" ")}
-                      />,
-                    );
-                  }
-                  return nodes;
-                })}
-              </motion.div>
+                        <s.icon size={13} strokeWidth={1.75} />
+                      </div>
+                    )}
+                    <span
+                      onClick={i < effectiveStep ? () => handleGoToStep(i) : undefined}
+                      className={[
+                        "hidden sm:block text-[10px] font-medium whitespace-nowrap transition-colors duration-300",
+                        i < effectiveStep
+                          ? "text-(--brand-primary)/70 hover:text-(--brand-primary) cursor-pointer"
+                          : i === effectiveStep
+                            ? "text-foreground"
+                            : "text-muted-foreground/60",
+                      ].join(" ")}
+                    >
+                      {s.label}
+                    </span>
+                  </div>,
+                ];
+                if (i < STEPS.length - 1) {
+                  nodes.push(
+                    <div
+                      key={`conn-${i}`}
+                      className={[
+                        "h-px flex-1 mx-1 sm:mx-1.5 mb-4.5 transition-all duration-500",
+                        i < effectiveStep ? "bg-(--brand-primary)" : "bg-border",
+                      ].join(" ")}
+                    />,
+                  );
+                }
+                return nodes;
+              })}
+            </div>
+            <ThemeToggle />
+          </div>
 
-              <div className="border-t border-border mb-7" />
+          <div className="h-px bg-border shrink-0" />
 
-              {/* Step title + description — fades only, never moves */}
-              <div className="mb-7 min-h-16">
-                <AnimatePresence mode="wait">
+          <div className="flex-1 min-h-0 overflow-auto pr-2 -mr-2">
+            {showInit ? (
+              <SetupInitView
+                tasks={tasks}
+                success={mutation.isSuccess}
+                isError={mutation.isError}
+                errorMessage={mutation.error?.message}
+                onRestart={handleRestart}
+                onBack={() => {
+                  mutation.reset();
+                  setShowInit(false);
+                }}
+                onEnter={() => navigate("/app/login", { replace: true })}
+              />
+            ) : (
+              <>
+                <div className="mb-6 min-h-16">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`header-${step}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.18, ease: "easeInOut" }}
+                    >
+                      <h2 className="text-[27px] font-bold tracking-tight text-foreground">
+                        {STEPS[step].title}
+                      </h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {STEPS[step].description}
+                      </p>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <AnimatePresence mode="wait" custom={direction}>
                   <motion.div
-                    key={`header-${step}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18, ease: "easeInOut" }}
+                    key={step}
+                    custom={direction}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <h2 className="text-2xl font-bold tracking-tight">
-                      {STEPS[step].title}
-                    </h2>
-                    <p className="text-sm text-muted-foreground mt-1.5">
-                      {STEPS[step].description}
-                    </p>
+                    {step === 0 && <StepAdmin {...stepProps} />}
+                    {step === 1 && <StepCompany {...stepProps} />}
+                    {step === 2 && <StepBranding {...stepProps} />}
+                    {step === 3 && (
+                      <StepReview
+                        ref={stepRef}
+                        data={formData}
+                        onGoToStep={handleGoToStep}
+                      />
+                    )}
                   </motion.div>
                 </AnimatePresence>
-              </div>
-
-              {/* Animated fields only — slides in/out */}
-              <AnimatePresence mode="wait" custom={direction}>
-                <motion.div
-                  key={step}
-                  custom={direction}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ width: "100%" }}
-                >
-                  {step === 0 && <StepAdmin {...stepProps} />}
-                  {step === 1 && <StepCompany {...stepProps} />}
-                  {step === 2 && <StepBranding {...stepProps} />}
-                  {step === 3 && (
-                    <StepReview
-                      ref={stepRef}
-                      data={formData}
-                      error={mutation.error?.message}
-                      onGoToStep={handleGoToStep}
-                    />
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-              {/* Navigation */}
-              <div className="w-full mt-8 pt-6 border-t border-border flex items-center justify-between">
-                <button
-                  onClick={handleBack}
-                  disabled={step === 0 || mutation.isPending}
-                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150"
-                >
-                  <ChevronLeft size={16} />
-                  Atrás
-                </button>
-
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {step + 1} / {STEPS.length}
-                </span>
-
-                <button
-                  onClick={handleNext}
-                  disabled={mutation.isPending}
-                  className="flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-semibold bg-primary text-primary-foreground transition-all duration-150 hover:bg-primary/90 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {mutation.isPending
-                    ? "Inicializando..."
-                    : step === STEPS.length - 1
-                      ? "Inicializar"
-                      : "Siguiente"}
-                  {!mutation.isPending && step < STEPS.length - 1 && (
-                    <ChevronRight size={16} />
-                  )}
-                </button>
-              </div>
-            </div>
+              </>
+            )}
           </div>
+
+          {!showInit && (
+            <div className="flex items-center justify-between gap-4 pt-5 border-t border-border shrink-0">
+              <button
+                type="button"
+                onClick={handleBack}
+                disabled={step === 0}
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-150 cursor-pointer"
+              >
+                <ChevronLeft size={15} />
+                Atrás
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1.5">
+                {STEPS.map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-1.5 rounded-full transition-all duration-300"
+                    style={{
+                      width: i === step ? 26 : 6,
+                      background:
+                        i <= step ? "var(--brand-primary)" : "hsl(var(--border))",
+                    }}
+                  />
+                ))}
+              </div>
+
+              <Button type="button" variant="gradient" style={CTA_GRADIENT} onClick={handleNext}>
+                {step === STEPS.length - 1 ? "Inicializar" : "Siguiente"}
+                <ChevronRight size={15} />
+              </Button>
+            </div>
+          )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -94,6 +94,22 @@ html {
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   --glass-tint: rgba(33, 199, 255, 0.08);
   --glass-glow: rgba(33, 199, 255, 0.25);
+  /* Brand-colored counterpart to --glass-tint/--glass-glow (cyan): use this
+     for translucent surfaces that should carry the Runly orange accent
+     instead — e.g. the setup wizard's active-step indicator. */
+  --glass-tint-brand: rgba(253, 96, 22, 0.1);
+  --glass-glow-brand: rgba(253, 96, 22, 0.32);
+  /* Counterpart to --glass-bg-strong for full-page "shell" cards (setup
+     wizard, login) that hold ordinary .glass-subtle fields and group panels.
+     In light mode this is a visibly distinct light gray, not just a
+     higher-opacity white — .glass-shell also bumps its nested --glass-bg to
+     near-opaque white (see .glass-shell below), and two different opacities
+     of the SAME white are indistinguishable against this screen's pale
+     backdrop. A real gray-vs-white color step is what actually separates
+     card from field. Dark mode doesn't have this problem (the shell is
+     lighter than what's nested inside it against a dark backdrop), so its
+     value just reuses --glass-bg-strong unchanged. */
+  --glass-bg-shell: rgba(228, 232, 238, 0.96);
   --topbar-height: 3.5rem;
   /* Exposed as custom properties so JS (MessageActionSheet positioning) can
      read the device safe-area insets without a probe element. */
@@ -160,6 +176,9 @@ html {
     0 8px 32px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   --glass-tint: rgba(33, 199, 255, 0.14);
   --glass-glow: rgba(33, 199, 255, 0.36);
+  --glass-tint-brand: rgba(253, 96, 22, 0.16);
+  --glass-glow-brand: rgba(253, 96, 22, 0.42);
+  --glass-bg-shell: var(--glass-bg-strong);
 }
 
 @layer utilities {
@@ -238,10 +257,41 @@ html {
     box-shadow: var(--glass-shadow);
   }
 
+  .glass-shell {
+    backdrop-filter: blur(var(--glass-blur));
+    background: var(--glass-bg-shell);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    /* Nested .glass/.glass-subtle surfaces (form fields, grouped panels)
+       need to read as a visibly distinct layer from this shell. Plain alpha
+       stacking can't do that here: in light mode both this shell and its
+       .glass-subtle children are translucent WHITE, and mixing white over
+       white stays white regardless of the opacity gap between them — there's
+       no color info underneath for the transparency to reveal. Dark mode
+       doesn't have this problem (the dark backdrop shows through each layer
+       at a different rate, which is genuinely visible), so only light mode
+       needs the stronger, more opaque values below. Scoped as CSS variables
+       to this subtree, not the global tokens every other .glass consumer
+       relies on. */
+    --glass-bg: rgba(255, 255, 255, 0.97);
+    --glass-border-subtle: rgba(16, 37, 87, 0.12);
+  }
+  .dark .glass-shell {
+    --glass-bg: rgba(255, 255, 255, 0.08);
+    --glass-border-subtle: rgba(255, 255, 255, 0.055);
+  }
+
   .glass-tinted {
     backdrop-filter: blur(var(--glass-blur));
     background: var(--glass-tint);
     border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .glass-tinted-brand {
+    backdrop-filter: blur(var(--glass-blur));
+    background: var(--glass-tint-brand);
+    border: 1px solid var(--glass-glow-brand);
     box-shadow: var(--glass-shadow);
   }
 
@@ -256,6 +306,29 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* ── Auth atmosphere keyframes (setup wizard + login backdrop) ──────────── */
+@keyframes authDriftA {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6%, -8%, 0) scale(1.14); }
+}
+@keyframes authDriftB {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.08); }
+  50% { transform: translate3d(-9%, 7%, 0) scale(1); }
+}
+@keyframes authDriftC {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(4%, 10%, 0) scale(1.2); }
+}
+@keyframes authGridDrift {
+  from { background-position: 0 0, 34px 28px, 126px 112px; }
+  to { background-position: 220px 110px, 254px 138px, 346px 222px; }
+}
+@keyframes authStreak {
+  0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translateX(320%) skewX(-18deg); opacity: 0; }
 }
 
 /* iOS Safari: `100dvh` on a position:fixed root can resolve to the SHORT

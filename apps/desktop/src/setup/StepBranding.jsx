@@ -117,9 +117,9 @@ export const StepBranding = forwardRef(function StepBranding(
 
   return (
     <div>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* ── Logo upload ── */}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2.5 rounded-2xl border border-foreground/10 bg-foreground/2 px-5 py-5">
           <span className="text-[13px] font-medium leading-none text-foreground/80 select-none">
             Logotipo
           </span>
@@ -172,7 +172,7 @@ export const StepBranding = forwardRef(function StepBranding(
         </div>
 
         {/* ── Color principal ── */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3 rounded-2xl border border-foreground/10 bg-foreground/2 px-5 py-5">
           <label
             htmlFor="primaryColor"
             className="text-[13px] font-medium leading-none text-foreground/80 select-none cursor-default"
@@ -230,6 +230,19 @@ export const StepBranding = forwardRef(function StepBranding(
               ))}
             </div>
           </div>
+        </div>
+
+        {/* ── Vista previa ── */}
+        <div className="flex items-center gap-3 rounded-2xl glass-tinted-brand px-4 py-3.5">
+          <span
+            className="shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
+            style={{ background: data.primaryColor }}
+          >
+            Botón primario
+          </span>
+          <span className="text-[12.5px] text-muted-foreground">
+            Vista previa
+          </span>
         </div>
       </div>
     </div>

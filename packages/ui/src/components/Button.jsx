@@ -25,6 +25,8 @@ const buttonVariants = cva(
           "glass text-[hsl(var(--foreground))] hover:brightness-110 active:scale-[0.98]",
         "glass-prominent":
           "glass-tinted text-(--brand-primary) font-semibold hover:brightness-110 active:scale-[0.98]",
+        gradient:
+          "text-white shadow-[0_14px_30px_-8px_rgba(253,96,22,.5)] hover:shadow-[0_18px_38px_-8px_rgba(253,96,22,.58)] hover:-translate-y-px active:translate-y-0 active:scale-[0.98]",
         link: "text-(--brand-primary) underline-offset-4 hover:underline p-0 h-auto",
       },
       size: {

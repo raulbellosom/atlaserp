@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle } from "react";
-import { Button, Card, CardContent } from "@runly/ui";
+import { Button } from "@runly/ui";
 import { Pencil } from "lucide-react";
 import { Country, State } from "country-state-city";
 import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
@@ -48,42 +48,43 @@ function ReviewSection({ title, rows, onEdit }) {
   const visibleRows = rows.filter((r) => r.value);
   if (visibleRows.length === 0) return null;
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {title}
-        </p>
+    <div className="rounded-2xl glass-subtle px-5 py-4">
+      <div className="flex items-center justify-between gap-3 pb-2.5">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-(--brand-primary)" />
+          <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            {title}
+          </span>
+        </div>
         {onEdit && (
           <button
             type="button"
             onClick={onEdit}
-            className="flex items-center gap-1 text-[11px] font-medium text-primary/60 hover:text-primary transition-colors duration-150"
+            className="flex items-center gap-1.5 text-[12.5px] font-medium text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
           >
-            <Pencil size={10} strokeWidth={2} />
+            <Pencil size={12} strokeWidth={2} />
             Editar
           </button>
         )}
       </div>
-      <div className="rounded-xl border border-border overflow-hidden">
-        {visibleRows.map((row, i) => (
-          <div
-            key={row.label}
-            className={[
-              "grid grid-cols-2 gap-4 px-4 py-3 text-sm",
-              i > 0 ? "border-t border-border" : "",
-            ].join(" ")}
-          >
-            <span className="text-muted-foreground font-medium">{row.label}</span>
-            <span className="text-foreground">{row.value}</span>
-          </div>
-        ))}
-      </div>
+      {visibleRows.map((row, i) => (
+        <div
+          key={row.label}
+          className={[
+            "grid grid-cols-[minmax(110px,0.8fr)_1.2fr] gap-4 py-2.5 text-[13.5px]",
+            i > 0 ? "border-t border-border" : "",
+          ].join(" ")}
+        >
+          <span className="text-muted-foreground">{row.label}</span>
+          <span className="text-foreground font-medium text-pretty">{row.value}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
 export const StepReview = forwardRef(function StepReview(
-  { data, error, onGoToStep },
+  { data, onGoToStep },
   ref,
 ) {
   useImperativeHandle(ref, () => ({
@@ -91,12 +92,6 @@ export const StepReview = forwardRef(function StepReview(
       return true;
     },
   }));
-
-  const alreadyInitialized = Boolean(
-    error &&
-      (error.includes("Already initialized") ||
-        error.includes("already initialized")),
-  );
 
   const countryName = data.country
     ? (Country.getCountryByCode(data.country)?.name ?? data.country)
@@ -183,33 +178,25 @@ export const StepReview = forwardRef(function StepReview(
         />
       </div>
 
-      <Card className="mt-5">
-        <CardContent className="space-y-4 p-5">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">
-              ¿Quieres usar Runly ERP desde tu escritorio?
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Descarga la app y conéctala a esta instancia.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            onClick={() => window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
-          >
-            Descargar para Windows
-          </Button>
-        </CardContent>
-      </Card>
-
-      {error && (
-        <div className="mt-5 rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
-          {alreadyInitialized
-            ? "Esta instancia ya fue configurada."
-            : `Error al inicializar: ${error}`}
+      <div className="mt-5 rounded-2xl glass-subtle px-5 py-4 flex flex-col gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            ¿Quieres usar Runly ERP desde tu escritorio?
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Descarga la app y conéctala a esta instancia.
+          </p>
         </div>
-      )}
+
+        <Button
+          type="button"
+          variant="secondary"
+          className="self-start"
+          onClick={() => window.open(ATLAS_DESKTOP_DOWNLOAD_URL, "_blank", "noopener,noreferrer")}
+        >
+          Descargar para Windows
+        </Button>
+      </div>
     </div>
   );
 });

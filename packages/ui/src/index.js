@@ -18,6 +18,7 @@ export { Skeleton } from "./components/Skeleton.jsx";
 export { ProgressBar } from "./components/ProgressBar.jsx";
 export { LoadingState } from "./components/LoadingState.jsx";
 export { Avatar, AvatarImage, AvatarFallback } from "./components/Avatar.jsx";
+export { AuthAtmosphere } from "./components/AuthAtmosphere.jsx";
 
 // Forms
 export { Label } from "./components/Label.jsx";

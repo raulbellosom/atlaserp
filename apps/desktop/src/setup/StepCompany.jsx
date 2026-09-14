@@ -126,11 +126,14 @@ export const StepCompany = forwardRef(function StepCompany(
 
   return (
     <div>
-      <div className="space-y-7">
-        <div className="space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Datos generales
-          </p>
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4 rounded-2xl border border-foreground/10 bg-foreground/2 px-5 py-5">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-(--brand-primary)" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Datos generales
+            </span>
+          </div>
           <TextField
             id="companyName"
             label="Nombre comercial"
@@ -209,10 +212,13 @@ export const StepCompany = forwardRef(function StepCompany(
           )}
         </div>
 
-        <div className="space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Datos fiscales
-          </p>
+        <div className="flex flex-col gap-4 rounded-2xl border border-foreground/10 bg-foreground/2 px-5 py-5">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-(--brand-primary)" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Datos fiscales
+            </span>
+          </div>
           <TextField
             id="rfc"
             label="RFC"
@@ -225,10 +231,13 @@ export const StepCompany = forwardRef(function StepCompany(
           />
         </div>
 
-        <div className="space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Domicilio
-          </p>
+        <div className="flex flex-col gap-4 rounded-2xl border border-foreground/10 bg-foreground/2 px-5 py-5">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-(--brand-primary)" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Domicilio
+            </span>
+          </div>
           <ComboboxField
             id="country"
             label="Pais"
@@ -314,10 +323,13 @@ export const StepCompany = forwardRef(function StepCompany(
           </div>
         </div>
 
-        <div className="space-y-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Contacto
-          </p>
+        <div className="flex flex-col gap-4 rounded-2xl border border-foreground/10 bg-foreground/2 px-5 py-5">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-(--brand-primary)" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Contacto
+            </span>
+          </div>
           <TextField
             id="contactEmail"
             label="Correo de contacto"

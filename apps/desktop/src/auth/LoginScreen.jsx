@@ -1,19 +1,24 @@
 import { useState } from 'react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, Layers, Building2, Mail, Lock } from 'lucide-react'
+import { Server, Layers, Building2, Mail, Lock, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { TextField, PasswordField, Button } from '@runly/ui'
+import { TextField, PasswordField, Button, AuthAtmosphere } from '@runly/ui'
 import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
 import { atlas } from '../lib/atlas'
 import { useAuth } from './AuthProvider'
 import { normalizeAuthReturnPath } from './authReturnPath.js'
+import { useThemeStore } from '../stores/theme'
+import { ThemeToggle } from '../components/ThemeToggle'
+import { RUNLY_EDITION_NAME } from '../lib/appConfig.js'
 
 const SIDEBAR_FEATURES = [
   { icon: Server, label: 'Autoalojado en tu infraestructura' },
   { icon: Layers, label: 'Módulos que crecen con tu operación' },
   { icon: Building2, label: 'Multi-empresa desde el primer día' },
 ]
+
+const CTA_GRADIENT = { backgroundImage: 'linear-gradient(120deg,#FD6016,#E4262A)' }
 
 export function LoginScreen({ returnTo = '/app' }) {
   const navigate = useNavigate()
@@ -24,6 +29,8 @@ export function LoginScreen({ returnTo = '/app' }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showForgotMessage, setShowForgotMessage] = useState(false)
+  const isDark = useThemeStore((s) => s.isDark)
+  const logo = isDark ? '/runly/runly-logo-dark.png' : '/runly/runly-logo-light.png'
 
   useEffect(() => {
     let mounted = true
@@ -77,95 +84,87 @@ export function LoginScreen({ returnTo = '/app' }) {
   }
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Sidebar — Midnight/Navy base per the brand guide (the warm gradient
-          is an accent, never a full-bleed fill); matches the setup wizard's
-          hero panel treatment so both auth-adjacent screens read as one product. */}
-      <div
-        className="hidden lg:flex lg:w-105 lg:shrink-0 flex-col justify-between px-12 py-14 relative overflow-hidden"
-        style={{
-          background: 'linear-gradient(145deg, #0C172D 0%, #132646 55%, #0C172D 100%)',
-        }}
-      >
-        {/* Background depth glows — warm accent, per brand guide */}
-        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div
-            className="absolute -top-32 -left-32 w-md h-112 rounded-full blur-3xl opacity-20"
-            style={{ background: 'radial-gradient(circle, rgba(253,96,22,0.85) 0%, transparent 65%)' }}
-          />
-          <div
-            className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full blur-3xl opacity-10"
-            style={{ background: 'radial-gradient(circle, rgba(19,38,70,0.85) 0%, transparent 65%)' }}
-          />
-        </div>
+    <div className="relative h-dvh overflow-hidden bg-background text-foreground lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)]">
+      <AuthAtmosphere />
 
-        {/* Top: Runly logo — the login screen is shared across every company on
-            this instance (multi-tenant), so it never shows a specific
-            company's branding; that only appears once inside the app, after
-            the user picks/activates a company. */}
-        <div className="relative flex flex-col gap-4">
-          <img
-            src="/runly/runly-logo-dark.png"
-            alt="Runly ERP"
-            className="w-40 object-contain"
-            draggable={false}
-          />
-        </div>
+      {/* Hero — desktop only; matches the setup wizard's atmosphere so both
+          auth-adjacent screens read as one product. Never shows a specific
+          company's branding: this screen is shared across every company on
+          the instance, before one is picked/activated. */}
+      <section className="hidden lg:flex relative z-10 flex-col justify-between gap-10 px-13 py-12">
+        <img
+          src={logo}
+          alt="Runly"
+          className="h-7.5 w-auto object-contain"
+          draggable={false}
+        />
 
-        {/* Middle: Feature list */}
-        <div className="relative flex flex-col gap-6">
-          <ul className="flex flex-col gap-5" role="list">
+        <div className="flex flex-col gap-8 max-w-md">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-[clamp(2rem,3.6vw,3rem)] font-bold leading-[1.08] tracking-tight text-foreground text-pretty">
+              Bienvenido de vuelta a Runly.
+            </h1>
+            <p className="text-[15px] leading-relaxed text-muted-foreground max-w-[36ch]">
+              Ingresa para continuar donde lo dejaste.
+            </p>
+          </div>
+
+          <ul className="flex flex-col gap-3" role="list">
             {SIDEBAR_FEATURES.map(({ icon: Icon, label }) => (
-              <li key={label} className="flex items-center gap-3">
+              <li
+                key={label}
+                className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 glass"
+              >
                 <span
-                  className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
-                  style={{ background: 'rgba(253,139,42,0.24)' }}
+                  className="shrink-0 w-8 h-8 rounded-[10px] grid place-items-center text-(--brand-primary)"
+                  style={{
+                    background:
+                      'linear-gradient(140deg,rgba(253,96,22,.24),rgba(249,162,27,.10))',
+                    border: '1px solid rgba(253,96,22,.32)',
+                  }}
                 >
-                  <Icon className="w-4 h-4" style={{ color: '#FD8B2A' }} aria-hidden="true" />
+                  <Icon size={15} aria-hidden="true" />
                 </span>
-                <span className="text-sm text-white/75 font-medium leading-snug">{label}</span>
+                <span className="text-sm font-medium text-foreground">{label}</span>
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Bottom: slogan + version stamp */}
-        <div className="relative flex flex-col gap-2">
-          <p className="text-white/60 text-xs font-semibold uppercase tracking-[0.22em]">
-            Business in motion.
-          </p>
-          <p className="text-white/20 text-xs tracking-wide">v2.0</p>
+        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <span>Runly ERP · {RUNLY_EDITION_NAME}</span>
+          <span>v0.1.0</span>
         </div>
-      </div>
+      </section>
 
       {/* Form panel */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm space-y-8">
-          <div className="space-y-3">
+      <section className="relative z-10 h-dvh box-border flex px-4 py-4 sm:px-8 sm:py-8 lg:px-10">
+        <div className="relative w-full max-w-md mx-auto my-auto lg:max-w-none lg:my-0 flex flex-col rounded-[26px] glass-shell px-6 py-7 sm:px-9 sm:py-9">
+          <div className="flex items-center gap-4 mb-7">
             <img
-              src="/runly/runly-isotipo-light.png"
-              alt="Runly ERP"
-              className="w-10 h-10 object-contain dark:hidden"
+              src={logo}
+              alt="Runly"
+              className="h-6 w-auto object-contain lg:hidden"
               draggable={false}
             />
-            <img
-              src="/runly/runly-isotipo-dark.png"
-              alt="Runly ERP"
-              className="hidden w-10 h-10 object-contain dark:block"
-              draggable={false}
-            />
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Runly ERP
-              </p>
-              <h1 className="text-2xl font-semibold tracking-tight">Bienvenido de nuevo</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Ingresa para continuar donde lo dejaste.
-              </p>
+            <div className="ml-auto">
+              <ThemeToggle />
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="flex flex-col gap-1.5 mb-7">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Runly ERP
+            </p>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              Bienvenido de nuevo
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Ingresa para continuar donde lo dejaste.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <TextField
               id="email"
               icon={Mail}
@@ -195,19 +194,22 @@ export function LoginScreen({ returnTo = '/app' }) {
 
             <Button
               type="submit"
-              className="w-full"
+              variant="gradient"
+              style={CTA_GRADIENT}
+              className="w-full justify-center"
               disabled={loading || !email || !password}
               aria-busy={loading}
             >
               {loading ? 'Verificando credenciales...' : 'Acceder al sistema'}
+              {!loading && <ArrowRight size={15} />}
             </Button>
           </form>
 
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-2 mt-6">
             <button
               type="button"
               onClick={() => setShowForgotMessage(v => !v)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
             >
               ¿Olvidaste tu contraseña?
             </button>
@@ -220,14 +222,14 @@ export function LoginScreen({ returnTo = '/app' }) {
               <button
                 type="button"
                 onClick={handleChangeServer}
-                className="text-sm text-primary hover:text-primary/80 transition-colors duration-150"
+                className="text-sm text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
               >
                 Cambiar servidor
               </button>
             ) : null}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
