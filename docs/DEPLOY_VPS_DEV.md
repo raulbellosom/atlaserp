@@ -10,23 +10,23 @@
 ```
 Internet
   → Nginx (host) :443
-    → <SUBDOMINIO>/api/*  → Docker: atlas-api :4010
-    → <SUBDOMINIO>/       → Docker: atlas-web-preview :5173
+    → <SUBDOMINIO>/api/*  → Docker: runly-api :4010
+    → <SUBDOMINIO>/       → Docker: runly-web-preview :5173
 ```
 
-Atlas ERP y Supabase corren en **VPS separados**. Postgres está expuesto en el VPS de Supabase
-en el puerto `5432`, restringido por firewall a la IP del VPS de Atlas:
+Runly ERP y Supabase corren en **VPS separados**. Postgres está expuesto en el VPS de Supabase
+en el puerto `5432`, restringido por firewall a la IP del VPS de Runly:
 
 ```bash
 # Ejecutado una vez en el VPS de Supabase (ya hecho)
-ufw allow from <IP_VPS_ATLAS> to any port 5432
+ufw allow from <IP_VPS_RUNLY> to any port 5432
 ```
 
 Esto elimina la necesidad de tunnels SSH. La `DATABASE_URL` apunta directamente al VPS de Supabase.
 
 ---
 
-## Requisitos en el VPS de Atlas
+## Requisitos en el VPS de Runly
 
 ```bash
 apt update && apt install -y docker.io docker-compose-plugin nginx certbot python3-certbot-nginx git
@@ -38,8 +38,8 @@ apt update && apt install -y docker.io docker-compose-plugin nginx certbot pytho
 
 ```bash
 cd /opt
-git clone https://github.com/raulbellosom/runly-erp.git atlaserp-dev
-cd atlaserp-dev
+git clone https://github.com/raulbellosom/runly-erp.git runlyerp-dev
+cd runlyerp-dev
 ```
 
 ---
@@ -56,9 +56,9 @@ Valores a completar (obténlos del VPS de Supabase en `/opt/supabase-atlaserp/su
 
 ```dotenv
 NODE_ENV=production
-ATLAS_APP_NAME="Atlas ERP"
-ATLAS_API_PORT=4010
-ATLAS_TIME_ZONE=America/Mexico_City
+RUNLY_APP_NAME="Runly ERP"
+RUNLY_API_PORT=4010
+RUNLY_TIME_ZONE=America/Mexico_City
 TZ=America/Mexico_City
 
 SUPABASE_URL=https://supabase.racoondevs.com
@@ -76,10 +76,10 @@ CORS_ORIGIN=https://<SUBDOMINIO>
 
 VITE_SUPABASE_URL=https://supabase.racoondevs.com
 VITE_SUPABASE_ANON_KEY=<ANON_KEY>
-VITE_ATLAS_API_URL=https://<SUBDOMINIO>/api
+VITE_RUNLY_API_URL=https://<SUBDOMINIO>/api
 ```
 
-> `VITE_ATLAS_API_URL` apunta al subdominio público — el browser del usuario final es quien
+> `VITE_RUNLY_API_URL` apunta al subdominio público — el browser del usuario final es quien
 > llama a la API, no el servidor.
 
 ---
@@ -87,7 +87,7 @@ VITE_ATLAS_API_URL=https://<SUBDOMINIO>/api
 ## Paso 3 — Build y levantado de contenedores
 
 ```bash
-cd /opt/atlaserp-dev
+cd /opt/runlyerp-dev
 
 # Primera vez: construye imágenes y arranca
 docker compose up -d --build
@@ -104,7 +104,7 @@ curl -s http://localhost:4010/health
 ## Paso 4 — Migraciones y seed (primera vez)
 
 ```bash
-cd /opt/atlaserp-dev
+cd /opt/runlyerp-dev
 npm install -g pnpm
 pnpm install --frozen-lockfile
 
@@ -117,7 +117,7 @@ pnpm db:seed
 ## Paso 5 — Certificado SSL
 
 ```bash
-# El DNS del subdominio debe apuntar a la IP del VPS de Atlas antes de correr esto
+# El DNS del subdominio debe apuntar a la IP del VPS de Runly antes de correr esto
 certbot --nginx -d <SUBDOMINIO>
 ```
 
@@ -191,7 +191,7 @@ Abre `https://<SUBDOMINIO>` en el browser.
 ## Actualizar el deploy (CD manual)
 
 ```bash
-cd /opt/atlaserp-dev
+cd /opt/runlyerp-dev
 git pull origin main
 docker compose up -d --build
 
@@ -201,7 +201,7 @@ pnpm prisma:deploy
 
 ---
 
-## Firewall del VPS de Atlas
+## Firewall del VPS de Runly
 
 Solo deben estar abiertos hacia internet:
 

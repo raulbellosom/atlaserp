@@ -41,7 +41,7 @@ function InitialsAvatar({ name }) {
   const colors = ['#6D28D9', '#0369A1', '#047857', '#B45309', '#BE185D', '#1D4ED8']
   const idx = (name || '').charCodeAt(0) % colors.length
   return (
-    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: colors[idx], display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: '16px', color: '#fff', flexShrink: 0 }}>
+    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: colors[idx], display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: '16px', color: '#fff', flexShrink: 0 }}>
       {initials.toUpperCase()}
     </div>
   )
@@ -79,8 +79,8 @@ export const TestimonialsBlock = defineBlock({
     const items = parseTestimonials(testimonials)
     const isDark = background === 'dark'
     const bg = background === 'muted' ? '#F8FAFC' : background === 'dark' ? '#0F172A' : '#fff'
-    const fg = isDark ? 'rgba(255,255,255,0.95)' : 'var(--atlas-color-fg, #0f172a)'
-    const fgMuted = isDark ? 'rgba(255,255,255,0.6)' : 'var(--atlas-color-muted, #64748b)'
+    const fg = isDark ? 'rgba(255,255,255,0.95)' : 'var(--runly-color-fg, #0f172a)'
+    const fgMuted = isDark ? 'rgba(255,255,255,0.6)' : 'var(--runly-color-muted, #64748b)'
     const cardBg = isDark ? 'rgba(255,255,255,0.06)' : '#fff'
     const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
 
@@ -88,12 +88,12 @@ export const TestimonialsBlock = defineBlock({
       <section style={{ padding: '80px 24px', background: bg }}>
         <div style={{ maxWidth: '1200px', marginInline: 'auto' }}>
           {eyebrow && (
-            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--atlas-color-primary, #6D28D9)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--runly-color-primary, #6D28D9)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {eyebrow}
             </p>
           )}
           {title && (
-            <h2 style={{ textAlign: 'center', fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: fg, margin: '0 0 48px', lineHeight: 1.2 }}>
+            <h2 style={{ textAlign: 'center', fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: fg, margin: '0 0 48px', lineHeight: 1.2 }}>
               {title}
             </h2>
           )}
@@ -102,14 +102,14 @@ export const TestimonialsBlock = defineBlock({
             {items.map((t, i) => (
               <div key={i} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: '20px', padding: '32px', boxShadow: isDark ? 'none' : '0 2px 20px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
                 <StarRow count={t.stars} />
-                <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '15px', lineHeight: 1.75, color: fgMuted, margin: '0 0 24px', flex: 1, fontStyle: 'italic' }}>
+                <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '15px', lineHeight: 1.75, color: fgMuted, margin: '0 0 24px', flex: 1, fontStyle: 'italic' }}>
                   &ldquo;{t.quote}&rdquo;
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderTop: `1px solid ${cardBorder}`, paddingTop: '20px' }}>
                   <InitialsAvatar name={t.name} />
                   <div>
-                    <p style={{ fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: '14px', color: fg, margin: 0 }}>{t.name}</p>
-                    {t.role && <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '13px', color: fgMuted, margin: '2px 0 0' }}>{t.role}</p>}
+                    <p style={{ fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: '14px', color: fg, margin: 0 }}>{t.name}</p>
+                    {t.role && <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '13px', color: fgMuted, margin: '2px 0 0' }}>{t.role}</p>}
                   </div>
                 </div>
               </div>

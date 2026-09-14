@@ -1,4 +1,4 @@
-# Atlas ERP - Next Steps
+# Runly ERP - Next Steps
 
 ## Current milestone
 

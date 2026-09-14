@@ -2,7 +2,7 @@
 
 ## 1. Definition
 
-Spec-Driven Development (SDD) is the mandatory development methodology for Atlas ERP. Every new feature module or significant system change must begin with a written specification and a separate implementation plan before any code is written.
+Spec-Driven Development (SDD) is the mandatory development methodology for Runly ERP. Every new feature module or significant system change must begin with a written specification and a separate implementation plan before any code is written.
 
 The spec is the source of truth for the feature. It defines what will be built, why it exists, what is in scope, what is out of scope, how it fits the architecture, what data models are required, what API contracts are required, what UI screens are required, what permissions are required, what edge cases exist, what acceptance criteria must be met, and how the work will be verified.
 
@@ -50,7 +50,7 @@ The spec must answer all 28 required sections (see Section 4 of this document). 
 
 The spec is considered complete when:
 - All 28 sections are answered.
-- The Atlas module contract questions are answered (see Section 6).
+- The Runly module contract questions are answered (see Section 6).
 - A reviewer can implement the feature from the spec alone without asking clarifying questions.
 
 Forbidden during spec: Starting the implementation plan. Writing implementation code.
@@ -102,7 +102,7 @@ Rules:
 - Mark each plan task as in_progress before starting it. Mark it completed only after validation commands pass.
 - No scope expansion. If something not in the spec is discovered during implementation, stop and update the spec first or write a decision log.
 - No unrelated refactors. If a file touched during implementation has unrelated problems, note them but do not fix them within this feature's scope.
-- Follow all Atlas architecture constraints: manifest, permissions, service layer, Zod validators, SDK methods, and frontend screens.
+- Follow all Runly architecture constraints: manifest, permissions, service layer, Zod validators, SDK methods, and frontend screens.
 - Source files must stay under 1000 lines. Hard ceiling is 1500 lines.
 
 ---
@@ -177,14 +177,14 @@ Every spec file must contain the following 28 sections in this order. "N/A" is a
 27. **Rollback plan** — How to safely revert the feature if a critical issue is found. Which migrations are involved and whether a rollback migration is required.
 28. **Future enhancements** — Things explicitly deferred to a later version, so they are not forgotten.
 
-## 5. Atlas Module Checklist
+## 5. Runly Module Checklist
 
 Every new feature module must complete all items in this checklist before the implementation is considered done. New modules use RME3 (`defineRunlyModule`). See [docs/03_custom_modules.md](03_custom_modules.md) for the full developer guide and [docs/architecture/runly-module-engine-v3.md](architecture/runly-module-engine-v3.md) for the SDD mandate.
 
 - [ ] 1. Spec created at `docs/superpowers/specs/YYYY-MM-DD-rme3-<moduleKey>-design.md`
 - [ ] 2. Implementation plan created at `docs/superpowers/plans/YYYY-MM-DD-rme3-<moduleKey>.md`
 - [ ] 3. Module manifest at `modules/custom/<moduleKey>/module.manifest.js` using `defineRunlyModule`
-- [ ] 4. Module key uses `custom.*` or `community.*` namespace (`atlas.*` is reserved for the Atlas team)
+- [ ] 4. Module key uses `custom.*` or `community.*` namespace (`runly.*`/`atlas.*` are reserved for the Runly team)
 - [ ] 5. Granular permissions declared in manifest:
   - `module.access`
   - `module.feature.read`
@@ -206,12 +206,12 @@ Every new feature module must complete all items in this checklist before the im
 - [ ] 17. Verification commands run and results documented
 - [ ] 18. `docs/TASKS.md` updated with phase entry and `Verified: YYYY-MM-DD (...)` evidence
 
-## 6. Atlas Module Contract Questions
+## 6. Runly Module Contract Questions
 
 Before a spec is considered complete, it must explicitly answer every question below. These questions appear within the relevant spec sections but are listed here for completeness.
 
 **Manifest:**
-- What is the module key? (Use `custom.*` or `community.*` namespace; `atlas.*` is reserved)
+- What is the module key? (Use `custom.*` or `community.*` namespace; `runly.*`/`atlas.*` are reserved)
 - Where does the manifest live? (`modules/custom/<moduleKey>/module.manifest.js` — uses `defineRunlyModule`, not `createModuleManifest`)
 - What modules does it declare as dependencies?
 - Is it `kind: 'FEATURE'` and `lifecycle.uninstallable: true`?
@@ -251,7 +251,7 @@ Before a spec is considered complete, it must explicitly answer every question b
 
 ## 7. Permission Naming Convention
 
-All Atlas permissions follow this granular format:
+All Runly permissions follow this granular format:
 
 ```
 module.access                   — grants access to the module runtime
@@ -271,7 +271,7 @@ Rules:
 - API endpoints must reference the matching granular permission in their `requirePermission` guard.
 - Seed the full permission catalog in `prisma/seed.js` so new permissions are available on fresh installs.
 
-Example for a hypothetical `atlas.ledger` module:
+Example for a hypothetical `runly.ledger` module:
 
 ```
 ledger.access
@@ -288,7 +288,7 @@ ledger.movements.export
 
 ## 8. Agent Mode Declaration
 
-When an AI agent is working on an Atlas ERP feature, it must declare its current mode at the start of each work session and whenever it transitions between stages.
+When an AI agent is working on a Runly ERP feature, it must declare its current mode at the start of each work session and whenever it transitions between stages.
 
 Valid modes:
 

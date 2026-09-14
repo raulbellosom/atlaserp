@@ -35,7 +35,7 @@ Semantic tokens (`--background`, `--foreground`, `--card`, `--muted`, `--border`
 
 ### Brand tokens
 
-`--brand-primary` (defaults to `--atlas-cyan`) is the **only** color allowed to represent "this tenant's brand" — it exists specifically so white-label deployments can override it. `Button.jsx`'s primary variant correctly uses `bg-(--brand-primary)`.
+`--brand-primary` (defaults to `--runly-cyan`) is the **only** color allowed to represent "this tenant's brand" — it exists specifically so white-label deployments can override it. `Button.jsx`'s primary variant correctly uses `bg-(--brand-primary)`.
 
 **Rule: never hardcode `indigo-500` (or any raw brand-ish color) in a component that represents a selected/checked/active state.** If it should track the tenant's brand, use `--brand-primary`. If it's genuinely a fixed semantic color (destructive red, success green), use the semantic token (`--destructive`, etc.), not a raw Tailwind color name.
 

@@ -7,7 +7,7 @@ Runly ERP is a module engine. Each ERP capability is modeled as a module that de
 | Directory | Namespace | Owner |
 |---|---|---|
 | `modules/custom/<moduleKey>/` | `custom.*`, `community.*` | Partners/community |
-| `apps/api/src/manifests/official/` | `atlas.*` | Internal official manifest snapshots (seed/runtime baseline) |
+| `apps/api/src/manifests/official/` | `runly.*` | Internal official manifest snapshots (seed/runtime baseline) |
 
 `packages/maps/` was decommissioned and removed on 2026-05-25.
 
@@ -23,7 +23,7 @@ export default defineRunlyModule({
   name: 'Flota',
   version: '0.1.0',
   kind: 'FEATURE',
-  dependencies: [{ key: 'atlas.core' }],
+  dependencies: [{ key: 'runly.core' }],
   lifecycle: {
     installable: true,
     uninstallable: true,

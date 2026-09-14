@@ -12,22 +12,22 @@ Atlas ERP official palette:
 
 ```css
 :root {
-  --atlas-navy: #0A1D44;
-  --atlas-navy-2: #102A5E;
-  --atlas-navy-dark: #06152F;
-  --atlas-blue: #0A7BFF;
-  --atlas-cyan: #21C7FF;
-  --atlas-gray-light: #E6EAF0;
-  --atlas-gray-text: #5F6B7A;
+  --runly-navy: #0A1D44;
+  --runly-navy-2: #102A5E;
+  --runly-navy-dark: #06152F;
+  --runly-blue: #0A7BFF;
+  --runly-cyan: #21C7FF;
+  --runly-gray-light: #E6EAF0;
+  --runly-gray-text: #5F6B7A;
 }
 ```
 
 Usage guideline:
 
-- `--atlas-cyan`: primary interactive accent (sidebar active, CTAs, highlights).
-- `--atlas-blue`: secondary brand accent and hover state.
-- `--atlas-navy` / `--atlas-navy-2` / `--atlas-navy-dark`: dark surfaces and gradients.
-- `--atlas-gray-light` / `--atlas-gray-text`: neutrals for background and text balance.
+- `--runly-cyan`: primary interactive accent (sidebar active, CTAs, highlights).
+- `--runly-blue`: secondary brand accent and hover state.
+- `--runly-navy` / `--runly-navy-2` / `--runly-navy-dark`: dark surfaces and gradients.
+- `--runly-gray-light` / `--runly-gray-text`: neutrals for background and text balance.
 
 Required baseline files:
 

@@ -32,7 +32,7 @@ export const MarqueeBlock = defineBlock({
     const fg       = background === 'cream' ? '#1A1410' : '#FAF7F2'
     const content  = `${items || 'Sala · Comedor · Recámara'}  ·  `
     const textStyle = {
-      fontFamily: 'var(--atlas-font-sans)',
+      fontFamily: 'var(--runly-font-sans)',
       fontSize,
       color: fg,
       textTransform: 'uppercase',

@@ -46,9 +46,9 @@ Once I have the SVG file content, I:
 
 | # | Fill | Token | Role |
 |---|---|---|---|
-| 1 | `#0A1D44` | `--atlas-navy` | Top/roof chevron |
-| 2 | `#102A5E` | `--atlas-navy-2` | Left pillar |
-| 3 | `#21C7FF` | `--atlas-cyan` | Right pillar (glows) |
+| 1 | `#0A1D44` | `--runly-navy` | Top/roof chevron |
+| 2 | `#102A5E` | `--runly-navy-2` | Left pillar |
+| 3 | `#21C7FF` | `--runly-cyan` | Right pillar (glows) |
 
 If the vectorizer output has more paths (e.g., anti-aliasing artifacts), merge or discard paths with duplicate/near-duplicate fills.
 

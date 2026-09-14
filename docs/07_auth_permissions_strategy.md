@@ -1,4 +1,4 @@
-# Atlas ERP — Authentication and Permissions Strategy
+# Runly ERP — Authentication and Permissions Strategy
 
 ## Two-layer architecture
 
@@ -7,10 +7,10 @@
 | Email/password login | Supabase Auth |
 | Session tokens (JWT) | Supabase Auth |
 | Password recovery | Supabase Auth |
-| User profiles | Atlas API + Prisma |
-| Companies + memberships | Atlas API + Prisma |
-| Roles + permissions | Atlas API + Prisma |
-| Module access control | Atlas API + Prisma |
+| User profiles | Runly API + Prisma |
+| Companies + memberships | Runly API + Prisma |
+| Roles + permissions | Runly API + Prisma |
+| Module access control | Runly API + Prisma |
 
 ## Auth flow
 
@@ -18,7 +18,7 @@
 2. Supabase returns a signed JWT
 3. Supabase client stores session and handles refresh automatically
 4. Every `@runly/sdk` request includes `Authorization: Bearer <jwt>`
-5. Atlas API calls `supabaseAdmin.auth.getUser(jwt)` to verify (service role key)
+5. Runly API calls `supabaseAdmin.auth.getUser(jwt)` to verify (service role key)
 6. API loads UserProfile by `authUserId` → Membership → Role → Permissions
 7. Route handler receives verified user context
 
@@ -41,17 +41,17 @@ Permission  (key: 'contacts.contacts.read', moduleId, etc.)
 ```
 Supabase auth.users
   ↓ (authUserId)
-UserProfile          ← someone who can log in to Atlas ERP
+UserProfile          ← someone who can log in to Runly ERP
   ↓ (optional)
-HREmployee           ← HR/business record (future atlas.hr module)
+HREmployee           ← HR/business record (runly.hr module)
 ```
 
-- A `UserProfile` is an Atlas identity with login access.
+- A `UserProfile` is a Runly identity with login access.
 - An `HREmployee` is a business record that may or may not have a login.
 - Employees without user accounts are valid (contractors, archived staff).
 - System users without employee records are valid (IT admins, service accounts).
 
-`HREmployee` is added when `atlas.hr` is built. `UserProfile` exists today.
+`HREmployee` is part of the `runly.hr` module. `UserProfile` exists today.
 
 ## Permission middleware (Phase 4 implementation)
 
@@ -60,7 +60,7 @@ HREmployee           ← HR/business record (future atlas.hr module)
 Current behavior (v1):
 
 - API is the source of truth for authorization.
-- Admin bypass only for roles `atlas.admin` and `system.admin`.
+- Admin bypass only for roles `runly.admin` (or the legacy `atlas.admin`) and `system.admin`.
 - Every authenticated active user gets base permission `profile.self.read`.
 - If a permission is not explicitly granted, access is denied.
 

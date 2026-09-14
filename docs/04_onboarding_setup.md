@@ -1,8 +1,8 @@
-﻿# Atlas ERP - Onboarding Setup Wizard
+﻿# Runly ERP - Onboarding Setup Wizard
 
 ## Purpose
 
-On first launch, Atlas ERP has no company, no admin user, and no configuration. The setup wizard guides the first administrator through initialization. After it completes, the instance is marked initialized and cannot run setup again.
+On first launch, Runly ERP has no company, no admin user, and no configuration. The setup wizard guides the first administrator through initialization. After it completes, the instance is marked initialized and cannot run setup again.
 
 ## First-run detection (Phase 2)
 
@@ -47,8 +47,8 @@ Initialization state lives in `InstanceConfig`:
 - Company logo upload (image only, max 2 MB)
 - Primary color picker
 - Secondary/accent color picker
-- Logo uploaded to Supabase Storage bucket `atlas-files` under `company/branding/<companyId>/...`
-- FileAsset metadata is created with `moduleKey=atlas.company`, `entityType=BrandingConfig`, `entityId=<companyId>`
+- Logo uploaded to Supabase Storage bucket `runly-files` under `company/branding/<companyId>/...`
+- FileAsset metadata is created with `moduleKey=runly.company`, `entityType=BrandingConfig`, `entityId=<companyId>`
 
 ### Step 4 - Review and confirm
 - Summary of all entered data
@@ -69,7 +69,7 @@ Steps:
 3. Create Supabase Auth user (Admin SDK, service role key)
 4. Create UserProfile via Prisma
 5. Create Company via Prisma
-6. Upload logo to Supabase Storage (bucket: atlas-files)
+6. Upload logo to Supabase Storage (bucket: runly-files)
 7. Create FileAsset metadata via Prisma
 8. Create BrandingConfig via Prisma
 9. Mark all 4 core modules as INSTALLED

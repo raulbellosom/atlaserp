@@ -1,6 +1,6 @@
 // Reserved namespace prefixes — enforced at discovery time for modules in modules/custom/.
 // validateManifest validates key structure only; namespace ownership is enforced by the discovery service (Phase 2).
-export const RESERVED_NAMESPACES = ['atlas.', 'core.', 'system.', 'identity.']
+export const RESERVED_NAMESPACES = ['runly.', 'atlas.', 'core.', 'system.', 'identity.']
 
 // Forbidden SQL table name prefixes (PostgreSQL system namespaces).
 export const RESERVED_TABLE_PREFIXES = ['pg_', '_pg_', 'sql_']

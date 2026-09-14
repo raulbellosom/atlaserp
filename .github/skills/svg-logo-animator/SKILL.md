@@ -70,9 +70,9 @@ The Atlas isotype is a **3-face isometric "A" arch**:
 
 | Face | Expected fill | Description |
 |---|---|---|
-| Top/roof | `#0A1D44` (`--atlas-navy`) | Flat chevron/roof shape |
-| Left pillar | `#102A5E` (`--atlas-navy-2`) | Dark vertical parallelogram |
-| Right pillar | `#21C7FF` (`--atlas-cyan`) | Bright blue vertical parallelogram |
+| Top/roof | `#0A1D44` (`--runly-navy`) | Flat chevron/roof shape |
+| Left pillar | `#102A5E` (`--runly-navy-2`) | Dark vertical parallelogram |
+| Right pillar | `#21C7FF` (`--runly-cyan`) | Bright blue vertical parallelogram |
 
 ### Extract individual path data
 
@@ -290,11 +290,11 @@ Update `identity/README.md` to list the SVG file under canonical sources.
 
 | Token | Hex | Usage |
 |---|---|---|
-| `--atlas-navy` | `#0A1D44` | Top face, backgrounds |
-| `--atlas-navy-2` | `#102A5E` | Left face, secondary navy |
-| `--atlas-navy-dark` | `#06152F` | Darkest backgrounds |
-| `--atlas-blue` | `#0A7BFF` | Interactive blue |
-| `--atlas-cyan` | `#21C7FF` | Right face, brand primary, glow |
+| `--runly-navy` | `#0A1D44` | Top face, backgrounds |
+| `--runly-navy-2` | `#102A5E` | Left face, secondary navy |
+| `--runly-navy-dark` | `#06152F` | Darkest backgrounds |
+| `--runly-blue` | `#0A7BFF` | Interactive blue |
+| `--runly-cyan` | `#21C7FF` | Right face, brand primary, glow |
 
 ## Motion Library
 

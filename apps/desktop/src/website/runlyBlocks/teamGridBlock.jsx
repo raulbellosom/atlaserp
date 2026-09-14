@@ -41,7 +41,7 @@ function Avatar({ name, photo, size = 80 }) {
   const initials = words.length >= 2 ? words[0][0] + words[1][0] : (words[0] || '?')[0]
   const color    = AVATAR_COLORS[(name || '').charCodeAt(0) % AVATAR_COLORS.length]
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: Math.floor(size * 0.32), color: '#fff', flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: Math.floor(size * 0.32), color: '#fff', flexShrink: 0 }}>
       {initials.toUpperCase()}
     </div>
   )
@@ -97,20 +97,20 @@ export const TeamGridBlock = defineBlock({
     const isCard     = layout === 'card' || !layout
 
     return (
-      <section style={{ padding: '80px 24px', background: 'var(--atlas-color-bg, #fff)' }}>
+      <section style={{ padding: '80px 24px', background: 'var(--runly-color-bg, #fff)' }}>
         <div style={{ maxWidth: '1200px', marginInline: 'auto' }}>
           {eyebrow && (
-            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--atlas-color-primary, #6D28D9)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--runly-color-primary, #6D28D9)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {eyebrow}
             </p>
           )}
           {title && (
-            <h2 style={{ textAlign: 'center', fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(24px, 3vw, 42px)', fontWeight: 800, color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.2 }}>
+            <h2 style={{ textAlign: 'center', fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3vw, 42px)', fontWeight: 800, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.2 }}>
               {title}
             </h2>
           )}
           {subtitle && (
-            <p style={{ textAlign: 'center', color: 'var(--atlas-color-muted, #64748b)', fontFamily: 'var(--atlas-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: '600px', marginInline: 'auto', marginBottom: '56px' }}>
+            <p style={{ textAlign: 'center', color: 'var(--runly-color-muted, #64748b)', fontFamily: 'var(--runly-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: '600px', marginInline: 'auto', marginBottom: '56px' }}>
               {subtitle}
             </p>
           )}
@@ -131,16 +131,16 @@ export const TeamGridBlock = defineBlock({
               }}>
                 <Avatar name={member.name} photo={photos[i]} size={isCentered ? 88 : 72} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: '17px', color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 4px' }}>
+                  <p style={{ fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: '17px', color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 4px' }}>
                     {member.name}
                   </p>
                   {member.role && (
-                    <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '13px', fontWeight: 600, color: 'var(--atlas-color-primary, #6D28D9)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '13px', fontWeight: 600, color: 'var(--runly-color-primary, #6D28D9)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                       {member.role}
                     </p>
                   )}
                   {member.bio && (
-                    <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '14px', color: 'var(--atlas-color-muted, #64748b)', margin: 0, lineHeight: 1.65 }}>
+                    <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '14px', color: 'var(--runly-color-muted, #64748b)', margin: 0, lineHeight: 1.65 }}>
                       {member.bio}
                     </p>
                   )}

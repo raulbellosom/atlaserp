@@ -65,7 +65,7 @@ export const SplitFeatureBlock = defineBlock({
     const textBox = (
       <div key="text" style={{ flex: '1 1 45%', minWidth: '280px', padding: '80px 64px', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxSizing: 'border-box' }}>
         {eyebrow && (
-          <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B5603A', margin: '0 0 16px' }}>
+          <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#B5603A', margin: '0 0 16px' }}>
             {eyebrow}
           </p>
         )}
@@ -75,12 +75,12 @@ export const SplitFeatureBlock = defineBlock({
           </h2>
         )}
         {body && (
-          <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '17px', lineHeight: 1.75, color: '#8C7E72', margin: '0 0 32px' }}>
+          <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '17px', lineHeight: 1.75, color: '#8C7E72', margin: '0 0 32px' }}>
             {body}
           </p>
         )}
         {ctaLabel && (
-          <a href={ctaHref || '#'} style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '15px', fontWeight: 600, color: fg, textDecoration: 'underline', textUnderlineOffset: '4px', textDecorationColor: '#B5603A', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <a href={ctaHref || '#'} style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '15px', fontWeight: 600, color: fg, textDecoration: 'underline', textUnderlineOffset: '4px', textDecorationColor: '#B5603A', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             {ctaLabel} →
           </a>
         )}

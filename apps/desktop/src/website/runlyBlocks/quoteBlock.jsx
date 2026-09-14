@@ -64,7 +64,7 @@ export const QuoteBlock = defineBlock({
           </p>
           {attribution && (
             <p style={{
-              fontFamily: 'var(--atlas-font-sans)',
+              fontFamily: 'var(--runly-font-sans)',
               fontSize: '13px',
               letterSpacing: '0.15em',
               textTransform: 'uppercase',

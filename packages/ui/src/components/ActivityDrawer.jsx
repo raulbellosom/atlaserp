@@ -55,7 +55,7 @@ export function ActivityDrawer({
                 onClose?.();
                 onSeeAll?.();
               }}
-              className="w-full inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-(--atlas-cyan) hover:bg-[hsl(var(--muted))]"
+              className="w-full inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-(--runly-cyan) hover:bg-[hsl(var(--muted))]"
             >
               Ver todo →
             </button>

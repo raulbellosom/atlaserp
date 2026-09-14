@@ -104,26 +104,26 @@ export const ServicesGridBlock = defineBlock({
     }
     const cardVariants = {
       card:     { ...cardBase, background: '#fff', boxShadow: '0 2px 16px rgba(0,0,0,0.07)', border: '1px solid rgba(0,0,0,0.05)' },
-      bordered: { ...cardBase, background: 'transparent', border: '2px solid var(--atlas-color-primary, #6D28D9)' },
+      bordered: { ...cardBase, background: 'transparent', border: '2px solid var(--runly-color-primary, #6D28D9)' },
       minimal:  { ...cardBase, background: 'transparent', padding: '24px 4px' },
     }
     const style = cardVariants[cardStyle] || cardVariants.card
 
     return (
-      <section style={{ padding: '80px 24px', background: 'var(--atlas-color-bg, #fff)' }}>
+      <section style={{ padding: '80px 24px', background: 'var(--runly-color-bg, #fff)' }}>
         <div style={{ maxWidth: '1200px', marginInline: 'auto' }}>
           {eyebrow && (
-            <p style={{ textAlign: isCenter ? 'center' : 'left', margin: '0 0 12px', color: 'var(--atlas-color-primary, #6D28D9)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            <p style={{ textAlign: isCenter ? 'center' : 'left', margin: '0 0 12px', color: 'var(--runly-color-primary, #6D28D9)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {eyebrow}
             </p>
           )}
           {title && (
-            <h2 style={{ textAlign: isCenter ? 'center' : 'left', fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(26px, 3.5vw, 42px)', fontWeight: 800, color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15 }}>
+            <h2 style={{ textAlign: isCenter ? 'center' : 'left', fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(26px, 3.5vw, 42px)', fontWeight: 800, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15 }}>
               {title}
             </h2>
           )}
           {subtitle && (
-            <p style={{ textAlign: isCenter ? 'center' : 'left', color: 'var(--atlas-color-muted, #64748b)', fontFamily: 'var(--atlas-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: isCenter ? '600px' : '700px', marginInline: isCenter ? 'auto' : undefined, marginBottom: '56px' }}>
+            <p style={{ textAlign: isCenter ? 'center' : 'left', color: 'var(--runly-color-muted, #64748b)', fontFamily: 'var(--runly-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: isCenter ? '600px' : '700px', marginInline: isCenter ? 'auto' : undefined, marginBottom: '56px' }}>
               {subtitle}
             </p>
           )}
@@ -131,14 +131,14 @@ export const ServicesGridBlock = defineBlock({
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${Math.floor(1100 / cols)}px), 1fr))`, gap: '24px' }}>
             {items.map((item, i) => (
               <div key={i} style={style}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--atlas-color-primary, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--runly-color-primary, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 }}>
                   <ServiceIcon i={i} />
                 </div>
-                <h3 style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '18px', fontWeight: 700, color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 10px', lineHeight: 1.3 }}>
+                <h3 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '18px', fontWeight: 700, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 10px', lineHeight: 1.3 }}>
                   {item.title}
                 </h3>
                 {item.desc && (
-                  <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '15px', color: 'var(--atlas-color-muted, #64748b)', lineHeight: 1.7, margin: 0 }}>
+                  <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '15px', color: 'var(--runly-color-muted, #64748b)', lineHeight: 1.7, margin: 0 }}>
                     {item.desc}
                   </p>
                 )}

@@ -70,21 +70,21 @@ export const GalleryBlock = defineBlock({
     const hasHeader = eyebrow || title || subtitle
 
     return (
-      <section style={{ padding: hasHeader ? '80px 24px' : '0', background: 'var(--atlas-color-bg, #fff)' }}>
+      <section style={{ padding: hasHeader ? '80px 24px' : '0', background: 'var(--runly-color-bg, #fff)' }}>
         {hasHeader && (
           <div style={{ maxWidth: '1200px', marginInline: 'auto', marginBottom: '48px', textAlign: 'center' }}>
             {eyebrow && (
-              <p style={{ margin: '0 0 12px', color: 'var(--atlas-color-primary, #6D28D9)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              <p style={{ margin: '0 0 12px', color: 'var(--runly-color-primary, #6D28D9)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h2 style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.2 }}>
+              <h2 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.2 }}>
                 {title}
               </h2>
             )}
             {subtitle && (
-              <p style={{ color: 'var(--atlas-color-muted, #64748b)', fontFamily: 'var(--atlas-font-sans)', fontSize: '17px', lineHeight: 1.6, maxWidth: '600px', marginInline: 'auto', margin: 0 }}>
+              <p style={{ color: 'var(--runly-color-muted, #64748b)', fontFamily: 'var(--runly-font-sans)', fontSize: '17px', lineHeight: 1.6, maxWidth: '600px', marginInline: 'auto', margin: 0 }}>
                 {subtitle}
               </p>
             )}
@@ -117,7 +117,7 @@ export const GalleryBlock = defineBlock({
                     />
                   </div>
                   {img.caption && (
-                    <figcaption style={{ padding: '8px 4px 0', fontFamily: 'var(--atlas-font-sans)', fontSize: '13px', color: 'var(--atlas-color-muted, #64748b)', textAlign: 'center' }}>
+                    <figcaption style={{ padding: '8px 4px 0', fontFamily: 'var(--runly-font-sans)', fontSize: '13px', color: 'var(--runly-color-muted, #64748b)', textAlign: 'center' }}>
                       {img.caption}
                     </figcaption>
                   )}

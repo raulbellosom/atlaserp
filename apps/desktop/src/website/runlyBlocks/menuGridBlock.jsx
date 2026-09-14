@@ -55,20 +55,20 @@ export const MenuGridBlock = defineBlock({
     const curr = currency || '$'
 
     return (
-      <section style={{ padding: '80px 24px', background: 'var(--atlas-color-bg, #fff)' }}>
+      <section style={{ padding: '80px 24px', background: 'var(--runly-color-bg, #fff)' }}>
         <div style={{ maxWidth: '1200px', marginInline: 'auto' }}>
           {eyebrow && (
-            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--atlas-color-primary, #6D28D9)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--runly-color-primary, #6D28D9)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {eyebrow}
             </p>
           )}
           {title && (
-            <h2 style={{ textAlign: 'center', fontFamily: 'var(--atlas-font-serif, Georgia, serif)', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 700, color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+            <h2 style={{ textAlign: 'center', fontFamily: 'var(--runly-font-serif, Georgia, serif)', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 700, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
               {title}
             </h2>
           )}
           {subtitle && (
-            <p style={{ textAlign: 'center', color: 'var(--atlas-color-muted, #64748b)', fontFamily: 'var(--atlas-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: '560px', marginInline: 'auto', marginBottom: '64px' }}>
+            <p style={{ textAlign: 'center', color: 'var(--runly-color-muted, #64748b)', fontFamily: 'var(--runly-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: '560px', marginInline: 'auto', marginBottom: '64px' }}>
               {subtitle}
             </p>
           )}
@@ -77,27 +77,27 @@ export const MenuGridBlock = defineBlock({
             {cats.map((cat, ci) => (
               <div key={ci}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-                  <h3 style={{ fontFamily: 'var(--atlas-font-serif, Georgia, serif)', fontSize: '22px', fontWeight: 700, color: 'var(--atlas-color-fg, #0f172a)', margin: 0, whiteSpace: 'nowrap' }}>
+                  <h3 style={{ fontFamily: 'var(--runly-font-serif, Georgia, serif)', fontSize: '22px', fontWeight: 700, color: 'var(--runly-color-fg, #0f172a)', margin: 0, whiteSpace: 'nowrap' }}>
                     {cat.name}
                   </h3>
-                  <div style={{ flex: 1, height: '1px', background: 'var(--atlas-color-primary, #6D28D9)', opacity: 0.25 }} />
+                  <div style={{ flex: 1, height: '1px', background: 'var(--runly-color-primary, #6D28D9)', opacity: 0.25 }} />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
                   {cat.items.map((item, ii) => (
                     <div key={ii} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '16px', padding: '16px 0', borderBottom: ii < cat.items.length - 1 ? '1px solid rgba(0,0,0,0.07)' : 'none' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontFamily: 'var(--atlas-font-sans)', fontWeight: 600, fontSize: '16px', color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 4px' }}>
+                        <p style={{ fontFamily: 'var(--runly-font-sans)', fontWeight: 600, fontSize: '16px', color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 4px' }}>
                           {item.name}
                         </p>
                         {item.desc && (
-                          <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '13px', color: 'var(--atlas-color-muted, #64748b)', margin: 0, lineHeight: 1.5 }}>
+                          <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '13px', color: 'var(--runly-color-muted, #64748b)', margin: 0, lineHeight: 1.5 }}>
                             {item.desc}
                           </p>
                         )}
                       </div>
                       {showPrices !== false && item.price && (
-                        <span style={{ fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: '16px', color: 'var(--atlas-color-primary, #6D28D9)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: '16px', color: 'var(--runly-color-primary, #6D28D9)', flexShrink: 0, whiteSpace: 'nowrap' }}>
                           {curr}{item.price}
                         </span>
                       )}

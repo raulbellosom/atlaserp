@@ -1,4 +1,4 @@
-﻿# Atlas ERP - Supabase + Prisma Strategy
+﻿# Runly ERP - Supabase + Prisma Strategy
 
 ## Supabase instance
 
@@ -7,18 +7,18 @@
 | API | https://supabase.racoondevs.com |
 | Studio | https://studio.supabase.racoondevs.com |
 
-Dedicated to Atlas ERP. Not Supabase Cloud - self-hosted on a VPS.
+Dedicated to Runly ERP. Not Supabase Cloud - self-hosted on a VPS.
 
-## What Atlas uses from Supabase
+## What Runly uses from Supabase
 
-| Feature | How Atlas uses it |
+| Feature | How Runly uses it |
 |---|---|
-| PostgreSQL | Primary database for all Atlas business models, accessed via Prisma |
+| PostgreSQL | Primary database for all Runly business models, accessed via Prisma |
 | Auth | Session management, JWT tokens, password recovery, admin user creation |
 | Storage | Physical file storage (logos, documents, media) |
 | Realtime | Future: live dashboard updates, notifications |
 
-## Prisma owns the Atlas schema
+## Prisma owns the Runly schema
 
 Prisma manages all tables in the `public` schema. Supabase internal schemas (`auth`, `storage`, `realtime`, `extensions`) are never touched by Prisma migrations.
 
@@ -49,9 +49,9 @@ DIRECT_URL=postgresql://postgres:<POSTGRES_PASSWORD>@127.0.0.1:54322/postgres
 
 | Bucket | Contents | Access pattern |
 |---|---|---|
-| `atlas-files` | Canonical storage for all uploads (branding, module files, avatars, generated ZIPs) | API-proxied signed URL |
+| `runly-files` | Canonical storage for all uploads (branding, module files, avatars, generated ZIPs) | API-proxied signed URL |
 
-Frontend never accesses Supabase Storage directly. Atlas API generates signed URLs or proxies bytes.
+Frontend never accesses Supabase Storage directly. Runly API generates signed URLs or proxies bytes.
 Legacy bucket cleanup is manual infra (no destructive auto-delete in API boot).
 
 File metadata is stored in the `FileAsset` Prisma model (`bucket`, `objectKey`, `originalName`, `mimeType`, `sizeBytes`, `moduleKey`, `entityType`, `entityId`, `metadata`).
@@ -65,6 +65,6 @@ Canonical objectKey policy:
 
 - Do not access Supabase tables directly from React (`supabase.from('table').select()`)
 - Do not expose `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_JWT_SECRET` in frontend or `VITE_` env vars
-- Do not call `supabase.auth.signUp()` from frontend for ERP user creation - use Atlas API
-- Do not bypass Atlas API for critical ERP writes
+- Do not call `supabase.auth.signUp()` from frontend for ERP user creation - use Runly API
+- Do not bypass Runly API for critical ERP writes
 - Do not expose PostgreSQL publicly without explicit security review

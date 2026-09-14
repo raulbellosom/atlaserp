@@ -28,9 +28,9 @@ The Atlas isotype is a **3-face isometric "A" arch**. Each face is a separate `<
 
 | Face | Fill | CSS Token | Animation entry direction |
 |---|---|---|---|
-| Top/roof | `#0A1D44` | `--atlas-navy` | From above (y: -N → 0) |
-| Left pillar | `#102A5E` | `--atlas-navy-2` | From bottom-left (x: -N, y: +N → 0,0) |
-| Right pillar | `#21C7FF` | `--atlas-cyan` | From bottom-right (x: +N, y: +N → 0,0) |
+| Top/roof | `#0A1D44` | `--runly-navy` | From above (y: -N → 0) |
+| Left pillar | `#102A5E` | `--runly-navy-2` | From bottom-left (x: -N, y: +N → 0,0) |
+| Right pillar | `#21C7FF` | `--runly-cyan` | From bottom-right (x: +N, y: +N → 0,0) |
 
 Only the **right (cyan) face** gets a glow filter. The other two get a drop shadow.
 

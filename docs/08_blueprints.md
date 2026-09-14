@@ -1,4 +1,4 @@
-# Atlas ERP — Blueprint System
+# Runly ERP — Blueprint System
 
 ## What blueprints are
 
@@ -40,7 +40,7 @@ Source of truth: Prisma → API service → Zod validator → Blueprint (UI hint
 | `email` | Email input | Contact email |
 | `phone` | Phone input | Contact phone |
 | `relation` | Entity link picker | Contact, company |
-| `file` | File upload | Powered by atlas.files |
+| `file` | File upload | Powered by runly.files |
 | `color` | Color picker | Brand color |
 | `json` | Raw JSON editor | Metadata, settings |
 

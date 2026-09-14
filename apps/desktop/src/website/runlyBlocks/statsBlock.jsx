@@ -50,13 +50,13 @@ export const StatsBlock = defineBlock({
     const isDark    = background === 'dark'
     const isLight   = background === 'white' || background === 'muted'
 
-    const bg = isPrimary ? 'var(--atlas-color-primary, #6D28D9)'
+    const bg = isPrimary ? 'var(--runly-color-primary, #6D28D9)'
       : isDark ? '#0F172A'
       : background === 'muted' ? '#F8FAFC'
       : '#fff'
 
-    const fg       = isLight ? 'var(--atlas-color-fg, #0f172a)' : '#fff'
-    const fgMuted  = isLight ? 'var(--atlas-color-muted, #64748b)' : 'rgba(255,255,255,0.72)'
+    const fg       = isLight ? 'var(--runly-color-fg, #0f172a)' : '#fff'
+    const fgMuted  = isLight ? 'var(--runly-color-muted, #64748b)' : 'rgba(255,255,255,0.72)'
     const divider  = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.15)'
     const isCenter = align === 'center'
 
@@ -66,12 +66,12 @@ export const StatsBlock = defineBlock({
           {(eyebrow || title) && (
             <div style={{ textAlign: isCenter ? 'center' : 'left', marginBottom: '48px' }}>
               {eyebrow && (
-                <p style={{ margin: '0 0 8px', color: isLight ? 'var(--atlas-color-primary, #6D28D9)' : 'rgba(255,255,255,0.65)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                <p style={{ margin: '0 0 8px', color: isLight ? 'var(--runly-color-primary, #6D28D9)' : 'rgba(255,255,255,0.65)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                   {eyebrow}
                 </p>
               )}
               {title && (
-                <h2 style={{ margin: 0, fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: fg, lineHeight: 1.2 }}>
+                <h2 style={{ margin: 0, fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: fg, lineHeight: 1.2 }}>
                   {title}
                 </h2>
               )}
@@ -81,14 +81,14 @@ export const StatsBlock = defineBlock({
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 200px), 1fr))`, gap: '0' }}>
             {items.map((item, i) => (
               <div key={i} style={{ textAlign: isCenter ? 'center' : 'left', padding: '32px 24px', borderLeft: i > 0 ? `1px solid ${divider}` : 'none' }}>
-                <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, color: fg, margin: '0 0 6px', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, color: fg, margin: '0 0 6px', lineHeight: 1, letterSpacing: '-0.02em' }}>
                   {item.value}
                 </p>
-                <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '16px', fontWeight: 700, color: fg, margin: '0 0 6px' }}>
+                <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '16px', fontWeight: 700, color: fg, margin: '0 0 6px' }}>
                   {item.label}
                 </p>
                 {item.desc && (
-                  <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '13px', color: fgMuted, margin: 0, lineHeight: 1.5 }}>
+                  <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '13px', color: fgMuted, margin: 0, lineHeight: 1.5 }}>
                     {item.desc}
                   </p>
                 )}

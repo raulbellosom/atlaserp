@@ -16,13 +16,13 @@ This directory is the source of truth for Atlas ERP brand resources.
 
 ```css
 :root {
-  --atlas-navy: #0A1D44;
-  --atlas-navy-2: #102A5E;
-  --atlas-navy-dark: #06152F;
-  --atlas-blue: #0A7BFF;
-  --atlas-cyan: #21C7FF;
-  --atlas-gray-light: #E6EAF0;
-  --atlas-gray-text: #5F6B7A;
+  --runly-navy: #0A1D44;
+  --runly-navy-2: #102A5E;
+  --runly-navy-dark: #06152F;
+  --runly-blue: #0A7BFF;
+  --runly-cyan: #21C7FF;
+  --runly-gray-light: #E6EAF0;
+  --runly-gray-text: #5F6B7A;
 }
 ```
 

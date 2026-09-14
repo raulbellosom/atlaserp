@@ -79,18 +79,18 @@ export const FeaturesSectionBlock = defineBlock({
     function FeatureIcon({ i }) {
       if (iconStyle === 'number') {
         return (
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--atlas-color-primary, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'var(--atlas-font-sans)', fontWeight: 800, fontSize: '14px', color: '#fff' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--runly-color-primary, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'var(--runly-font-sans)', fontWeight: 800, fontSize: '14px', color: '#fff' }}>
             {i + 1}
           </div>
         )
       }
       if (iconStyle === 'dot') {
         return (
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--atlas-color-primary, #6D28D9)', flexShrink: 0, marginTop: '8px' }} />
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--runly-color-primary, #6D28D9)', flexShrink: 0, marginTop: '8px' }} />
         )
       }
       return (
-        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(109, 40, 217, 0.1)', color: 'var(--atlas-color-primary, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(109, 40, 217, 0.1)', color: 'var(--runly-color-primary, #6D28D9)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {iconStyle === 'arrow' ? <ArrowIcon /> : <CheckIcon />}
         </div>
       )
@@ -100,17 +100,17 @@ export const FeaturesSectionBlock = defineBlock({
       <section style={{ padding: '80px 24px', background: bg }}>
         <div style={{ maxWidth: '1200px', marginInline: 'auto' }}>
           {eyebrow && (
-            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--atlas-color-primary, #6D28D9)', fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            <p style={{ textAlign: 'center', margin: '0 0 12px', color: 'var(--runly-color-primary, #6D28D9)', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {eyebrow}
             </p>
           )}
           {title && (
-            <h2 style={{ textAlign: 'center', fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(26px, 3.5vw, 44px)', fontWeight: 800, color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15 }}>
+            <h2 style={{ textAlign: 'center', fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(26px, 3.5vw, 44px)', fontWeight: 800, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15 }}>
               {title}
             </h2>
           )}
           {subtitle && (
-            <p style={{ textAlign: 'center', color: 'var(--atlas-color-muted, #64748b)', fontFamily: 'var(--atlas-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: '600px', marginInline: 'auto', marginBottom: '56px' }}>
+            <p style={{ textAlign: 'center', color: 'var(--runly-color-muted, #64748b)', fontFamily: 'var(--runly-font-sans)', fontSize: '17px', lineHeight: 1.7, maxWidth: '600px', marginInline: 'auto', marginBottom: '56px' }}>
               {subtitle}
             </p>
           )}
@@ -120,11 +120,11 @@ export const FeaturesSectionBlock = defineBlock({
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', padding: isList ? '20px 24px' : '0', background: isList ? '#fff' : 'transparent', borderRadius: isList ? '12px' : '0', border: isList ? '1px solid rgba(0,0,0,0.06)' : 'none', boxShadow: isList ? '0 1px 8px rgba(0,0,0,0.04)' : 'none' }}>
                 <FeatureIcon i={i} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <h4 style={{ fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: isList ? '16px' : '17px', color: 'var(--atlas-color-fg, #0f172a)', margin: '0 0 6px', lineHeight: 1.3 }}>
+                  <h4 style={{ fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: isList ? '16px' : '17px', color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 6px', lineHeight: 1.3 }}>
                     {item.title}
                   </h4>
                   {item.desc && (
-                    <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '14px', color: 'var(--atlas-color-muted, #64748b)', margin: 0, lineHeight: 1.65 }}>
+                    <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '14px', color: 'var(--runly-color-muted, #64748b)', margin: 0, lineHeight: 1.65 }}>
                       {item.desc}
                     </p>
                   )}

@@ -79,7 +79,7 @@ export const BentoGridBlock = defineBlock({
                 <h3 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: isLarge ? '28px' : '18px', fontWeight: 400, color: fg, margin: '0 0 12px', lineHeight: 1.2 }}>
                   {item.title}
                 </h3>
-                <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '14px', lineHeight: 1.65, color: '#8C7E72', margin: 0 }}>
+                <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '14px', lineHeight: 1.65, color: '#8C7E72', margin: 0 }}>
                   {item.desc}
                 </p>
               </div>

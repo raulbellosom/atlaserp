@@ -53,22 +53,22 @@ html {
 
 :root {
   /* Runly palette (2026-09-13 brand guide). Structural tokens map to
-     Midnight/Navy; --atlas-blue/--atlas-cyan carry the warm accent used for
+     Midnight/Navy; --runly-blue/--runly-cyan carry the warm accent used for
      buttons, active states and the loader's moving stroke — see
      docs/superpowers/specs/2026-09-13-runly-brand-assets-design.md. Variable
      names kept as-is (atlas-* legacy naming) to avoid touching every
      consumer; only the hex values changed. */
-  --atlas-navy: #0c172d; /* Midnight */
-  --atlas-navy-2: #132646; /* Navy */
-  --atlas-navy-dark: #070d18; /* Runly dark-neutral background */
-  --atlas-blue: #f6381a; /* Red — brand-primary hover/pressed */
-  --atlas-cyan: #fd6016; /* Flame — brand-primary accent */
-  --atlas-gray-light: #e6eaf0;
-  --atlas-gray-text: #5f6b7a;
+  --runly-navy: #0c172d; /* Midnight */
+  --runly-navy-2: #132646; /* Navy */
+  --runly-navy-dark: #070d18; /* Runly dark-neutral background */
+  --runly-blue: #f6381a; /* Red — brand-primary hover/pressed */
+  --runly-cyan: #fd6016; /* Flame — brand-primary accent */
+  --runly-gray-light: #e6eaf0;
+  --runly-gray-text: #5f6b7a;
 
-  --brand-primary: var(--atlas-cyan);
-  --brand-primary-hover: var(--atlas-blue);
-  --brand-primary-foreground: var(--atlas-navy-dark);
+  --brand-primary: var(--runly-cyan);
+  --brand-primary-hover: var(--runly-blue);
+  --brand-primary-foreground: var(--runly-navy-dark);
   --brand-soft: rgba(253, 96, 22, 0.14);
   --background: 210 20% 98%;
   --foreground: 222 47% 11%;

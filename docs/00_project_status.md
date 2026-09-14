@@ -15,12 +15,12 @@ Current phase: RME3 Phase 4 complete, Phase 5 retired, Phase 6 renderer complete
 - Core protection and dependency protection are enforced in API and UI.
 
 ### Core modules baseline (internal)
-- `atlas.core`
-- `atlas.identity`
-- `atlas.files`
-- `atlas.company`
-- `atlas.contacts`
-- `atlas.hr`
+- `runly.core`
+- `runly.identity`
+- `runly.files`
+- `runly.company`
+- `runly.contacts`
+- `runly.hr`
 
 All above are seeded/managed as `core: true`, `uninstallable: false` in official snapshots.
 

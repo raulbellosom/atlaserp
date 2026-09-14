@@ -58,49 +58,49 @@ export const CtaBannerBlock = defineBlock({
     const isLight  = variant === 'muted'
 
     const backgrounds = {
-      'gradient-primary': 'linear-gradient(135deg, var(--atlas-color-primary, #6D28D9) 0%, color-mix(in srgb, var(--atlas-color-primary, #6D28D9) 60%, #1E40AF) 100%)',
-      'solid-primary':    'var(--atlas-color-primary, #6D28D9)',
+      'gradient-primary': 'linear-gradient(135deg, var(--runly-color-primary, #6D28D9) 0%, color-mix(in srgb, var(--runly-color-primary, #6D28D9) 60%, #1E40AF) 100%)',
+      'solid-primary':    'var(--runly-color-primary, #6D28D9)',
       'dark':             '#0F172A',
       'gradient-dark':    'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
       'muted':            '#F1F5F9',
     }
     const bg = backgrounds[variant] || backgrounds['gradient-primary']
-    const fg       = isLight ? 'var(--atlas-color-fg, #0f172a)'       : '#fff'
-    const fgMuted  = isLight ? 'var(--atlas-color-muted, #64748b)'    : 'rgba(255,255,255,0.78)'
-    const eyebrowC = isLight ? 'var(--atlas-color-primary, #6D28D9)'  : 'rgba(255,255,255,0.65)'
+    const fg       = isLight ? 'var(--runly-color-fg, #0f172a)'       : '#fff'
+    const fgMuted  = isLight ? 'var(--runly-color-muted, #64748b)'    : 'rgba(255,255,255,0.78)'
+    const eyebrowC = isLight ? 'var(--runly-color-primary, #6D28D9)'  : 'rgba(255,255,255,0.65)'
 
-    const ctaBg       = isLight ? 'var(--atlas-color-primary, #6D28D9)' : '#fff'
-    const ctaFg       = isLight ? '#fff' : 'var(--atlas-color-primary, #6D28D9)'
-    const ctaSecondFg = isLight ? 'var(--atlas-color-fg, #0f172a)'      : 'rgba(255,255,255,0.85)'
+    const ctaBg       = isLight ? 'var(--runly-color-primary, #6D28D9)' : '#fff'
+    const ctaFg       = isLight ? '#fff' : 'var(--runly-color-primary, #6D28D9)'
+    const ctaSecondFg = isLight ? 'var(--runly-color-fg, #0f172a)'      : 'rgba(255,255,255,0.85)'
     const ctaSecondBorder = isLight ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.35)'
 
     return (
       <section style={{ background: bg, padding: `${paddingY} 24px` }}>
         <div style={{ maxWidth: '800px', marginInline: 'auto', textAlign: isCenter ? 'center' : 'left' }}>
           {eyebrow && (
-            <p style={{ margin: '0 0 12px', color: eyebrowC, fontFamily: 'var(--atlas-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            <p style={{ margin: '0 0 12px', color: eyebrowC, fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
               {eyebrow}
             </p>
           )}
           {title && (
-            <h2 style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 900, color: fg, margin: '0 0 16px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 900, color: fg, margin: '0 0 16px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
               {title}
             </h2>
           )}
           {subtitle && (
-            <p style={{ fontFamily: 'var(--atlas-font-sans)', fontSize: '18px', color: fgMuted, lineHeight: 1.7, margin: '0 0 36px', maxWidth: isCenter ? '580px' : '100%', marginInline: isCenter ? 'auto' : undefined }}>
+            <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '18px', color: fgMuted, lineHeight: 1.7, margin: '0 0 36px', maxWidth: isCenter ? '580px' : '100%', marginInline: isCenter ? 'auto' : undefined }}>
               {subtitle}
             </p>
           )}
 
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: isCenter ? 'center' : 'flex-start' }}>
             {ctaLabel && (
-              <a href={safeCta} style={{ display: 'inline-block', background: ctaBg, color: ctaFg, border: 'none', padding: '14px 32px', borderRadius: '10px', fontFamily: 'var(--atlas-font-sans)', fontWeight: 700, fontSize: '16px', textDecoration: 'none', letterSpacing: '-0.01em' }}>
+              <a href={safeCta} style={{ display: 'inline-block', background: ctaBg, color: ctaFg, border: 'none', padding: '14px 32px', borderRadius: '10px', fontFamily: 'var(--runly-font-sans)', fontWeight: 700, fontSize: '16px', textDecoration: 'none', letterSpacing: '-0.01em' }}>
                 {ctaLabel}
               </a>
             )}
             {ctaSecondLabel && (
-              <a href={safeCta2} style={{ display: 'inline-block', background: 'transparent', color: ctaSecondFg, border: `1.5px solid ${ctaSecondBorder}`, padding: '14px 32px', borderRadius: '10px', fontFamily: 'var(--atlas-font-sans)', fontWeight: 600, fontSize: '16px', textDecoration: 'none' }}>
+              <a href={safeCta2} style={{ display: 'inline-block', background: 'transparent', color: ctaSecondFg, border: `1.5px solid ${ctaSecondBorder}`, padding: '14px 32px', borderRadius: '10px', fontFamily: 'var(--runly-font-sans)', fontWeight: 600, fontSize: '16px', textDecoration: 'none' }}>
                 {ctaSecondLabel}
               </a>
             )}
