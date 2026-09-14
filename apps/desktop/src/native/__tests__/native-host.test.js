@@ -21,12 +21,6 @@ test('runtime distinguishes browser, PWA, Desktop, Android, iOS and missing brid
   }
 })
 
-test('runtime still resolves platform from a pre-rebrand native host (__ATLAS_NATIVE_HOST__)', () => {
-  const bridge = { __TAURI_INTERNALS__: { invoke() {} } }
-  const scope = { ...bridge, __ATLAS_NATIVE_HOST__: { platform: 'android' } }
-  assert.equal(detectRuntime(scope), 'tauri-android')
-})
-
 test('release environment cannot be replaced by a user URL or development origin', () => {
   assert.equal(resolveEnvironment('production', 'https://evil.test', 'build'), 'https://app.example.com')
   assert.throws(() => resolveEnvironment('https://evil.test', null, 'build'))
@@ -111,7 +105,7 @@ test('event pump serializes concurrent ticks', async () => {
 test('Vite applies frame restriction only to native host requests', () => {
   let middleware
   nativeHostHeaders().configureServer({ middlewares: { use: (value) => { middleware = value } } })
-  for (const [agent, expected] of [['Browser', undefined], ['Mozilla RunlyNativeHost/1.0', NATIVE_CSP], ['Mozilla AtlasNativeHost/1.0', NATIVE_CSP]]) {
+  for (const [agent, expected] of [['Browser', undefined], ['Mozilla RunlyNativeHost/1.0', NATIVE_CSP]]) {
     const headers = {}
     middleware({ headers: { 'user-agent': agent } }, { setHeader: (k, v) => { headers[k] = v } }, () => {})
     assert.equal(headers['Content-Security-Policy'], expected)

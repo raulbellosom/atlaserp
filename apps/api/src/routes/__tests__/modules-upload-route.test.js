@@ -12,12 +12,12 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..', '..')
 
 test('POST /modules/:key/upload recibe multipart, extrae el ZIP y responde con el módulo', async (t) => {
   const modulesDir = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-module-upload-route-'))
-  const previousModulesDir = process.env.ATLAS_MODULES_DIR
-  process.env.ATLAS_MODULES_DIR = modulesDir
+  const previousModulesDir = process.env.RUNLY_MODULES_DIR
+  process.env.RUNLY_MODULES_DIR = modulesDir
 
   t.after(async () => {
-    if (typeof previousModulesDir === 'string') process.env.ATLAS_MODULES_DIR = previousModulesDir
-    else delete process.env.ATLAS_MODULES_DIR
+    if (typeof previousModulesDir === 'string') process.env.RUNLY_MODULES_DIR = previousModulesDir
+    else delete process.env.RUNLY_MODULES_DIR
 
     const resolved = path.resolve(modulesDir)
     assert.ok(resolved.startsWith(REPO_ROOT + path.sep))

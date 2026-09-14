@@ -13,8 +13,8 @@ function makeFetch(status = 200) {
 describe('atlas SDK — calendar namespace', () => {
   it('getGoogleStatus GETs /calendar/google/status', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.getGoogleStatus('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -25,8 +25,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('startGoogleConnect POSTs /calendar/google/connect/start', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.startGoogleConnect('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -38,8 +38,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('finishGoogleConnect GETs /calendar/google/connect/callback with code and state', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.finishGoogleConnect({ code: 'code-123', state: 'state-123' }, 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -50,8 +50,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('listGoogleCalendars GETs /calendar/google/calendars', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.listGoogleCalendars('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -62,8 +62,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('listGoogleSources GETs /calendar/google/sources', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.listGoogleSources('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -74,8 +74,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('saveGoogleSources POSTs /calendar/google/sources with body', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.saveGoogleSources({
       calendars: [{ id: 'primary', summary: 'Principal' }],
@@ -92,8 +92,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('disconnectGoogleCalendar POSTs /calendar/google/disconnect', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.disconnectGoogleCalendar('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -105,8 +105,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('listCalendars GETs /calendar/calendars', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.listCalendars('tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -117,8 +117,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('createCalendar POSTs /calendar/calendars with body', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.createCalendar({ name: 'Mi agenda' }, 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -130,8 +130,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('updateCalendar PATCHes /calendar/calendars/:id', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.updateCalendar('cal-1', { name: 'Nueva' }, 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -142,8 +142,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('listEvents GETs /calendar/events with query string', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.listEvents('tok', { start: '2026-01-01', end: '2026-01-31' })
     const [url] = fetchMock.mock.calls[0].arguments
@@ -154,8 +154,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('listEvents with calendar_ids array appends multiple params', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.listEvents('tok', { start: '2026-01-01', end: '2026-01-31', calendar_ids: ['c1', 'c2'] })
     const [url] = fetchMock.mock.calls[0].arguments
@@ -166,8 +166,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('listEvents forwards source_module and source_entity_id as query params', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.listEvents('tok', { start: '2026-01-01', end: '2026-01-31', source_module: 'atlas.chat', source_entity_id: 'conv-1' })
     const [url] = fetchMock.mock.calls[0].arguments
@@ -178,8 +178,8 @@ describe('atlas SDK — calendar namespace', () => {
 
   it('markNotificationRead PATCHes /calendar/notifications/:id/read', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.calendar.markNotificationRead('notif-1', 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments

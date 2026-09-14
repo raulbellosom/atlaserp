@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { startOfficeDev } from '../start-office-dev.mjs';
 
 const values = {
-  ATLAS_OFFICE_ENABLED: 'true',
+  RUNLY_OFFICE_ENABLED: 'true',
   COLLABORA_INTERNAL_URL: 'http://127.0.0.1:9980',
   COLLABORA_PUBLIC_URL: 'http://localhost:9980',
-  ATLAS_WOPI_URL: 'http://host.docker.internal:4020',
-  ATLAS_OFFICE_HOST_ORIGIN: 'http://localhost:5174',
-  ATLAS_WOPI_SECRET: 'development-test-key-'.repeat(3),
+  RUNLY_WOPI_URL: 'http://host.docker.internal:4020',
+  RUNLY_OFFICE_HOST_ORIGIN: 'http://localhost:5174',
+  RUNLY_WOPI_SECRET: 'development-test-key-'.repeat(3),
 };
 
 test('disabled or remote Office does not start local Docker services', () => {
@@ -17,17 +17,17 @@ test('disabled or remote Office does not start local Docker services', () => {
   assert.equal(startOfficeDev({ values: { ...values, COLLABORA_INTERNAL_URL: 'https://office.example.com' }, run }).status, 'external');
 });
 
-test('local Office targets only its service in Atlas and derives host/origin configuration', () => {
+test('local Office targets only its service in Runly and derives host/origin configuration', () => {
   let calls = 0;
   const result = startOfficeDev({ values, run(command, args, options) {
     calls++;
     assert.equal(command, 'docker');
-    assert.equal(args[args.indexOf('-p') + 1], 'atlaserp');
+    assert.equal(args[args.indexOf('-p') + 1], 'runlyerp');
     assert.deepEqual(args.slice(args.indexOf('up')), ['up', '-d', '--no-deps', 'collabora-dev']);
-    assert.equal(options.env.COLLABORA_WOPI_HOST, values.ATLAS_WOPI_URL);
-    assert.ok(options.env.COLLABORA_CONTENT_SECURITY_POLICY.includes(values.ATLAS_OFFICE_HOST_ORIGIN));
-    assert.ok(!args.join(' ').includes(values.ATLAS_WOPI_SECRET));
-    assert.ok(!options.env.COLLABORA_EXTRA_PARAMS.includes(values.ATLAS_WOPI_SECRET));
+    assert.equal(options.env.COLLABORA_WOPI_HOST, values.RUNLY_WOPI_URL);
+    assert.ok(options.env.COLLABORA_CONTENT_SECURITY_POLICY.includes(values.RUNLY_OFFICE_HOST_ORIGIN));
+    assert.ok(!args.join(' ').includes(values.RUNLY_WOPI_SECRET));
+    assert.ok(!options.env.COLLABORA_EXTRA_PARAMS.includes(values.RUNLY_WOPI_SECRET));
     return { status: 0 };
   } });
   assert.equal(calls, 1);

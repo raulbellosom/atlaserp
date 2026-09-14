@@ -7,8 +7,8 @@ const LATE_NIGHT = new Date("2026-08-31T02:03:00.000Z");
 
 test("toLocalIso uses the configured zone, not UTC", () => {
   const prev = process.env.TZ;
-  const prevAtlas = process.env.ATLAS_TIME_ZONE;
-  process.env.ATLAS_TIME_ZONE = "America/Mexico_City";
+  const prevRunly = process.env.RUNLY_TIME_ZONE;
+  process.env.RUNLY_TIME_ZONE = "America/Mexico_City";
   delete process.env.TZ;
   try {
     assert.equal(toLocalIso(LATE_NIGHT), "2026-08-30");
@@ -16,22 +16,22 @@ test("toLocalIso uses the configured zone, not UTC", () => {
     assert.deepEqual(nowLocalParts(LATE_NIGHT), { year: "2026", month: "08", day: "30" });
   } finally {
     if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
-    if (prevAtlas === undefined) delete process.env.ATLAS_TIME_ZONE;
-    else process.env.ATLAS_TIME_ZONE = prevAtlas;
+    if (prevRunly === undefined) delete process.env.RUNLY_TIME_ZONE;
+    else process.env.RUNLY_TIME_ZONE = prevRunly;
   }
 });
 
 test("falls back to UTC when no zone is configured", () => {
   const prev = process.env.TZ;
-  const prevAtlas = process.env.ATLAS_TIME_ZONE;
+  const prevRunly = process.env.RUNLY_TIME_ZONE;
   delete process.env.TZ;
-  delete process.env.ATLAS_TIME_ZONE;
+  delete process.env.RUNLY_TIME_ZONE;
   try {
     assert.equal(toLocalIso(LATE_NIGHT), "2026-08-31");
     assert.equal(toLocalMonth(LATE_NIGHT), "2026-08");
   } finally {
     if (prev !== undefined) process.env.TZ = prev;
-    if (prevAtlas !== undefined) process.env.ATLAS_TIME_ZONE = prevAtlas;
+    if (prevRunly !== undefined) process.env.RUNLY_TIME_ZONE = prevRunly;
   }
 });
 

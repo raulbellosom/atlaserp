@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createAtlasClient } from '../index.js';
+import { createRunlyClient } from '../index.js';
 
 test('Office session SDK authenticates, encodes IDs and never queues offline capabilities', async () => {
   const originalFetch = globalThis.fetch;
@@ -9,7 +9,7 @@ test('Office session SDK authenticates, encodes IDs and never queues offline cap
   globalThis.fetch = async (url, options) => { calls.push({ url, options }); return Response.json({ data: { mode: 'view' } }); };
   Object.defineProperty(globalThis, 'navigator', { value: { onLine: false }, configurable: true });
   try {
-    const api = createAtlasClient({ baseUrl: 'https://atlas.example.com' });
+    const api = createRunlyClient({ baseUrl: 'https://atlas.example.com' });
     api.setOfflineTransport({ queue: () => { throw new Error('Office must not queue'); } });
     await api.files.createOfficeSession('id/encoded', 'view', 'auth-token');
     assert.equal(calls[0].url, 'https://atlas.example.com/files/id%2Fencoded/office/session');

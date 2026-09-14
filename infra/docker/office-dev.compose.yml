@@ -1,8 +1,8 @@
-# Docker Desktop: Atlas API and Vite run on the host via pnpm dev.
+# Docker Desktop: Runly API and Vite run on the host via pnpm dev.
 # Run from the repository root:
 # node scripts/start-office-dev.mjs
 # Partial project: manage only collabora-dev; never use down/--remove-orphans here.
-name: atlaserp
+name: runlyerp
 
 services:
   collabora-dev:

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 
 import { createGrowthDomain } from "../domains/growth.js";
-import { createAtlasClient } from "../index.js";
+import { createRunlyClient } from "../index.js";
 
 function makeFetch() {
   return mock.fn(async (url) => ({
@@ -45,7 +45,7 @@ describe("atlas SDK - growth domain", () => {
   it("sends the expected request shape for every method", async () => {
     const fetchMock = makeFetch();
     globalThis.fetch = fetchMock;
-    const client = createAtlasClient({ baseUrl: "http://api" });
+    const client = createRunlyClient({ baseUrl: "http://api" });
     const token = "tok";
 
     await client.growth.getLeadSummary(token, { from: "2026-06-01" });

@@ -166,7 +166,7 @@ const getAllActivePermissionKeys = createPermissionKeysCache({
 // actual TCP port. This export has no effect on normal `node src/index.js`
 // execution — the server still boots exactly as before, below.
 export const app = new Hono();
-const port = Number((process.env.RUNLY_API_PORT ?? process.env.ATLAS_API_PORT) ?? 4010);
+const port = Number(process.env.RUNLY_API_PORT ?? 4010);
 const contactsService = createContactsService({ prisma });
 
 const supabaseAdmin = createClient(
@@ -432,10 +432,8 @@ async function getOrLoadUserContext(c) {
 }
 
 // Resolves the single active company for THIS request from the
-// X-Runly-Company-Id header (X-Atlas-Company-Id accepted as a legacy
-// fallback for callers still on an older SDK/cached bundle), validated
-// against the caller's own memberships, and computes permissions scoped to
-// only that company. See
+// X-Runly-Company-Id header, validated against the caller's own
+// memberships, and computes permissions scoped to only that company. See
 // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
 //
 // strict=true (default): ambiguous multi-company requests with no header are
@@ -446,8 +444,7 @@ async function getOrLoadUserContext(c) {
 // /blueprints, /user/me) that must stay reachable before the frontend has
 // necessarily chosen a company yet.
 export async function resolveTenantContext(c, context, { strict = true } = {}) {
-  const requestedCompanyId =
-    c.req.header("X-Runly-Company-Id") || c.req.header("X-Atlas-Company-Id") || null;
+  const requestedCompanyId = c.req.header("X-Runly-Company-Id") || null;
   const result = resolveActiveMembership({
     memberships: context.memberships,
     requestedCompanyId,
@@ -994,18 +991,9 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Runly-Company",
-      "X-Runly-Company-Id",
-      "X-Runly-Site",
-      "X-Atlas-Company",
-      "X-Atlas-Company-Id",
-      "X-Atlas-Site",
-    ],
+    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Site"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Atlas-Company", "X-Atlas-Company-Id"],
+    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id"],
   }),
 );
 
@@ -1015,7 +1003,7 @@ await bundlerService.restoreModuleBundlesOnBoot();
 // indefinitely — desired for `node --watch src/index.js`, but it would
 // prevent the opt-in cross-tenant test suite (which imports this module,
 // see ATLAS_API_TEST_MODE above) from ever exiting after its tests finish.
-if ((process.env.RUNLY_API_TEST_MODE ?? process.env.ATLAS_API_TEST_MODE) !== "1") {
+if (process.env.RUNLY_API_TEST_MODE !== "1") {
   bundlerService.startDevWatcher();
 }
 
@@ -3744,7 +3732,7 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/site/*",                         auth: "none",       description: "Serve the compiled static website" },
     ],
     auth: {
-      storefront: "Bearer <token> obtained from /public/storefront/auth/login, plus header X-Runly-Company: <company-slug> (X-Atlas-Company also accepted)",
+      storefront: "Bearer <token> obtained from /public/storefront/auth/login, plus header X-Runly-Company: <company-slug>",
     },
   });
 });
@@ -5131,7 +5119,7 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
   const secret = c.req.header("x-internal-secret");
   if (
     process.env.NODE_ENV === "production" &&
-    secret !== (process.env.RUNLY_INTERNAL_SECRET ?? process.env.ATLAS_INTERNAL_SECRET)
+    secret !== process.env.RUNLY_INTERNAL_SECRET
   ) {
     return c.json({ error: "Unauthorized" }, 401);
   }
@@ -5171,7 +5159,7 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
 // module for app.request(...) and must never also bind the real port —
 // nothing else in the codebase sets this variable, and it defaults to
 // starting the server exactly as before.
-if ((process.env.RUNLY_API_TEST_MODE ?? process.env.ATLAS_API_TEST_MODE) !== "1") {
+if (process.env.RUNLY_API_TEST_MODE !== "1") {
   const server = serve({ fetch: app.fetch, port });
   console.log(`Runly API running on http://localhost:${port}`);
 

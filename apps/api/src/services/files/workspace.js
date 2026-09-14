@@ -50,7 +50,7 @@ export function createFilesWorkspace({
   }
   function shareUrl(fileId) {
     try {
-      const base = new URL((env.RUNLY_OFFICE_HOST_ORIGIN ?? env.ATLAS_OFFICE_HOST_ORIGIN) || (env.RUNLY_APP_URL ?? env.ATLAS_APP_URL));
+      const base = new URL(env.RUNLY_OFFICE_HOST_ORIGIN || env.RUNLY_APP_URL);
       if (
         !["http:", "https:"].includes(base.protocol) ||
         base.username ||

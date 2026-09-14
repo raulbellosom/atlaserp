@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 
 import { createWebsiteDomain } from "../domains/website.js";
-import { createAtlasClient } from "../index.js";
+import { createRunlyClient } from "../index.js";
 
 function makeFetch() {
   return mock.fn(async (url) => ({
@@ -31,7 +31,7 @@ describe("atlas SDK - website domain extraction", () => {
   it("keeps request paths, methods, auth, and multipart upload", async () => {
     const fetchMock = makeFetch();
     globalThis.fetch = fetchMock;
-    const client = createAtlasClient({ baseUrl: "http://api" });
+    const client = createRunlyClient({ baseUrl: "http://api" });
 
     await client.website.getSite("site/1", "tok");
     await client.website.updateSite("site/1", { name: "Sitio" }, "tok");

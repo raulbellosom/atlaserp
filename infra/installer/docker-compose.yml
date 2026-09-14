@@ -19,16 +19,14 @@ services:
         max-file: "3"
 
   runly-api-external:
-    image: ${RUNLY_API_IMAGE-${ATLAS_API_IMAGE:-raulbellosom/runlyerp:api-latest}}
+    image: ${RUNLY_API_IMAGE:-raulbellosom/runlyerp:api-latest}
     container_name: runly-api-external
     profiles: ["external"]
     env_file:
       - ./.env.external
     environment:
       RUNLY_PROJECT_ROOT: /app
-      ATLAS_PROJECT_ROOT: /app
       RUNLY_MODULES_DIR: /app/modules/custom
-      ATLAS_MODULES_DIR: /app/modules/custom
     ports:
       - "4010:4010"
     volumes:
@@ -41,26 +39,24 @@ services:
     restart: unless-stopped
 
   runly-worker-external:
-    image: ${RUNLY_WORKER_IMAGE-${ATLAS_WORKER_IMAGE:-raulbellosom/runlyerp:worker-latest}}
+    image: ${RUNLY_WORKER_IMAGE:-raulbellosom/runlyerp:worker-latest}
     container_name: runly-worker-external
     profiles: ["external"]
     env_file:
       - ./.env.external
     environment:
       RUNLY_PROJECT_ROOT: /app
-      ATLAS_PROJECT_ROOT: /app
     volumes:
       - ./custom-modules:/app/modules/custom
       - ./.secrets/firebase:/run/secrets/firebase:ro
     restart: unless-stopped
 
   runly-web-external:
-    image: ${RUNLY_WEB_EXTERNAL_IMAGE-${ATLAS_WEB_EXTERNAL_IMAGE:-raulbellosom/runlyerp:web-latest}}
+    image: ${RUNLY_WEB_EXTERNAL_IMAGE:-raulbellosom/runlyerp:web-latest}
     container_name: runly-web-external
     profiles: ["external"]
     environment:
-      RUNLY_API_URL: ${RUNLY_API_URL-${ATLAS_API_URL:-}}
-      ATLAS_API_URL: ${RUNLY_API_URL-${ATLAS_API_URL:-}}
+      RUNLY_API_URL: ${RUNLY_API_URL:-}
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     ports:
@@ -70,16 +66,14 @@ services:
     restart: unless-stopped
 
   runly-api-local:
-    image: ${RUNLY_API_LOCAL_IMAGE-${ATLAS_API_LOCAL_IMAGE:-raulbellosom/runlyerp:api-latest}}
+    image: ${RUNLY_API_LOCAL_IMAGE:-raulbellosom/runlyerp:api-latest}
     container_name: runly-api-local
     profiles: ["local"]
     env_file:
       - ./.env.local
     environment:
       RUNLY_PROJECT_ROOT: /app
-      ATLAS_PROJECT_ROOT: /app
       RUNLY_MODULES_DIR: /app/modules/custom
-      ATLAS_MODULES_DIR: /app/modules/custom
     ports:
       - "4010:4010"
     volumes:
@@ -92,26 +86,24 @@ services:
     restart: unless-stopped
 
   runly-worker-local:
-    image: ${RUNLY_WORKER_LOCAL_IMAGE-${ATLAS_WORKER_LOCAL_IMAGE:-raulbellosom/runlyerp:worker-latest}}
+    image: ${RUNLY_WORKER_LOCAL_IMAGE:-raulbellosom/runlyerp:worker-latest}
     container_name: runly-worker-local
     profiles: ["local"]
     env_file:
       - ./.env.local
     environment:
       RUNLY_PROJECT_ROOT: /app
-      ATLAS_PROJECT_ROOT: /app
     volumes:
       - ./custom-modules:/app/modules/custom
       - ./.secrets/firebase:/run/secrets/firebase:ro
     restart: unless-stopped
 
   runly-web-local:
-    image: ${RUNLY_WEB_LOCAL_IMAGE-${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/runlyerp:web-latest}}
+    image: ${RUNLY_WEB_LOCAL_IMAGE:-raulbellosom/runlyerp:web-latest}
     container_name: runly-web-local
     profiles: ["local"]
     environment:
-      RUNLY_API_URL: ${RUNLY_API_URL-${ATLAS_API_URL:-http://localhost:4010}}
-      ATLAS_API_URL: ${RUNLY_API_URL-${ATLAS_API_URL:-http://localhost:4010}}
+      RUNLY_API_URL: ${RUNLY_API_URL:-http://localhost:4010}
       SUPABASE_URL: ${SUPABASE_URL:-}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
     ports:

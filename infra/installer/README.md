@@ -485,17 +485,17 @@ Configura el DNS y proxy HTTPS/WebSocket de Office, y edita estas variables en
 `.env.external` (sustituye los dominios por los reales):
 
 ```dotenv
-ATLAS_OFFICE_ENABLED=true
+RUNLY_OFFICE_ENABLED=true
 COLLABORA_PUBLIC_URL=https://office.tudominio.com
-ATLAS_OFFICE_HOST_ORIGIN=https://erp.tudominio.com
+RUNLY_OFFICE_HOST_ORIGIN=https://erp.tudominio.com
 COLLABORA_INTERNAL_URL=http://collabora:9980
-ATLAS_WOPI_URL=http://api:4010
+RUNLY_WOPI_URL=http://api:4010
 ```
 
 Ejecuta `npm run runly:external`. La primera vez descarga la imagen fijada
 `collabora/code:26.04.2.4.1`, crea el servicio `collabora` y genera/persiste la clave
 WOPI. Requiere las nuevas imagenes de API y web y la migracion Office; no uses
-`atlas:external:quick` para esta primera activacion. El instalador no crea el DNS
+`runly:external:quick` para esta primera activacion. El instalador no crea el DNS
 ni configura el proxy/certificado de Office. El puerto 9980 escucha en loopback
 para el proxy del host. Office no depende de LiveKit.
 

@@ -4,9 +4,7 @@ import { createDocumentsDomain } from "./domains/documents.js";
 import { createChatDomain } from "./domains/chat.js";
 import { createCallsDomain } from "./domains/calls.js";
 
-export { createAtlasClient as createRunlyClient };
-
-export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
+export function createRunlyClient({ baseUrl, getActiveCompanyId } = {}) {
   let _offlineTransport = null;
 
   function withAuthHeaders(token, headers = {}) {
@@ -2449,3 +2447,8 @@ export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
     },
   };
 }
+
+// Kept for the @atlas/* package-scope compatibility system (vite.config.js):
+// a custom AME3 module authored against the old @atlas/sdk import must still
+// find this exact export.
+export { createRunlyClient as createAtlasClient };

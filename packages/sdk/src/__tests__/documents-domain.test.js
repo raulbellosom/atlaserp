@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 
-import { createAtlasClient } from "../index.js";
+import { createRunlyClient } from "../index.js";
 
 function makeFetch() {
   return mock.fn(async (url) => ({
@@ -16,7 +16,7 @@ function makeFetch() {
 test("documents domain sends template, version, preview, and generation requests", async () => {
   const fetchMock = makeFetch();
   globalThis.fetch = fetchMock;
-  const client = createAtlasClient({ baseUrl: "http://api" });
+  const client = createRunlyClient({ baseUrl: "http://api" });
   const token = "tok";
 
   await client.documents.listTemplates(token, { sourceType: "growth.lead" });

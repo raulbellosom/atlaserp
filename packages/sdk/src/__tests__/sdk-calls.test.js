@@ -1,6 +1,6 @@
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createAtlasClient } from "../index.js";
+import { createRunlyClient } from "../index.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -18,7 +18,7 @@ describe("Atlas SDK calls domain", () => {
         headers: { "Content-Type": "application/json" },
       });
     };
-    const client = createAtlasClient({ baseUrl: "http://api" });
+    const client = createRunlyClient({ baseUrl: "http://api" });
     await client.calls.create({
       conversationId: "11111111-1111-4111-8111-111111111111",
       calendarEventId: "22222222-2222-4222-8222-222222222222",
@@ -40,7 +40,7 @@ describe("Atlas SDK calls domain", () => {
         headers: { "Content-Type": "application/json" },
       });
     };
-    const client = createAtlasClient({ baseUrl: "http://api" });
+    const client = createRunlyClient({ baseUrl: "http://api" });
     await client.calls.getCurrent("token");
     await client.calls.get("call id", "token");
     await client.calls.join("call id", "token");

@@ -1,10 +1,10 @@
 import { OfficeError } from './errors.js';
 
 export function readOfficeConfig(env = process.env) {
-  if ((env.RUNLY_OFFICE_ENABLED ?? env.ATLAS_OFFICE_ENABLED) !== 'true') return { enabled: false };
+  if (env.RUNLY_OFFICE_ENABLED !== 'true') return { enabled: false };
   const url = (key) => {
     try {
-      const value = new URL(env[key.replace(/^ATLAS_/, 'RUNLY_')] ?? env[key]);
+      const value = new URL(env[key]);
       if (!['http:', 'https:'].includes(value.protocol) || value.username || value.password || value.search || value.hash || value.pathname !== '/') throw new Error();
       return value.origin;
     } catch { throw new OfficeError(`Configuración Office inválida: ${key}.`, 503, 'office_configuration'); }
@@ -13,13 +13,13 @@ export function readOfficeConfig(env = process.env) {
     enabled: true,
     internalUrl: url('COLLABORA_INTERNAL_URL'),
     publicUrl: url('COLLABORA_PUBLIC_URL'),
-    wopiUrl: url('ATLAS_WOPI_URL'),
-    hostOrigin: url('ATLAS_OFFICE_HOST_ORIGIN'),
-    secret: (env.RUNLY_WOPI_SECRET ?? env.ATLAS_WOPI_SECRET),
-    tokenSeconds: Number((env.RUNLY_WOPI_TOKEN_SECONDS ?? env.ATLAS_WOPI_TOKEN_SECONDS) || 28800),
+    wopiUrl: url('RUNLY_WOPI_URL'),
+    hostOrigin: url('RUNLY_OFFICE_HOST_ORIGIN'),
+    secret: env.RUNLY_WOPI_SECRET,
+    tokenSeconds: Number(env.RUNLY_WOPI_TOKEN_SECONDS || 28800),
     maxBytes: 10 * 1024 * 1024,
   };
-  const additionalOrigins = ((env.RUNLY_OFFICE_ADDITIONAL_ORIGINS ?? env.ATLAS_OFFICE_ADDITIONAL_ORIGINS) ?? 'http://tauri.localhost,https://tauri.localhost,tauri://localhost').split(',').map(s => s.trim()).filter(Boolean);
+  const additionalOrigins = (env.RUNLY_OFFICE_ADDITIONAL_ORIGINS ?? 'http://tauri.localhost,https://tauri.localhost,tauri://localhost').split(',').map(s => s.trim()).filter(Boolean);
   config.hostOrigins = [config.hostOrigin, ...additionalOrigins];
   for (const origin of additionalOrigins) {
     if (['http://tauri.localhost', 'https://tauri.localhost', 'tauri://localhost'].includes(origin)) continue;

@@ -37,10 +37,10 @@ test('loadModuleMigrations fails fast when manifest checksum does not match SQL 
   await fs.rm(tempRoot, { recursive: true, force: true })
 })
 
-test('discoverModules reads custom modules from ATLAS_MODULES_DIR when provided', async () => {
+test('discoverModules reads custom modules from RUNLY_MODULES_DIR when provided', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-discovery-project-'))
   const externalCustomRoot = path.join(projectRoot, 'custom-modules')
-  const previousModulesDir = process.env.ATLAS_MODULES_DIR
+  const previousModulesDir = process.env.RUNLY_MODULES_DIR
 
   await fs.writeFile(path.join(projectRoot, 'pnpm-workspace.yaml'), 'packages:\n  - "apps/*"\n', 'utf8')
   await fs.writeFile(path.join(projectRoot, 'package.json'), '{"name":"tmp","type":"module"}', 'utf8')
@@ -101,18 +101,18 @@ test('discoverModules reads custom modules from ATLAS_MODULES_DIR when provided'
     'utf8'
   )
 
-  process.env.ATLAS_MODULES_DIR = externalCustomRoot
+  process.env.RUNLY_MODULES_DIR = externalCustomRoot
   const records = await discoverModules({ rootDir: projectRoot })
   const record = records.find((entry) => entry.key === 'custom.externaldemo')
 
-  assert.ok(record, 'custom.externaldemo should be discovered from ATLAS_MODULES_DIR')
+  assert.ok(record, 'custom.externaldemo should be discovered from RUNLY_MODULES_DIR')
   assert.equal(record?.status, 'VALID')
   assert.equal(record?.source, 'custom')
 
   if (typeof previousModulesDir === 'string') {
-    process.env.ATLAS_MODULES_DIR = previousModulesDir
+    process.env.RUNLY_MODULES_DIR = previousModulesDir
   } else {
-    delete process.env.ATLAS_MODULES_DIR
+    delete process.env.RUNLY_MODULES_DIR
   }
   await fs.rm(projectRoot, { recursive: true, force: true })
 })

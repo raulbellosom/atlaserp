@@ -7,7 +7,7 @@ function readEnv(name) {
 }
 
 export function getConfiguredTimeZone() {
-  return (readEnv('RUNLY_TIME_ZONE') ?? readEnv('ATLAS_TIME_ZONE')) || readEnv('TZ') || DEFAULT_TIME_ZONE
+  return readEnv('RUNLY_TIME_ZONE') || readEnv('TZ') || DEFAULT_TIME_ZONE
 }
 
 export function formatLocalDateTime(value = new Date(), options = {}) {
@@ -27,7 +27,7 @@ export function formatLocalDateTime(value = new Date(), options = {}) {
   }).format(date)
 }
 
-// Node -> the configured zone (ATLAS_TIME_ZONE || TZ || 'UTC'); browser -> the
+// Node -> the configured zone (RUNLY_TIME_ZONE || TZ || 'UTC'); browser -> the
 // runtime's own zone. `toISOString()` is always UTC and must never be used to
 // derive a local calendar date/month.
 function runtimeTimeZone() {

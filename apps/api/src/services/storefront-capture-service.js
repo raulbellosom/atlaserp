@@ -104,7 +104,7 @@ export function createStorefrontCaptureService({
 
     // Also allow submissions from the ERP host itself — the ERP serves
     // the storefront site at ATLAS_APP_URL, so its origin is always trusted.
-    const erpOrigin = parseDomainOrigin((process.env.RUNLY_APP_URL ?? process.env.ATLAS_APP_URL));
+    const erpOrigin = parseDomainOrigin(process.env.RUNLY_APP_URL);
     if (erpOrigin && erpOrigin === requestOrigin) return;
 
     throw new StorefrontCaptureError(

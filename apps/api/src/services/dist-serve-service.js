@@ -380,7 +380,7 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     // RUNLY_APP_URL is the ERP instance's root URL (e.g. https://app.example.com).
     // The storefront SDK uses it as baseUrl for /public/storefront/* requests.
     // site.domain is the storefront's public domain — it is NOT the ERP API.
-    const erpApiUrl = ((process.env.RUNLY_APP_URL ?? process.env.ATLAS_APP_URL) ?? '').replace(/\/$/, '') || siteOrigin
+    const erpApiUrl = (process.env.RUNLY_APP_URL ?? '').replace(/\/$/, '') || siteOrigin
     const withConfig = injectRunlyConfig(rewritten, {
       supabaseUrl:          process.env.SUPABASE_URL    ?? '',
       supabaseAnonKey:      process.env.SUPABASE_ANON_KEY ?? '',

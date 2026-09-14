@@ -8,25 +8,20 @@ import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
-test('Vite build-time API configuration accepts both spellings and prefers Runly', async () => {
+test('Vite build-time API configuration reads VITE_RUNLY_API_URL', async () => {
   const requireApi = createRequire(new URL('../../apps/api/package.json', import.meta.url));
   const { transform } = requireApi('esbuild');
   const source = await fs.readFile('apps/desktop/src/lib/runtimeConfig.js', 'utf8');
-  for (const [env, expected] of [
-    [{ VITE_ATLAS_API_URL: 'https://legacy.example' }, 'https://legacy.example'],
-    [{ VITE_RUNLY_API_URL: 'https://runly.example', VITE_ATLAS_API_URL: 'https://legacy.example' }, 'https://runly.example'],
-  ]) {
-    const { code } = await transform(source, { format: 'esm', define: { 'import.meta.env': JSON.stringify(env) } });
-    const mod = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-    assert.equal(mod.getConfiguredApiUrl(), expected);
-  }
+  const { code } = await transform(source, { format: 'esm', define: { 'import.meta.env': JSON.stringify({ VITE_RUNLY_API_URL: 'https://runly.example' }) } });
+  const mod = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+  assert.equal(mod.getConfiguredApiUrl(), 'https://runly.example');
 });
 
 function cleanEnvironment() {
-  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(RUNLY_|ATLAS_|VITE_|COMPOSE_|SUPABASE_|COLLABORA_)/.test(key)));
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(RUNLY_|VITE_|COMPOSE_|SUPABASE_|COLLABORA_)/.test(key)));
 }
 
-test('Compose resolves Runly/Atlas image overrides and preserves service identities', async t => {
+test('Compose resolves RUNLY_ image overrides and uses runlyerp service identities', async t => {
   if (spawnSync('docker', ['compose', 'version']).status !== 0) return t.skip('Docker Compose unavailable');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'runly-compose-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
@@ -35,34 +30,31 @@ test('Compose resolves Runly/Atlas image overrides and preserves service identit
   for (const name of ['.env', '.env.local', '.env.external']) await fs.writeFile(path.join(dir, name), '');
   for (const [overrides, expected] of [
     [{}, 'raulbellosom/runlyerp:api-latest'],
-    [{ ATLAS_API_IMAGE: 'fixture/legacy:api' }, 'fixture/legacy:api'],
-    [{ RUNLY_API_IMAGE: 'fixture/current:api', ATLAS_API_IMAGE: 'fixture/legacy:api' }, 'fixture/current:api'],
+    [{ RUNLY_API_IMAGE: 'fixture/current:api' }, 'fixture/current:api'],
   ]) {
     const result = spawnSync('docker', ['compose', '--env-file', path.join(dir, '.env'), '-f', compose, '--profile', 'local', '--profile', 'external', 'config', '--format', 'json'], {
-      env: { ...cleanEnvironment(), ...overrides, RUNLY_API_URL: 'https://api.runly.example', ATLAS_API_URL: 'https://legacy.example' }, encoding: 'utf8',
+      env: { ...cleanEnvironment(), ...overrides, RUNLY_API_URL: 'https://api.runly.example' }, encoding: 'utf8',
     });
     assert.equal(result.status, 0, result.stderr);
     const config = JSON.parse(result.stdout);
-    assert.equal(config.name, 'atlaserp');
-    assert.equal(config.services['atlas-api-external'].image, expected);
-    assert.equal(config.services['atlas-api-local'].container_name, 'atlas-api-local');
+    assert.equal(config.name, 'runlyerp');
+    assert.equal(config.services['runly-api-external'].image, expected);
+    assert.equal(config.services['runly-api-local'].container_name, 'runly-api-local');
     for (const profile of ['local', 'external']) {
-      const web = config.services[`atlas-web-${profile}`].environment;
+      const web = config.services[`runly-web-${profile}`].environment;
       assert.equal(web.RUNLY_API_URL, 'https://api.runly.example');
-      assert.equal(web.ATLAS_API_URL, web.RUNLY_API_URL);
     }
   }
 });
 
-test('web entrypoint emits the same allowlisted runtime object for both globals', async t => {
+test('web entrypoint emits RUNLY_API_URL on the runtime config global', async t => {
   const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash';
   if (process.platform === 'win32' && !existsSync(bash)) return t.skip('Git Bash unavailable');
   const source = await fs.readFile('infra/nginx/web-entrypoint.sh', 'utf8');
   const body = source.match(/<<EOF\r?\n([\s\S]*?)\r?\nEOF/)[1];
   for (const [overrides, expected] of [
-    [{ ATLAS_API_URL: 'https://legacy.example' }, 'https://legacy.example'],
-    [{ RUNLY_API_URL: 'https://runly.example', ATLAS_API_URL: 'https://legacy.example' }, 'https://runly.example'],
-    [{ RUNLY_API_URL: '', ATLAS_API_URL: 'https://legacy.example' }, ''],
+    [{ RUNLY_API_URL: 'https://runly.example' }, 'https://runly.example'],
+    [{ RUNLY_API_URL: '' }, ''],
   ]) {
     const result = spawnSync(bash, ['-c', `cat <<EOF\n${body}\nEOF`], {
       env: { ...cleanEnvironment(), ...overrides, SUPABASE_SERVICE_ROLE_KEY: 'fixture-private-key', RUNLY_INTERNAL_SECRET: 'fixture-server-secret' }, encoding: 'utf8',
@@ -71,12 +63,11 @@ test('web entrypoint emits the same allowlisted runtime object for both globals'
     assert.doesNotMatch(result.stdout, /fixture-private-key|fixture-server-secret/);
     const sandbox = { window: {} };
     vm.runInNewContext(result.stdout, sandbox);
-    assert.equal(sandbox.window.__RUNLY_RUNTIME_CONFIG__, sandbox.window.__ATLAS_RUNTIME_CONFIG__);
     assert.equal(sandbox.window.__RUNLY_RUNTIME_CONFIG__.RUNLY_API_URL, expected);
   }
 });
 
-test('bootstrap entrypoints distribute the new installer dependency', async () => {
+test('bootstrap entrypoints distribute the installer env-compat dependency', async () => {
   for (const mode of ['local', 'external']) {
     for (const extension of ['ps1', 'sh']) {
       const source = await fs.readFile(`infra/installer/bootstrap-${mode}.${extension}`, 'utf8');

@@ -14,9 +14,9 @@ describe("escapeHtml", () => {
 });
 
 describe("resolveAppBaseUrl", () => {
-  it("honours PUBLIC_APP_URL first, then APP_URL / ATLAS_APP_URL / WEB_APP_URL", () => {
+  it("honours PUBLIC_APP_URL first, then APP_URL / RUNLY_APP_URL / WEB_APP_URL", () => {
     assert.equal(resolveAppBaseUrl({ PUBLIC_APP_URL: "https://a.test/" }), "https://a.test");
-    assert.equal(resolveAppBaseUrl({ ATLAS_APP_URL: "https://b.test" }), "https://b.test");
+    assert.equal(resolveAppBaseUrl({ RUNLY_APP_URL: "https://b.test" }), "https://b.test");
     assert.equal(resolveAppBaseUrl({ WEB_APP_URL: "https://c.test/app" }), "https://c.test");
   });
   it("rejects non-http junk and falls back only outside production", () => {

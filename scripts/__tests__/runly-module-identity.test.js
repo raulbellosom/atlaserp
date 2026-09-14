@@ -6,7 +6,7 @@ import { ModuleRegistry as EngineRegistry } from '@runly/module-engine';
 import { coreModules } from '../../apps/api/src/manifests/official/core-modules.js';
 
 test('alias catalog covers exactly the official manifest keys', () => {
-  assert.deepEqual(OFFICIAL_MODULE_KEY_PAIRS.map(pair => pair.legacy).sort(), coreModules.map(module => module.key).sort());
+  assert.deepEqual(OFFICIAL_MODULE_KEY_PAIRS.map(pair => pair.current).sort(), coreModules.map(module => module.key).sort());
   for (const pair of OFFICIAL_MODULE_KEY_PAIRS) assert.deepEqual(getModuleKeyAliases(pair.current), [pair.current, pair.legacy]);
   for (const key of ['custom.fleet', 'atlas.unknown', 'runly.unknown', 'runly.core.extra', 'runly.core:Table', ' runly.core']) assert.deepEqual(getModuleKeyAliases(key), [key]);
 });

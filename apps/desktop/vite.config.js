@@ -35,9 +35,9 @@ const MODULE_EXTERNALS_IMPORTMAP = {
 // is unreliable for CommonJS packages such as Sonner: Vite can expose only a
 // default export there, so named imports like `toast` fail before register()
 // gets a chance to populate the module component registry.
-function atlasDevImportmapPlugin() {
+function runlyDevImportmapPlugin() {
   return {
-    name: "atlas-module-externals-importmap-dev",
+    name: "runly-module-externals-importmap-dev",
     apply: "serve",
     transformIndexHtml: {
       order: "pre",
@@ -66,10 +66,10 @@ function atlasDevImportmapPlugin() {
 // Build-mode: inject importmap that resolves bare specifiers to the shim JS files
 // baked into the production build at shims/ext-*.js (non-hashed paths for
 // predictable importmap entries).
-function atlasBuildImportmapPlugin() {
+function runlyBuildImportmapPlugin() {
   let resolvedBasePath = "";
   return {
-    name: "atlas-module-externals-importmap-build",
+    name: "runly-module-externals-importmap-build",
     apply: "build",
     configResolved(config) {
       resolvedBasePath = (config.base ?? "/").replace(/\/$/, "");
@@ -107,16 +107,16 @@ export default defineConfig({
     nativeHostHeaders(),
     tailwindcss(),
     react(),
-    atlasDevImportmapPlugin(),
-    atlasBuildImportmapPlugin(),
+    runlyDevImportmapPlugin(),
+    runlyBuildImportmapPlugin(),
     {
       // Async proxy for browser page navigations in dev.
       // Proxies text/html GET requests (non-ERP, non-Vite) to the API dist-serve.
       // Falls back to Vite's own SPA handler (index.html) when the API returns
       // non-200 HTML — this keeps builder mode and no-website state working.
-      name: 'atlas-dist-proxy',
+      name: 'runly-dist-proxy',
       configureServer(server) {
-        const apiTarget = (process.env.VITE_RUNLY_API_URL ?? process.env.VITE_ATLAS_API_URL) ?? 'http://127.0.0.1:4010'
+        const apiTarget = process.env.VITE_RUNLY_API_URL ?? 'http://127.0.0.1:4010'
         const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
         server.middlewares.use(async (req, res, next) => {
           if (req.method !== 'GET') return next()
@@ -260,7 +260,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: (function () {
-      const apiTarget = (process.env.VITE_RUNLY_API_URL ?? process.env.VITE_ATLAS_API_URL) ?? "http://127.0.0.1:4010";
+      const apiTarget = process.env.VITE_RUNLY_API_URL ?? "http://127.0.0.1:4010";
 
       function suppressStartup(proxy, label) {
         proxy.on("error", (err, _req, res) => {
@@ -292,7 +292,7 @@ export default defineConfig({
         },
 
         // Note: browser page navigation fallback (source_type=dist) is handled by
-        // the 'atlas-dist-proxy' plugin below, not a proxy rule. The plugin is async
+        // the 'runly-dist-proxy' plugin below, not a proxy rule. The plugin is async
         // and can fall back to Vite's SPA handler when the API returns non-2xx
         // (builder mode, no-website, etc.). A synchronous proxy rule can't do this.
       };

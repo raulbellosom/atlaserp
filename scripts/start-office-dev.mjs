@@ -13,7 +13,7 @@ export function startOfficeDev({ values, run = spawnSync } = {}) {
     const envPath = path.join(repoRoot, '.env');
     values = withRunlyEnvAliases(fs.existsSync(envPath) ? dotenv.parse(fs.readFileSync(envPath)) : {}, process.env);
   }
-  if ((values.RUNLY_OFFICE_ENABLED ?? values.ATLAS_OFFICE_ENABLED) !== 'true') return { status: 'disabled' };
+  if (values.RUNLY_OFFICE_ENABLED !== 'true') return { status: 'disabled' };
   const office = resolveOfficeConfig(values);
   const internal = new URL(office.env.COLLABORA_INTERNAL_URL);
   if (!['localhost', '127.0.0.1', '[::1]'].includes(internal.hostname)) {
@@ -23,11 +23,11 @@ export function startOfficeDev({ values, run = spawnSync } = {}) {
     throw new Error('El editor Docker de desarrollo publica http://127.0.0.1:9980. Revisa COLLABORA_INTERNAL_URL.');
   }
   const result = run('docker', [
-    'compose', '-p', 'atlaserp', '-f', path.join(repoRoot, 'infra/docker/office-dev.compose.yml'),
+    'compose', '-p', 'runlyerp', '-f', path.join(repoRoot, 'infra/docker/office-dev.compose.yml'),
     'up', '-d', '--no-deps', 'collabora-dev',
   ], {
     cwd: repoRoot,
-    // The partial Compose file intentionally shares the existing Atlas project.
+    // The partial Compose file intentionally shares the existing Runly project.
     // Never prune/recreate other services, and never pass a WOPI signing key as config.
     env: { ...process.env, ...office.compose, COMPOSE_IGNORE_ORPHANS: 'true' },
     stdio: 'inherit',
@@ -39,9 +39,9 @@ export function startOfficeDev({ values, run = spawnSync } = {}) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const result = startOfficeDev();
-    if (result.status === 'started') console.log('[office] Editor local disponible en el grupo Docker atlaserp.');
+    if (result.status === 'started') console.log('[office] Editor local disponible en el grupo Docker runlyerp.');
   } catch (error) {
     // Office is optional: keep the regular API/web/worker development flow available.
-    console.warn(`[office] ${error.message} Atlas puede iniciar, pero la edición Office requiere resolver este aviso.`);
+    console.warn(`[office] ${error.message} Runly puede iniciar, pero la edición Office requiere resolver este aviso.`);
   }
 }

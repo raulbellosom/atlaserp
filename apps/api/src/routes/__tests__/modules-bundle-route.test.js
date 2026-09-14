@@ -29,9 +29,9 @@ async function copyDir(sourceDir, targetDir) {
 test('GET /modules/:key/bundle.js serves a built bundle for the installer-mode golden path fixture', async () => {
   const externalRoot = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-ame3-golden-'))
   const moduleDir = path.join(externalRoot, 'custom.goldenpath')
-  const previousModulesDir = process.env.ATLAS_MODULES_DIR
+  const previousModulesDir = process.env.RUNLY_MODULES_DIR
   await copyDir(FIXTURE_ROOT, moduleDir)
-  process.env.ATLAS_MODULES_DIR = externalRoot
+  process.env.RUNLY_MODULES_DIR = externalRoot
 
   const prisma = {
     runlyModule: {
@@ -82,9 +82,9 @@ test('GET /modules/:key/bundle.js serves a built bundle for the installer-mode g
   assert.match(bundleSource, /custom\.goldenpath:ModuleDashboard/)
 
   if (typeof previousModulesDir === 'string') {
-    process.env.ATLAS_MODULES_DIR = previousModulesDir
+    process.env.RUNLY_MODULES_DIR = previousModulesDir
   } else {
-    delete process.env.ATLAS_MODULES_DIR
+    delete process.env.RUNLY_MODULES_DIR
   }
   await fs.rm(externalRoot, { recursive: true, force: true })
   await fs.rm(BUNDLE_PATH, { force: true }).catch(() => {})

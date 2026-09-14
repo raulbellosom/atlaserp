@@ -11,14 +11,6 @@
     "runly:external:docs": "node ./setup-external.mjs --docs-only",
     "runly:external:quick": "node ./setup-external.mjs --skip-pull --skip-migrate --up-only",
     "runly:stop:local": "node ./stop-local.mjs",
-    "runly:stop:external": "node ./stop-external.mjs",
-    "atlas:local": "node ./setup-local.mjs",
-    "atlas:local:docs": "node ./setup-local.mjs --docs-only",
-    "atlas:local:quick": "node ./setup-local.mjs --skip-pull",
-    "atlas:external": "node ./setup-external.mjs",
-    "atlas:external:docs": "node ./setup-external.mjs --docs-only",
-    "atlas:external:quick": "node ./setup-external.mjs --skip-pull --skip-migrate --up-only",
-    "atlas:stop:local": "node ./stop-local.mjs",
-    "atlas:stop:external": "node ./stop-external.mjs"
+    "runly:stop:external": "node ./stop-external.mjs"
   }
 }

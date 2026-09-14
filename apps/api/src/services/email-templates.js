@@ -30,7 +30,7 @@ function normalizeBaseUrl(value) {
 
 // Public URL of the SPA (for join / open links).
 export function resolveAppBaseUrl(env = process.env) {
-  for (const candidate of [env.PUBLIC_APP_URL, env.APP_URL, (env.RUNLY_APP_URL ?? env.ATLAS_APP_URL), env.WEB_APP_URL]) {
+  for (const candidate of [env.PUBLIC_APP_URL, env.APP_URL, env.RUNLY_APP_URL, env.WEB_APP_URL]) {
     const normalized = normalizeBaseUrl(candidate);
     if (normalized) return normalized;
   }
@@ -39,7 +39,7 @@ export function resolveAppBaseUrl(env = process.env) {
 
 // Base URL of the API — only used to serve the brand logo asset.
 export function resolveApiBaseUrl(env = process.env) {
-  for (const candidate of [(env.RUNLY_API_URL ?? env.ATLAS_API_URL), env.API_URL, (env.VITE_RUNLY_API_URL ?? env.VITE_ATLAS_API_URL)]) {
+  for (const candidate of [env.RUNLY_API_URL, env.API_URL, env.VITE_RUNLY_API_URL]) {
     const normalized = normalizeBaseUrl(candidate);
     if (normalized) return normalized;
   }

@@ -1,12 +1,12 @@
 const _rc =
-  (typeof window !== 'undefined' ? window.__RUNLY_RUNTIME_CONFIG__ ?? window.__ATLAS_RUNTIME_CONFIG__ : null) ?? {}
+  (typeof window !== 'undefined' ? window.__RUNLY_RUNTIME_CONFIG__ : null) ?? {}
 const _viteEnv =
   typeof import.meta !== 'undefined' && import.meta?.env ? import.meta.env : {}
 
 export const runtimeConfig = _rc
 
 export function getConfiguredApiUrl() {
-  return (_rc.RUNLY_API_URL ?? _rc.ATLAS_API_URL) || (_viteEnv.VITE_RUNLY_API_URL ?? _viteEnv.VITE_ATLAS_API_URL) || ''
+  return _rc.RUNLY_API_URL || _viteEnv.VITE_RUNLY_API_URL || ''
 }
 
 function normalizeApiUrl(url) {

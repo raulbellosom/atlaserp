@@ -3,7 +3,7 @@ import { OFFICE_FORMATS } from '@runly/core';
 import { createOfficeService } from '../office/service.js';
 
 export const ids = { file: '01990000-0000-7000-8000-000000000001', profile: '01990000-0000-7000-8000-000000000002', company: '01990000-0000-7000-8000-000000000003', auth: '01990000-0000-7000-8000-000000000004', other: '01990000-0000-7000-8000-000000000005' };
-export const officeEnv = { ATLAS_OFFICE_ENABLED: 'true', ATLAS_WOPI_SECRET: 'unit-test-secret-which-is-at-least-32-bytes', COLLABORA_INTERNAL_URL: 'http://collabora:9980', COLLABORA_PUBLIC_URL: 'http://localhost:19980', ATLAS_WOPI_URL: 'http://host.docker.internal:19981', ATLAS_OFFICE_HOST_ORIGIN: 'http://localhost:19981' };
+export const officeEnv = { RUNLY_OFFICE_ENABLED: 'true', RUNLY_WOPI_SECRET: 'unit-test-secret-which-is-at-least-32-bytes', COLLABORA_INTERNAL_URL: 'http://collabora:9980', COLLABORA_PUBLIC_URL: 'http://localhost:19980', RUNLY_WOPI_URL: 'http://host.docker.internal:19981', RUNLY_OFFICE_HOST_ORIGIN: 'http://localhost:19981' };
 
 export async function officeBytes(extension = 'docx', value = 'Original') {
   const format = OFFICE_FORMATS[extension];

@@ -3,7 +3,7 @@ export function detectRuntime(scope = globalThis) {
   const win = scope.window ?? scope
   const available = typeof win.__TAURI_INTERNALS__?.invoke === 'function'
   if (available) {
-    const platform = (win.__RUNLY_NATIVE_HOST__ ?? win.__ATLAS_NATIVE_HOST__)?.platform
+    const platform = win.__RUNLY_NATIVE_HOST__?.platform
     const ua = win.navigator?.userAgent ?? ''
     if (platform === 'android' || /Android/i.test(ua)) return 'tauri-android'
     if (platform === 'ios' || /iPhone|iPad|iPod/i.test(ua)) return 'tauri-ios'

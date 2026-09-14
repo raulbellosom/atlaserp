@@ -21,7 +21,7 @@ async function createProjectRoot() {
   return projectRoot
 }
 
-test('resolveModuleRoots uses ATLAS_MODULES_DIR when provided', async () => {
+test('resolveModuleRoots uses RUNLY_MODULES_DIR when provided', async () => {
   const resolver = await importResolverModule()
   assert.ok(!resolver.__importError, resolver.__importError?.message ?? 'module-root-resolver.js must exist')
   assert.equal(typeof resolver.resolveModuleRoots, 'function', 'resolveModuleRoots must be exported')
@@ -33,7 +33,7 @@ test('resolveModuleRoots uses ATLAS_MODULES_DIR when provided', async () => {
     cwd: projectRoot,
     sourceDir: projectRoot,
     env: {
-      ATLAS_MODULES_DIR: customModulesDir,
+      RUNLY_MODULES_DIR: customModulesDir,
     },
   })
 
@@ -68,7 +68,7 @@ test('resolveModuleRoots falls back to <projectRoot>/modules/custom and exposes 
   assert.equal(roots.customModulesSource, 'project')
 
   const mapping = resolver.describeCustomModulesMapping(roots)
-  assert.match(mapping, /ATLAS_MODULES_DIR/)
+  assert.match(mapping, /RUNLY_MODULES_DIR/)
   assert.match(mapping, /custom-modules\//)
   assert.match(mapping, /modules\/custom/)
 

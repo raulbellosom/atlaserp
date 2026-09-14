@@ -8,7 +8,7 @@ CODE is the free **Development Edition**, intended for testing and small teams, 
 
 Apply the normal Atlas migrations and regenerate Prisma before running updated API code (`pnpm db:generate`; deployment runs `pnpm db:migrate`). The migration adds recovery revisions, leases and a database guard for lifecycle mutations. Do not apply a second AME3 table sync for these core tables.
 
-For the local installer, put `ATLAS_OFFICE_ENABLED=true` in `infra/installer/.env.local` or the process environment, then run `node infra/installer/setup-local.mjs`. It defaults to browser `http://localhost:9980`, browser host `http://localhost:5173`, internal CODE `http://collabora:9980` and WOPI `http://api:4010`.
+For the local installer, put `RUNLY_OFFICE_ENABLED=true` in `infra/installer/.env.local` or the process environment, then run `node infra/installer/setup-local.mjs`. It defaults to browser `http://localhost:9980`, browser host `http://localhost:5173`, internal CODE `http://collabora:9980` and WOPI `http://api:4010`.
 
 For external Supabase, edit `.env.external`, then run `node setup-external.mjs` from the installer directory. Both scripts enable `--profile office`, preserve the signing secret and networking settings across reruns, and stop the Office service when disabled. All four bootstrap scripts include the configuration helper. CODE failure does not prevent the API from starting. CODE's native healthcheck is retained; the current image is distroless, so don't replace it with a shell/curl command.
 
@@ -19,39 +19,39 @@ For manual Compose after configuration: `docker compose --profile local --profil
 When API/Vite run directly on Windows/macOS and only CODE runs in Docker, configure the repository-root `.env` as follows. These values differ from the VPS installer's `.env.external`:
 
 ```dotenv
-ATLAS_OFFICE_ENABLED=true
+RUNLY_OFFICE_ENABLED=true
 COLLABORA_INTERNAL_URL=http://127.0.0.1:9980
 COLLABORA_PUBLIC_URL=http://localhost:9980
-ATLAS_WOPI_URL=http://host.docker.internal:4010
-ATLAS_OFFICE_HOST_ORIGIN=http://localhost:5173
-ATLAS_OFFICE_ADDITIONAL_ORIGINS=http://tauri.localhost,https://tauri.localhost,tauri://localhost
-ATLAS_WOPI_SECRET=
-ATLAS_WOPI_TOKEN_SECONDS=28800
+RUNLY_WOPI_URL=http://host.docker.internal:4010
+RUNLY_OFFICE_HOST_ORIGIN=http://localhost:5173
+RUNLY_OFFICE_ADDITIONAL_ORIGINS=http://tauri.localhost,https://tauri.localhost,tauri://localhost
+RUNLY_WOPI_SECRET=
+RUNLY_WOPI_TOKEN_SECONDS=28800
 ```
 
-Generate a **separate development secret** with `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"` and place it in `ATLAS_WOPI_SECRET`; `pnpm dev` does not generate it automatically. Keep URLs as plain text, without Markdown link notation. Preserve the existing non-Office settings.
+Generate a **separate development secret** with `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"` and place it in `RUNLY_WOPI_SECRET`; `pnpm dev` does not generate it automatically. Keep URLs as plain text, without Markdown link notation. Preserve the existing non-Office settings.
 
-From the repository root, start/restart the API and frontend normally. `pnpm dev` and `pnpm dev:tauri` start the optional development editor first when `ATLAS_OFFICE_ENABLED=true` and the internal CODE URL points to localhost:
+From the repository root, start/restart the API and frontend normally. `pnpm dev` and `pnpm dev:tauri` start the optional development editor first when `RUNLY_OFFICE_ENABLED=true` and the internal CODE URL points to localhost:
 
 ```bash
 pnpm dev
 ```
 
-The helper `scripts/start-office-dev.mjs` reads the root `.env`, derives CODE's WOPI host/frame origins and targets only `collabora-dev` within the `atlaserp` Compose project. It reuses the existing service when unchanged and does not start a second Atlas API or an installer Supabase stack. If Docker is unavailable, it warns and lets API/web/worker start. Disabled Office or a non-loopback CODE URL does not start a local editor. The database used by your development API must already have the Office migration and the Prisma client must be generated; pointing the editor at localhost does not change which database/Storage the API uses.
+The helper `scripts/start-office-dev.mjs` reads the root `.env`, derives CODE's WOPI host/frame origins and targets only `collabora-dev` within the `runlyerp` Compose project. It reuses the existing service when unchanged and does not start a second Atlas API or an installer Supabase stack. If Docker is unavailable, it warns and lets API/web/worker start. Disabled Office or a non-loopback CODE URL does not start a local editor. The database used by your development API must already have the Office migration and the Prisma client must be generated; pointing the editor at localhost does not change which database/Storage the API uses.
 
-Docker Desktop displays the development editor alongside the other services under `atlaserp`. The old separate `atlas-office-dev` project was replaced by this shared grouping. The VPS installer also uses `atlaserp`, with service `collabora` under profile `office`. In both cases CODE is a separate container. The development Compose file is a partial view of the Atlas project: never use `down` or `--remove-orphans` with it, since other Atlas services share the project. Use service-targeted commands only.
+Docker Desktop displays the development editor alongside the other services under `runlyerp`. The old separate `atlas-office-dev` project was replaced by this shared grouping. The VPS installer also uses `runlyerp`, with service `collabora` under profile `office`. In both cases CODE is a separate container. The development Compose file is a partial view of the Atlas project: never use `down` or `--remove-orphans` with it, since other Atlas services share the project. Use service-targeted commands only.
 
-The host API reaches CODE through published port 9980. CODE reaches the host API through `host.docker.internal:4010`; the helper derives the allowed WOPI host from `ATLAS_WOPI_URL`. Open Atlas at `http://localhost:5173` to match the configured browser origin. No Nginx or certificate is needed for localhost. If the API's listening port or frontend origin changes, update the corresponding root `.env` values and rerun the helper; it derives the CODE settings. The development CODE port itself remains fixed at 9980. Native Linux Docker Engine needs an explicit `host.docker.internal:host-gateway` extra-host entry and an API listening on an interface reachable from Docker; this example targets Docker Desktop.
+The host API reaches CODE through published port 9980. CODE reaches the host API through `host.docker.internal:4010`; the helper derives the allowed WOPI host from `RUNLY_WOPI_URL`. Open Atlas at `http://localhost:5173` to match the configured browser origin. No Nginx or certificate is needed for localhost. If the API's listening port or frontend origin changes, update the corresponding root `.env` values and rerun the helper; it derives the CODE settings. The development CODE port itself remains fixed at 9980. Native Linux Docker Engine needs an explicit `host.docker.internal:host-gateway` extra-host entry and an API listening on an interface reachable from Docker; this example targets Docker Desktop.
 
-To start only the editor, run `node scripts/start-office-dev.mjs`. Check startup with `docker compose -p atlaserp -f infra/docker/office-dev.compose.yml ps collabora-dev` and `curl http://127.0.0.1:9980/hosting/discovery`. Discovery confirms CODE availability; editing and saving additionally require the running Atlas API, authentication and database migration. Stop only the development editor with `docker compose -p atlaserp -f infra/docker/office-dev.compose.yml stop collabora-dev`. Disabling Office in `.env` skips auto-start; it does not stop an already running container.
+To start only the editor, run `node scripts/start-office-dev.mjs`. Check startup with `docker compose -p runlyerp -f infra/docker/office-dev.compose.yml ps collabora-dev` and `curl http://127.0.0.1:9980/hosting/discovery`. Discovery confirms CODE availability; editing and saving additionally require the running Atlas API, authentication and database migration. Stop only the development editor with `docker compose -p runlyerp -f infra/docker/office-dev.compose.yml stop collabora-dev`. Disabling Office in `.env` skips auto-start; it does not stop an already running container.
 
-If API and CODE instead both run through the local **installer**, keep `COLLABORA_INTERNAL_URL=http://collabora:9980` and `ATLAS_WOPI_URL=http://api:4010` in the installer's `.env.local`; only its public browser URLs use localhost. Use that installer flow instead of starting the standalone development editor on the same port.
+If API and CODE instead both run through the local **installer**, keep `COLLABORA_INTERNAL_URL=http://collabora:9980` and `RUNLY_WOPI_URL=http://api:4010` in the installer's `.env.local`; only its public browser URLs use localhost. Use that installer flow instead of starting the standalone development editor on the same port.
 
 ## First deployment on an existing VPS
 
 For the confirmed `atlas.racoondevs.com` / `office.racoondevs.com` installation, see the [deployment-specific Spanish walkthrough](office-racoondevs.md), including the existing 4010/5173 port mappings and Nginx certificate setup.
 
-Office is disabled by default. An ordinary update does not enable it automatically. Once configured, `npm run atlas:external` creates/starts the optional editor along with Atlas. DNS and the Office HTTPS reverse proxy are configured separately; the installer does not provision either.
+Office is disabled by default. An ordinary update does not enable it automatically. Once configured, `npm run runly:external` creates/starts the optional editor along with Atlas. DNS and the Office HTTPS reverse proxy are configured separately; the installer does not provision either.
 
 1. Publish the repository changes, including the installer files, to the branch used by your bootstrap (the supplied bootstrap uses `main`). From your release checkout, publish the updated Atlas images with `pnpm docker:release`. This integration requires the new API, web and database migration; starting CODE alongside older Atlas images is insufficient. Publishing images and updating installer files are separate steps.
 2. On the VPS, enter the **existing installer directory** containing `.env.external` and `custom-modules/`. Back up your deployment configuration before refreshing the installer. Download and run the updated bootstrap:
@@ -61,19 +61,19 @@ Office is disabled by default. An ordinary update does not enable it automatical
    bash ./bootstrap-external.sh
    ```
 
-   The bootstrap refreshes Compose, setup scripts and their shared libraries. It preserves an existing `.env.external` and does not delete `custom-modules/`. It overwrites distributed installer files, so retain/reapply any local changes to those files. `npm run atlas:external` itself downloads images and the Dev Kit; it **does not update its own installer scripts or Compose files**.
+   The bootstrap refreshes Compose, setup scripts and their shared libraries. It preserves an existing `.env.external` and does not delete `custom-modules/`. It overwrites distributed installer files, so retain/reapply any local changes to those files. `npm run runly:external` itself downloads images and the Dev Kit; it **does not update its own installer scripts or Compose files**.
 3. Point a dedicated Office subdomain to the VPS and configure HTTPS/WebSockets using the reverse proxy example below. If a proxy already owns ports 80/443, integrate Office into that proxy. Host proxies use `http://127.0.0.1:9980`; a container proxy on the Atlas Docker network can use `http://collabora:9980` (its own localhost is not the VPS).
 4. Edit the following entries in `.env.external`, replacing both example domains with your real domains. Keep the existing database/authentication settings:
 
    ```dotenv
-   ATLAS_OFFICE_ENABLED=true
+   RUNLY_OFFICE_ENABLED=true
    COLLABORA_PUBLIC_URL=https://office.tudominio.com
-   ATLAS_OFFICE_HOST_ORIGIN=https://erp.tudominio.com
+   RUNLY_OFFICE_HOST_ORIGIN=https://erp.tudominio.com
    COLLABORA_INTERNAL_URL=http://collabora:9980
-   ATLAS_WOPI_URL=http://api:4010
+   RUNLY_WOPI_URL=http://api:4010
    ```
 
-   Leave `ATLAS_WOPI_SECRET` empty on first activation so the installer generates and saves it. Preserve it on subsequent deployments. The ERP origin must match the actual URL used in the browser.
+   Leave `RUNLY_WOPI_SECRET` empty on first activation so the installer generates and saves it. Preserve it on subsequent deployments. The ERP origin must match the actual URL used in the browser.
 
    For manual configuration without the installer, run this complete command in your terminal (Bash or PowerShell):
 
@@ -81,18 +81,18 @@ Office is disabled by default. An ordinary update does not enable it automatical
    node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
    ```
 
-   Copy its output into `ATLAS_WOPI_SECRET=` in the server environment file. The JavaScript expression alone is not a shell command. Generate the key once and preserve it; replacing an existing key invalidates active Office tokens. Additional origins are plain comma-separated text, without Markdown brackets or parentheses:
+   Copy its output into `RUNLY_WOPI_SECRET=` in the server environment file. The JavaScript expression alone is not a shell command. Generate the key once and preserve it; replacing an existing key invalidates active Office tokens. Additional origins are plain comma-separated text, without Markdown brackets or parentheses:
 
    ```dotenv
-   ATLAS_OFFICE_ADDITIONAL_ORIGINS=http://tauri.localhost,https://tauri.localhost,tauri://localhost
+   RUNLY_OFFICE_ADDITIONAL_ORIGINS=http://tauri.localhost,https://tauri.localhost,tauri://localhost
    ```
 5. Run the full update from that installer directory:
 
    ```bash
-   npm run atlas:external
+   npm run runly:external
    ```
 
-   The installer applies migrations, starts Atlas and starts CODE with the `office` profile. Docker downloads the pinned CODE image if it is missing. Do not use `atlas:external:quick`, `--skip-migrate` or `--up-only` for the first deployment of this feature.
+   The installer applies migrations, starts Atlas and starts CODE with the `office` profile. Docker downloads the pinned CODE image if it is missing. Do not use `runly:external:quick`, `--skip-migrate` or `--up-only` for the first deployment of this feature.
 6. Check the container and both discovery paths, then open a document in Atlas and verify a save/reopen:
 
    ```bash
@@ -105,33 +105,33 @@ Office is disabled by default. An ordinary update does not enable it automatical
 
 ## Updates and container lifecycle
 
-For later image updates, run `npm run atlas:external` in the same installer directory. When a release also changes the installer or Compose, refresh the bootstrap first as above. Keep the same Compose project name (`atlaserp` by default); changing `COMPOSE_PROJECT_NAME` or using a different `-p` creates a different project and can cause duplicate services or port/name conflicts.
+For later image updates, run `npm run runly:external` in the same installer directory. When a release also changes the installer or Compose, refresh the bootstrap first as above. Keep the same Compose project name (`runlyerp` by default); changing `COMPOSE_PROJECT_NAME` or using a different `-p` creates a different project and can cause duplicate services or port/name conflicts.
 
 - One shared `collabora` service handles documents and users. Atlas does not create a Docker container for each document, save, user or update. CODE manages its own document processes inside the service.
 - The installer starts CODE separately with `up -d collabora`, without forcing recreation. If its image and Compose configuration are unchanged, a running container is reused; a stopped one is started. Changes to its image/configuration replace the existing container. This follows [Docker Compose's update behavior](https://docs.docker.com/reference/cli/docker/compose/up/).
 - Atlas API, worker, web and enabled embedded Calls services retain the installer's existing forced-recreation behavior. They are replaced within the same project, rather than accumulating copies. This also reloads generated bind-mounted Calls configuration. Keeping CODE running does **not** make the whole deployment interruption-free: an API restart temporarily interrupts WOPI requests. Save and close documents before deploying, especially when changing CODE or database code.
 - Migration and seed commands use temporary `docker run --rm` containers, removed when each command exits. Docker images/cache are separate from containers; old images can still occupy disk. The current installer runs `docker image prune -f` after pulls and before startup, so an image still used by the old container at that point may remain until a later cleanup.
 - CODE's version is pinned in Compose. Atlas updates do not automatically advance it to a new CODE release. Review and update the pinned version deliberately, then refresh the installer on the VPS.
-- Setting `ATLAS_OFFICE_ENABLED=false` and rerunning setup stops the existing editor and disables new Office sessions. It does not delete documents. Re-enabling reuses the service where possible. Do not run `atlas:stop:external` or `--reset` as a routine update step.
+- Setting `RUNLY_OFFICE_ENABLED=false` and rerunning setup stops the existing editor and disables new Office sessions. It does not delete documents. Re-enabling reuses the service where possible. Do not run `runly:stop:external` or `--reset` as a routine update step.
 
 ## Variables and networking
 
-`ATLAS_OFFICE_HOST_ORIGIN` is the origin of the **Atlas frontend as opened in the user's browser**. It normally matches `ATLAS_APP_URL`, which Atlas uses for application links and other integrations. Office currently requires its own explicit value; it does not inherit `ATLAS_APP_URL`. An origin includes scheme, hostname and any non-default port, but no `/app` path. For local development both can be `http://localhost:5173`; for a VPS use the actual HTTPS Atlas domain, even when Nginx forwards it to port 5173 internally. `erp.example.com` is only a placeholder, not a required additional domain.
+`RUNLY_OFFICE_HOST_ORIGIN` is the origin of the **Atlas frontend as opened in the user's browser**. It normally matches `RUNLY_APP_URL`, which Atlas uses for application links and other integrations. Office currently requires its own explicit value; it does not inherit `RUNLY_APP_URL`. An origin includes scheme, hostname and any non-default port, but no `/app` path. For local development both can be `http://localhost:5173`; for a VPS use the actual HTTPS Atlas domain, even when Nginx forwards it to port 5173 internally. `erp.example.com` is only a placeholder, not a required additional domain.
 
 `COLLABORA_PUBLIC_URL` belongs to the separate Office domain. `ATLAS_API_URL` belongs to the public API (possibly an `/api` path on the Atlas domain) and is used by the installer's web image at runtime. `VITE_ATLAS_API_URL` is used by the development/build setup; it does not replace the installer's `ATLAS_API_URL`. `CORS_ORIGIN` must continue allowing the actual Atlas frontend origin.
 
-The repository-root `.env` and the VPS installer's `.env.external` are different files/flows. Root `.env` values such as localhost are valid for local development and do not establish the VPS's actual domain or port mapping. Configure Office in `.env.external` when deploying with `npm run atlas:external`; the installer generates its sibling `.env` for Compose interpolation.
+The repository-root `.env` and the VPS installer's `.env.external` are different files/flows. Root `.env` values such as localhost are valid for local development and do not establish the VPS's actual domain or port mapping. Configure Office in `.env.external` when deploying with `npm run runly:external`; the installer generates its sibling `.env` for Compose interpolation.
 
 | Variable | Purpose | Installer default |
 |---|---|---|
-| `ATLAS_OFFICE_ENABLED` | Enable sessions and optional CODE service | `false` |
+| `RUNLY_OFFICE_ENABLED` | Enable sessions and optional CODE service | `false` |
 | `COLLABORA_INTERNAL_URL` | API fetches `/hosting/discovery` here | `http://collabora:9980` |
 | `COLLABORA_PUBLIC_URL` | Browser iframe/WebSocket origin | `http://localhost:9980` |
-| `ATLAS_WOPI_URL` | CODE calls Atlas WOPI here; stable for all users | `http://api:4010` |
-| `ATLAS_OFFICE_HOST_ORIGIN` | Primary browser host origin for postMessage/frame ancestors | `http://localhost:5173` |
-| `ATLAS_OFFICE_ADDITIONAL_ORIGINS` | Comma-separated exact HTTPS/native embedding origins | `http://tauri.localhost,https://tauri.localhost,tauri://localhost` |
-| `ATLAS_WOPI_SECRET` | Dedicated server-only HMAC key, at least 32 bytes | Generated and preserved |
-| `ATLAS_WOPI_TOKEN_SECONDS` | WOPI capability lifetime, 300–28800 seconds | `28800` |
+| `RUNLY_WOPI_URL` | CODE calls Atlas WOPI here; stable for all users | `http://api:4010` |
+| `RUNLY_OFFICE_HOST_ORIGIN` | Primary browser host origin for postMessage/frame ancestors | `http://localhost:5173` |
+| `RUNLY_OFFICE_ADDITIONAL_ORIGINS` | Comma-separated exact HTTPS/native embedding origins | `http://tauri.localhost,https://tauri.localhost,tauri://localhost` |
+| `RUNLY_WOPI_SECRET` | Dedicated server-only HMAC key, at least 32 bytes | Generated and preserved |
+| `RUNLY_WOPI_TOKEN_SECONDS` | WOPI capability lifetime, 300–28800 seconds | `28800` |
 
 Origins cannot contain credentials, a path, query or fragment. Remote browser origins must use HTTPS; loopback HTTP is allowed for development. Do not substitute an internal Docker hostname into the browser URL. For development with the API outside Docker use the root `.env.example` values and configure CODE's allowed WOPI host as `http://host.docker.internal:4010`. On Linux the CODE service gets host-gateway through the installer override. Localhost in a phone means the phone: use real HTTPS domains for mobile/PWA acceptance.
 
@@ -148,7 +148,7 @@ ss -ltnp '( sport = :4010 )'
 
 `ATLAS_API_PORT` controls the API's listening port **inside its container**. The installer currently publishes the literal mapping `4010:4010` in Compose; changing the variable alone does not change that mapping. If another application requires host port 4010, retain internal `ATLAS_API_PORT=4010` and adjust the Atlas API service's published mapping to an available host port, for example `127.0.0.1:4011:4010` when Nginx runs on the host. Replace the existing mapping; do not add it alongside the conflicting one. This mapping is an example, not a claim that 4011 is available on your VPS. Preserve this customization when refreshing the installer.
 
-In that example, the host Nginx API upstream becomes `http://127.0.0.1:4011`, while `ATLAS_WOPI_URL=http://api:4010` remains correct because CODE and Atlas share the Docker network. If you instead change the API's internal listening port, update the target port and WOPI URL consistently. [Docker documents the distinction between host and container ports](https://docs.docker.com/compose/how-tos/networking/).
+In that example, the host Nginx API upstream becomes `http://127.0.0.1:4011`, while `RUNLY_WOPI_URL=http://api:4010` remains correct because CODE and Atlas share the Docker network. If you instead change the API's internal listening port, update the target port and WOPI URL consistently. [Docker documents the distinction between host and container ports](https://docs.docker.com/compose/how-tos/networking/).
 
 Office itself publishes `127.0.0.1:9980:9980`. The Office Nginx upstream is therefore `http://127.0.0.1:9980`, independent of the Atlas API's host port.
 
@@ -235,7 +235,7 @@ For a failure within one installation, compare the file ID, effective editor ori
 | Opens but does not save | Current update and parent permissions; WOPI PUT/lock headers; Storage writes; 10 MiB limit; audit error code |
 | Lock conflict | Another lease, expired lease, stale timestamp or competing save; do not overwrite the winner |
 | Phone layout/network fails | Public DNS/TLS instead of localhost; supported touch browser; actual WebView origin; safe-area height |
-| Tauri fails to embed | Actual WebView top-level origin is missing from `ATLAS_OFFICE_ADDITIONAL_ORIGINS`; validate separately |
+| Tauri fails to embed | Actual WebView top-level origin is missing from `RUNLY_OFFICE_ADDITIONAL_ORIGINS`; validate separately |
 
 Automated commands:
 

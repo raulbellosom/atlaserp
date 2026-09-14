@@ -15,7 +15,7 @@ test('Office can be disabled or misconfigured without failing API startup', asyn
   const disabled = createOfficeService({ prisma: {}, env: {} });
   assert.equal((await disabled.status()).enabled, false);
   await assert.rejects(disabled.createSession({}), status(503));
-  const bad = createOfficeService({ prisma: {}, env: { ATLAS_OFFICE_ENABLED: 'true' } });
+  const bad = createOfficeService({ prisma: {}, env: { RUNLY_OFFICE_ENABLED: 'true' } });
   assert.equal((await bad.status()).code, 'office_configuration');
   assert.throws(() => readOfficeConfig({ ...officeEnv, COLLABORA_PUBLIC_URL: 'http://office.example.com' }), status(503));
   const f = await officeFixture();

@@ -254,19 +254,13 @@ export { ActivityTimeline } from "./components/ActivityTimeline.jsx";
 export { ActivityDrawer } from "./components/ActivityDrawer.jsx";
 export { ActivityBellTrigger } from "./components/ActivityBellTrigger.jsx";
 
-// Runly blueprint renderer (AtlasTable/AtlasForm/AtlasDetail/AtlasCrudView/
-// AtlasCardView kept as aliases for any caller not yet migrated off the old names)
+// Runly blueprint renderer
 export {
   RunlyTable,
-  RunlyTable as AtlasTable,
   RunlyForm,
-  RunlyForm as AtlasForm,
   RunlyDetail,
-  RunlyDetail as AtlasDetail,
   RunlyCrudView,
-  RunlyCrudView as AtlasCrudView,
   RunlyCardView,
-  RunlyCardView as AtlasCardView,
   BulkActionBar,
   normalizeSpanishLabel,
   shouldUsePageMode,

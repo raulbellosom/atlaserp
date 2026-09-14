@@ -13,8 +13,8 @@ function makeFetch(status = 200) {
 describe('atlas SDK — fleet namespace', () => {
   it('getVehicleDocuments GETs /fleet/vehicles/:id/documents', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.fleet.getVehicleDocuments('v-1', 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments
@@ -25,8 +25,8 @@ describe('atlas SDK — fleet namespace', () => {
 
   it('getReport GETs /fleet/reports/:id', async () => {
     const fetchMock = makeFetch()
-    const { createAtlasClient } = await import('../index.js')
-    const client = createAtlasClient({ baseUrl: 'http://api' })
+    const { createRunlyClient } = await import('../index.js')
+    const client = createRunlyClient({ baseUrl: 'http://api' })
     globalThis.fetch = fetchMock
     await client.fleet.getReport('r-1', 'tok')
     const [url, opts] = fetchMock.mock.calls[0].arguments

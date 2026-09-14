@@ -1,4 +1,4 @@
-import { createAtlasClient } from '@runly/sdk'
+import { createRunlyClient } from '@runly/sdk'
 import { getApiUrl, setApiUrl } from './runtimeConfig.js'
 
 let currentRunlyClient = null
@@ -6,18 +6,11 @@ let currentRunlyClient = null
 // Must match ActiveCompanyProvider.jsx's STORAGE_KEY — duplicated rather than
 // imported to avoid a circular import (that file already imports this one).
 const ACTIVE_COMPANY_STORAGE_KEY = 'runly-active-company'
-// Pre-rebrand key. Read-only fallback here (no write/migration): this file
-// only seeds the initial in-memory value before React mounts.
-// ActiveCompanyProvider.jsx owns the actual one-time migration on read.
-const LEGACY_ACTIVE_COMPANY_STORAGE_KEY = 'atlas-active-company'
 
 function readPersistedCompanyId() {
   try {
     if (typeof localStorage === 'undefined') return null
-    return (
-      localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY) ??
-      localStorage.getItem(LEGACY_ACTIVE_COMPANY_STORAGE_KEY)
-    )
+    return localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY)
   } catch {
     return null
   }
@@ -52,21 +45,16 @@ export function initRunlyClient(url) {
   if (url) {
     setApiUrl(url)
   }
-  currentRunlyClient = createAtlasClient({ baseUrl: getApiUrl(), getActiveCompanyId })
+  currentRunlyClient = createRunlyClient({ baseUrl: getApiUrl(), getActiveCompanyId })
   return currentRunlyClient
 }
 
 export function getRunlyClient() {
   if (!currentRunlyClient) {
-    currentRunlyClient = createAtlasClient({ baseUrl: getApiUrl(), getActiveCompanyId })
+    currentRunlyClient = createRunlyClient({ baseUrl: getApiUrl(), getActiveCompanyId })
   }
   return currentRunlyClient
 }
-
-// initAtlasClient/getAtlasClient kept as aliases for any caller not yet
-// migrated off the old names.
-export const initAtlasClient = initRunlyClient
-export const getAtlasClient = getRunlyClient
 
 export const runly = new Proxy(
   {},
@@ -76,6 +64,3 @@ export const runly = new Proxy(
     },
   },
 )
-
-// Alias for any caller not yet migrated off the old name.
-export const atlas = runly

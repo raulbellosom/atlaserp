@@ -14,7 +14,7 @@ test('offline report describes schema references and explicitly leaves database 
   assert.equal(report.databaseInspected, false);
   assert.equal(report.dataConversionReady, false);
   assert.ok(report.schemaReferences.some(row => row.table === 'module_migration' && row.column === 'module_key'));
-  assert.ok(report.schemaReferences.some(row => row.table === 'atlas_module' && row.column === 'manifest'));
+  assert.ok(report.schemaReferences.some(row => row.table === 'runly_module' && row.column === 'manifest'));
   assert.ok(report.uuidRelations.some(row => row.table === 'company_module'));
 });
 

@@ -128,7 +128,7 @@ Primero publicar las nuevas imágenes de Atlas y refrescar el instalador como in
 
 ```bash
 cd /opt/atlaserp
-npm run atlas:external
+npm run runly:external
 docker compose -f docker-compose.yml -f docker-compose.linux.yml --profile office ps collabora
 curl -fsS http://127.0.0.1:9980/hosting/discovery -o /dev/null
 curl -fsS https://office.racoondevs.com/hosting/discovery -o /dev/null

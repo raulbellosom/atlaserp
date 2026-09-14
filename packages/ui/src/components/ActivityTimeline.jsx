@@ -136,7 +136,7 @@ function groupByDay(items) {
  * are provided; otherwise shows the recent feed.
  *
  * Props:
- *  - sdk: instance of createAtlasClient
+ *  - sdk: instance of createRunlyClient
  *  - token: access token
  *  - entityType?: string
  *  - entityId?: string

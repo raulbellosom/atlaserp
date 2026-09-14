@@ -85,7 +85,7 @@ export async function resolveProjectRootInfo(options = {}) {
     }
   }
 
-  const envRootRaw = typeof (env.RUNLY_PROJECT_ROOT ?? env.ATLAS_PROJECT_ROOT) === 'string' ? (env.RUNLY_PROJECT_ROOT ?? env.ATLAS_PROJECT_ROOT).trim() : ''
+  const envRootRaw = typeof env.RUNLY_PROJECT_ROOT === 'string' ? env.RUNLY_PROJECT_ROOT.trim() : ''
   if (envRootRaw) {
     const inspection = await inspectProjectRoot(envRootRaw)
     if (inspection.valid) {
@@ -134,7 +134,7 @@ export async function resolveModuleRoots(options = {}) {
   const projectRootInfo = await resolveProjectRootInfo(options)
   const projectRoot = projectRootInfo.projectRoot
   const officialModulesDir = path.join(projectRoot, DEFAULT_OFFICIAL_RELATIVE_DIR)
-  const envCustomRoot = typeof (env.RUNLY_MODULES_DIR ?? env.ATLAS_MODULES_DIR) === 'string' ? (env.RUNLY_MODULES_DIR ?? env.ATLAS_MODULES_DIR).trim() : ''
+  const envCustomRoot = typeof env.RUNLY_MODULES_DIR === 'string' ? env.RUNLY_MODULES_DIR.trim() : ''
   const customModulesDir = envCustomRoot
     ? path.resolve(envCustomRoot)
     : path.join(projectRoot, DEFAULT_CUSTOM_RELATIVE_DIR)
@@ -153,7 +153,7 @@ export function describeCustomModulesMapping(roots) {
   const customRoot = roots?.customModulesDir ?? '<custom-modules-root>'
   return [
     'Installer mode mapping:',
-    'host custom-modules/ -> container ATLAS_MODULES_DIR (for example /app/modules/custom).',
+    'host custom-modules/ -> container RUNLY_MODULES_DIR (for example /app/modules/custom).',
     `Active custom root: ${customRoot}.`,
     'Source mode fallback: <projectRoot>/modules/custom.',
   ].join(' ')

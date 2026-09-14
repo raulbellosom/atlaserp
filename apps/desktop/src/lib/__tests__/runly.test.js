@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { getRunlyClient, initRunlyClient, setActiveCompanyId, getActiveCompanyId } from '../runly.js'
 
-test('initAtlasClient binds SDK requests to the runtime URL', async () => {
+test('initRunlyClient binds SDK requests to the runtime URL', async () => {
   const originalFetch = globalThis.fetch
   const requests = []
 
@@ -15,9 +15,9 @@ test('initAtlasClient binds SDK requests to the runtime URL', async () => {
   }
 
   try {
-    initRunlyClient('https://demo.atlaserp.com')
+    initRunlyClient('https://demo.runlyerp.com')
     await getRunlyClient().health()
-    assert.equal(requests[0], 'https://demo.atlaserp.com/health')
+    assert.equal(requests[0], 'https://demo.runlyerp.com/health')
   } finally {
     globalThis.fetch = originalFetch
   }
@@ -33,7 +33,7 @@ test('setActiveCompanyId makes subsequent SDK requests carry X-Runly-Company-Id'
   }
 
   try {
-    initRunlyClient('https://demo.atlaserp.com')
+    initRunlyClient('https://demo.runlyerp.com')
     assert.equal(getActiveCompanyId(), null)
 
     setActiveCompanyId('company-a')

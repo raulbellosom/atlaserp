@@ -7,7 +7,7 @@ El espacio Archivos incorpora creación de DOCX, XLSX y PPTX, invitaciones inter
 1. En **Nuevo** o las tarjetas de formato, elige Documento, Hoja de cálculo o Presentación. Escribe el nombre y pulsa **Crear y abrir**. Se guarda un archivo Office válido antes de abrir CODE. Si el editor falla, el archivo permanece en la lista para volver a abrirlo.
 2. Los documentos creados empiezan con acceso restringido al propietario y los administradores. **Compartir** permite invitar a usuarios activos de la misma empresa, elegir **Puede ver** o **Puede editar**, cambiar el acceso general y retirar invitaciones.
 3. La persona invitada acepta o rechaza desde **Archivos → Invitaciones**. Al aceptar, el documento aparece en **Compartidos conmigo**. Las invitaciones se guardan en Atlas; esta entrega no envía correos ni incorpora invitados externos.
-4. **Copiar enlace** copia una ruta autenticada de Atlas, sin tokens ni URLs de Storage. El destinatario necesita acceso; copiar el enlace no lo concede. En Tauri se usa el dominio web configurado en el servidor (`ATLAS_OFFICE_HOST_ORIGIN`, con respaldo en `ATLAS_APP_URL`), en lugar del origen nativo. Estos valores deben apuntar al ERP de esa instalación.
+4. **Copiar enlace** copia una ruta autenticada de Atlas, sin tokens ni URLs de Storage. El destinatario necesita acceso; copiar el enlace no lo concede. En Tauri se usa el dominio web configurado en el servidor (`RUNLY_OFFICE_HOST_ORIGIN`, con respaldo en `RUNLY_APP_URL`), en lugar del origen nativo. Estos valores deben apuntar al ERP de esa instalación.
 5. La lista muestra 20, 50 o 100 archivos por página. Búsqueda, tipo, origen, estado y orden se aplican en el servidor antes de paginar. La URL conserva página y filtros. La selección se reinicia al cambiar de consulta y se limita a 50 archivos por descarga masiva.
 
 Para coeditar, ambas personas necesitan edición en el documento y en el módulo, abrir el mismo archivo y usar la misma instalación de Atlas/CODE. Las invitaciones conceden acceso; no unen sesiones de dos servidores CODE distintos. Se conserva el [flujo Office existente](office-collabora.md).
@@ -25,7 +25,7 @@ Para coeditar, ambas personas necesitan edición en el documento y en el módulo
 
 El control por documento cubre lista, detalle, previews, descarga directa/ZIP, emisión de URLs y solicitudes WOPI, además de excluir documentos restringidos de la firma de adjuntos sin contexto de usuario. La revocación bloquea nuevas solicitudes autorizadas por Atlas, incluidos los guardados WOPI. No borra copias descargadas ni invalida URLs firmadas previamente emitidas: estas conservan su vigencia hasta expirar.
 
-El bucket `atlas-files` debe seguir siendo privado y sin políticas de lectura directa para usuarios finales, como exige la arquitectura de Storage de Atlas. La API usa credenciales de servidor. La migración protege los metadatos de archivos y las invitaciones frente a los roles Supabase `anon` y `authenticated`; no modifica esquemas internos de Supabase.
+El bucket `runly-files` debe seguir siendo privado y sin políticas de lectura directa para usuarios finales, como exige la arquitectura de Storage de Atlas. La API usa credenciales de servidor. La migración protege los metadatos de archivos y las invitaciones frente a los roles Supabase `anon` y `authenticated`; no modifica esquemas internos de Supabase.
 
 ## Actualizar una instalación existente
 
@@ -34,10 +34,10 @@ Este cambio requiere **imágenes nuevas de API/web y la migración `202609080900
 Primero deben publicarse las imágenes que contienen estos cambios. En el directorio del instalador del VPS, con `.env.external` y el instalador Office ya actualizados:
 
 ```bash
-npm run atlas:external
+npm run runly:external
 ```
 
-El comando normal descarga imágenes y ejecuta `pnpm db:migrate` antes de iniciar Atlas. **No usar `atlas:external:quick`, `--skip-migrate` o `--skip-pull` para esta primera actualización.** No hace falta volver a ejecutar el bootstrap solo por el rediseño; sí hace falta si el instalador aún no incorpora Office. El comando no publica imágenes ni actualiza sus propios scripts.
+El comando normal descarga imágenes y ejecuta `pnpm db:migrate` antes de iniciar Atlas. **No usar `runly:external:quick`, `--skip-migrate` o `--skip-pull` para esta primera actualización.** No hace falta volver a ejecutar el bootstrap solo por el rediseño; sí hace falta si el instalador aún no incorpora Office. El comando no publica imágenes ni actualiza sus propios scripts.
 
 En un checkout de desarrollo, con la conexión apuntando a la base que corresponde al entorno:
 

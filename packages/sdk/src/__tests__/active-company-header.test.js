@@ -13,8 +13,8 @@ function makeFetch(status = 200) {
 describe("atlas SDK — active company header", () => {
   it("sends X-Runly-Company-Id when getActiveCompanyId returns an id", async () => {
     const fetchMock = makeFetch();
-    const { createAtlasClient } = await import("../index.js");
-    const client = createAtlasClient({
+    const { createRunlyClient } = await import("../index.js");
+    const client = createRunlyClient({
       baseUrl: "http://api",
       getActiveCompanyId: () => "company-a",
     });
@@ -28,8 +28,8 @@ describe("atlas SDK — active company header", () => {
 
   it("omits the header when getActiveCompanyId returns null", async () => {
     const fetchMock = makeFetch();
-    const { createAtlasClient } = await import("../index.js");
-    const client = createAtlasClient({
+    const { createRunlyClient } = await import("../index.js");
+    const client = createRunlyClient({
       baseUrl: "http://api",
       getActiveCompanyId: () => null,
     });
@@ -42,8 +42,8 @@ describe("atlas SDK — active company header", () => {
 
   it("omits the header when getActiveCompanyId is not provided at all", async () => {
     const fetchMock = makeFetch();
-    const { createAtlasClient } = await import("../index.js");
-    const client = createAtlasClient({ baseUrl: "http://api" });
+    const { createRunlyClient } = await import("../index.js");
+    const client = createRunlyClient({ baseUrl: "http://api" });
     globalThis.fetch = fetchMock;
     await client.profile.me("tok");
     const [, opts] = fetchMock.mock.calls[0].arguments;
@@ -53,9 +53,9 @@ describe("atlas SDK — active company header", () => {
 
   it("reads the callback fresh on every call — switching company mid-session takes effect immediately", async () => {
     const fetchMock = makeFetch();
-    const { createAtlasClient } = await import("../index.js");
+    const { createRunlyClient } = await import("../index.js");
     let current = "company-a";
-    const client = createAtlasClient({
+    const client = createRunlyClient({
       baseUrl: "http://api",
       getActiveCompanyId: () => current,
     });

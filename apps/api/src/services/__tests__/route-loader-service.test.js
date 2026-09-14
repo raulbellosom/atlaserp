@@ -157,8 +157,8 @@ test('route-loader keeps first module route and flags collision on subsequent mo
     },
   ])
 
-  const previousRoot = process.env.ATLAS_PROJECT_ROOT
-  process.env.ATLAS_PROJECT_ROOT = projectRoot
+  const previousRoot = process.env.RUNLY_PROJECT_ROOT
+  process.env.RUNLY_PROJECT_ROOT = projectRoot
 
   const routeLoader = createRouteLoaderService({
     prisma,
@@ -181,14 +181,14 @@ test('route-loader keeps first module route and flags collision on subsequent mo
   assert.equal(status?.collision?.code, 'ROUTE_COLLISION')
 
   if (typeof previousRoot === 'string') {
-    process.env.ATLAS_PROJECT_ROOT = previousRoot
+    process.env.RUNLY_PROJECT_ROOT = previousRoot
   } else {
-    delete process.env.ATLAS_PROJECT_ROOT
+    delete process.env.RUNLY_PROJECT_ROOT
   }
   await fs.rm(projectRoot, { recursive: true, force: true })
 })
 
-test('route-loader loads API and components from ATLAS_MODULES_DIR custom root', async () => {
+test('route-loader loads API and components from RUNLY_MODULES_DIR custom root', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-route-loader-ext-'))
   const customModulesDir = path.join(projectRoot, 'custom-modules')
   await fs.writeFile(path.join(projectRoot, 'pnpm-workspace.yaml'), 'packages:\n  - "apps/*"\n', 'utf8')
@@ -207,10 +207,10 @@ test('route-loader loads API and components from ATLAS_MODULES_DIR custom root',
     },
   ])
 
-  const previousRoot = process.env.ATLAS_PROJECT_ROOT
-  const previousModulesDir = process.env.ATLAS_MODULES_DIR
-  process.env.ATLAS_PROJECT_ROOT = projectRoot
-  process.env.ATLAS_MODULES_DIR = customModulesDir
+  const previousRoot = process.env.RUNLY_PROJECT_ROOT
+  const previousModulesDir = process.env.RUNLY_MODULES_DIR
+  process.env.RUNLY_PROJECT_ROOT = projectRoot
+  process.env.RUNLY_MODULES_DIR = customModulesDir
 
   const routeLoader = createRouteLoaderService({
     prisma,
@@ -229,14 +229,14 @@ test('route-loader loads API and components from ATLAS_MODULES_DIR custom root',
   assert.equal(typeof components['custom.external:ExternalWidget'], 'function')
 
   if (typeof previousRoot === 'string') {
-    process.env.ATLAS_PROJECT_ROOT = previousRoot
+    process.env.RUNLY_PROJECT_ROOT = previousRoot
   } else {
-    delete process.env.ATLAS_PROJECT_ROOT
+    delete process.env.RUNLY_PROJECT_ROOT
   }
   if (typeof previousModulesDir === 'string') {
-    process.env.ATLAS_MODULES_DIR = previousModulesDir
+    process.env.RUNLY_MODULES_DIR = previousModulesDir
   } else {
-    delete process.env.ATLAS_MODULES_DIR
+    delete process.env.RUNLY_MODULES_DIR
   }
   await fs.rm(projectRoot, { recursive: true, force: true })
 })
@@ -258,8 +258,8 @@ test('route-loader wildcard middleware does not intercept unrelated core routes'
       core: false,
     },
   ])
-  const previousRoot = process.env.ATLAS_PROJECT_ROOT
-  process.env.ATLAS_PROJECT_ROOT = projectRoot
+  const previousRoot = process.env.RUNLY_PROJECT_ROOT
+  process.env.RUNLY_PROJECT_ROOT = projectRoot
 
   try {
     const app = new Hono()
@@ -276,9 +276,9 @@ test('route-loader wildcard middleware does not intercept unrelated core routes'
     assert.equal(await response.text(), 'bundle:atlas.ledger')
   } finally {
     if (typeof previousRoot === 'string') {
-      process.env.ATLAS_PROJECT_ROOT = previousRoot
+      process.env.RUNLY_PROJECT_ROOT = previousRoot
     } else {
-      delete process.env.ATLAS_PROJECT_ROOT
+      delete process.env.RUNLY_PROJECT_ROOT
     }
     await fs.rm(projectRoot, { recursive: true, force: true })
   }

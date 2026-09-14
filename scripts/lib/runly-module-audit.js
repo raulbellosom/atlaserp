@@ -30,20 +30,20 @@ export async function auditRunlyModuleDatabase(client) {
       WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'
       ORDER BY c.table_name, c.ordinal_position
     `);
-    const hasCatalog = columns.some(c => c.table_name === 'atlas_module' && c.column_name === 'key');
-    if (!hasCatalog) throw new Error('Missing public.atlas_module catalog; database audit is incomplete.');
-    const { rows: modules } = await client.query('SELECT key FROM public.atlas_module ORDER BY key');
+    const hasCatalog = columns.some(c => c.table_name === 'runly_module' && c.column_name === 'key');
+    if (!hasCatalog) throw new Error('Missing public.runly_module catalog; database audit is incomplete.');
+    const { rows: modules } = await client.query('SELECT key FROM public.runly_module ORDER BY key');
     const identities = buildModuleKeyAudit(modules.map(row => row.key));
     const { rows: foreignKeys } = await client.query(`
       SELECT conrelid::regclass::text AS referencing_table, conname AS constraint_name
-      FROM pg_constraint WHERE contype = 'f' AND confrelid = to_regclass('public.atlas_module')
+      FROM pg_constraint WHERE contype = 'f' AND confrelid = to_regclass('public.runly_module')
       ORDER BY referencing_table, constraint_name
     `);
     const references = [];
     for (const column of columns.filter(c => isCandidateColumn(c.column_name, c.data_type))) {
       const table = `public.${identifier(column.table_name)}`;
       const name = identifier(column.column_name);
-      const exact = column.column_name === 'module_key' || column.table_name === 'atlas_module' && column.column_name === 'key';
+      const exact = column.column_name === 'module_key' || column.table_name === 'runly_module' && column.column_name === 'key';
       const predicate = exact ? `${name} = ANY($1::text[])` : `${name}::text ~ $1`;
       const { rows } = await client.query(`SELECT count(*)::text AS count FROM ${table} WHERE ${predicate}`, [exact ? keys : candidatePattern]);
       references.push({ ...column, classification: exact ? 'exact-module-key' : 'candidate-needs-review', matchingRows: rows[0].count });
@@ -67,9 +67,9 @@ export async function auditRunlyModuleSource(root) {
       if (!field) continue;
       const [, name, type, attributes] = field;
       const column = attributes.match(/@map\("([^"]+)"\)/)?.[1] ?? name;
-      if (isCandidateColumn(column, type === 'Json' ? 'jsonb' : 'text')) schemaReferences.push({ model, table, column, classification: column === 'module_key' || table === 'atlas_module' && column === 'key' ? 'exact-module-key' : 'candidate-needs-review' });
+      if (isCandidateColumn(column, type === 'Json' ? 'jsonb' : 'text')) schemaReferences.push({ model, table, column, classification: column === 'module_key' || table === 'runly_module' && column === 'key' ? 'exact-module-key' : 'candidate-needs-review' });
     }
-    if (/\bAtlasModule[?\s].*@relation\(/.test(body)) uuidRelations.push({ model, table, action: 'preserve-module-uuid' });
+    if (/\bRunlyModule[?\s].*@relation\(/.test(body)) uuidRelations.push({ model, table, action: 'preserve-module-uuid' });
   }
   const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
   const sourceReferences = [];

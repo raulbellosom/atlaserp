@@ -109,10 +109,10 @@ describe('module-bundler-service', () => {
       assert.ok(content.length > 100, 'bundle should have substantial content (not just empty)')
     })
 
-    it('builds a module bundle from ATLAS_MODULES_DIR', async () => {
+    it('builds a module bundle from RUNLY_MODULES_DIR', async () => {
       const externalRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-bundler-external-'))
       const moduleDir = path.join(externalRoot, 'custom.externalbundle', 'components')
-      const previousModulesDir = process.env.ATLAS_MODULES_DIR
+      const previousModulesDir = process.env.RUNLY_MODULES_DIR
       await fs.mkdir(moduleDir, { recursive: true })
       await fs.writeFile(
         path.join(moduleDir, 'index.js'),
@@ -129,7 +129,7 @@ describe('module-bundler-service', () => {
         }`,
         'utf8'
       )
-      process.env.ATLAS_MODULES_DIR = externalRoot
+      process.env.RUNLY_MODULES_DIR = externalRoot
 
       const { createModuleBundlerService } = await import('../module-bundler-service.js')
       const svc = createModuleBundlerService({ prisma: mockPrisma, supabaseAdmin: mockSupabase })
@@ -139,9 +139,9 @@ describe('module-bundler-service', () => {
       assert.match(result.hash ?? '', /^[0-9a-f]{64}$/)
 
       if (typeof previousModulesDir === 'string') {
-        process.env.ATLAS_MODULES_DIR = previousModulesDir
+        process.env.RUNLY_MODULES_DIR = previousModulesDir
       } else {
-        delete process.env.ATLAS_MODULES_DIR
+        delete process.env.RUNLY_MODULES_DIR
       }
       await fs.rm(externalRoot, { recursive: true, force: true })
       await fs.rm(path.resolve(__dirname, '../../../bundles/custom.externalbundle.js'), { force: true }).catch(() => {})
