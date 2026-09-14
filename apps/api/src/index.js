@@ -933,6 +933,7 @@ async function ensureBuckets() {
   });
   await ensureBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: null });
   await ensureBucket("runly-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
+  await ensureBucket("runly-notes", { public: true, fileSizeLimit: 20971520, allowedMimeTypes: ['image/*'] }); // 20 MB
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
