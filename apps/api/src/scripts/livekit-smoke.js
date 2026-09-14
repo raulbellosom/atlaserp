@@ -19,7 +19,7 @@ if (!healthResponse.ok) {
   throw new Error(`LiveKit health endpoint returned HTTP ${healthResponse.status}.`);
 }
 
-const roomName = `atlas-installer-smoke-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+const roomName = `runly-installer-smoke-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
 const rooms = new RoomServiceClient(internalUrl, apiKey, apiSecret);
 let created = false;
 let deleted = false;

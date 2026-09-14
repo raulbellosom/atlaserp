@@ -1,10 +1,10 @@
 /**
  * sync-fleet-blueprints.mjs
  *
- * Discovers all atlas.fleet / custom.fleet RunlyView rows in the database and
+ * Discovers all runly.fleet / custom.fleet RunlyView rows in the database and
  * applies targeted schema patches to fix known issues and improvements:
  *
- *  1.  Replace `custom.fleet:*` component keys → `atlas.fleet:*`
+ *  1.  Replace `custom.fleet:*` component keys → `runly.fleet:*`
  *  2.  Insurance table: is_active → status (InsuranceBadgeCell), add coverage badge
  *  3.  Insurance form: vehicle_id → rich relation, document_asset_id → file,
  *      coverage_type → select (Spanish labels), currency → select, notes → markdown
@@ -57,7 +57,7 @@ const CURRENCY_OPTIONS = [
 function fixComponentNamespace(schema) {
   const str = JSON.stringify(schema);
   if (!str.includes("custom.fleet:")) return schema;
-  return JSON.parse(str.replaceAll("custom.fleet:", "atlas.fleet:"));
+  return JSON.parse(str.replaceAll("custom.fleet:", "runly.fleet:"));
 }
 
 function transformFields(sections, transform) {
@@ -115,13 +115,13 @@ function upsertColumns(columns, newCols) {
 function patchVehicleTable(schema) {
   let columns = (schema.columns ?? []).map((col) => {
     if (col.component === "custom.fleet:InsuranceBadgeCell")
-      return { ...col, component: "atlas.fleet:InsuranceBadgeCell" };
+      return { ...col, component: "runly.fleet:InsuranceBadgeCell" };
     if (col.component === "custom.fleet:VehicleStatusBadge")
-      return { ...col, component: "atlas.fleet:VehicleStatusBadge" };
+      return { ...col, component: "runly.fleet:VehicleStatusBadge" };
     if (col.component === "custom.fleet:VehicleImageCell")
-      return { ...col, component: "atlas.fleet:VehicleImageCell" };
+      return { ...col, component: "runly.fleet:VehicleImageCell" };
     if (col.component === "custom.fleet:DriverAssignedVehicleCell")
-      return { ...col, component: "atlas.fleet:DriverAssignedVehicleCell" };
+      return { ...col, component: "runly.fleet:DriverAssignedVehicleCell" };
     return col;
   });
 
@@ -130,7 +130,7 @@ function patchVehicleTable(schema) {
     {
       field: "cover_image_file_asset_id",
       label: "Foto",
-      component: "atlas.fleet:VehicleImageCell",
+      component: "runly.fleet:VehicleImageCell",
       visible: true,
     },
     { field: "plate", label: "Matricula", visible: true },
@@ -139,13 +139,13 @@ function patchVehicleTable(schema) {
     {
       field: "status",
       label: "Estado",
-      component: "atlas.fleet:VehicleStatusBadge",
+      component: "runly.fleet:VehicleStatusBadge",
       visible: true,
     },
     {
       field: "insurance_status",
       label: "Poliza",
-      component: "atlas.fleet:InsuranceBadgeCell",
+      component: "runly.fleet:InsuranceBadgeCell",
       visible: true,
     },
     { field: "driver_name", label: "Chofer", visible: true },
@@ -233,7 +233,7 @@ function patchVehicleDetail(schema) {
           icon: "ShieldCheck",
           idField: "active_insurance_policy.id",
           titleField: "active_insurance_policy.insurer_name",
-          hrefTemplate: "/app/m/atlas.fleet/insurance/:id",
+          hrefTemplate: "/app/m/runly.fleet/insurance/:id",
           fallbackTitle: "Sin poliza de seguro activa",
           subtitleFields: [
             "active_insurance_policy.policy_number",
@@ -257,7 +257,7 @@ function patchVehicleDetail(schema) {
           subtitleFields: ["coverage_type_label", "start_date", "expiry_date"],
           subtitleLabels: ["Cobertura:", "Inicio:", "Vence:"],
           subtitleTypes: ["text", "date", "date"],
-          hrefTemplate: "/app/m/atlas.fleet/insurance/:id",
+          hrefTemplate: "/app/m/runly.fleet/insurance/:id",
           emptyMessage: "Este vehiculo no tiene polizas registradas.",
           permission: "fleet.insurance.read",
         },
@@ -276,14 +276,14 @@ function patchInsuranceTable(schema) {
       return {
         field: "status",
         label: "Estado",
-        component: "atlas.fleet:InsuranceBadgeCell",
+        component: "runly.fleet:InsuranceBadgeCell",
       };
     }
     if (col.component === "custom.fleet:InsuranceBadgeCell") {
       return {
         ...col,
         field: col.field === "is_active" ? "status" : col.field,
-        component: "atlas.fleet:InsuranceBadgeCell",
+        component: "runly.fleet:InsuranceBadgeCell",
       };
     }
     if (col.field === "coverage_type" || col.field === "coverage_type_label") {
@@ -291,7 +291,7 @@ function patchInsuranceTable(schema) {
         ...col,
         field: "coverage_type",
         label: col.label ?? "Cobertura",
-        component: "atlas.fleet:CoverageTypeBadge",
+        component: "runly.fleet:CoverageTypeBadge",
       };
     }
     return col;
@@ -305,13 +305,13 @@ function patchInsuranceTable(schema) {
     {
       field: "coverage_type",
       label: "Cobertura",
-      component: "atlas.fleet:CoverageTypeBadge",
+      component: "runly.fleet:CoverageTypeBadge",
       visible: true,
     },
     {
       field: "status",
       label: "Estado",
-      component: "atlas.fleet:InsuranceBadgeCell",
+      component: "runly.fleet:InsuranceBadgeCell",
       visible: true,
     },
     { field: "expiry_date", label: "Vencimiento", visible: true },
@@ -400,11 +400,11 @@ function patchInsuranceDetail(schema) {
 function patchDriverTable(schema) {
   let columns = (schema.columns ?? []).map((col) => {
     if (col.component === "custom.fleet:DriverStatusBadge")
-      return { ...col, component: "atlas.fleet:DriverStatusBadge" };
+      return { ...col, component: "runly.fleet:DriverStatusBadge" };
     if (col.component === "custom.fleet:DriverAvatarCell")
-      return { ...col, component: "atlas.fleet:DriverAvatarCell" };
+      return { ...col, component: "runly.fleet:DriverAvatarCell" };
     if (col.component === "custom.fleet:DriverAssignedVehicleCell")
-      return { ...col, component: "atlas.fleet:DriverAssignedVehicleCell" };
+      return { ...col, component: "runly.fleet:DriverAssignedVehicleCell" };
     return col;
   });
 
@@ -413,7 +413,7 @@ function patchDriverTable(schema) {
     {
       field: "photo_asset_id",
       label: "Foto",
-      component: "atlas.fleet:DriverAvatarCell",
+      component: "runly.fleet:DriverAvatarCell",
       visible: true,
     },
     { field: "first_name", label: "Nombre", visible: true },
@@ -422,13 +422,13 @@ function patchDriverTable(schema) {
     {
       field: "status",
       label: "Estado",
-      component: "atlas.fleet:DriverStatusBadge",
+      component: "runly.fleet:DriverStatusBadge",
       visible: true,
     },
     {
       field: "assigned_vehicle",
       label: "Vehiculo asignado",
-      component: "atlas.fleet:DriverAssignedVehicleCell",
+      component: "runly.fleet:DriverAssignedVehicleCell",
       visible: true,
     },
   ]);
@@ -468,7 +468,7 @@ function patchReportTable(schema) {
     {
       field: "status",
       label: "Estado",
-      component: "atlas.fleet:ReportStatusBadge",
+      component: "runly.fleet:ReportStatusBadge",
       visible: true,
     },
   ]);
@@ -610,7 +610,7 @@ async function main() {
 
   const views = await prisma.runlyView.findMany({
     where: {
-      moduleKey: { in: ["custom.fleet", "atlas.fleet"] },
+      moduleKey: { in: ["custom.fleet", "runly.fleet"] },
     },
     orderBy: { key: "asc" },
   });

@@ -3,7 +3,7 @@ description: "Apply when creating or editing animated logo components, brand loa
 applyTo: "apps/desktop/src/components/AtlasLogo*.jsx, apps/desktop/src/components/*Loader*.jsx, apps/desktop/src/components/*Splash*.jsx"
 ---
 
-# Logo Component Rules — Atlas ERP
+# Logo Component Rules — Runly ERP
 
 ## The Golden Rule
 
@@ -22,9 +22,9 @@ Clip-paths on `<img>` tags and manually estimated polygon coordinates are always
 
 Always prefer the SVG over the PNG for animated components.
 
-## Atlas Isotype Structure
+## Runly Isotype Structure
 
-The Atlas isotype is a **3-face isometric "A" arch**. Each face is a separate `<path>`:
+The Runly isotype is a **3-face isometric "A" arch**. Each face is a separate `<path>`:
 
 | Face | Fill | CSS Token | Animation entry direction |
 |---|---|---|---|

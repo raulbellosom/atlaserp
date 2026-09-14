@@ -22,7 +22,7 @@ export function generateCallCode() {
 
 export function createCallLinksService({ prisma, smtpService, callService, env = process.env, now = () => new Date() }) {
   // Public SPA origin — read from the environment (PUBLIC_APP_URL / APP_URL /
-  // ATLAS_APP_URL / WEB_APP_URL, then a dev fallback). Never hardcoded.
+  // RUNLY_APP_URL / WEB_APP_URL, then a dev fallback). Never hardcoded.
   const publicAppUrl = String(resolveAppBaseUrl(env) ?? "").replace(/\/+$/, "");
 
   function joinUrl(token, inviteToken) {
@@ -191,7 +191,7 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
         const notifiedIds = new Set(res?.notified ?? []);
         notifiedUsers = matchedUsers.filter((u) => notifiedIds.has(u.userId));
       } catch (err) {
-        console.warn("[atlas.calls] No se pudo avisar a los usuarios con cuenta:", err?.message ?? err);
+        console.warn("[runly.calls] No se pudo avisar a los usuarios con cuenta:", err?.message ?? err);
       }
     }
 
@@ -263,7 +263,7 @@ export function createCallLinksService({ prisma, smtpService, callService, env =
           invited.push({ email, inviteId: invite.id });
         } catch (err) {
           const detail = err?.message ?? String(err);
-          console.warn("[atlas.calls] invite email failed:", email, detail);
+          console.warn("[runly.calls] invite email failed:", email, detail);
           if (!sendError) sendError = detail;
           await prisma.callInvite.update({ where: { id: invite.id }, data: { sentAt: null } }).catch(() => {});
           pendingManual.push({ email, inviteId: invite.id, url, reason: "send_failed", detail });

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Atlas ERP — local dev startup
+# Runly ERP — local dev startup
 # Opens the SSH tunnel to the VPS Postgres container, then starts all dev servers.
 # Runs automatically via: pnpm start
 
@@ -38,7 +38,7 @@ cleanup() {
     echo "Closing SSH tunnel..."
     pkill -f "ssh.*-L.*${LOCAL_PORT}:${REMOTE_ADDR}" 2>/dev/null || true
   fi
-  echo "Atlas ERP dev environment stopped."
+  echo "Runly ERP dev environment stopped."
 }
 trap cleanup EXIT INT TERM
 

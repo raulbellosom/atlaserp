@@ -63,5 +63,5 @@ try {
     Write-Host 'Closing SSH tunnel...'
     Stop-Tunnel -Port $localPort
   }
-  Write-Host 'Atlas ERP dev environment stopped.'
+  Write-Host 'Runly ERP dev environment stopped.'
 }

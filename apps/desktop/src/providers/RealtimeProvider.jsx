@@ -72,7 +72,7 @@ export function RealtimeProvider({ children }) {
           showSystemNotification({
             title: payload.title,
             body: payload.body ?? '',
-            tag: dupKey ?? payload.eventType ?? 'atlas-notification',
+            tag: dupKey ?? payload.eventType ?? 'runly-notification',
             data: { link: payload.link ?? null },
           }).catch(() => {})
         }

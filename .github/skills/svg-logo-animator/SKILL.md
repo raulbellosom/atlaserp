@@ -4,7 +4,7 @@ description: "Convert a PNG/SVG logo into a pixel-perfect animated React compone
 argument-hint: "Path to the logo file (PNG or SVG) + desired animation style — e.g. 'identity/runly-erp_isotype_only.png, assembly animation'"
 ---
 
-# SVG Logo Animator — Atlas ERP
+# SVG Logo Animator — Runly ERP
 
 This skill converts a brand logo into a **pixel-perfect animated React component** using SVG paths traced from the original asset.
 
@@ -64,9 +64,9 @@ Look for:
 - `id` or `class` attributes — may already name the faces
 - `<g>` groups — indicate logical groupings
 
-### Atlas ERP Isotype — Known Structure
+### Runly ERP Isotype — Known Structure
 
-The Atlas isotype is a **3-face isometric "A" arch**:
+The Runly isotype is a **3-face isometric "A" arch**:
 
 | Face | Expected fill | Description |
 |---|---|---|
@@ -286,7 +286,7 @@ Update `identity/README.md` to list the SVG file under canonical sources.
 
 ---
 
-## Quick Reference — Atlas Brand Colors
+## Quick Reference — Runly Brand Colors
 
 | Token | Hex | Usage |
 |---|---|---|

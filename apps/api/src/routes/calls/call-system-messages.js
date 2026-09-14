@@ -1,4 +1,4 @@
-// Pure helpers for the system messages atlas.calls posts into the bound
+// Pure helpers for the system messages runly.calls posts into the bound
 // chat_conversation. No DB, no side effects — see call-service.postCallSystemMessage
 // for the insert/broadcast.
 

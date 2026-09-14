@@ -7,7 +7,7 @@
 // through chatSearchService, already scoped to the caller's conversations.
 // describe_image verifies the attachment belongs to a conversation the caller
 // is a live member of before sending any bytes to the vision model.
-// search_atlas (ERP reach, Fase A) reuses the global-search providers, gated
+// search_runly (ERP reach, Fase A) reuses the global-search providers, gated
 // per provider by the caller's own permissions.
 import { SEARCH_PROVIDERS } from "../../services/search-providers.js";
 import {
@@ -101,7 +101,7 @@ export const TOOL_DEFS = [
   {
     type: "function",
     function: {
-      name: "search_atlas",
+      name: "search_runly",
       description: "Busca registros del ERP por nombre, correo o telefono: contactos (clientes/proveedores), usuarios del sistema y empleados. Usalo cuando el usuario pregunta por una persona o empresa que podria estar en Runly ('tienes el correo de Juan Perez', 'que datos hay de la empresa X'). Solo devuelve lo que el usuario ya tiene permiso de ver.",
       parameters: {
         type: "object",
@@ -338,7 +338,7 @@ export function buildToolRunners({
     }
   }
 
-  async function search_atlas(args, ctx) {
+  async function search_runly(args, ctx) {
     const q = String(args?.query ?? "").trim();
     if (q.length < 2) return { error: "Da al menos 2 caracteres para buscar." };
     const resolved = await resolveScopedErpContext(ctx);
@@ -464,7 +464,7 @@ export function buildToolRunners({
 
   return {
     get_recent_messages, get_conversation_messages, search_my_conversations,
-    list_conversation_files, describe_image, search_atlas,
+    list_conversation_files, describe_image, search_runly,
     search_inventory, list_bank_accounts, list_my_calendar, list_my_tasks,
   };
 }

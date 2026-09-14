@@ -8,7 +8,7 @@ import { ErrorState } from "./ErrorState.jsx";
 import { cn } from "../lib/utils.js";
 
 /**
- * ListLayout — standard container for Atlas ERP module list screens.
+ * ListLayout — standard container for Runly ERP module list screens.
  *
  * Handles: search bar, filters (desktop inline / mobile sheet), 3-view mode
  * switcher with localStorage persistence, pagination row, and empty/error/loading states.
@@ -63,7 +63,7 @@ export function ListLayout({
     setView(next);
     if (storageKey) {
       try {
-        localStorage.setItem(`atlas-view-mode-${storageKey}`, next);
+        localStorage.setItem(`runly-view-mode-${storageKey}`, next);
       } catch {}
     }
   }

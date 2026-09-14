@@ -33,7 +33,7 @@ export function extractServerYState(res) {
 }
 
 export class SupabaseYjsProvider {
-  constructor(ydoc, { noteId, supabase, atlas, token, onSynced, onStatus }) {
+  constructor(ydoc, { noteId, supabase, runly, token, onSynced, onStatus }) {
     this.ydoc = ydoc
     this.noteId = noteId
     this.synced = false
@@ -59,14 +59,14 @@ export class SupabaseYjsProvider {
     // or attaches doc listeners that would then leak.
     this._destroyed = false
 
-    this._init(atlas, token)
+    this._init(runly, token)
   }
 
   get _topic() {
     return `note:ydoc:${this.noteId}`
   }
 
-  async _init(atlas, token) {
+  async _init(runly, token) {
     // 1. Load persisted server state
     try {
       const res = await runly.notes.getYDoc(this.noteId, token)

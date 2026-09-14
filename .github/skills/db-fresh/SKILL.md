@@ -1,12 +1,12 @@
 ---
 name: db-fresh
-description: "Run the full Atlas ERP database setup: SSH tunnel check, migrate, generate Prisma client, and seed. Use when setting up a fresh environment or after schema changes."
+description: "Run the full Runly ERP database setup: SSH tunnel check, migrate, generate Prisma client, and seed. Use when setting up a fresh environment or after schema changes."
 argument-hint: "Optional: specific step to run (migrate | generate | seed)"
 ---
 
-# db-fresh — Atlas ERP Database Setup
+# db-fresh — Runly ERP Database Setup
 
-Runs the full database setup sequence for Atlas ERP against the self-hosted Supabase PostgreSQL instance.
+Runs the full database setup sequence for Runly ERP against the self-hosted Supabase PostgreSQL instance.
 
 ## When to Use
 
@@ -70,7 +70,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:4010/health
 Invoke-WebRequest -UseBasicParsing http://localhost:4010/modules
 ```
 
-`/modules` should return 4 core modules: `atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`.
+`/modules` should return 4 core modules: `runly.core`, `runly.identity`, `runly.files`, `runly.company`.
 
 ## Connection Details
 

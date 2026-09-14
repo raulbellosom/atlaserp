@@ -1,12 +1,12 @@
 # Office documents with Collabora CODE
 
-Atlas remains the owner of FileAsset, permissions, company, Storage objects and revisions. CODE renders and edits DOCX/XLSX/PPTX through Atlas's WOPI host. It never receives Supabase credentials or direct Storage URLs. PDF/media previews and downloads keep their existing behavior. Office is online-only.
+Runly remains the owner of FileAsset, permissions, company, Storage objects and revisions. CODE renders and edits DOCX/XLSX/PPTX through Runly's WOPI host. It never receives Supabase credentials or direct Storage URLs. PDF/media previews and downloads keep their existing behavior. Office is online-only.
 
 CODE is the free **Development Edition**, intended for testing and small teams, without a supported production release/SLA. It is not a promise of Microsoft Office fidelity: test your fonts, formulas, charts and layouts. Legacy DOC/XLS/PPT, macro-enabled files, PDFs and password-protected documents are not editable in this MVP. The official image is pinned to `collabora/code:26.04.2.4.1` (verified pull digest `sha256:1f864ce3f0c49e867787b6dd303bd6ba989542d3023f6809df558eafd04c1b97`). Preserve Collabora's branding, notices and applicable MPL 2.0/source-distribution obligations. See [CODE](https://www.collaboraonline.com/code/), [license terms](https://www.collaboraonline.com/terms/collabora-online-mplv2/) and [Mozilla's MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/).
 
 ## Install
 
-Apply the normal Atlas migrations and regenerate Prisma before running updated API code (`pnpm db:generate`; deployment runs `pnpm db:migrate`). The migration adds recovery revisions, leases and a database guard for lifecycle mutations. Do not apply a second RME3 table sync for these core tables.
+Apply the normal Runly migrations and regenerate Prisma before running updated API code (`pnpm db:generate`; deployment runs `pnpm db:migrate`). The migration adds recovery revisions, leases and a database guard for lifecycle mutations. Do not apply a second RME3 table sync for these core tables.
 
 For the local installer, put `RUNLY_OFFICE_ENABLED=true` in `infra/installer/.env.local` or the process environment, then run `node infra/installer/setup-local.mjs`. It defaults to browser `http://localhost:9980`, browser host `http://localhost:5173`, internal CODE `http://collabora:9980` and WOPI `http://api:4010`.
 
@@ -37,13 +37,13 @@ From the repository root, start/restart the API and frontend normally. `pnpm dev
 pnpm dev
 ```
 
-The helper `scripts/start-office-dev.mjs` reads the root `.env`, derives CODE's WOPI host/frame origins and targets only `collabora-dev` within the `runlyerp` Compose project. It reuses the existing service when unchanged and does not start a second Atlas API or an installer Supabase stack. If Docker is unavailable, it warns and lets API/web/worker start. Disabled Office or a non-loopback CODE URL does not start a local editor. The database used by your development API must already have the Office migration and the Prisma client must be generated; pointing the editor at localhost does not change which database/Storage the API uses.
+The helper `scripts/start-office-dev.mjs` reads the root `.env`, derives CODE's WOPI host/frame origins and targets only `collabora-dev` within the `runlyerp` Compose project. It reuses the existing service when unchanged and does not start a second Runly API or an installer Supabase stack. If Docker is unavailable, it warns and lets API/web/worker start. Disabled Office or a non-loopback CODE URL does not start a local editor. The database used by your development API must already have the Office migration and the Prisma client must be generated; pointing the editor at localhost does not change which database/Storage the API uses.
 
-Docker Desktop displays the development editor alongside the other services under `runlyerp`. The old separate `atlas-office-dev` project was replaced by this shared grouping. The VPS installer also uses `runlyerp`, with service `collabora` under profile `office`. In both cases CODE is a separate container. The development Compose file is a partial view of the Atlas project: never use `down` or `--remove-orphans` with it, since other Atlas services share the project. Use service-targeted commands only.
+Docker Desktop displays the development editor alongside the other services under `runlyerp`. The old separate `atlas-office-dev` project was replaced by this shared grouping. The VPS installer also uses `runlyerp`, with service `collabora` under profile `office`. In both cases CODE is a separate container. The development Compose file is a partial view of the Runly project: never use `down` or `--remove-orphans` with it, since other Runly services share the project. Use service-targeted commands only.
 
-The host API reaches CODE through published port 9980. CODE reaches the host API through `host.docker.internal:4010`; the helper derives the allowed WOPI host from `RUNLY_WOPI_URL`. Open Atlas at `http://localhost:5173` to match the configured browser origin. No Nginx or certificate is needed for localhost. If the API's listening port or frontend origin changes, update the corresponding root `.env` values and rerun the helper; it derives the CODE settings. The development CODE port itself remains fixed at 9980. Native Linux Docker Engine needs an explicit `host.docker.internal:host-gateway` extra-host entry and an API listening on an interface reachable from Docker; this example targets Docker Desktop.
+The host API reaches CODE through published port 9980. CODE reaches the host API through `host.docker.internal:4010`; the helper derives the allowed WOPI host from `RUNLY_WOPI_URL`. Open Runly at `http://localhost:5173` to match the configured browser origin. No Nginx or certificate is needed for localhost. If the API's listening port or frontend origin changes, update the corresponding root `.env` values and rerun the helper; it derives the CODE settings. The development CODE port itself remains fixed at 9980. Native Linux Docker Engine needs an explicit `host.docker.internal:host-gateway` extra-host entry and an API listening on an interface reachable from Docker; this example targets Docker Desktop.
 
-To start only the editor, run `node scripts/start-office-dev.mjs`. Check startup with `docker compose -p runlyerp -f infra/docker/office-dev.compose.yml ps collabora-dev` and `curl http://127.0.0.1:9980/hosting/discovery`. Discovery confirms CODE availability; editing and saving additionally require the running Atlas API, authentication and database migration. Stop only the development editor with `docker compose -p runlyerp -f infra/docker/office-dev.compose.yml stop collabora-dev`. Disabling Office in `.env` skips auto-start; it does not stop an already running container.
+To start only the editor, run `node scripts/start-office-dev.mjs`. Check startup with `docker compose -p runlyerp -f infra/docker/office-dev.compose.yml ps collabora-dev` and `curl http://127.0.0.1:9980/hosting/discovery`. Discovery confirms CODE availability; editing and saving additionally require the running Runly API, authentication and database migration. Stop only the development editor with `docker compose -p runlyerp -f infra/docker/office-dev.compose.yml stop collabora-dev`. Disabling Office in `.env` skips auto-start; it does not stop an already running container.
 
 If API and CODE instead both run through the local **installer**, keep `COLLABORA_INTERNAL_URL=http://collabora:9980` and `RUNLY_WOPI_URL=http://api:4010` in the installer's `.env.local`; only its public browser URLs use localhost. Use that installer flow instead of starting the standalone development editor on the same port.
 
@@ -51,9 +51,9 @@ If API and CODE instead both run through the local **installer**, keep `COLLABOR
 
 For the confirmed `atlas.racoondevs.com` / `office.racoondevs.com` installation, see the [deployment-specific Spanish walkthrough](office-racoondevs.md), including the existing 4010/5173 port mappings and Nginx certificate setup.
 
-Office is disabled by default. An ordinary update does not enable it automatically. Once configured, `npm run runly:external` creates/starts the optional editor along with Atlas. DNS and the Office HTTPS reverse proxy are configured separately; the installer does not provision either.
+Office is disabled by default. An ordinary update does not enable it automatically. Once configured, `npm run runly:external` creates/starts the optional editor along with Runly. DNS and the Office HTTPS reverse proxy are configured separately; the installer does not provision either.
 
-1. Publish the repository changes, including the installer files, to the branch used by your bootstrap (the supplied bootstrap uses `main`). From your release checkout, publish the updated Atlas images with `pnpm docker:release`. This integration requires the new API, web and database migration; starting CODE alongside older Atlas images is insufficient. Publishing images and updating installer files are separate steps.
+1. Publish the repository changes, including the installer files, to the branch used by your bootstrap (the supplied bootstrap uses `main`). From your release checkout, publish the updated Runly images with `pnpm docker:release`. This integration requires the new API, web and database migration; starting CODE alongside older Runly images is insufficient. Publishing images and updating installer files are separate steps.
 2. On the VPS, enter the **existing installer directory** containing `.env.external` and `custom-modules/`. Back up your deployment configuration before refreshing the installer. Download and run the updated bootstrap:
 
    ```bash
@@ -62,7 +62,7 @@ Office is disabled by default. An ordinary update does not enable it automatical
    ```
 
    The bootstrap refreshes Compose, setup scripts and their shared libraries. It preserves an existing `.env.external` and does not delete `custom-modules/`. It overwrites distributed installer files, so retain/reapply any local changes to those files. `npm run runly:external` itself downloads images and the Dev Kit; it **does not update its own installer scripts or Compose files**.
-3. Point a dedicated Office subdomain to the VPS and configure HTTPS/WebSockets using the reverse proxy example below. If a proxy already owns ports 80/443, integrate Office into that proxy. Host proxies use `http://127.0.0.1:9980`; a container proxy on the Atlas Docker network can use `http://collabora:9980` (its own localhost is not the VPS).
+3. Point a dedicated Office subdomain to the VPS and configure HTTPS/WebSockets using the reverse proxy example below. If a proxy already owns ports 80/443, integrate Office into that proxy. Host proxies use `http://127.0.0.1:9980`; a container proxy on the Runly Docker network can use `http://collabora:9980` (its own localhost is not the VPS).
 4. Edit the following entries in `.env.external`, replacing both example domains with your real domains. Keep the existing database/authentication settings:
 
    ```dotenv
@@ -92,8 +92,8 @@ Office is disabled by default. An ordinary update does not enable it automatical
    npm run runly:external
    ```
 
-   The installer applies migrations, starts Atlas and starts CODE with the `office` profile. Docker downloads the pinned CODE image if it is missing. Do not use `runly:external:quick`, `--skip-migrate` or `--up-only` for the first deployment of this feature.
-6. Check the container and both discovery paths, then open a document in Atlas and verify a save/reopen:
+   The installer applies migrations, starts Runly and starts CODE with the `office` profile. Docker downloads the pinned CODE image if it is missing. Do not use `runly:external:quick`, `--skip-migrate` or `--up-only` for the first deployment of this feature.
+6. Check the container and both discovery paths, then open a document in Runly and verify a save/reopen:
 
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.linux.yml --profile office ps collabora
@@ -107,18 +107,18 @@ Office is disabled by default. An ordinary update does not enable it automatical
 
 For later image updates, run `npm run runly:external` in the same installer directory. When a release also changes the installer or Compose, refresh the bootstrap first as above. Keep the same Compose project name (`runlyerp` by default); changing `COMPOSE_PROJECT_NAME` or using a different `-p` creates a different project and can cause duplicate services or port/name conflicts.
 
-- One shared `collabora` service handles documents and users. Atlas does not create a Docker container for each document, save, user or update. CODE manages its own document processes inside the service.
+- One shared `collabora` service handles documents and users. Runly does not create a Docker container for each document, save, user or update. CODE manages its own document processes inside the service.
 - The installer starts CODE separately with `up -d collabora`, without forcing recreation. If its image and Compose configuration are unchanged, a running container is reused; a stopped one is started. Changes to its image/configuration replace the existing container. This follows [Docker Compose's update behavior](https://docs.docker.com/reference/cli/docker/compose/up/).
-- Atlas API, worker, web and enabled embedded Calls services retain the installer's existing forced-recreation behavior. They are replaced within the same project, rather than accumulating copies. This also reloads generated bind-mounted Calls configuration. Keeping CODE running does **not** make the whole deployment interruption-free: an API restart temporarily interrupts WOPI requests. Save and close documents before deploying, especially when changing CODE or database code.
+- Runly API, worker, web and enabled embedded Calls services retain the installer's existing forced-recreation behavior. They are replaced within the same project, rather than accumulating copies. This also reloads generated bind-mounted Calls configuration. Keeping CODE running does **not** make the whole deployment interruption-free: an API restart temporarily interrupts WOPI requests. Save and close documents before deploying, especially when changing CODE or database code.
 - Migration and seed commands use temporary `docker run --rm` containers, removed when each command exits. Docker images/cache are separate from containers; old images can still occupy disk. The current installer runs `docker image prune -f` after pulls and before startup, so an image still used by the old container at that point may remain until a later cleanup.
-- CODE's version is pinned in Compose. Atlas updates do not automatically advance it to a new CODE release. Review and update the pinned version deliberately, then refresh the installer on the VPS.
+- CODE's version is pinned in Compose. Runly updates do not automatically advance it to a new CODE release. Review and update the pinned version deliberately, then refresh the installer on the VPS.
 - Setting `RUNLY_OFFICE_ENABLED=false` and rerunning setup stops the existing editor and disables new Office sessions. It does not delete documents. Re-enabling reuses the service where possible. Do not run `runly:stop:external` or `--reset` as a routine update step.
 
 ## Variables and networking
 
-`RUNLY_OFFICE_HOST_ORIGIN` is the origin of the **Atlas frontend as opened in the user's browser**. It normally matches `RUNLY_APP_URL`, which Atlas uses for application links and other integrations. Office currently requires its own explicit value; it does not inherit `RUNLY_APP_URL`. An origin includes scheme, hostname and any non-default port, but no `/app` path. For local development both can be `http://localhost:5173`; for a VPS use the actual HTTPS Atlas domain, even when Nginx forwards it to port 5173 internally. `erp.example.com` is only a placeholder, not a required additional domain.
+`RUNLY_OFFICE_HOST_ORIGIN` is the origin of the **Runly frontend as opened in the user's browser**. It normally matches `RUNLY_APP_URL`, which Runly uses for application links and other integrations. Office currently requires its own explicit value; it does not inherit `RUNLY_APP_URL`. An origin includes scheme, hostname and any non-default port, but no `/app` path. For local development both can be `http://localhost:5173`; for a VPS use the actual HTTPS Runly domain, even when Nginx forwards it to port 5173 internally. `erp.example.com` is only a placeholder, not a required additional domain.
 
-`COLLABORA_PUBLIC_URL` belongs to the separate Office domain. `ATLAS_API_URL` belongs to the public API (possibly an `/api` path on the Atlas domain) and is used by the installer's web image at runtime. `VITE_ATLAS_API_URL` is used by the development/build setup; it does not replace the installer's `ATLAS_API_URL`. `CORS_ORIGIN` must continue allowing the actual Atlas frontend origin.
+`COLLABORA_PUBLIC_URL` belongs to the separate Office domain. `ATLAS_API_URL` belongs to the public API (possibly an `/api` path on the Runly domain) and is used by the installer's web image at runtime. `VITE_ATLAS_API_URL` is used by the development/build setup; it does not replace the installer's `ATLAS_API_URL`. `CORS_ORIGIN` must continue allowing the actual Runly frontend origin.
 
 The repository-root `.env` and the VPS installer's `.env.external` are different files/flows. Root `.env` values such as localhost are valid for local development and do not establish the VPS's actual domain or port mapping. Configure Office in `.env.external` when deploying with `npm run runly:external`; the installer generates its sibling `.env` for Compose interpolation.
 
@@ -127,7 +127,7 @@ The repository-root `.env` and the VPS installer's `.env.external` are different
 | `RUNLY_OFFICE_ENABLED` | Enable sessions and optional CODE service | `false` |
 | `COLLABORA_INTERNAL_URL` | API fetches `/hosting/discovery` here | `http://collabora:9980` |
 | `COLLABORA_PUBLIC_URL` | Browser iframe/WebSocket origin | `http://localhost:9980` |
-| `RUNLY_WOPI_URL` | CODE calls Atlas WOPI here; stable for all users | `http://api:4010` |
+| `RUNLY_WOPI_URL` | CODE calls Runly WOPI here; stable for all users | `http://api:4010` |
 | `RUNLY_OFFICE_HOST_ORIGIN` | Primary browser host origin for postMessage/frame ancestors | `http://localhost:5173` |
 | `RUNLY_OFFICE_ADDITIONAL_ORIGINS` | Comma-separated exact HTTPS/native embedding origins | `http://tauri.localhost,https://tauri.localhost,tauri://localhost` |
 | `RUNLY_WOPI_SECRET` | Dedicated server-only HMAC key, at least 32 bytes | Generated and preserved |
@@ -139,18 +139,18 @@ The installer derives `COLLABORA_WOPI_HOST`, `COLLABORA_CONTENT_SECURITY_POLICY`
 
 ### If host port 4010 is occupied
 
-First identify the listener on the VPS: it may already be the Atlas API you intend to update, rather than a conflicting application.
+First identify the listener on the VPS: it may already be the Runly API you intend to update, rather than a conflicting application.
 
 ```bash
 docker ps --format 'table {{.Names}}\t{{.Ports}}'
 ss -ltnp '( sport = :4010 )'
 ```
 
-`ATLAS_API_PORT` controls the API's listening port **inside its container**. The installer currently publishes the literal mapping `4010:4010` in Compose; changing the variable alone does not change that mapping. If another application requires host port 4010, retain internal `ATLAS_API_PORT=4010` and adjust the Atlas API service's published mapping to an available host port, for example `127.0.0.1:4011:4010` when Nginx runs on the host. Replace the existing mapping; do not add it alongside the conflicting one. This mapping is an example, not a claim that 4011 is available on your VPS. Preserve this customization when refreshing the installer.
+`ATLAS_API_PORT` controls the API's listening port **inside its container**. The installer currently publishes the literal mapping `4010:4010` in Compose; changing the variable alone does not change that mapping. If another application requires host port 4010, retain internal `ATLAS_API_PORT=4010` and adjust the Runly API service's published mapping to an available host port, for example `127.0.0.1:4011:4010` when Nginx runs on the host. Replace the existing mapping; do not add it alongside the conflicting one. This mapping is an example, not a claim that 4011 is available on your VPS. Preserve this customization when refreshing the installer.
 
-In that example, the host Nginx API upstream becomes `http://127.0.0.1:4011`, while `RUNLY_WOPI_URL=http://api:4010` remains correct because CODE and Atlas share the Docker network. If you instead change the API's internal listening port, update the target port and WOPI URL consistently. [Docker documents the distinction between host and container ports](https://docs.docker.com/compose/how-tos/networking/).
+In that example, the host Nginx API upstream becomes `http://127.0.0.1:4011`, while `RUNLY_WOPI_URL=http://api:4010` remains correct because CODE and Runly share the Docker network. If you instead change the API's internal listening port, update the target port and WOPI URL consistently. [Docker documents the distinction between host and container ports](https://docs.docker.com/compose/how-tos/networking/).
 
-Office itself publishes `127.0.0.1:9980:9980`. The Office Nginx upstream is therefore `http://127.0.0.1:9980`, independent of the Atlas API's host port.
+Office itself publishes `127.0.0.1:9980:9980`. The Office Nginx upstream is therefore `http://127.0.0.1:9980`, independent of the Runly API's host port.
 
 ## HTTPS reverse proxy
 
@@ -181,21 +181,21 @@ server {
 }
 ```
 
-Forward all CODE paths unchanged, including `/browser/`, `/hosting/discovery`, `/cool/` and WebSockets (101 upgrade). Avoid URI rewrites/double decoding. If WOPI itself is proxied, preserve method, binary body, `X-WOPI-*` and `X-COOL-WOPI-Timestamp`, allow at least 10 MiB, disable buffering where needed, and suppress query-string access logs there too. Do not log request bodies, access tokens, signed URLs or document bytes in APM/proxies. Retain Collabora's response CSP; don't add `X-Frame-Options: SAMEORIGIN` on the Office vhost. The Atlas host's CSP must permit the configured Office origin in `frame-src` and `form-action`. CODE's `content_security_policy` environment variable sets `frame-ancestors` to the configured allowlist (the older `net.frame_ancestors` is deprecated). This avoids the distroless image's extra_params space parsing problem. Ordinary WOPI traffic is server-to-server and needs no permissive browser CORS.
+Forward all CODE paths unchanged, including `/browser/`, `/hosting/discovery`, `/cool/` and WebSockets (101 upgrade). Avoid URI rewrites/double decoding. If WOPI itself is proxied, preserve method, binary body, `X-WOPI-*` and `X-COOL-WOPI-Timestamp`, allow at least 10 MiB, disable buffering where needed, and suppress query-string access logs there too. Do not log request bodies, access tokens, signed URLs or document bytes in APM/proxies. Retain Collabora's response CSP; don't add `X-Frame-Options: SAMEORIGIN` on the Office vhost. The Runly host's CSP must permit the configured Office origin in `frame-src` and `form-action`. CODE's `content_security_policy` environment variable sets `frame-ancestors` to the configured allowlist (the older `net.frame_ancestors` is deprecated). This avoids the distroless image's extra_params space parsing problem. Ordinary WOPI traffic is server-to-server and needs no permissive browser CORS.
 
 Tauri currently has no restrictive configured CSP; this change does not relax it. Its standard native origins are explicitly included in the default additional origin list. The session endpoint validates the request Origin against that allowlist and binds it into the signed token; CheckFileInfo returns that exact PostMessageOrigin. Windows Tauri 2 normally uses http://tauri.localhost, and macOS/Linux use tauri://localhost. Additional HTTPS deployment origins can be listed explicitly; no wildcard or opaque null origin is accepted. Native cross-origin embedding and future Android/iOS WebViews still require device validation. Do not claim native/mobile acceptance from a successful Windows build alone. See the [official Tauri origin guidance](https://v2.tauri.app/start/migrate/from-tauri-1/).
 
 ## Session and endpoints
 
-Frontend uses `@runly/sdk` methods `files.officeStatus(token)` and `files.createOfficeSession(id, mode, token)`; no session is persisted in the TanStack offline cache. The responsive shared `OfficeDocumentEditor` POSTs the temporary token and expiry to the discovered action in a full-screen iframe. File previews/detail actions and shared attachments use `/app/m/atlas.files/files/:id/edit`. The session decides view/edit from actual company permissions (`auto`); explicit `edit` is rejected without update permission.
+Frontend uses `@runly/sdk` methods `files.officeStatus(token)` and `files.createOfficeSession(id, mode, token)`; no session is persisted in the TanStack offline cache. The responsive shared `OfficeDocumentEditor` POSTs the temporary token and expiry to the discovered action in a full-screen iframe. File previews/detail actions and shared attachments use `/app/m/runly.files/files/:id/edit`. The session decides view/edit from actual company permissions (`auto`); explicit `edit` is rejected without update permission.
 
 | Endpoint | Authorization / operation |
 |---|---|
-| `GET /files/office/status` | Atlas auth + files read; cached discovery health |
-| `GET /files/:id/office/download` | Atlas auth + current company/parent access; binary download still works without CODE |
-| `POST /files/:id/office/session` | Atlas auth + current company/parent access; `{mode: "auto"\|"view"\|"edit"}` |
+| `GET /files/office/status` | Runly auth + files read; cached discovery health |
+| `GET /files/:id/office/download` | Runly auth + current company/parent access; binary download still works without CODE |
+| `POST /files/:id/office/session` | Runly auth + current company/parent access; `{mode: "auto"\|"view"\|"edit"}` |
 | `GET /wopi/files/:id` | WOPI capability; CheckFileInfo |
-| `GET /wopi/files/:id/contents` | WOPI capability; GetFile through Atlas Storage client |
+| `GET /wopi/files/:id/contents` | WOPI capability; GetFile through Runly Storage client |
 | `POST /wopi/files/:id` | WOPI capability + `X-WOPI-Override`: LOCK, REFRESH_LOCK, UNLOCK, GET_LOCK; LOCK with `X-WOPI-OldLock` implements UnlockAndRelock |
 | `POST /wopi/files/:id/contents` | Edit capability + `X-WOPI-Override: PUT` + matching lease; PutFile |
 
@@ -213,17 +213,17 @@ Identical bytes do not create a revision. Revisions are internal recovery record
 
 For recovery, an administrator can inspect `file_asset_version` by `file_id, revision`, then retrieve its private `bucket/object_key` with the privileged Storage client and upload it as a separate recovery copy using the normal Files upload. Do not overwrite the current pointer during an active session. There is no end-user restore API in this MVP. Recovery rows have RLS enabled and no anon/authenticated grants. Back up the database and Storage together.
 
-Audit events: `office.document.opened`, `office.document.saved`, `office.document.save_failed`. They include file/actor/company, revision/size or bounded error code, never capabilities or bytes. Atlas's back action requests a save and waits for acknowledgment; a timeout leaves the editor mounted. An expired session is visible and must be reopened deliberately. If saving is unavailable, recover edits through CODE's own download UI before leaving. Office documents are not available for offline editing.
+Audit events: `office.document.opened`, `office.document.saved`, `office.document.save_failed`. They include file/actor/company, revision/size or bounded error code, never capabilities or bytes. Runly's back action requests a save and waits for acknowledgment; a timeout leaves the editor mounted. An expired session is visible and must be reopened deliberately. If saving is unavailable, recover edits through CODE's own download UI before leaving. Office documents are not available for offline editing.
 
 ## Troubleshooting and acceptance
 
 ### Changes appear only after saving and reloading another device
 
-There is no separate collaboration switch. Both devices must open the same FileAsset in the live Office editor, with sessions routed to the same CODE document process. A file preview or downloaded copy does not join that live session. Use the same `/app/m/atlas.files/files/:id/edit` path on the same deployed Atlas installation for an initial check; matching filenames alone do not establish file identity.
+There is no separate collaboration switch. Both devices must open the same FileAsset in the live Office editor, with sessions routed to the same CODE document process. A file preview or downloaded copy does not join that live session. Use the same `/app/m/runly.files/files/:id/edit` path on the same deployed Runly installation for an initial check; matching filenames alone do not establish file identity.
 
-Development and production normally run separate CODE instances. A browser on `localhost:5173` with `COLLABORA_PUBLIC_URL=http://localhost:9980` does not collaborate live with a browser using the VPS's `https://office.racoondevs.com`, even when both Atlas APIs share database/Storage. Reading saved versions from common storage does not synchronize their live editor processes; competing write leases can also prevent saves. To test cross-device collaboration, open the deployed Atlas URL on both devices instead of mixing local development and production. Do not change only the public Office URL to combine environments: discovery routing, the canonical WOPI URL, token validation and host origins must be consistent too.
+Development and production normally run separate CODE instances. A browser on `localhost:5173` with `COLLABORA_PUBLIC_URL=http://localhost:9980` does not collaborate live with a browser using the VPS's `https://office.racoondevs.com`, even when both Runly APIs share database/Storage. Reading saved versions from common storage does not synchronize their live editor processes; competing write leases can also prevent saves. To test cross-device collaboration, open the deployed Runly URL on both devices instead of mixing local development and production. Do not change only the public Office URL to combine environments: discovery routing, the canonical WOPI URL, token validation and host origins must be consistent too.
 
-For a failure within one installation, compare the file ID, effective editor origin and decoded WOPISrc from the two session responses locally; do not share access tokens or complete capability URLs. Atlas creates WOPISrc from the configured WOPI base plus FileAsset ID, without user, token or revision suffixes. Check that `/cool/` WebSockets stay connected and that any proxy with multiple CODE backends routes the same document to the same instance. Collabora documents this requirement in its [deployment guidance](https://github.com/CollaboraOnline/online/blob/main/kubernetes/helm/collabora-online/README.md). Separate logged-in users are useful for checking permissions, but using the same account on two devices does not itself disable coediting.
+For a failure within one installation, compare the file ID, effective editor origin and decoded WOPISrc from the two session responses locally; do not share access tokens or complete capability URLs. Runly creates WOPISrc from the configured WOPI base plus FileAsset ID, without user, token or revision suffixes. Check that `/cool/` WebSockets stay connected and that any proxy with multiple CODE backends routes the same document to the same instance. Collabora documents this requirement in its [deployment guidance](https://github.com/CollaboraOnline/online/blob/main/kubernetes/helm/collabora-online/README.md). Separate logged-in users are useful for checking permissions, but using the same account on two devices does not itself disable coediting.
 
 | Symptom | Check |
 |---|---|
@@ -248,7 +248,7 @@ pnpm lint
 pnpm build
 ```
 
-Acceptance on your deployment: upload XLSX, edit A1, save/close, reopen and download to verify bytes; open two authorized users concurrently; verify a view-only user's read mode and another company's rejection. Repeat with DOCX/PPTX, Android Chrome, iOS Safari, installed PWA and Tauri. Stop CODE and confirm Atlas listing/upload/download remain usable. Benchmarks depend on document complexity and users; provision headroom for CODE alongside Atlas/Supabase and measure memory/CPU under collaborative load. Official sizing guidance is in the [Collabora FAQ](https://www.collaboraonline.com/faqs/).
+Acceptance on your deployment: upload XLSX, edit A1, save/close, reopen and download to verify bytes; open two authorized users concurrently; verify a view-only user's read mode and another company's rejection. Repeat with DOCX/PPTX, Android Chrome, iOS Safari, installed PWA and Tauri. Stop CODE and confirm Runly listing/upload/download remain usable. Benchmarks depend on document complexity and users; provision headroom for CODE alongside Runly/Supabase and measure memory/CPU under collaborative load. Official sizing guidance is in the [Collabora FAQ](https://www.collaboraonline.com/faqs/).
 
 ## Files workspace
 

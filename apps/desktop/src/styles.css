@@ -731,7 +731,7 @@ body,
 /* Collaboration carets — thin line + small avatar chip (see buildCollabCaret).
    The @tiptap/extension-collaboration-caret v3 default builder is replaced, so
    these target our own classes, not the extension's collaboration-carets__*. */
-.tiptap .atlas-yjs-caret {
+.tiptap .runly-yjs-caret {
   position: relative;
   margin-left: -1px;
   margin-right: -1px;
@@ -740,7 +740,7 @@ body,
   word-break: normal;
   box-sizing: border-box;
 }
-.tiptap .atlas-yjs-caret__chip {
+.tiptap .runly-yjs-caret__chip {
   position: absolute;
   top: -1.5em;
   left: -2px;
@@ -759,7 +759,7 @@ body,
   user-select: none;
   pointer-events: auto;
 }
-.tiptap .atlas-yjs-caret__img {
+.tiptap .runly-yjs-caret__img {
   width: 100%;
   height: 100%;
   object-fit: cover;

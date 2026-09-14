@@ -23,7 +23,7 @@ test("TOOL_DEFS lists every read tool with JSON schemas", () => {
   assert.deepEqual(names, [
     "describe_image", "get_conversation_messages", "get_recent_messages",
     "list_bank_accounts", "list_conversation_files", "list_my_calendar",
-    "list_my_tasks", "search_atlas", "search_inventory", "search_my_conversations",
+    "list_my_tasks", "search_inventory", "search_my_conversations", "search_runly",
   ]);
   for (const t of TOOL_DEFS) assert.equal(t.type, "function");
 });
@@ -74,7 +74,7 @@ test("a missing ERP service dep -> friendly error, no throw", async () => {
   assert.match(out.error, /no esta disponible/i);
 });
 
-test("search_atlas: runs only the providers the caller is allowed, returns grouped hits", async () => {
+test("search_runly: runs only the providers the caller is allowed, returns grouped hits", async () => {
   const resolveUserContext = async (authUserId) => {
     assert.equal(authUserId, "auth1");
     return {
@@ -84,7 +84,7 @@ test("search_atlas: runs only the providers the caller is allowed, returns group
     };
   };
   const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext });
-  const out = await runners.search_atlas({ query: "Juan" }, { companyId: "co1", actorAuthUserId: "auth1", actorProfileId: "prof1", conversationId: "c1" });
+  const out = await runners.search_runly({ query: "Juan" }, { companyId: "co1", actorAuthUserId: "auth1", actorProfileId: "prof1", conversationId: "c1" });
   // With only contacts permission, the contacts provider runs against the empty
   // prisma stub -> throws -> Promise.allSettled swallows it -> no groups.
   assert.ok(out.groups === undefined ? out.note : true);
@@ -130,10 +130,10 @@ test("search_inventory: admin in Company A does NOT leak admin access into a too
   assert.match(asPlainInB.error, /acceso/i, "no admin permissions in Company B must be refused there");
 });
 
-test("search_atlas: caller with no search permission is refused", async () => {
+test("search_runly: caller with no search permission is refused", async () => {
   const resolveUserContext = async () => ({ profile: { id: "p" }, memberships: [membership({ companyId: "co1" })] });
   const runners = buildToolRunners({ prisma: {}, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService: {}, signAttachmentUrl: async () => "x", resolveUserContext });
-  const out = await runners.search_atlas({ query: "Juan" }, { actorAuthUserId: "a", companyId: "co1" });
+  const out = await runners.search_runly({ query: "Juan" }, { actorAuthUserId: "a", companyId: "co1" });
   assert.match(out.error, /permiso/i);
 });
 

@@ -17,7 +17,7 @@ import { unlockCallSounds } from "../modules/runly.chat/calls/callSounds";
 import { native } from '../native/index.js';
 import { createNotificationPreparation } from '../lib/notificationPreparation.js';
 
-const ENABLE_NOTIFICATIONS_TOAST_ID = "atlas-enable-notifications";
+const ENABLE_NOTIFICATIONS_TOAST_ID = "runly-enable-notifications";
 
 function getPwaLabel() {
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches;

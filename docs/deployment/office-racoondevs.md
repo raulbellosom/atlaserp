@@ -6,37 +6,37 @@ Configuración basada en los dominios y la salida de `docker ps` proporcionados 
 
 | Servicio | Dominio / conexión | Puerto publicado en el VPS |
 |---|---|---|
-| Frontend Atlas | `https://atlas.racoondevs.com` | `5173` → contenedor web `80` |
-| API Atlas | Conservar su proxy público actual | `4010` → contenedor API `4010` |
+| Frontend Runly | `https://atlas.racoondevs.com` | `5173` → contenedor web `80` |
+| API Runly | Conservar su proxy público actual | `4010` → contenedor API `4010` |
 | Collabora | `https://office.racoondevs.com` | `127.0.0.1:9980` → contenedor CODE `9980` |
 
-El listener de 4010 pertenece a `atlas-api-external`: es el Atlas existente, no un conflicto con otra aplicación. No cambiar ese puerto ni iniciar el perfil `local` en el VPS. Collabora no aparece en la lista de contenedores en ejecución proporcionada; eso no determina si existe un contenedor detenido.
+El listener de 4010 pertenece a `runly-api-external`: es el Runly existente, no un conflicto con otra aplicación. No cambiar ese puerto ni iniciar el perfil `local` en el VPS. Collabora no aparece en la lista de contenedores en ejecución proporcionada; eso no determina si existe un contenedor detenido.
 
 ## Variables del VPS
 
-En `/opt/atlaserp/.env.external`, establecer estas entradas una sola vez, sustituyendo cualquier valor anterior de esas mismas claves:
+En `/opt/runly/.env.external`, establecer estas entradas una sola vez, sustituyendo cualquier valor anterior de esas mismas claves:
 
 ```dotenv
-ATLAS_APP_URL=https://atlas.racoondevs.com
-ATLAS_API_PORT=4010
-ATLAS_OFFICE_ENABLED=true
+RUNLY_APP_URL=https://atlas.racoondevs.com
+RUNLY_API_PORT=4010
+RUNLY_OFFICE_ENABLED=true
 COLLABORA_PUBLIC_URL=https://office.racoondevs.com
-ATLAS_OFFICE_HOST_ORIGIN=https://atlas.racoondevs.com
+RUNLY_OFFICE_HOST_ORIGIN=https://atlas.racoondevs.com
 COLLABORA_INTERNAL_URL=http://collabora:9980
-ATLAS_WOPI_URL=http://api:4010
-ATLAS_OFFICE_ADDITIONAL_ORIGINS=http://tauri.localhost,https://tauri.localhost,tauri://localhost
-ATLAS_WOPI_TOKEN_SECONDS=28800
+RUNLY_WOPI_URL=http://api:4010
+RUNLY_OFFICE_ADDITIONAL_ORIGINS=http://tauri.localhost,https://tauri.localhost,tauri://localhost
+RUNLY_WOPI_TOKEN_SECONDS=28800
 ```
 
-Conservar `ATLAS_WOPI_SECRET` si ya tiene valor. En la primera activación puede quedar vacío: el instalador actualizado lo genera y persiste. Conservar las claves de autenticación, Storage y base de datos, la configuración de Calls y la URL pública actual de la API (`ATLAS_API_URL`). La salida de puertos no permite deducir si esta última usa `/api` o un subdominio. `CORS_ORIGIN` debe incluir `https://atlas.racoondevs.com`; conservar también los demás orígenes legítimos existentes.
+Conservar `RUNLY_WOPI_SECRET` si ya tiene valor. En la primera activación puede quedar vacío: el instalador actualizado lo genera y persiste. Conservar las claves de autenticación, Storage y base de datos, la configuración de Calls y la URL pública actual de la API (`RUNLY_API_URL`). La salida de puertos no permite deducir si esta última usa `/api` o un subdominio. `CORS_ORIGIN` debe incluir `https://atlas.racoondevs.com`; conservar también los demás orígenes legítimos existentes.
 
-`ATLAS_OFFICE_HOST_ORIGIN` corresponde al frontend que abre el usuario y coincide aquí con `ATLAS_APP_URL`; Office no hereda automáticamente esa variable. Las direcciones `api` y `collabora` son nombres internos de Docker.
+`RUNLY_OFFICE_HOST_ORIGIN` corresponde al frontend que abre el usuario y coincide aquí con `RUNLY_APP_URL`; Office no hereda automáticamente esa variable. Las direcciones `api` y `collabora` son nombres internos de Docker.
 
 El `.env` de la raíz del repositorio usado para desarrollo es distinto de `.env.external` del instalador. No copiar indiscriminadamente el archivo de desarrollo al VPS ni modificar los valores locales solo para configurar producción. En la carpeta del instalador, el archivo `.env` sin sufijo es generado para interpolar Compose.
 
 ## Nginx del host y certificado
 
-Estos pasos usan el mismo esquema de los virtual hosts Atlas y RTC proporcionados: Nginx en el host, certificados en `/etc/letsencrypt/live/` y validación ACME mediante `/var/www/certbot`. Se utiliza Certbot en modo `webroot`.
+Estos pasos usan el mismo esquema de los virtual hosts Runly y RTC proporcionados: Nginx en el host, certificados en `/etc/letsencrypt/live/` y validación ACME mediante `/var/www/certbot`. Se utiliza Certbot en modo `webroot`.
 
 El registro DNS A de `office.racoondevs.com` debe apuntar a `66.175.239.181`. Los puertos públicos 80/443 deben alcanzar este Nginx para emitir el certificado por HTTP y servir HTTPS. El puerto 9980 permanece en loopback.
 
@@ -108,7 +108,7 @@ server {
 }
 ```
 
-Se usa `Connection "upgrade"` igual que en RTC, sin depender de una variable `map` adicional. Las cabeceras están documentadas para el [proxy WebSocket de Nginx](https://nginx.org/en/docs/http/websocket.html). Conservar la CSP de Collabora y no añadir `X-Frame-Options: SAMEORIGIN`, ya que Atlas debe poder embeber el editor desde otro dominio. Los access logs se desactivan para evitar registrar URLs de sesiones.
+Se usa `Connection "upgrade"` igual que en RTC, sin depender de una variable `map` adicional. Las cabeceras están documentadas para el [proxy WebSocket de Nginx](https://nginx.org/en/docs/http/websocket.html). Conservar la CSP de Collabora y no añadir `X-Frame-Options: SAMEORIGIN`, ya que Runly debe poder embeber el editor desde otro dominio. Los access logs se desactivan para evitar registrar URLs de sesiones.
 
 Validar y recargar el archivo completo:
 
@@ -124,10 +124,10 @@ El proxy puede responder 502 hasta que CODE arranque; la emisión del certificad
 
 ## Arranque y comprobación
 
-Primero publicar las nuevas imágenes de Atlas y refrescar el instalador como indica la [guía general](office-collabora.md#first-deployment-on-an-existing-vps). Con la configuración anterior y el proxy listo, ejecutar en el VPS:
+Primero publicar las nuevas imágenes de Runly y refrescar el instalador como indica la [guía general](office-collabora.md#first-deployment-on-an-existing-vps). Con la configuración anterior y el proxy listo, ejecutar en el VPS:
 
 ```bash
-cd /opt/atlaserp
+cd /opt/runly
 npm run runly:external
 docker compose -f docker-compose.yml -f docker-compose.linux.yml --profile office ps collabora
 curl -fsS http://127.0.0.1:9980/hosting/discovery -o /dev/null

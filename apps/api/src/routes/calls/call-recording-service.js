@@ -6,7 +6,7 @@ const RETENTION_MS = 90 * 24 * 60 * 60 * 1000; // spec §5 goal 4
 const RECORDING_BUCKET = "runly-chat";
 const ACTIVE_STATUSES = ["STARTING", "ACTIVE", "PROCESSING"];
 const STORAGE_LIST_PAGE_SIZE = 1000;
-const LOG_PREFIX = "[atlas.calls/recording]";
+const LOG_PREFIX = "[runly.calls/recording]";
 
 export class CallRecordingError extends Error {
   constructor(message, status = 400) {

@@ -1,4 +1,4 @@
-const HINT_KEY = "atlas-public-site-hint";
+const HINT_KEY = "runly-public-site-hint";
 
 export function storePublicSiteHint({ siteName, primaryColor, backgroundColor }) {
   try {
@@ -47,7 +47,7 @@ const LOADER_CSS = `
  *
  * On first visit it shows a neutral spinner. On subsequent visits it reads the
  * last resolved site name and primary color from localStorage to render a
- * branded loader without any Atlas ERP references.
+ * branded loader without any Runly ERP references.
  *
  * Pair with storePublicSiteHint() called after a successful /public/website/resolve.
  */

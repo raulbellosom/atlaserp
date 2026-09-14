@@ -1,6 +1,6 @@
 # Preparar Firebase para Android
 
-Estado: proyecto Firebase creado por el usuario; los dos JSON locales coinciden con el proyecto y el paquete Android. Google Services y Firebase Messaging están integrados en el build; recepción personalizada, registro de tokens y envío desde Atlas pendientes de implementación. Las variables de Atlas que se documentan aquí no activan el flujo completo por sí solas. La web/PWA conserva su Web Push con VAPID.
+Estado: proyecto Firebase creado por el usuario; los dos JSON locales coinciden con el proyecto y el paquete Android. Google Services y Firebase Messaging están integrados en el build; recepción personalizada, registro de tokens y envío desde Runly pendientes de implementación. Las variables de Runly que se documentan aquí no activan el flujo completo por sí solas. La web/PWA conserva su Web Push con VAPID.
 
 ## 1. Obtener el identificador del proyecto
 
@@ -8,7 +8,7 @@ En Firebase, abrir **Configuración del proyecto > General**. Copiar el **ID del
 
 ## 2. Registrar la aplicación Android
 
-En la descripción general del proyecto, elegir **Agregar app > Android**. Usar exactamente `com.racoondevs.atlaserp` como nombre del paquete. El apodo puede ser `Atlas ERP Android`.
+En la descripción general del proyecto, elegir **Agregar app > Android**. Usar exactamente `com.racoondevs.runlyerp` como nombre del paquete. El apodo puede ser `Runly ERP Android`.
 
 Descargar `google-services.json` y guardarlo en:
 
@@ -16,13 +16,13 @@ Descargar `google-services.json` y guardarlo en:
 D:/RacoonDevs/atlaserp-v2/.secrets/firebase/google-services.json
 ```
 
-La variable `ATLAS_ANDROID_GOOGLE_SERVICES_JSON` del `.env` local apunta a esa ubicación. Este archivo contiene identificadores de configuración de Android, no la clave privada del servidor. El wrapper Android lee esta variable de `process.env`, con respaldo en el `.env` raíz, valida el paquete y el proyecto, rechaza claves privadas y copia el JSON al módulo Android antes de configurar/compilar. No exporta las credenciales del `.env` a Gradle. No copiar la credencial del siguiente paso a Android.
+La variable `RUNLY_ANDROID_GOOGLE_SERVICES_JSON` del `.env` local apunta a esa ubicación. Este archivo contiene identificadores de configuración de Android, no la clave privada del servidor. El wrapper Android lee esta variable de `process.env`, con respaldo en el `.env` raíz, valida el paquete y el proyecto, rechaza claves privadas y copia el JSON al módulo Android antes de configurar/compilar. No exporta las credenciales del `.env` a Gradle. No copiar la credencial del siguiente paso a Android.
 
 Gradle incorpora Google Services 4.5.0 y Firebase Messaging con BoM 34.19.0 cuando existe esa configuración. No se añade Analytics. Sin ruta configurada, el wrapper retira la copia de una compilación anterior y permite compilar sin Firebase. Para sincronizar desde Android Studio, ejecutar primero desde la raíz `node apps/desktop/scripts/native-host.mjs android config production` y después sincronizar Gradle. Ese comando no compila ni publica un APK.
 
 Referencia: [Registrar Android y configurar el SDK](https://firebase.google.com/docs/android/setup).
 
-## 3. Obtener la credencial para el servidor Atlas
+## 3. Obtener la credencial para el servidor Runly
 
 En **Configuración del proyecto > Cuentas de servicio > Firebase Admin SDK**, elegir **Generar nueva clave privada** y guardar el JSON descargado, renombrándolo a:
 
@@ -43,13 +43,13 @@ En Google Cloud Console, seleccionar el mismo proyecto y abrir **APIs y servicio
 El bloque local queda así, sustituyendo únicamente el ID:
 
 ```dotenv
-ATLAS_FCM_ENABLED=false
+RUNLY_FCM_ENABLED=false
 FIREBASE_PROJECT_ID=tu-id-real-del-proyecto
 GOOGLE_APPLICATION_CREDENTIALS=D:/RacoonDevs/atlaserp-v2/.secrets/firebase/service-account.json
-ATLAS_ANDROID_GOOGLE_SERVICES_JSON=D:/RacoonDevs/atlaserp-v2/.secrets/firebase/google-services.json
+RUNLY_ANDROID_GOOGLE_SERVICES_JSON=D:/RacoonDevs/atlaserp-v2/.secrets/firebase/google-services.json
 ```
 
-Mantener `ATLAS_FCM_ENABLED=false` durante esta preparación. El interruptor todavía no tiene consumidor implementado. No hay que migrar la autenticación, los datos ni las llamadas de Atlas a Firebase para usar FCM.
+Mantener `RUNLY_FCM_ENABLED=false` durante esta preparación. El interruptor todavía no tiene consumidor implementado. No hay que migrar la autenticación, los datos ni las llamadas de Runly a Firebase para usar FCM.
 
 ## Archivos locales y producción
 
@@ -72,18 +72,18 @@ node lib/firebase-config.mjs .env.external
 Después copia mediante SFTP/SCP el JSON privado a `.secrets/firebase/service-account.json` dentro de esa carpeta y limita su lectura al usuario de despliegue (`chmod 600 .secrets/firebase/service-account.json` en Linux). Completa en `.env.external`:
 
 ```dotenv
-ATLAS_FCM_ENABLED=false
+RUNLY_FCM_ENABLED=false
 FIREBASE_PROJECT_ID=tu-id-real-del-proyecto
 GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase/service-account.json
 ```
 
-No copies el `.env` de Windows al VPS: las rutas y el resto de la configuración de producción son diferentes. El instalador utiliza la ruta de contenedor indicada arriba; cuando FCM está habilitado valida que exista una cuenta de servicio con clave RSA y proyecto coincidente antes de iniciar Atlas. Todavía hay que implementar y desplegar el runtime FCM; subir la credencial y preparar las variables no activa las notificaciones.
+No copies el `.env` de Windows al VPS: las rutas y el resto de la configuración de producción son diferentes. El instalador utiliza la ruta de contenedor indicada arriba; cuando FCM está habilitado valida que exista una cuenta de servicio con clave RSA y proyecto coincidente antes de iniciar Runly. Todavía hay que implementar y desplegar el runtime FCM; subir la credencial y preparar las variables no activa las notificaciones.
 
 La configuración Android se utiliza al compilar y sus identificadores quedan en la app; la cuenta de servicio permanece exclusivamente en el servidor. Cambiar las variables de entorno del servidor no configura un APK ya instalado.
 
 ## Trabajo posterior a esta preparación
 
-Integrar el registro y renovación de tokens por instalación, el envío desde la cola de Atlas, el receptor Android y las acciones de llamada; compilar e instalar un APK nuevo y probar en un dispositivo real con la app en segundo plano. FCM avisa de la llamada; LiveKit sigue transportando audio y video. La presentación de llamada y su continuidad al bloquear la pantalla requieren su propia integración nativa.
+Integrar el registro y renovación de tokens por instalación, el envío desde la cola de Runly, el receptor Android y las acciones de llamada; compilar e instalar un APK nuevo y probar en un dispositivo real con la app en segundo plano. FCM avisa de la llamada; LiveKit sigue transportando audio y video. La presentación de llamada y su continuidad al bloquear la pantalla requieren su propia integración nativa.
 
 El soporte iOS nativo requiere configurar Apple/APNs y, para llamadas VoIP, PushKit/CallKit. Estos dos archivos Android/servidor no habilitan por sí solos el soporte iOS.
 

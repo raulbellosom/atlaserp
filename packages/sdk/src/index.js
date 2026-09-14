@@ -43,7 +43,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId } = {}) {
     const { onlineOnly = false, ...fetchOptions } = options;
     const isFormData = options.body instanceof FormData;
     const method = (options.method ?? "GET").toUpperCase();
-    // DELETE is intentionally excluded: Atlas ERP uses soft-delete (PATCH enabled=false) for
+    // DELETE is intentionally excluded: Runly ERP uses soft-delete (PATCH enabled=false) for
     // offline-safe deletions. Hard DELETEs are not queued to avoid replay-after-recreate races.
     const MUTATION_METHODS = ["POST", "PUT", "PATCH"];
     const isOnline = typeof navigator === "undefined" ? true : navigator.onLine;

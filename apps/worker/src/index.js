@@ -267,7 +267,7 @@ async function runGoogleImportRecoveryTick() {
   }
 }
 
-console.log('Atlas Worker started')
+console.log('Runly Worker started')
 runCalendarReminderTick()
 runDeliveryTick()
 setInterval(() => {

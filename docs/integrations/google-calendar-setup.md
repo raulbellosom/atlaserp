@@ -5,11 +5,11 @@
 Phase 1-3B adds:
 
 - instance-level Google OAuth configuration
-- one Google connection per Atlas user
-- Google calendar discovery in `atlas.calendar`
+- one Google connection per Runly user
+- Google calendar discovery in `runly.calendar`
 - persistent Google calendar selection
-- one internal Atlas calendar per selected Google calendar
-- Google disconnect that disables linked sources without deleting Atlas calendars
+- one internal Runly calendar per selected Google calendar
+- Google disconnect that disables linked sources without deleting Runly calendars
 
 It still does **not** sync events yet. Event import starts in Phase 3B.
 
@@ -38,7 +38,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ## Google Cloud OAuth setup
 
-Create a Google OAuth client for your Atlas instance and grant these scopes:
+Create a Google OAuth client for your Runly instance and grant these scopes:
 
 - `openid`
 - `email`
@@ -49,20 +49,20 @@ Register the redirect URI from `GOOGLE_OAUTH_REDIRECT_URI` exactly as Google wil
 
 ## Redirect URI: important implementation detail
 
-`/calendar/google/connect/callback` is an **authenticated Atlas API endpoint**. It expects:
+`/calendar/google/connect/callback` is an **authenticated Runly API endpoint**. It expects:
 
 - the Google `code` query param
-- an Atlas `Authorization: Bearer <token>` header
+- an Runly `Authorization: Bearer <token>` header
 
-Because of that, **do not point Google directly at the API callback** for normal browser use unless you have a custom bridge that adds Atlas auth.
+Because of that, **do not point Google directly at the API callback** for normal browser use unless you have a custom bridge that adds Runly auth.
 
 Recommended pattern:
 
 1. Google redirects the browser to `GOOGLE_OAUTH_REDIRECT_URI`
 2. That browser-facing route reads `code` and `state`
-3. The route calls `GET /calendar/google/connect/callback?code=...&state=...` with the logged-in user's Atlas bearer token
+3. The route calls `GET /calendar/google/connect/callback?code=...&state=...` with the logged-in user's Runly bearer token
 
-If Google redirects straight to `http://localhost:4010/calendar/google/connect/callback` or `https://atlas.example.com/calendar/google/connect/callback`, the request will arrive without Atlas bearer auth and the flow will fail.
+If Google redirects straight to `http://localhost:4010/calendar/google/connect/callback` or `https://runly.example.com/calendar/google/connect/callback`, the request will arrive without Runly bearer auth and the flow will fail.
 
 ## Local vs production
 
@@ -71,7 +71,7 @@ Use a browser-facing redirect URI for each environment.
 Examples:
 
 - local: `http://localhost:5173/app/google/calendar/callback`
-- production: `https://atlas.example.com/app/google/calendar/callback`
+- production: `https://runly.example.com/app/google/calendar/callback`
 
 Rules:
 
@@ -90,27 +90,27 @@ GOOGLE_OAUTH_ENCRYPTION_KEY=replace-with-32-byte-base64
 
 ## Quick verification
 
-1. Open `atlas.calendar`
+1. Open `runly.calendar`
 2. Confirm the sidebar shows `Google Calendar`
 3. If env vars are missing, confirm the UI shows `Google Calendar no configurado`
 4. If env vars are present, click `Conectar Google`
-5. After Google returns `code` and `state`, ensure your browser callback route forwards both to `GET /calendar/google/connect/callback` with the Atlas bearer token
+5. After Google returns `code` and `state`, ensure your browser callback route forwards both to `GET /calendar/google/connect/callback` with the Runly bearer token
 6. Re-open the sidebar and confirm the connected Google email appears
 7. Open `Elegir calendarios` and confirm the Google calendar list loads
 8. Select one or more calendars and click `Guardar seleccion`
-9. Confirm those calendars now appear under `Mis calendarios` in the Atlas sidebar
+9. Confirm those calendars now appear under `Mis calendarios` in the Runly sidebar
 10. Re-open `Elegir calendarios` and confirm the previous selection remains preselected
-11. Click `Desconectar Google` and confirm the Google connection badge disappears while the Atlas calendars remain available
+11. Click `Desconectar Google` and confirm the Google connection badge disappears while the Runly calendars remain available
 
 ## Current behavior after selection
 
 When a user saves the picker selection:
 
-- Atlas creates one `GoogleCalendarSource` per selected Google calendar
-- Atlas creates one internal calendar immediately for each selected source
-- re-selecting the same Google calendar reuses the same Atlas calendar
+- Runly creates one `GoogleCalendarSource` per selected Google calendar
+- Runly creates one internal calendar immediately for each selected source
+- re-selecting the same Google calendar reuses the same Runly calendar
 - omitting a previously selected Google calendar disables that source
-- Atlas dispara la importacion inicial en segundo plano por cada source nuevo o reactivado
+- Runly dispara la importacion inicial en segundo plano por cada source nuevo o reactivado
 - los eventos importados quedan editables desde el inicio
 - editar localmente un evento importado lo desacopla de futuras reimportaciones
 
@@ -121,7 +121,7 @@ When a user saves the picker selection:
 3. Guarda la seleccion
 4. Verifica que el source pase por `Pendiente` o `Sincronizando`
 5. Verifica que termine en `Sincronizado`
-6. Confirma que los eventos aparezcan en el calendario Atlas creado
+6. Confirma que los eventos aparezcan en el calendario Runly creado
 7. Edita un evento importado y confirma que futuras reimportaciones no lo sobreescriben
 
 ## Command verification
@@ -139,7 +139,7 @@ cmd /c npx -y react-doctor@latest . --verbose --diff
 
 ## Manual API fallback
 
-If you are testing before a browser callback handoff exists, capture the Google `code` from your redirect URI and call the Atlas API callback manually:
+If you are testing before a browser callback handoff exists, capture the Google `code` from your redirect URI and call the Runly API callback manually:
 
 ```bash
 curl -G "http://localhost:4010/calendar/google/connect/callback" ^

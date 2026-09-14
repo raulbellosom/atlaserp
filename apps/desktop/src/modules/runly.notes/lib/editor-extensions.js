@@ -26,17 +26,17 @@ function buildCollabCaret(user) {
   const name = user?.name || 'Colaborador'
 
   const caret = document.createElement('span')
-  caret.className = 'atlas-yjs-caret'
+  caret.className = 'runly-yjs-caret'
   caret.style.setProperty('--caret-color', color)
 
   const chip = document.createElement('span')
-  chip.className = 'atlas-yjs-caret__chip'
+  chip.className = 'runly-yjs-caret__chip'
   chip.style.backgroundColor = color
   chip.title = name
 
   if (user?.avatarUrl) {
     const img = document.createElement('img')
-    img.className = 'atlas-yjs-caret__img'
+    img.className = 'runly-yjs-caret__img'
     img.src = user.avatarUrl
     img.alt = name
     img.addEventListener('error', () => {

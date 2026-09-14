@@ -37,7 +37,7 @@ function handleError(c, error, fallback) {
   if (error?.name === "ZodError") {
     return c.json({ error: (error.errors ?? error.issues)?.[0]?.message ?? "Datos invalidos." }, 422);
   }
-  console.error("[atlas.calls]", error?.stack ?? error);
+  console.error("[runly.calls]", error?.stack ?? error);
   return c.json({ error: fallback }, 500);
 }
 

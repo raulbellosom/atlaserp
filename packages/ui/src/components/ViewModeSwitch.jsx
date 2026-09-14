@@ -21,7 +21,7 @@ export function ViewModeSwitch({
   function handleChange(mode) {
     if (storageKey) {
       try {
-        localStorage.setItem(`atlas-view-mode-${storageKey}`, mode);
+        localStorage.setItem(`runly-view-mode-${storageKey}`, mode);
       } catch {}
     }
     onChange(mode);
@@ -61,7 +61,7 @@ export function ViewModeSwitch({
 export function getStoredViewMode(storageKey, defaultMode = "cards") {
   if (!storageKey) return defaultMode;
   try {
-    return localStorage.getItem(`atlas-view-mode-${storageKey}`) ?? defaultMode;
+    return localStorage.getItem(`runly-view-mode-${storageKey}`) ?? defaultMode;
   } catch {
     return defaultMode;
   }

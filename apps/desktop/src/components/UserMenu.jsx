@@ -19,7 +19,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { RUNLY_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
 import { getMobilePwaInstallMode } from "../lib/pwaInstallUi.js";
 
-const DESKTOP_REMINDER_KEY = "atlas_desktop_reminder_dismissed_at";
+const DESKTOP_REMINDER_KEY = "runly_desktop_reminder_dismissed_at";
 const REMINDER_INTERVAL_MS = 2.5 * 24 * 60 * 60 * 1000;
 
 function shouldShowDesktopReminder() {

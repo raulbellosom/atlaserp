@@ -27,7 +27,7 @@ export function resolveHtmlCandidates(companySlug, urlPath) {
   ]
 }
 
-const ATLAS_PATH_RE = /^\/(app|api|public|p|auth)\//i
+const RUNLY_PATH_RE = /^\/(app|api|public|p|auth)\//i
 const ASSET_ATTR_RE = /\b(href|src|content)="(\/(?!\/)[^"]*\.[a-zA-Z0-9]{1,10}[^"]*)"/g
 // Matches href="/path" or href="/path?q=1" but NOT hrefs with file extensions (those are assets)
 const NAV_LINK_RE  = /\bhref="(\/(?!\/|#)[^"#?]*)([^"]*)"/g
@@ -45,7 +45,7 @@ export function rewriteDistHtml(html, storageBase, basePath = '', siteOrigin = '
 
   // Step 1: rewrite root-relative ASSET paths (js/css/svg/png…) to full CDN URLs
   const withAssets = normalised.replace(ASSET_ATTR_RE, (match, attr, path) => {
-    if (ATLAS_PATH_RE.test(path)) return match
+    if (RUNLY_PATH_RE.test(path)) return match
     return `${attr}="${storageBase}${path}"`
   })
 
@@ -54,7 +54,7 @@ export function rewriteDistHtml(html, storageBase, basePath = '', siteOrigin = '
   // path transparently, so prefixing here would cause a double-prefix on navigation clicks.
   const withNavLinks = basePath
     ? withAssets.replace(NAV_LINK_RE, (match, path, rest) => {
-        if (ATLAS_PATH_RE.test(path)) return match
+        if (RUNLY_PATH_RE.test(path)) return match
         if (HAS_EXT_RE.test(path)) return match
         return `href="${basePath}${path}${rest}"`
       })
@@ -76,7 +76,7 @@ export function rewriteDistHtml(html, storageBase, basePath = '', siteOrigin = '
 
 export function injectErpBadge(html, erpPath = '/app/') {
   // Script checks session at runtime — only shows the beacon if the visitor
-  // has an active Atlas session with platform.erp.access permission.
+  // has an active Runly session with platform.erp.access permission.
   const safePath = erpPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
   const script = [
     '<script>(function(){',
@@ -86,8 +86,8 @@ export function injectErpBadge(html, erpPath = '/app/') {
     'return d.access_token||(d.session&&d.session.access_token)||null;',
     '}}return null;}catch(e){return null;}}',
     'function show(){',
-    "if(document.getElementById('_atlas_erp_beacon'))return;",
-    "var w=document.createElement('div');w.id='_atlas_erp_beacon';",
+    "if(document.getElementById('_runly_erp_beacon'))return;",
+    "var w=document.createElement('div');w.id='_runly_erp_beacon';",
     "w.style.cssText='position:fixed;bottom:24px;right:24px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;';",
     "var a=document.createElement('a');a.href='" + safePath + "';",
     "a.style.cssText='display:flex;align-items:center;gap:0;background:rgba(8,8,20,0.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#e2e8f0;padding:10px;border-radius:100px;text-decoration:none;font-size:12px;font-weight:600;overflow:hidden;max-width:40px;transition:max-width .25s,padding .25s,gap .25s;box-shadow:0 4px 20px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.08);';",

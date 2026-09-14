@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { isModuleIconName } from '../../packages/module-engine/src/module-icons.js'
 
-const RESERVED_PREFIXES = ['atlas', 'core', 'system', 'identity']
+const RESERVED_PREFIXES = ['runly', 'atlas', 'core', 'system', 'identity']
 const MODULE_KEY_REGEX = /^[a-z][a-z0-9]*\.[a-z][a-z0-9_]*$/
 const IDENTIFIER_REGEX = /^[a-z_][a-z0-9_]*$/
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/

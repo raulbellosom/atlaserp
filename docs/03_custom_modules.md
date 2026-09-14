@@ -65,10 +65,10 @@ If the RME3 layer needed to avoid these edits is not yet available, wait for it.
 
 | Prefix | Who | Example |
 |---|---|---|
-| `atlas.*` | Atlas core team only | `atlas.catalog` |
+| `runly.*` | Runly core team only | `runly.catalog` |
 | `custom.*` | Private / company modules | `custom.deliveries` |
 | `community.*` | Open-source community modules | `community.crm` |
-| `atlas.*`, `core.*`, `system.*`, `identity.*` | Reserved — rejected by discovery | — |
+| `runly.*`, `atlas.*`, `core.*`, `system.*`, `identity.*` | Reserved — rejected by discovery | — |
 
 ---
 
@@ -119,9 +119,9 @@ export default defineRunlyModule({
   category: 'operaciones',
 
   dependencies: [
-    { key: 'atlas.core' },
-    { key: 'atlas.identity' },
-    { key: 'atlas.files', optional: true },
+    { key: 'runly.core' },
+    { key: 'runly.identity' },
+    { key: 'runly.files', optional: true },
   ],
 
   lifecycle: {
@@ -206,7 +206,7 @@ import { defineModel } from '@runly/module-engine'
 export default defineModel({
   key: 'shipment',
   label: 'Envio',
-  tableName: 'atlas_deliveries_shipment',
+  tableName: 'deliveries_shipment',
   companyScoped: true,
   softDelete: true,
   fields: [
@@ -250,8 +250,8 @@ export default defineView({
   schema: {
     entity: 'shipment',
     label: 'Envios',
-    shell: 'atlas.dashboardShell',
-    layout: 'atlas.crudLayout',
+    shell: 'runly.dashboardShell',
+    layout: 'runly.crudLayout',
     component: 'RunlyTable',
     columns: ['tracking_number', 'origin', 'destination', 'status'],
     defaultSort: { field: 'tracking_number', direction: 'asc' },
@@ -276,7 +276,7 @@ export default defineView({
   schema: {
     entity: 'shipment',
     label: 'Envio',
-    layout: 'atlas.crudLayout',
+    layout: 'runly.crudLayout',
     component: 'RunlyForm',
     sections: [
       {
@@ -396,10 +396,10 @@ RME3 tables are not Prisma models — use `prisma.$queryRaw` tagged template lit
 export const deliveriesCleanupHandler = {
   async count({ prisma, companyId }) {
     const [shipmentRows] = await prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count FROM atlas_deliveries_shipment WHERE company_id = ${companyId}
+      SELECT COUNT(*)::int AS count FROM deliveries_shipment WHERE company_id = ${companyId}
     `
     const [carrierRows] = await prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count FROM atlas_deliveries_carrier WHERE company_id = ${companyId}
+      SELECT COUNT(*)::int AS count FROM deliveries_carrier WHERE company_id = ${companyId}
     `
     return [
       { entity: 'Shipment', rows: shipmentRows.count, companyScoped: true },
@@ -409,10 +409,10 @@ export const deliveriesCleanupHandler = {
 
   async purge({ prisma, companyId }) {
     const [{ count: shipmentsDeleted }] = await prisma.$queryRaw`
-      DELETE FROM atlas_deliveries_shipment WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
+      DELETE FROM deliveries_shipment WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
     `
     const [{ count: carriersDeleted }] = await prisma.$queryRaw`
-      DELETE FROM atlas_deliveries_carrier WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
+      DELETE FROM deliveries_carrier WHERE company_id = ${companyId} RETURNING COUNT(*)::int AS count
     `
     return shipmentsDeleted + carriersDeleted
   },

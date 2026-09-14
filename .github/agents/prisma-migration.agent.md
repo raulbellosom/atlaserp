@@ -1,11 +1,11 @@
 ---
 name: Prisma Migration
-description: "Safe Prisma schema migration for Atlas ERP. Validates SSH tunnel, stops conflicting processes, runs migrate/generate/seed, and verifies the result. Use when changing prisma/schema.prisma or applying pending migrations."
+description: "Safe Prisma schema migration for Runly ERP. Validates SSH tunnel, stops conflicting processes, runs migrate/generate/seed, and verifies the result. Use when changing prisma/schema.prisma or applying pending migrations."
 tools: [execute, read, edit, search, todo]
 argument-hint: "What to do: e.g. 'create migration for new Contact fields' or 'apply pending migrations'"
 ---
 
-# Prisma Migration Agent — Atlas ERP
+# Prisma Migration Agent — Runly ERP
 
 I run Prisma migrations safely against the self-hosted Supabase PostgreSQL instance.
 I always validate the SSH tunnel before touching the database.
@@ -56,7 +56,7 @@ pnpm.cmd db:fresh      # prisma migrate deploy + generate + seed
 pnpm.cmd db:seed       # node prisma/seed.js
 ```
 
-Seeds: 4 core modules, `atlas.admin` role, all permissions from module manifests.
+Seeds: 4 core modules, `runly.admin` role, all permissions from module manifests.
 
 ## Windows DLL Lock
 
@@ -77,7 +77,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:4010/health
 Invoke-WebRequest -UseBasicParsing http://localhost:4010/modules
 ```
 
-Expected: 4 modules in `/modules` response (`atlas.core`, `atlas.identity`, `atlas.files`, `atlas.company`).
+Expected: 4 modules in `/modules` response (`runly.core`, `runly.identity`, `runly.files`, `runly.company`).
 
 ## Connection Reference
 

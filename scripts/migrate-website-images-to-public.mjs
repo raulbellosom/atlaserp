@@ -1,6 +1,6 @@
 /**
- * One-time migration: copy images with moduleKey 'atlas.files' from atlas-files
- * (private) to atlas-website (public), then update fileAsset records in the DB.
+ * One-time migration: copy images with moduleKey 'runly.files' from runly-files
+ * (private) to runly-website (public), then update fileAsset records in the DB.
  *
  * Run: node scripts/migrate-website-images-to-public.mjs
  * Add --dry-run to preview without making changes.
@@ -21,15 +21,15 @@ const supabase = createClient(
 )
 
 const DRY_RUN = process.argv.includes('--dry-run')
-const SOURCE_BUCKET = 'atlas-files'
-const TARGET_BUCKET = 'atlas-website'
+const SOURCE_BUCKET = 'runly-files'
+const TARGET_BUCKET = 'runly-website'
 
 async function main() {
   const files = await prisma.fileAsset.findMany({
     where: {
       bucket: SOURCE_BUCKET,
       mimeType: { startsWith: 'image/' },
-      moduleKey: 'atlas.files',
+      moduleKey: 'runly.files',
       enabled: true,
     },
     select: { id: true, objectKey: true, mimeType: true, originalName: true, sizeBytes: true },
@@ -78,7 +78,7 @@ async function main() {
         data: {
           bucket: TARGET_BUCKET,
           visibility: 'PUBLIC',
-          moduleKey: 'atlas.website',
+          moduleKey: 'runly.website',
         },
       })
 
@@ -94,7 +94,7 @@ async function main() {
 
   console.log(`\nDone: ${ok} migrated, ${failed} failed.`)
   if (ok > 0) {
-    console.log('\nNote: original files in atlas-files were NOT deleted.')
+    console.log('\nNote: original files in runly-files were NOT deleted.')
     console.log('You can remove them manually from Supabase Studio once verified.')
   }
 }

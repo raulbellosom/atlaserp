@@ -73,7 +73,7 @@ function fieldToColumnSql(field) {
 // Returns a PostgreSQL CREATE TABLE IF NOT EXISTS DDL string.
 // Pure function — no database connection, no side effects.
 // tableName must be a safe SQL identifier and must not start with a reserved prefix (pg_, _pg_, sql_).
-// Convention (not enforced here): official modules use atlas_<module>_<entity>; custom use custom_<module>_<entity>.
+// Convention (not enforced here): official modules use <module>_<entity>; custom use custom_<module>_<entity>.
 export function generateCreateTableSql(modelDef) {
   if (!modelDef || typeof modelDef !== 'object') {
     throw new ModuleEngineError('generateCreateTableSql: modelDef must be a plain object', 'AME_INVALID_MODEL')

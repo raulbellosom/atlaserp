@@ -79,7 +79,7 @@ export default defineRunlyModule({
     shortName: '${config.pwa.shortName}',
     startPath: '${config.pwa.startPath}',
   },
-  dependencies: [{ key: 'atlas.core' }],
+  dependencies: [{ key: 'runly.core' }],
   models: [
 ${modelPaths}
   ],

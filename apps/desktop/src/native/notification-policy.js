@@ -6,7 +6,7 @@ export function notificationId(tag) {
 
 export function notificationTarget(data) {
   if (/^[a-zA-Z0-9-]{1,128}$/.test(data?.callId ?? '')) return { kind: 'call', targetId: data.callId }
-  const match = /^\/(?:app\/)?m\/atlas\.chat\/chat\/inbox\/([a-zA-Z0-9-]{1,128})$/.exec(data?.link ?? '')
+  const match = /^\/(?:app\/)?m\/runly\.chat\/chat\/inbox\/([a-zA-Z0-9-]{1,128})$/.exec(data?.link ?? '')
   return match ? { kind: 'chat', targetId: match[1] } : null
 }
 

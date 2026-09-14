@@ -33,7 +33,7 @@ self.addEventListener("push", (event) => {
   const title = payload?.title || "Runly Notifications";
   const isIncomingCall = payload?.data?.eventType === "chat.call.incoming";
   const link =
-    payload?.data?.link || payload?.link || "/app/m/atlas.notifications";
+    payload?.data?.link || payload?.link || "/app/m/runly.notifications";
   const options = {
     body: payload?.body || "",
     icon: payload?.icon || "/icon-192.png",
@@ -55,7 +55,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     Promise.all([
       broadcastToClients({
-        type: "atlas.notifications.push",
+        type: "runly.notifications.push",
         title,
         body: options.body,
         link,
@@ -71,12 +71,12 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const link = event.notification?.data?.link || "/app/m/atlas.notifications";
+  const link = event.notification?.data?.link || "/app/m/runly.notifications";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       for (const client of windows) {
         if ("focus" in client) {
-          client.postMessage({ type: "atlas.notifications.click", link });
+          client.postMessage({ type: "runly.notifications.click", link });
           if (new URL(client.url).origin === self.location.origin) {
             client.navigate(link);
             return client.focus();

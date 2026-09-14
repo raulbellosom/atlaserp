@@ -143,7 +143,7 @@ function deriveLegacyPwa(manifest) {
         : '/'
   const name = typeof manifest.name === 'string' && manifest.name.trim()
     ? manifest.name.trim()
-    : 'Atlas'
+    : 'Runly'
 
   return {
     icon: isModuleIconName(manifest.icon?.trim())

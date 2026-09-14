@@ -166,7 +166,7 @@ function getDevKitManifestRepoPath() {
 
 async function downloadTextFile(url) {
   const response = await fetch(url, {
-    headers: { "User-Agent": "atlaserp-installer" },
+    headers: { "User-Agent": "runlyerp-installer" },
     signal: AbortSignal.timeout(20000),
   });
   if (!response.ok) {

@@ -33,7 +33,7 @@ Las menciones añadidas al **editar** un comentario/mensaje no se incorporan en 
 
 ## Preferencias y bandeja
 
-Los valores iniciales se comparten entre API y frontend mediante `getDefaultNotificationPreference` de `@atlas/core`.
+Los valores iniciales se comparten entre API y frontend mediante `getDefaultNotificationPreference` de `@runly/core`.
 
 Por decisión del usuario, in-app, correo y push están activos por defecto para altas a proyectos/chats, notas compartidas, asignaciones de tareas y menciones en proyectos/chat/inventario. Las preferencias guardadas siempre prevalecen. Las llamadas conservan push por defecto. El resto conserva correo y push opcionales.
 

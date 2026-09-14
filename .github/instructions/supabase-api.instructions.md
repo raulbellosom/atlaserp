@@ -3,7 +3,7 @@ description: "Use when writing or reviewing code in apps/api — Supabase Auth a
 applyTo: "apps/api/**"
 ---
 
-# Supabase API Patterns — Atlas ERP
+# Supabase API Patterns — Runly ERP
 
 Self-hosted Supabase at https://supabase.racoondevs.com. Not Supabase Cloud.
 
@@ -46,7 +46,7 @@ try {
 
 ## Storage Uploads
 
-Buckets: `atlas-branding` (logos, branding), `atlas-files` (general).
+Buckets: `runly-website` (logos, branding), `runly-files` (general).
 Buckets are created idempotently at API startup via `ensureBuckets()`.
 
 Upload pattern — validate size before uploading, use `upsert: true`:
@@ -55,7 +55,7 @@ Upload pattern — validate size before uploading, use `upsert: true`:
 if (file.size > 2 * 1024 * 1024)
   return c.json({ error: "File must be under 2 MB" }, 400);
 const { error } = await supabaseAdmin.storage
-  .from("atlas-branding")
+  .from("runly-website")
   .upload(objectKey, arrayBuffer, { contentType: file.type, upsert: true });
 ```
 

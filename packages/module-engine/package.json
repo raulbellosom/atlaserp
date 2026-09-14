@@ -6,7 +6,7 @@
   "exports": {
     ".": "./src/index.js"
   },
-  "description": "Atlas Module Engine v3 \u2014 defineAtlasModule, defineModel, defineView, definePage, SQL generator, checksum",
+  "description": "Runly Module Engine v3 \u2014 defineRunlyModule, defineModel, defineView, definePage, SQL generator, checksum",
   "license": "UNLICENSED",
   "dependencies": {
     "@runly/core": "workspace:*",

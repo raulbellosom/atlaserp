@@ -3,7 +3,7 @@ node_modules
 .pnpm-store
 
 # pnpm workspace artifacts
-atlas-erp-starter@*
+runly-erp-starter@*
 
 # Environment — never commit real secrets
 .env

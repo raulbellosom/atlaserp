@@ -50,11 +50,11 @@ function removeIfExists(filePath) {
   }
 }
 
-console.log(isReset ? "[stop-local] Stopping and resetting Atlas local..." : "[stop-local] Stopping Atlas local...");
+console.log(isReset ? "[stop-local] Stopping and resetting Runly local..." : "[stop-local] Stopping Runly local...");
 
-// 1. Stop Atlas containers
+// 1. Stop Runly containers
 if (fs.existsSync(composeFile)) {
-  console.log("\n[1] Stopping Atlas containers...");
+  console.log("\n[1] Stopping Runly containers...");
   run(
     "docker",
     [

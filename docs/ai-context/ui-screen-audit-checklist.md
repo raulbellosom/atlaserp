@@ -327,17 +327,17 @@ Last full audit: 2026-06-07
 
 | Module | Status |
 |---|---|
-| atlas.core | Compliant |
-| atlas.identity | Compliant |
-| atlas.contacts | Compliant |
-| atlas.files | Compliant |
-| atlas.company | Compliant |
-| atlas.hr | Compliant (HrEmployeeDetail AuditDetailModal deferred) |
-| atlas.activity | Compliant |
-| atlas.catalog | Compliant |
-| atlas.ledger | Compliant |
-| atlas.fleet | Compliant |
-| atlas.calendar | Compliant (4 calendar modals deferred) |
-| atlas.website | Compliant |
-| atlas.notifications | Compliant |
+| runly.core | Compliant |
+| runly.identity | Compliant |
+| runly.contacts | Compliant |
+| runly.files | Compliant |
+| runly.company | Compliant |
+| runly.hr | Compliant (HrEmployeeDetail AuditDetailModal deferred) |
+| runly.activity | Compliant |
+| runly.catalog | Compliant |
+| runly.ledger | Compliant |
+| runly.fleet | Compliant |
+| runly.calendar | Compliant (4 calendar modals deferred) |
+| runly.website | Compliant |
+| runly.notifications | Compliant |
 | platform-settings | Compliant |

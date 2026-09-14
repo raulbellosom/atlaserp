@@ -9,7 +9,7 @@ function guestToken(c) {
 
 function fail(c, error, fallback) {
   const status = error?.status && Number.isInteger(error.status) ? error.status : 500;
-  if (status === 500) console.error("[atlas.calls/guest]", error?.stack ?? error);
+  if (status === 500) console.error("[runly.calls/guest]", error?.stack ?? error);
   return c.json(
     { error: status === 500 ? fallback : error.message, ...(error?.reason ? { reason: error.reason } : {}) },
     status,

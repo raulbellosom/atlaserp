@@ -4,7 +4,7 @@ applyTo: "**/*.{jsx,tsx,js,ts,css}"
 
 # Responsive / Mobile-First Rules
 
-These rules apply to every file in the Atlas ERP desktop app and shared packages.
+These rules apply to every file in the Runly ERP desktop app and shared packages.
 Violations must be fixed before any PR is merged.
 
 ---
@@ -84,7 +84,7 @@ Violations must be fixed before any PR is merged.
 - The Topbar height uses `.h-topbar` (accounts for iOS notch). Content below uses `.pt-topbar`.
 - Mobile hamburger is always `lg:hidden` and wired to `onMobileMenuToggle`.
 - `ModuleSidebar` handles the mobile overlay drawer.
-- Auto-close the drawer on route change (already done in `AtlasApp`).
+- Auto-close the drawer on route change (already done in `RunlyApp`).
 
 ---
 

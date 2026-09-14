@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // stop-external.mjs
 //
-// Stop (or reset) the Atlas external profile.
+// Stop (or reset) the Runly external profile.
 //
 // Usage:
 //   node stop-external.mjs           # stop containers, keep .env.external
@@ -47,12 +47,12 @@ function tryRun(command, args, { cwd = __dirname } = {}) {
 
 console.log(
   isReset
-    ? "[stop-external] Stopping and resetting Atlas external..."
-    : "[stop-external] Stopping Atlas external..."
+    ? "[stop-external] Stopping and resetting Runly external..."
+    : "[stop-external] Stopping Runly external..."
 );
 
 if (fs.existsSync(composeFile)) {
-  console.log("\n[1] Stopping Atlas external containers...");
+  console.log("\n[1] Stopping Runly external containers...");
   run(
     "docker",
     [

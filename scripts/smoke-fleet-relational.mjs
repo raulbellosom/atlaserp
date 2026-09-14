@@ -28,7 +28,7 @@ const token = (process.env.RUNLY_TOKEN || "").trim();
 
 if (!token) {
   console.error(
-    "Missing ATLAS_TOKEN. Export a valid user token before running this smoke test.",
+    "Missing RUNLY_TOKEN. Export a valid user token before running this smoke test.",
   );
   process.exit(1);
 }
@@ -121,7 +121,7 @@ async function main() {
     console.log("OK RBAC 403 /fleet/vehicles (sin permisos fleet)");
   } else {
     console.log(
-      "SKIP RBAC check (set ATLAS_TOKEN_NO_FLEET to validate 403 explicitly)",
+      "SKIP RBAC check (set RUNLY_TOKEN_NO_FLEET to validate 403 explicitly)",
     );
   }
 
@@ -136,7 +136,7 @@ async function main() {
     });
     if (secondaryResponse.status !== 200) {
       throw new Error(
-        `Expected 200 for /fleet/vehicles with ATLAS_TOKEN_OTHER_COMPANY, got ${secondaryResponse.status}`,
+        `Expected 200 for /fleet/vehicles with RUNLY_TOKEN_OTHER_COMPANY, got ${secondaryResponse.status}`,
       );
     }
     const secondary = await secondaryResponse.json();
@@ -151,7 +151,7 @@ async function main() {
     console.log("OK company isolation /fleet/vehicles");
   } else {
     console.log(
-      "SKIP company isolation check (set ATLAS_TOKEN_OTHER_COMPANY to validate)",
+      "SKIP company isolation check (set RUNLY_TOKEN_OTHER_COMPANY to validate)",
     );
   }
 }

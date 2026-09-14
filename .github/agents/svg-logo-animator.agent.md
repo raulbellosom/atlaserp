@@ -1,11 +1,11 @@
 ---
 name: "SVG Logo Animator"
-description: "Converts an Atlas ERP brand logo (PNG or SVG) into a pixel-perfect animated React component. Handles the full pipeline: vectorization guidance, SVG path extraction, viewBox normalization, and Framer Motion assembly animation. Use when building logo loaders, splash screens, brand animations, or any component that must be visually faithful to the real logo. Triggers: animate logo, logo loader, brand animation, loading screen with logo, recreate isotype as component, assembly animation."
+description: "Converts a Runly ERP brand logo (PNG or SVG) into a pixel-perfect animated React component. Handles the full pipeline: vectorization guidance, SVG path extraction, viewBox normalization, and Framer Motion assembly animation. Use when building logo loaders, splash screens, brand animations, or any component that must be visually faithful to the real logo. Triggers: animate logo, logo loader, brand animation, loading screen with logo, recreate isotype as component, assembly animation."
 tools: [read, edit, search, browser, execute]
 argument-hint: "Logo file path + animation style — e.g. 'identity/runly-erp_isotype_only.png, assembly' or 'identity/runly-erp_isotype_only.svg'"
 ---
 
-# SVG Logo Animator Agent — Atlas ERP
+# SVG Logo Animator Agent — Runly ERP
 
 I build **pixel-perfect animated React logo components**. My output must be visually indistinguishable from the original logo asset — not an approximation.
 
@@ -38,11 +38,11 @@ find identity/ apps/desktop/public/brand -name "*.svg" -o -name "*.png" | sort
 Once I have the SVG file content, I:
 
 1. Read the raw `<path d="...">` strings — these are the exact shapes
-2. Note the `fill` attribute on each path — map it to Atlas brand token
+2. Note the `fill` attribute on each path — map it to Runly brand token
 3. Read the `viewBox` dimensions
 4. Use the DevTools bounding box trick (or calculate from path coordinates) to find each face's visual center for `originX`/`originY`
 
-### Atlas Isotype — Expected faces
+### Runly Isotype — Expected faces
 
 | # | Fill | Token | Role |
 |---|---|---|---|
@@ -97,7 +97,7 @@ cp identity/runly-erp_isotype_only.svg apps/desktop/public/brand/runly-logo-isot
 The final `AtlasLogoLoader` component must:
 - Render identically to the original logo when paused at the "fully assembled" frame
 - Have zero visible gaps between adjacent faces
-- Use exact hex colors from the Atlas brand palette
+- Use exact hex colors from the Runly brand palette
 - Support `size`, `className`, `message`, `showLabel` props
 - Respect `prefers-reduced-motion` via `useReducedMotion()`
 - Import from `motion/react` (NOT `framer-motion`)

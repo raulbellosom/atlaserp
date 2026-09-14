@@ -92,7 +92,7 @@ chmod +x bootstrap-local.sh
 npm run runly:local       # instalacion / actualizacion completa
 npm run runly:local:docs  # solo descarga/refresca el Dev Kit
 npm run runly:local:quick # salta docker pull y reutiliza imagenes locales
-node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Atlas
+node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Runly
 ```
 
 En PowerShell, si `npm` falla por `ExecutionPolicy`, usa `npm.cmd`:
@@ -194,7 +194,7 @@ CORS_ORIGIN=http://localhost:5173
 
 ---
 
-## Atlas Calls / LiveKit
+## Runly Calls / LiveKit
 
 La configuración principal vive en `.env.local` o `.env.external`. Los scripts no
 solicitan datos que ya estén definidos ahí y persisten las claves generadas para
@@ -213,7 +213,7 @@ LIVEKIT_API_SECRET=
 | Modo | Comportamiento |
 |------|----------------|
 | `embedded` | Valor predeterminado. Genera credenciales, configuración y levanta LiveKit + Redis. |
-| `external` | Atlas usa un servidor LiveKit existente; URL interna y credenciales deben corresponder a ese servidor. |
+| `external` | Runly usa un servidor LiveKit existente; URL interna y credenciales deben corresponder a ese servidor. |
 | `disabled` | Opción explícita que oculta los controles y desactiva la API de llamadas. |
 
 En desarrollo local no se requiere dominio: `setup-local.mjs` genera
@@ -235,7 +235,7 @@ claves, configura `host-gateway`, inicia Caddy y espera un certificado público
 válido antes de continuar. El DNS debe apuntar previamente a la VPS y los puertos
 `80/tcp`, `443/tcp`, `443/udp`, `7881/tcp` y `7882/udp` deben estar permitidos.
 
-Con `LIVEKIT_TLS_MODE=external` Atlas no inicia Caddy, no modifica Nginx, no emite
+Con `LIVEKIT_TLS_MODE=external` Runly no inicia Caddy, no modifica Nginx, no emite
 certificados y no asume rutas de archivos TLS. El administrador conserva por
 completo la configuración del proxy existente y debe dirigir el dominio de
 LiveKit a `http://127.0.0.1:7880` con soporte WebSocket. El instalador únicamente
@@ -247,7 +247,7 @@ En Linux, LiveKit usa `network_mode: host`; Redis escucha exclusivamente en
 instalador valida DNS, TLS, Redis, el endpoint de LiveKit y la conexión desde Hono,
 y crea y elimina una sala temporal. Redes muy restrictivas pueden requerir TURN.
 
-Nunca expongas `LIVEKIT_API_SECRET` al frontend. Atlas solo entrega tokens de
+Nunca expongas `LIVEKIT_API_SECRET` al frontend. Runly solo entrega tokens de
 sala de corta duracion desde la API.
 
 ---
@@ -290,11 +290,11 @@ Ruta en API/worker: `/app/modules/custom`
 
 # Sincronizar manifests y blueprints
 curl -X POST http://localhost:4010/modules/sync \
-  -H "Authorization: Bearer $ATLAS_TOKEN"
+  -H "Authorization: Bearer $RUNLY_TOKEN"
 
 # Instalar un modulo desde el catalogo
 curl -X POST http://localhost:4010/modules/custom.mymodule/install \
-  -H "Authorization: Bearer $ATLAS_TOKEN"
+  -H "Authorization: Bearer $RUNLY_TOKEN"
 ```
 
 ### Validacion rapida en la UI
@@ -356,7 +356,7 @@ Forzar recompilacion del bundle tras editar componentes:
 
 ```bash
 curl -X POST http://localhost:4010/modules/custom.mymodule/sync \
-  -H "Authorization: Bearer $ATLAS_TOKEN"
+  -H "Authorization: Bearer $RUNLY_TOKEN"
 
 # Verificar
 curl http://localhost:4010/modules/custom.mymodule/bundle.js
@@ -451,7 +451,7 @@ las variables y carpeta de Firebase después del bootstrap:
 node lib/firebase-config.mjs .env.external
 ```
 
-Ese comando no reinicia Atlas ni genera la clave privada: el archivo Firebase
+Ese comando no reinicia Runly ni genera la clave privada: el archivo Firebase
 `service-account.json` debe provisionarse por separado.
 
 Si un instalador anterior acumuló comentarios `# Optional Office` en el entorno,
@@ -468,7 +468,7 @@ Firebase. Los comentarios personalizados se conservan; solo se retiran los
 encabezados generados duplicados y se vuelve a escribir un único bloque Office.
 
 Office viene desactivado. Para habilitarlo en el VPS, primero publica las nuevas
-imagenes de Atlas y los archivos del instalador. Desde la **carpeta existente del
+imagenes de Runly y los archivos del instalador. Desde la **carpeta existente del
 instalador**, refresca los scripts y Compose con el bootstrap actualizado:
 
 ```bash
@@ -500,8 +500,8 @@ ni configura el proxy/certificado de Office. El puerto 9980 escucha en loopback
 para el proxy del host. Office no depende de LiveKit.
 
 En actualizaciones posteriores usa el mismo comando, carpeta y proyecto Compose
-(`atlaserp`). Hay **un editor compartido**, no un contenedor por archivo o usuario.
-Collabora se conserva si no cambia su imagen/configuracion; Atlas y los servicios
+(`runlyerp`). Hay **un editor compartido**, no un contenedor por archivo o usuario.
+Collabora se conserva si no cambia su imagen/configuracion; Runly y los servicios
 Calls integrados mantienen su recreacion habitual, reemplazando los contenedores
 anteriores. Las tareas temporales de migracion/seed se eliminan con `--rm`.
 Las imagenes antiguas pueden seguir ocupando disco aunque no haya contenedores

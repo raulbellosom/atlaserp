@@ -12,8 +12,8 @@ test('call notification retains a bounded target and stable ID for replacement/d
 })
 
 test('notification links do not authorize external URLs or arbitrary native actions', () => {
-  for (const link of ['https://evil.test', 'javascript:alert(1)', '/app/m/atlas.chat/chat/inbox/a?token=x', '/app/m/atlas.chat/chat/inbox/a/extra']) assert.equal(notificationTarget({ link }), null)
-  assert.deepEqual(notificationTarget({ link: '/app/m/atlas.chat/chat/inbox/chat-1' }), { kind: 'chat', targetId: 'chat-1' })
+  for (const link of ['https://evil.test', 'javascript:alert(1)', '/app/m/runly.chat/chat/inbox/a?token=x', '/app/m/runly.chat/chat/inbox/a/extra']) assert.equal(notificationTarget({ link }), null)
+  assert.deepEqual(notificationTarget({ link: '/app/m/runly.chat/chat/inbox/chat-1' }), { kind: 'chat', targetId: 'chat-1' })
 })
 
 test('Android call/alert channels request heads-up importance and private lockscreen content', async () => {

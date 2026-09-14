@@ -1,4 +1,4 @@
-export class AtlasEventBus {
+export class RunlyEventBus {
   constructor() {
     this.listeners = new Map()
   }
