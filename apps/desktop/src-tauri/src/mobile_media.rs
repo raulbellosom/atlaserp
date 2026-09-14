@@ -13,10 +13,10 @@ pub fn stop_on_navigation(app: AppHandle) {
 }
 
 pub fn init() -> TauriPlugin<Wry> {
-    Builder::new("atlas-media")
+    Builder::new("runly-media")
         .setup(|app, api| {
             app.manage(MediaHandle(api.register_android_plugin(
-                "com.racoondevs.atlaserp",
+                "com.racoondevs.runlyerp",
                 "ScreenSharePlugin",
             )?));
             Ok(())

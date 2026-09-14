@@ -1,13 +1,15 @@
-# @raulbellosom/atlas-sdk
+# @raulbellosom/runly-sdk
 
-Generic JavaScript client for AtlasERP storefront APIs. Works in any browser environment, React app, or Vite project. Handles authentication, session persistence, file uploads, product catalog, module discovery, real-time events, and guest live chat.
+Generic JavaScript client for Runly ERP storefront APIs. Works in any browser environment, React app, or Vite project. Handles authentication, session persistence, file uploads, product catalog, module discovery, real-time events, and guest live chat.
+
+Migration status: the package is renamed locally. Publish `@raulbellosom/runly-sdk` before using the installation commands below in external projects. Existing consumers of `@raulbellosom/atlas-sdk` can keep their dependency during this transition; HTTP headers and session/storage contracts are unchanged. This change does not publish or deprecate either npm package.
 
 ```bash
 # npm
-npm install @raulbellosom/atlas-sdk
+npm install @raulbellosom/runly-sdk
 
 # pnpm
-pnpm add @raulbellosom/atlas-sdk
+pnpm add @raulbellosom/runly-sdk
 ```
 
 ---
@@ -49,7 +51,7 @@ pnpm add @raulbellosom/atlas-sdk
 ## 1. Quick Start — Plain JS
 
 ```js
-import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+import { createStorefrontClient } from '@raulbellosom/runly-sdk'
 
 // Read from window.ATLAS_CONFIG (injected by Atlas Website) or env vars for local dev.
 const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
@@ -93,8 +95,8 @@ The returned SDK object is frozen: `{ auth, files, catalog, discovery, realtime,
 ```jsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
-import { StorefrontProvider } from '@raulbellosom/atlas-sdk/react'
+import { createStorefrontClient } from '@raulbellosom/runly-sdk'
+import { StorefrontProvider } from '@raulbellosom/runly-sdk/react'
 import App from './App.jsx'
 
 const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
@@ -119,8 +121,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 ```jsx
 import { useState } from 'react'
-import { useAuth } from '@raulbellosom/atlas-sdk/react'
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { useAuth } from '@raulbellosom/runly-sdk/react'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 
 export function LoginForm({ onSuccess }) {
   const { login, isLoading, error } = useAuth()
@@ -176,7 +178,7 @@ export function LoginForm({ onSuccess }) {
 ### `src/components/ProductList.jsx`
 
 ```jsx
-import { useProducts } from '@raulbellosom/atlas-sdk/react'
+import { useProducts } from '@raulbellosom/runly-sdk/react'
 
 export function ProductList() {
   const { data, isLoading, error } = useProducts({ limit: 20, page: 1 })
@@ -248,7 +250,7 @@ The function throws a plain `Error` (not a `StorefrontError`) synchronously if `
 **Example:**
 
 ```js
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 
 try {
   const user = await sdk.auth.register({
@@ -301,7 +303,7 @@ try {
 **Example:**
 
 ```js
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 
 try {
   const session = await sdk.auth.login({
@@ -959,7 +961,7 @@ await sdk.request('PATCH', `/public/bookings/${bookingId}`, {
 All SDK methods throw `StorefrontError` on failure (except `createStorefrontClient` which throws a plain `Error` for missing config).
 
 ```js
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 ```
 
 **Class properties:**
@@ -987,7 +989,7 @@ import { StorefrontError } from '@raulbellosom/atlas-sdk'
 **try/catch pattern:**
 
 ```js
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 
 try {
   const session = await sdk.auth.login({ email, password })
@@ -1020,13 +1022,13 @@ try {
 
 ## 11. React Hooks — complete reference
 
-All hooks are exported from `@raulbellosom/atlas-sdk/react`. They must be used inside a component tree wrapped with `<StorefrontProvider>`.
+All hooks are exported from `@raulbellosom/runly-sdk/react`. They must be used inside a component tree wrapped with `<StorefrontProvider>`.
 
 ---
 
 ### `StorefrontProvider` + `useStorefront`
 
-**Import:** `import { StorefrontProvider, useStorefront } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { StorefrontProvider, useStorefront } from '@raulbellosom/runly-sdk/react'`
 
 **`StorefrontProvider`** is a React context provider. It makes the SDK client available to all hooks in its subtree. Place it at the root of your application.
 
@@ -1042,7 +1044,7 @@ Props:
 
 ```jsx
 import { useEffect } from 'react'
-import { useStorefront } from '@raulbellosom/atlas-sdk/react'
+import { useStorefront } from '@raulbellosom/runly-sdk/react'
 
 function RealtimeListener() {
   const sdk = useStorefront()
@@ -1065,7 +1067,7 @@ function RealtimeListener() {
 
 ### `useSession()`
 
-**Import:** `import { useSession } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useSession } from '@raulbellosom/runly-sdk/react'`
 
 **Signature:** `useSession(): { user, token, refreshToken, expiresAt } | null`
 
@@ -1084,7 +1086,7 @@ Returns `null` when no user is logged in.
 **Example:**
 
 ```jsx
-import { useSession } from '@raulbellosom/atlas-sdk/react'
+import { useSession } from '@raulbellosom/runly-sdk/react'
 
 function UserBadge() {
   const session = useSession()
@@ -1101,7 +1103,7 @@ function UserBadge() {
 
 ### `useAuth()`
 
-**Import:** `import { useAuth } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useAuth } from '@raulbellosom/runly-sdk/react'`
 
 **Signature:** `useAuth(): { user, session, isAuthenticated, isLoading, error, login, register, logout, refresh }`
 
@@ -1125,8 +1127,8 @@ All four action functions set `isLoading` to `true` while running, clear `error`
 
 ```jsx
 import { useState } from 'react'
-import { useAuth } from '@raulbellosom/atlas-sdk/react'
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { useAuth } from '@raulbellosom/runly-sdk/react'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 
 function LoginForm({ onSuccess }) {
   const { login, isLoading, error } = useAuth()
@@ -1178,7 +1180,7 @@ function LoginForm({ onSuccess }) {
 
 ### `useFileUpload()`
 
-**Import:** `import { useFileUpload } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useFileUpload } from '@raulbellosom/runly-sdk/react'`
 
 **Signature:** `useFileUpload(): { upload, uploading, error, result, reset }`
 
@@ -1196,7 +1198,7 @@ function LoginForm({ onSuccess }) {
 
 ```jsx
 import { useRef } from 'react'
-import { useFileUpload } from '@raulbellosom/atlas-sdk/react'
+import { useFileUpload } from '@raulbellosom/runly-sdk/react'
 
 function AvatarUploader({ onUploaded }) {
   const { upload, uploading, error, result, reset } = useFileUpload()
@@ -1231,7 +1233,7 @@ function AvatarUploader({ onUploaded }) {
 
 ### `useCompanyConfig()`
 
-**Import:** `import { useCompanyConfig } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useCompanyConfig } from '@raulbellosom/runly-sdk/react'`
 
 **Signature:** `useCompanyConfig(): { config, isLoading, error }`
 
@@ -1248,7 +1250,7 @@ function AvatarUploader({ onUploaded }) {
 **Example:**
 
 ```jsx
-import { useCompanyConfig } from '@raulbellosom/atlas-sdk/react'
+import { useCompanyConfig } from '@raulbellosom/runly-sdk/react'
 
 function StoreHeader() {
   const { config, isLoading, error } = useCompanyConfig()
@@ -1269,7 +1271,7 @@ function StoreHeader() {
 
 ### `useBlueprints()` + `useHasModule(moduleKey)`
 
-**Import:** `import { useBlueprints, useHasModule } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useBlueprints, useHasModule } from '@raulbellosom/runly-sdk/react'`
 
 **`useBlueprints()`**
 
@@ -1284,7 +1286,7 @@ function StoreHeader() {
 **Example:**
 
 ```jsx
-import { useBlueprints } from '@raulbellosom/atlas-sdk/react'
+import { useBlueprints } from '@raulbellosom/runly-sdk/react'
 
 function InstalledModules() {
   const { blueprints, isLoading, error } = useBlueprints()
@@ -1318,7 +1320,7 @@ function InstalledModules() {
 **Example:**
 
 ```jsx
-import { useHasModule } from '@raulbellosom/atlas-sdk/react'
+import { useHasModule } from '@raulbellosom/runly-sdk/react'
 
 function BookingsSection() {
   const { hasModule, isLoading } = useHasModule('custom.bookings')
@@ -1339,7 +1341,7 @@ function BookingsSection() {
 
 ### `useProducts()` + `useProduct(id)` + `useCategories()`
 
-**Import:** `import { useProducts, useProduct, useCategories } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useProducts, useProduct, useCategories } from '@raulbellosom/runly-sdk/react'`
 
 ---
 
@@ -1359,7 +1361,7 @@ function BookingsSection() {
 
 ```jsx
 import { useState } from 'react'
-import { useProducts } from '@raulbellosom/atlas-sdk/react'
+import { useProducts } from '@raulbellosom/runly-sdk/react'
 
 function ProductGrid() {
   const [page, setPage] = useState(1)
@@ -1416,7 +1418,7 @@ Fetches a single product. If `id` is `null` or `undefined`, the hook does nothin
 **Example:**
 
 ```jsx
-import { useProduct } from '@raulbellosom/atlas-sdk/react'
+import { useProduct } from '@raulbellosom/runly-sdk/react'
 
 function ProductDetail({ productId }) {
   const { data: product, isLoading, error } = useProduct(productId)
@@ -1452,7 +1454,7 @@ Same behavior and caveats as `useProducts` but for categories.
 **Example:**
 
 ```jsx
-import { useCategories } from '@raulbellosom/atlas-sdk/react'
+import { useCategories } from '@raulbellosom/runly-sdk/react'
 
 function CategoryMenu() {
   const { data, isLoading } = useCategories()
@@ -1475,7 +1477,7 @@ function CategoryMenu() {
 
 ### `useRequest()`
 
-**Import:** `import { useRequest } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useRequest } from '@raulbellosom/runly-sdk/react'`
 
 **Signature:** `useRequest(): { execute, data, isLoading, error, reset }`
 
@@ -1495,7 +1497,7 @@ function CategoryMenu() {
 
 ```jsx
 import { useState } from 'react'
-import { useRequest } from '@raulbellosom/atlas-sdk/react'
+import { useRequest } from '@raulbellosom/runly-sdk/react'
 
 function CreateBookingForm() {
   const { execute, isLoading, error, data, reset } = useRequest()
@@ -1555,8 +1557,8 @@ function CreateBookingForm() {
 
 ```jsx
 import { useState } from 'react'
-import { useAuth } from '@raulbellosom/atlas-sdk/react'
-import { StorefrontError } from '@raulbellosom/atlas-sdk'
+import { useAuth } from '@raulbellosom/runly-sdk/react'
+import { StorefrontError } from '@raulbellosom/runly-sdk'
 
 function RegisterForm({ onSuccess }) {
   const { register, isLoading, error } = useAuth()
@@ -1610,7 +1612,7 @@ function RegisterForm({ onSuccess }) {
 
 ```jsx
 import { useState } from 'react'
-import { useAuth } from '@raulbellosom/atlas-sdk/react'
+import { useAuth } from '@raulbellosom/runly-sdk/react'
 
 function LoginPage() {
   const { login, isLoading, error } = useAuth()
@@ -1644,7 +1646,7 @@ function LoginPage() {
 This pattern works with any router. The example uses plain conditional rendering; adapt to React Router, TanStack Router, etc. as needed.
 
 ```jsx
-import { useSession } from '@raulbellosom/atlas-sdk/react'
+import { useSession } from '@raulbellosom/runly-sdk/react'
 import { useEffect } from 'react'
 
 function ProtectedPage({ children }) {
@@ -1687,7 +1689,7 @@ Concurrent 401s are deduplicated — only one refresh is made regardless of how 
 ### e) Logout with localStorage cleanup
 
 ```jsx
-import { useAuth } from '@raulbellosom/atlas-sdk/react'
+import { useAuth } from '@raulbellosom/runly-sdk/react'
 
 function LogoutButton() {
   const { logout, isLoading } = useAuth()
@@ -1741,7 +1743,7 @@ await sdk.request('PATCH', `/public/bookings/${created.id}`, { status: 'CANCELLE
 
 ```jsx
 import { useState, useEffect } from 'react'
-import { useStorefront } from '@raulbellosom/atlas-sdk/react'
+import { useStorefront } from '@raulbellosom/runly-sdk/react'
 
 function BookingList() {
   const sdk = useStorefront()
@@ -1778,7 +1780,7 @@ function BookingList() {
 ### React: imperative mutation with `useRequest`
 
 ```jsx
-import { useRequest } from '@raulbellosom/atlas-sdk/react'
+import { useRequest } from '@raulbellosom/runly-sdk/react'
 
 function CancelBookingButton({ bookingId, onCancelled }) {
   const { execute, isLoading, error } = useRequest()
@@ -1824,7 +1826,7 @@ VITE_SUPABASE_ANON_KEY=<anon-key>
 
 ```js
 // src/sdk.js
-import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+import { createStorefrontClient } from '@raulbellosom/runly-sdk'
 
 export const sdk = createStorefrontClient({
   baseUrl:         import.meta.env.VITE_ERP_URL,
@@ -1840,7 +1842,7 @@ If you upload your built dist to Atlas Website (`source_type=dist`), Atlas autom
 
 ```js
 // src/sdk.js
-import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+import { createStorefrontClient } from '@raulbellosom/runly-sdk'
 
 const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
 
@@ -1875,7 +1877,7 @@ Then import the singleton wherever needed:
 ```js
 // src/main.jsx
 import { sdk } from './sdk.js'
-import { StorefrontProvider } from '@raulbellosom/atlas-sdk/react'
+import { StorefrontProvider } from '@raulbellosom/runly-sdk/react'
 
 // ... wrap your app with <StorefrontProvider client={sdk}>
 ```
@@ -2024,7 +2026,7 @@ if (session?.user?.role === 'storefront_vendor') {
 Or in React:
 
 ```jsx
-import { useSession } from '@raulbellosom/atlas-sdk/react'
+import { useSession } from '@raulbellosom/runly-sdk/react'
 
 function VendorOnlyButton() {
   const session = useSession()
@@ -2050,7 +2052,7 @@ No `.env` file is bundled into the ZIP. The config is injected at serve time, so
 ### Recommended `src/sdk.js` for Atlas dists
 
 ```js
-import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+import { createStorefrontClient } from '@raulbellosom/runly-sdk'
 
 // window.ATLAS_CONFIG is injected by Atlas at serve time.
 // Fall back to env vars for local development.
@@ -2435,7 +2437,7 @@ try {
 
 ### React: `useGuestChat(sdk)`
 
-**Import:** `import { useGuestChat } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { useGuestChat } from '@raulbellosom/runly-sdk/react'`
 
 A stateful React hook that manages the complete guest chat lifecycle: availability check, session creation, session restore, message list, sending, real-time subscriptions, and close. Backed by `localStorage` for persistence across page reloads.
 
@@ -2481,7 +2483,7 @@ On mount the hook:
 **Example:**
 
 ```jsx
-import { useGuestChat } from '@raulbellosom/atlas-sdk/react'
+import { useGuestChat } from '@raulbellosom/runly-sdk/react'
 import { sdk } from './sdk.js'
 
 function GuestChatPanel() {
@@ -2551,7 +2553,7 @@ function GuestChatPanel() {
 
 ### React: `ChatWidget`
 
-**Import:** `import { ChatWidget } from '@raulbellosom/atlas-sdk/react'`
+**Import:** `import { ChatWidget } from '@raulbellosom/runly-sdk/react'`
 
 A fully styled, self-contained chat widget component built on top of `useGuestChat`. Renders as a floating action button in the bottom-right corner of the page. Handles all screens (welcome, identify, resume, chat) and supports text messages, file attachments, availability display, and operator reply indicators. Uses inline styles only — no external CSS required.
 
@@ -2566,7 +2568,7 @@ A fully styled, self-contained chat widget component built on top of `useGuestCh
 **Example:**
 
 ```jsx
-import { ChatWidget } from '@raulbellosom/atlas-sdk/react'
+import { ChatWidget } from '@raulbellosom/runly-sdk/react'
 import { sdk } from './sdk.js'
 
 export default function App() {

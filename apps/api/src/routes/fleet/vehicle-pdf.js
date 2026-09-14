@@ -26,7 +26,7 @@ async function toPdfBuffer({ vehicle, branding }) {
   }
 
   const brandColor = normalizeHexColor(branding.primaryColor ?? "#0F766E", "#0F766E");
-  const companyName = toSafeText(branding.companyName, "Atlas ERP");
+  const companyName = toSafeText(branding.companyName, "Runly ERP");
   const logoBuffer = Buffer.isBuffer(branding.logoBuffer) ? branding.logoBuffer : null;
 
   const statusText = VEHICLE_STATUS_LABELS[String(vehicle.status ?? "").toLowerCase()] ?? toSafeText(vehicle.status, "-");

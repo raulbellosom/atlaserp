@@ -35,7 +35,7 @@ pnpm db:reset         # migrate reset --force + seed (destructive - wipes data)
 
 # Build and lint
 pnpm build            # build all packages/apps
-pnpm lint             # ESLint (root eslint.config.js): guardrail rule banning local-date-from-toISOString(); use @atlas/core toLocalIso/toLocalMonth. `pnpm lint:packages` runs the per-package stubs.
+pnpm lint             # ESLint (root eslint.config.js): guardrail rule banning local-date-from-toISOString(); use @runly/core toLocalIso/toLocalMonth. `pnpm lint:packages` runs the per-package stubs.
 
 # Tests (Node.js built-in test runner — no Vitest/Jest)
 node --test packages/module-engine/src/__tests__/          # module-engine unit tests
@@ -69,7 +69,7 @@ apps/
   worker/      Node.js background job handler (stub)
 packages/
   core/           Module registry, event bus, manifest contract
-  module-engine/  @atlas/module-engine — AME3 primitives: defineAtlasModule, defineModel, defineView, definePage
+  module-engine/  @runly/module-engine — AME3 primitives: defineAtlasModule, defineModel, defineView, definePage
   ui/             Shared React components (AppShell, Button, AtlasTable, AtlasForm, etc.)
   sdk/            Atlas API client (createAtlasClient factory)
   validators/     Zod schemas shared between API and frontend
@@ -85,9 +85,9 @@ prisma/
 
 ```
 React (apps/desktop)
-  -> @atlas/sdk createAtlasClient   (packages/sdk)
+  -> @runly/sdk createAtlasClient   (packages/sdk)
   -> Hono API (apps/api/src/index.js)
-  -> Zod validation (@atlas/validators)
+  -> Zod validation (@runly/validators)
   -> Prisma -> Supabase PostgreSQL
 ```
 
@@ -168,15 +168,15 @@ Zod schemas are shared between API and frontend. Add new schemas here when creat
 
 ### UI components (packages/ui)
 
-`AppShell` is the main layout: fixed sidebar + scrollable main content. Navigation items come from module manifests resolved at runtime. Import from `@atlas/ui`.
+`AppShell` is the main layout: fixed sidebar + scrollable main content. Navigation items come from module manifests resolved at runtime. Import from `@runly/ui`.
 
 Tailwind scans both `src/**` and `../../packages/ui/src/**` (configured in `apps/desktop/tailwind.config.js`).
 
 #### UI-first policy — mandatory
 
-Before writing any UI element, check `@atlas/ui` first. This is non-negotiable.
+Before writing any UI element, check `@runly/ui` first. This is non-negotiable.
 
-**Never use native HTML form elements or native browser dialogs when a `@atlas/ui` equivalent exists:**
+**Never use native HTML form elements or native browser dialogs when a `@runly/ui` equivalent exists:**
 
 | Instead of | Use |
 |---|---|
@@ -190,7 +190,7 @@ Before writing any UI element, check `@atlas/ui` first. This is non-negotiable.
 | hand-rolled dropdown | `DropdownMenu` |
 | `window.confirm()` / `window.alert()` / `window.prompt()` | `ConfirmDialog` (destructive actions) or `Dialog` |
 
-**Native browser dialogs (`window.confirm`, `window.alert`, `window.prompt`) are strictly forbidden.** They break the design system, cannot be styled, and are not part of the Atlas UX. Always use `ConfirmDialog` from `@atlas/ui` for any destructive confirmation. Manage open state with `useState`.
+**Native browser dialogs (`window.confirm`, `window.alert`, `window.prompt`) are strictly forbidden.** They break the design system, cannot be styled, and are not part of the Atlas UX. Always use `ConfirmDialog` from `@runly/ui` for any destructive confirmation. Manage open state with `useState`.
 
 **Key components to know:**
 
@@ -209,7 +209,7 @@ Before writing any UI element, check `@atlas/ui` first. This is non-negotiable.
 2. Export it from `packages/ui/src/index.js`.
 3. Document it in `docs/ai-context/ame3-runtime-capabilities.md` under the correct table.
 
-Never hardcode a one-off component inside a module screen when the same pattern could apply to other modules. Extract it to `@atlas/ui` instead.
+Never hardcode a one-off component inside a module screen when the same pattern could apply to other modules. Extract it to `@runly/ui` instead.
 
 ### Prisma schema highlights
 
@@ -236,7 +236,7 @@ Never hardcode a one-off component inside a module screen when the same pattern 
 - **Global ID policy**: UUID v7 only. New or modified entity identifiers must use UUID v7 semantics; `cuid` is deprecated and must not be reintroduced in source code.
 - **Atomic file size limit** — No source file may exceed **1000 lines**. Hard ceiling is **1500 lines** (treat as a build-blocking violation). Files approaching 800 lines should be proactively split. Strategies: extract sub-components, split routes by domain, separate sheets/dialogs from list screens, move helpers into `lib/` or `utils/`. Known violators that must be decomposed: `FinanceScreen.jsx` (4462), `apps/api/src/index.js` (3583), `FormFields.jsx` (2153), `HrEmployeeDetail.jsx` (1704), `finance-documents-service.js` (1118), `finance-service.js` (1076), `ModuleCatalog.jsx` (1033), `apps/api/src/routes/chat/index.js` (1235, apps/api/src/routes/chat/ — over the 1000-line limit; `moderation-routes.js` + `template-routes.js` were already extracted and it grew back. The next change to this file should extract another cohesive route block, e.g. the channels/roles routes into a sibling `channel-routes.js`, rather than adding more lines to it directly). `chat-service.js` (1248, apps/api/src/routes/chat/ — over the 1000-line soft limit, under the 1500 hard ceiling as of 2026-09-09 after `chat-conversations-write-service.js` was split out. `sendMessage` (~384 lines) is the next extraction candidate but is deeply coupled to mentions/entityRefs/notifications/broadcaster — do it as a dedicated pass). `MessageComposer.jsx` (1105, apps/desktop/src/modules/atlas.chat/components/ — over 1000; extract `AttachmentPreviewCard` + the voice-recording block into siblings before adding more lines).
 - Soft-delete pattern: use `enabled: false` instead of hard-deleting records
-- Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. Optional: `components/index.js` for React components compiled at install time (no web image rebuild needed). No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, or `packages/validators/`. See `docs/03_custom_modules.md` and `docs/ai-context/ame3-runtime-capabilities.md` for the `@atlas/ui` component inventory and CUSTOM kind view examples.
+- Every **new AME3 module** lives in `modules/custom/<moduleKey>/` — requires only `module.manifest.js`, `models/`, `views/`, `api/index.js`, `validators/index.js`. Optional: `components/index.js` for React components compiled at install time (no web image rebuild needed). No edits to `prisma/schema.prisma`, `apps/api/src/index.js`, or `packages/validators/`. See `docs/03_custom_modules.md` and `docs/ai-context/ame3-runtime-capabilities.md` for the `@runly/ui` component inventory and CUSTOM kind view examples.
 - Official manifest snapshots are maintained in `apps/api/src/manifests/official/` and represent the internal baseline modules.
 - In docs checklists, mark `[x]` only with explicit verification evidence and `Verified: YYYY-MM-DD (...)`
 - Prisma is at `^7` - root `package.json` overrides all workspace packages to `^7.8.0`
@@ -271,7 +271,7 @@ See `docs/TASKS.md` for the full phased roadmap.
 - Phase 9.5 (Module Lifecycle v2): complete — Permission.active, dry-run uninstall/reset, cleanup registry
 - AME3 Phase 1 (Module Engine foundation): complete — `packages/module-engine` with `defineAtlasModule`, `defineModel`, `defineView`, `definePage`, SQL generator, checksum
 - AME3 Phase 2 (Route Loader + custom module): complete — `route-loader-service.js`, `custom.fleet` module operational
-- AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@atlas/ui`
+- AME3 Phase 3 (Atlas ORM + Blueprint Renderer): complete — Atlas ORM provisions tables from `defineModel`; blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`) in `@runly/ui`
 - AME3 Phase 4 (Discovery as primary source + route/component lifecycle sync): complete
 - AME3 Phase 5 (official module relocation): retired by architecture decision (2026-05-25)
 - AME3 Phase 6 (generic CRUD renderer baseline) and Phase 7 (maps decommission) are complete; follow-on refinements are tracked in `docs/TASKS.md`

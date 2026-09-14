@@ -30,7 +30,7 @@ function normalizeBaseUrl(value) {
 
 // Public URL of the SPA (for join / open links).
 export function resolveAppBaseUrl(env = process.env) {
-  for (const candidate of [env.PUBLIC_APP_URL, env.APP_URL, env.ATLAS_APP_URL, env.WEB_APP_URL]) {
+  for (const candidate of [env.PUBLIC_APP_URL, env.APP_URL, (env.RUNLY_APP_URL ?? env.ATLAS_APP_URL), env.WEB_APP_URL]) {
     const normalized = normalizeBaseUrl(candidate);
     if (normalized) return normalized;
   }
@@ -39,7 +39,7 @@ export function resolveAppBaseUrl(env = process.env) {
 
 // Base URL of the API — only used to serve the brand logo asset.
 export function resolveApiBaseUrl(env = process.env) {
-  for (const candidate of [env.ATLAS_API_URL, env.API_URL, env.VITE_ATLAS_API_URL]) {
+  for (const candidate of [(env.RUNLY_API_URL ?? env.ATLAS_API_URL), env.API_URL, (env.VITE_RUNLY_API_URL ?? env.VITE_ATLAS_API_URL)]) {
     const normalized = normalizeBaseUrl(candidate);
     if (normalized) return normalized;
   }
@@ -51,14 +51,14 @@ export function resolveApiBaseUrl(env = process.env) {
 export function renderAtlasEmailLayout({ kicker, heading, bodyHtml = "", cta = null, footnote, env = process.env }) {
   const apiBaseUrl = resolveApiBaseUrl(env);
   const logoUrl = apiBaseUrl ? `${apiBaseUrl}/brand/atlas-logo-horizontal.png` : null;
-  const foot = footnote ?? "Este correo fue generado automaticamente por Atlas ERP.";
+  const foot = footnote ?? "Este correo fue generado automaticamente por Runly ERP.";
 
   return `
 <div style="background:#f3f4f6;padding:24px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#111827">
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
-        ${logoUrl ? `<img src="${logoUrl}" alt="Atlas ERP" style="height:26px;display:block;margin-bottom:10px" />` : ""}
+        ${logoUrl ? `<img src="${logoUrl}" alt="Runly ERP" style="height:26px;display:block;margin-bottom:10px" />` : ""}
         ${kicker ? `<div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">${escapeHtml(kicker)}</div>` : ""}
         <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0f172a">${escapeHtml(heading)}</h1>
       </td>
@@ -92,7 +92,7 @@ export function buildCallInviteEmail({ joinUrl, inviterName = null, conversation
 
   const bodyHtml = `
         <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
-          ${escapeHtml(who)} a una videollamada${escapeHtml(where)} en Atlas ERP.
+          ${escapeHtml(who)} a una videollamada${escapeHtml(where)} en Runly ERP.
         </p>
         <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#64748b">
           Solo necesitas tu nombre para entrar. Si el boton no funciona, copia este enlace en tu navegador:<br />
@@ -104,12 +104,12 @@ export function buildCallInviteEmail({ joinUrl, inviterName = null, conversation
     heading,
     bodyHtml,
     cta: { label: "Unirme a la llamada", url: joinUrl },
-    footnote: "Recibiste este correo porque alguien te invito a una llamada en Atlas ERP.",
+    footnote: "Recibiste este correo porque alguien te invito a una llamada en Runly ERP.",
     env,
   });
 
   const text = [
-    "Atlas ERP",
+    "Runly ERP",
     "",
     `${who} a una videollamada${where}.`,
     "",

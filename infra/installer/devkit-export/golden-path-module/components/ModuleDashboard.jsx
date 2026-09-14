@@ -1,4 +1,4 @@
-import { Button, Card, CardContent, CardHeader, CardTitle, PageHeader } from '@atlas/ui'
+import { Button, Card, CardContent, CardHeader, CardTitle, PageHeader } from '@runly/ui'
 import { toast } from 'sonner'
 
 export default function ModuleDashboard() {

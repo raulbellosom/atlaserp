@@ -117,7 +117,7 @@ export function AppShell({
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.25em] text-[hsl(var(--muted-foreground))]">
-                Atlas
+                Runly
               </p>
               <h1 className="text-sm font-semibold leading-tight">ERP</h1>
             </div>

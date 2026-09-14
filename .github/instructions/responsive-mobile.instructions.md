@@ -56,7 +56,7 @@ Violations must be fixed before any PR is merged.
 ## Overflow-X
 
 - The `<body>` and `<html>` have `overflow-x: hidden` globally (defined in `styles.css`).
-- Every `<table>` or wide element must be wrapped in a `div` with `overflow-x-auto` — the `Table` component from `@atlas/ui` already does this.
+- Every `<table>` or wide element must be wrapped in a `div` with `overflow-x-auto` — the `Table` component from `@runly/ui` already does this.
 - Do **not** rely on the `<body>` overflow to handle in-component scrolling — each wide section must manage its own horizontal scroll.
 - Never use fixed pixel widths on table columns totalling more than the smallest supported viewport (320px) without an overflow-x wrapper.
 
@@ -64,7 +64,7 @@ Violations must be fixed before any PR is merged.
 
 ## Tables
 
-- Import `Table` from `@atlas/ui` — it already wraps in `overflow-auto`.
+- Import `Table` from `@runly/ui` — it already wraps in `overflow-auto`.
 - Column widths: use relative (`%`, `ch`, `flex`, `min-w-*`) instead of fixed `w-[200px]` etc.
 - On mobile (`< md`), prefer `<ResponsiveTable>` (stacked card mode) when the table has more than 4 columns.
 
@@ -72,10 +72,10 @@ Violations must be fixed before any PR is merged.
 
 ## Modals and Sheets
 
-- Use `Dialog` / `Sheet` from `@atlas/ui` — they automatically become bottom sheets on mobile.
+- Use `Dialog` / `Sheet` from `@runly/ui` — they automatically become bottom sheets on mobile.
 - Bottom sheets support swipe-to-dismiss via the drag handle.
 - Always use `<DialogFooter>` / `<SheetFooter>` — they include `.safe-bottom` automatically.
-- Never use `window.confirm`, `window.alert`, or `window.prompt` — always use `<ConfirmDialog>` from `@atlas/ui`.
+- Never use `window.confirm`, `window.alert`, or `window.prompt` — always use `<ConfirmDialog>` from `@runly/ui`.
 
 ---
 
@@ -114,7 +114,7 @@ Every module with a list of records must follow this pattern:
 3. **Filtros** button on mobile that opens a `MobileFiltersSheet`.
 4. Search bar full-width on mobile.
 5. Server-side pagination via `{ page, pageSize, total }` from the API.
-6. Use `ListLayout` from `@atlas/ui` as the container.
+6. Use `ListLayout` from `@runly/ui` as the container.
 
 ---
 

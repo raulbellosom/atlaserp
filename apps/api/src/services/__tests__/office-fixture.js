@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { OFFICE_FORMATS } from '@atlas/core';
+import { OFFICE_FORMATS } from '@runly/core';
 import { createOfficeService } from '../office/service.js';
 
 export const ids = { file: '01990000-0000-7000-8000-000000000001', profile: '01990000-0000-7000-8000-000000000002', company: '01990000-0000-7000-8000-000000000003', auth: '01990000-0000-7000-8000-000000000004', other: '01990000-0000-7000-8000-000000000005' };

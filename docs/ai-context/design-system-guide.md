@@ -1,6 +1,6 @@
 # Atlas Design System Guide — Glassmorphism / Spatial UI
 
-This is the canonical reference for the visual identity of Atlas ERP. It exists because the identity was being reinvented ad hoc across ~70 `@atlas/ui` components and 20+ modules with no single source of truth. See `docs/superpowers/decisions/2026-08-24-design-system-unification-audit.md` for the full audit this guide was built from.
+This is the canonical reference for the visual identity of Atlas ERP. It exists because the identity was being reinvented ad hoc across ~70 `@runly/ui` components and 20+ modules with no single source of truth. See `docs/superpowers/decisions/2026-08-24-design-system-unification-audit.md` for the full audit this guide was built from.
 
 **Identity in one sentence:** translucent, layered "frosted glass" surfaces that float above a solid background, expressing hierarchy through blur + elevation rather than flat color blocks.
 
@@ -60,8 +60,8 @@ There is no custom Tailwind z-index scale — `apps/desktop/tailwind.config.js` 
 
 Before writing any UI, ask in this order:
 
-1. **Does `@atlas/ui` already export something for this?** Check `packages/ui/src/index.js`. If yes, use it. Do not reimplement its chrome inline "just this once."
-2. **Is this a floating/overlay surface** (modal, drawer, context menu, tooltip, dropdown)? It must be built on `Dialog`, `Sheet`, `Popover`, `DropdownMenu`, or `Tooltip` — never a hand-rolled `fixed inset-0` div. If none of those fit the interaction shape, that's a signal a new `@atlas/ui` primitive is needed (add it there, not locally).
+1. **Does `@runly/ui` already export something for this?** Check `packages/ui/src/index.js`. If yes, use it. Do not reimplement its chrome inline "just this once."
+2. **Is this a floating/overlay surface** (modal, drawer, context menu, tooltip, dropdown)? It must be built on `Dialog`, `Sheet`, `Popover`, `DropdownMenu`, or `Tooltip` — never a hand-rolled `fixed inset-0` div. If none of those fit the interaction shape, that's a signal a new `@runly/ui` primitive is needed (add it there, not locally).
 3. **Is this a card-shaped container** (bordered box with padding presenting a chunk of content)? Use `<Card variant="solid|bordered|interactive|default">`, not an inline `rounded-2xl border bg-card` div. If you need a specialized card (stat tile, file tile), compose it *from* `Card`, don't hand-roll parallel chrome.
 4. **Is this a text/search input, select, checkbox, switch, or date field?** Use the matching `FormFields.jsx` export (`TextField`, `SelectField`, `CheckboxField`, `SwitchField`, `DateField`, …) or `SearchInput` for search-with-icon. Never a raw `<input>`/`<select>` for internal ERP chrome (raw natives remain correct for `type="file"`, `type="color"`, and previews of end-user-authored public forms).
 5. **Confirming a destructive action?** `ConfirmDialog`. Never `window.confirm`.
@@ -82,7 +82,7 @@ There is no shared "drawer" abstraction distinct from `Sheet` — a right-side s
 ## 4. Anti-patterns to reject in review
 
 - A `fixed inset-0` div built by hand to act as a modal, anywhere outside `packages/ui/src/components/Dialog.jsx` / `Sheet.jsx` themselves.
-- A component that imports `@radix-ui/react-dialog` (or any Radix primitive) directly instead of the `@atlas/ui` wrapper.
+- A component that imports `@radix-ui/react-dialog` (or any Radix primitive) directly instead of the `@runly/ui` wrapper.
 - `window.confirm` / `window.alert` / `window.prompt`.
 - A raw `<select>` or text `<input>` for something a `FormFields.jsx` export already covers.
 - A second copy of `FieldWrapper`, `FIELD_BASE`/`fieldCls`, or any other shared style-builder pasted into a new field component instead of imported.

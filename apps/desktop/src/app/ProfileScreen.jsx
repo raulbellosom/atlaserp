@@ -16,8 +16,8 @@ import {
   SelectField,
   Skeleton,
   TextField,
-} from "@atlas/ui";
-import { AdvancedFileViewer } from "../modules/atlas.files/components/AdvancedFileViewer";
+} from "@runly/ui";
+import { AdvancedFileViewer } from "../modules/runly.files/components/AdvancedFileViewer";
 import { Country, State, City } from "country-state-city";
 import {
   CalendarDays,

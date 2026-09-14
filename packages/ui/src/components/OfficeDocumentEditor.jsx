@@ -43,7 +43,7 @@ export function OfficeDocumentEditor({ fileId, mode = 'auto', createSession, onC
         setSaveError('');
         onSaved?.();
         if (closeRequested.current) onClose?.();
-      } else setSaveError('No se confirmó el guardado. Mantén el documento abierto y usa Archivo → Guardar en el editor, o vuelve a intentar regresar a Atlas ERP.');
+      } else setSaveError('No se confirmó el guardado. Mantén el documento abierto y usa Archivo → Guardar en el editor, o vuelve a intentar regresar a Runly ERP.');
       closeRequested.current = false;
       setSaving(false);
     }

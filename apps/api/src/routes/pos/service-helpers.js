@@ -45,7 +45,7 @@ export async function writeAudit(
   await prisma.auditLog.create({
     data: {
       actorId: actorId ?? null,
-      moduleKey: "atlas.pos",
+      moduleKey: "runly.pos",
       entityType,
       entityId,
       action,

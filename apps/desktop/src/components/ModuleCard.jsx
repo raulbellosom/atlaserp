@@ -1,6 +1,6 @@
 import { Star, WifiOff } from "lucide-react";
 import { useRef } from "react";
-import { cn, getModuleIconComponent, useLongPress } from "@atlas/ui";
+import { cn, getModuleIconComponent, useLongPress } from "@runly/ui";
 import {
   favoriteToggleLabel,
   shouldOpenInNewTab,

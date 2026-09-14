@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$baseUrl = "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer"
+$baseUrl = "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer"
 if (-not $SkipBootstrapRefresh) {
   $bootstrapDownload = "$PSCommandPath.download"
   try {
@@ -30,6 +30,7 @@ $files = @(
   "docker-compose.yml",
   "docker-compose.linux.yml",
   "lib/devkit-installer.mjs",
+  "lib/env-compat.mjs",
   "lib/office-config.mjs",
   "lib/firebase-config.mjs",
   "lib/livekit-config.mjs",
@@ -60,4 +61,4 @@ if (-not $SkipEnvCopy -and -not (Test-Path ".\.env.external")) {
 }
 
 Write-Host "[atlas-bootstrap] Archivos listos."
-Write-Host "[atlas-bootstrap] Siguiente paso: edita .env.external y luego ejecuta npm.cmd run atlas:external"
+Write-Host "[atlas-bootstrap] Siguiente paso: edita .env.external y luego ejecuta npm.cmd run runly:external"

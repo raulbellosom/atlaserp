@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrivateKey } from 'node:crypto';
 import { parseOfficeEnv } from './office-config.mjs';
+import { canonicalizeRunlyEnvText } from './env-compat.mjs';
 
 export const FIREBASE_DEFAULTS = {
   ATLAS_FCM_ENABLED: 'false',
@@ -13,7 +14,7 @@ export const FIREBASE_DEFAULTS = {
 // Keep exact user values when setup-local regenerates its environment file.
 export function preserveFirebaseEnv(text) {
   return text.split(/\r?\n/).filter(line => Object.keys(FIREBASE_DEFAULTS)
-    .some(key => line.startsWith(`${key}=`))).join('\n');
+    .some(key => line.startsWith(`${key}=`) || line.startsWith(`${key.replace(/^ATLAS_/, 'RUNLY_')}=`))).join('\n');
 }
 
 export async function configureFirebase({ envFile }) {
@@ -25,7 +26,7 @@ export async function configureFirebase({ envFile }) {
   if (missing.length) {
     const eol = text.includes('\r\n') ? '\r\n' : '\n';
     await fs.appendFile(envFile, eol + '# Firebase server push (runtime integration pending)' + eol
-      + missing.map(([key, value]) => `${key}=${value}`).join(eol) + eol);
+      + canonicalizeRunlyEnvText(missing.map(([key, value]) => `${key}=${value}`).join('\n')).replaceAll('\n', eol) + eol);
   }
   const config = { ...FIREBASE_DEFAULTS, ...stored };
   if (!['true', 'false'].includes(config.ATLAS_FCM_ENABLED)) throw new Error('ATLAS_FCM_ENABLED must be true or false');

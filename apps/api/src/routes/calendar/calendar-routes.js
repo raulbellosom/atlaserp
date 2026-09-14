@@ -988,7 +988,7 @@ export function createCalendarRouter({ prisma, requirePermission, google, broadc
     const secret = c.req.header("x-internal-secret");
     if (
       process.env.NODE_ENV === "production" &&
-      secret !== process.env.ATLAS_INTERNAL_SECRET
+      secret !== (process.env.RUNLY_INTERNAL_SECRET ?? process.env.ATLAS_INTERNAL_SECRET)
     ) {
       return c.json({ error: "Unauthorized" }, 401);
     }

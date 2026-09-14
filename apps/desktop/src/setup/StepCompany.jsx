@@ -1,7 +1,7 @@
 import { useState, forwardRef, useImperativeHandle, useMemo } from "react";
 import { Building2, FileText, Hash, MapPin } from "lucide-react";
 import { Country, State, City } from "country-state-city";
-import { TextField, SelectField, ComboboxField } from "@atlas/ui";
+import { TextField, SelectField, ComboboxField } from "@runly/ui";
 
 const COMPANY_TYPES = [
   { value: "sa_de_cv", label: "SA de CV" },

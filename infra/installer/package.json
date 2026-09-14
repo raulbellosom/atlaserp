@@ -1,9 +1,17 @@
 {
-  "name": "atlaserp-installer",
+  "name": "runlyerp-installer",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "runly:local": "node ./setup-local.mjs",
+    "runly:local:docs": "node ./setup-local.mjs --docs-only",
+    "runly:local:quick": "node ./setup-local.mjs --skip-pull",
+    "runly:external": "node ./setup-external.mjs",
+    "runly:external:docs": "node ./setup-external.mjs --docs-only",
+    "runly:external:quick": "node ./setup-external.mjs --skip-pull --skip-migrate --up-only",
+    "runly:stop:local": "node ./stop-local.mjs",
+    "runly:stop:external": "node ./stop-external.mjs",
     "atlas:local": "node ./setup-local.mjs",
     "atlas:local:docs": "node ./setup-local.mjs --docs-only",
     "atlas:local:quick": "node ./setup-local.mjs --skip-pull",

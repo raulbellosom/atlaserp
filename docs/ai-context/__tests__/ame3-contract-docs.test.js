@@ -27,8 +27,8 @@ test('installer-facing AME3 docs include CUSTOM view troubleshooting and explici
   assert.match(runtimeDoc, /\btoast\b/, 'runtime capabilities doc must mention toast explicitly')
   assert.match(
     runtimeDoc,
-    /never import\s+toast\s+from\s+[`'"]@atlas\/ui[`'"]|toast.*[`'"]sonner[`'"].*not.*@atlas\/ui/i,
-    'runtime capabilities doc must explicitly forbid importing toast from @atlas/ui'
+    /never import\s+toast\s+from\s+[`'"]@runly\/ui[`'"]|toast.*[`'"]sonner[`'"].*not.*@runly\/ui/i,
+    'runtime capabilities doc must explicitly forbid importing toast from @runly/ui'
   )
   assert.match(runtimeDoc, /components\/index\.js/i, 'runtime capabilities doc must mention components/index.js')
   assert.match(runtimeDoc, /stale bundle cache|bundle cache/i, 'runtime capabilities doc must mention stale bundle cache troubleshooting')

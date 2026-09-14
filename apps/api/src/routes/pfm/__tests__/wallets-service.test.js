@@ -1,7 +1,7 @@
 // apps/api/src/routes/pfm/__tests__/wallets-service.test.js
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { toLocalIso } from "@atlas/core";
+import { toLocalIso } from "@runly/core";
 import { createWalletsService } from "../wallets-service.js";
 import { PfmServiceError } from "../service-helpers.js";
 

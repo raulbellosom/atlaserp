@@ -61,8 +61,8 @@ for (const [from, to] of copyPairs) {
 }
 
 const webManifest = {
-  name: 'Atlas ERP',
-  short_name: 'Atlas',
+  name: 'Runly ERP',
+  short_name: 'Runly',
   description: 'CONNECT. MANAGE. GROW.',
   // The ERP SPA is served under /app/ (VITE_BASE_PATH). The origin root serves
   // the public marketing website, so the installed PWA must open the launcher.
@@ -70,8 +70,8 @@ const webManifest = {
   scope: '/app/',
   start_url: '/app/',
   display: 'standalone',
-  background_color: '#0A1D44',
-  theme_color: '#102A5E',
+  background_color: '#0C172D',
+  theme_color: '#132646',
   icons: [
     { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
     { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },

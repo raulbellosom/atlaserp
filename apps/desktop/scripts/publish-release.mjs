@@ -7,7 +7,7 @@ import {
   ATLAS_GITHUB_REPO,
 } from '../src/lib/appConfig.js'
 
-export const DEFAULT_RELEASE_NOTES = 'Atlas ERP Desktop universal installer'
+export const DEFAULT_RELEASE_NOTES = 'Instalador universal de Runly ERP para escritorio'
 
 function runGh(args, options = {}) {
   const result = spawnSync('gh', args, {
@@ -52,7 +52,7 @@ export function resolveInstallerPath(desktopDir) {
 
   if (!existsSync(installerPath)) {
     throw new Error(
-      `Installer not found: ${installerPath}. Run "pnpm --filter @atlas/desktop build" first.`,
+      `Installer not found: ${installerPath}. Run "pnpm --filter @runly/desktop build" first.`,
     )
   }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@atlas/ui";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@runly/ui";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { CompanyLogo } from "./CompanySwitcher";

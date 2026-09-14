@@ -1,6 +1,6 @@
-# Atlas ERP Dev Kit (AME3)
+# Runly ERP Dev Kit (AME3)
 
-This folder is generated from the Atlas ERP source repository and downloaded by the installer into `custom-modules/_atlas-devkit/`.
+This folder is generated from Runly ERP and downloaded into `custom-modules/_runly-devkit/`. Existing `_atlas-devkit/` installations are reused in place.
 
 ## Start Here
 
@@ -19,7 +19,7 @@ This folder is generated from the Atlas ERP source repository and downloaded by 
 
 ## Non-Negotiable Import Rules
 
-- `toast` comes from `sonner`, not from `@atlas/ui`.
-- `@atlas/ui` is for UI components only.
-- Supported externals: @atlas/sdk, @atlas/ui, @atlas/validators, @tanstack/react-query, lucide-react, react, react-dom, react-router-dom, react/jsx-dev-runtime, react/jsx-runtime, recharts, sonner, zustand
+- `toast` comes from `sonner`, not from `@runly/ui`.
+- `@runly/ui` is for UI components only.
+- Supported externals: @atlas/sdk, @atlas/ui, @atlas/validators, @runly/sdk, @runly/ui, @runly/validators, @tanstack/react-query, lucide-react, react, react-dom, react-router-dom, react/jsx-dev-runtime, react/jsx-runtime, recharts, sonner, zustand
 

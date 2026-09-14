@@ -20,7 +20,7 @@ function periodLabel(dateFrom, dateTo) {
 }
 
 const EMPTY_BRANDING = {
-  companyName: 'Atlas ERP',
+  companyName: 'Runly ERP',
   taxId: '-',
   rfc: '-',
   phone: '-',
@@ -37,7 +37,7 @@ const EMPTY_BRANDING = {
  * @returns {Promise<Buffer>}
  */
 export async function buildExcelBuffer({ account, rows, branding = EMPTY_BRANDING, dateFrom, dateTo }) {
-  const companyName = toSafeText(branding?.companyName, 'Atlas ERP')
+  const companyName = toSafeText(branding?.companyName, 'Runly ERP')
   const workbook = new ExcelJS.Workbook()
   workbook.creator = companyName
   workbook.company = companyName

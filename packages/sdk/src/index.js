@@ -4,6 +4,8 @@ import { createDocumentsDomain } from "./domains/documents.js";
 import { createChatDomain } from "./domains/chat.js";
 import { createCallsDomain } from "./domains/calls.js";
 
+export { createAtlasClient as createRunlyClient };
+
 export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
   let _offlineTransport = null;
 
@@ -32,7 +34,7 @@ export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
     });
     if (!response.ok) {
       const text = await response.text();
-      const error = new Error(text || `Atlas API error ${response.status}`);
+      const error = new Error(text || `Runly API error ${response.status}`);
       error.status = response.status;
       throw error;
     }
@@ -66,7 +68,7 @@ export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
     if (!response.ok) {
       const text = await response.text();
       let details = null;
-      let message = text || `Atlas API error ${response.status}`;
+      let message = text || `Runly API error ${response.status}`;
       try {
         details = text ? JSON.parse(text) : null;
         if (details?.error) {

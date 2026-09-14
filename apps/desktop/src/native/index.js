@@ -1,4 +1,4 @@
-import { detectRuntime, isNative, isNativeMobile, isNativeDesktop } from '@atlas/core/native-runtime'
+import { detectRuntime, isNative, isNativeMobile, isNativeDesktop } from '@runly/core/native-runtime'
 import { supportsCapability, createEventPump } from './policy.js'
 import { notificationId, nativeNotificationOptions, prepareAndroidNotificationChannels } from './notification-policy.js'
 
@@ -36,7 +36,7 @@ export const native = {
   supports: (capability, minimumVersion) => supportsCapability(hostInfo, capability, minimumVersion),
   async requireCapability(capability, minimumVersion) {
     await getHostInfo()
-    if (!native.supports(capability, minimumVersion)) throw new Error('Necesitas actualizar Atlas desde App Store / Google Play para utilizar esta función.')
+    if (!native.supports(capability, minimumVersion)) throw new Error('Necesitas actualizar Runly desde App Store / Google Play para utilizar esta función.')
   },
   async ready() { if (isNativeMobile()) await invoke('host_ready') },
   async openExternal(value) {

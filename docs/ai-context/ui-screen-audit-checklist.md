@@ -8,7 +8,7 @@ Reference for auditing existing screens and building new ones. Every screen in `
 
 ### 1. PageHeader — present on every screen
 
-Every top-level screen must start with `<PageHeader>` from `@atlas/ui`. Required props:
+Every top-level screen must start with `<PageHeader>` from `@runly/ui`. Required props:
 
 ```jsx
 <PageHeader

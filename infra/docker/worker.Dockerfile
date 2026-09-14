@@ -21,4 +21,4 @@ RUN pnpm install --frozen-lockfile && \
 # api/src is required because apps/worker/src/index.js imports directly from it.
 COPY apps/api apps/api
 COPY apps/worker apps/worker
-CMD ["pnpm", "--filter", "@atlas/worker", "start"]
+CMD ["pnpm", "--filter", "@runly/worker", "start"]

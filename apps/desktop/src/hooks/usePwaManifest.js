@@ -33,7 +33,7 @@ export function usePwaManifest(moduleKey, activeModule) {
     if (appleTitleMeta) {
       appleTitleMeta.content = moduleKey
         ? (activeModule?.pwa?.shortName ?? activeModule?.name ?? moduleKey)
-        : "Atlas ERP";
+        : "Runly ERP";
     }
 
     if (themeColorMeta) {

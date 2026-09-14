@@ -94,22 +94,22 @@ function buildTroubleshootingMarkdown(contract) {
     '- Wrong file extension: module UI files must be `.jsx`, not `.tsx`.',
     '- Unsupported import: stay within the documented externals and allowed bundled dependencies.',
     '- Stale bundle cache: force a rebuild with `POST /modules/<key>/sync` and reload the page.',
-    '- Import mistake: never import `toast` from `@atlas/ui`; use `import { toast } from \'sonner\'`.',
+    '- Import mistake: never import `toast` from `@runly/ui`; use `import { toast } from \'sonner\'`.',
     '',
     '## Explicit Imports',
     '',
     `- Use \`import { toast } from 'sonner'\` for toast notifications.`,
-    `- Never use \`import { toast } from '@atlas/ui'\` — that export does not exist in installer mode.`,
-    `- Use \`@atlas/ui\` for UI primitives such as \`${contract.atlasUiExports.slice(0, 8).join('`, `')}\`.`,
+    `- Never use \`import { toast } from '@runly/ui'\` — that export does not exist in installer mode.`,
+    `- Use \`@runly/ui\` for UI primitives such as \`${contract.runlyUiExports.slice(0, 8).join('`, `')}\`.`,
     '',
   ].join('\n')
 }
 
 function buildReadme(runtimeContract) {
   return [
-    '# Atlas ERP Dev Kit (AME3)',
+    '# Runly ERP Dev Kit (AME3)',
     '',
-    'This folder is generated from the Atlas ERP source repository and downloaded by the installer into `custom-modules/_atlas-devkit/`.',
+    'This folder is generated from Runly ERP and downloaded into `custom-modules/_runly-devkit/`. Existing `_atlas-devkit/` installations are reused in place.',
     '',
     '## Start Here',
     '',
@@ -128,8 +128,8 @@ function buildReadme(runtimeContract) {
     '',
     '## Non-Negotiable Import Rules',
     '',
-    '- `toast` comes from `sonner`, not from `@atlas/ui`.',
-    '- `@atlas/ui` is for UI components only.',
+    '- `toast` comes from `sonner`, not from `@runly/ui`.',
+    '- `@runly/ui` is for UI components only.',
     `- Supported externals: ${runtimeContract.externals.join(', ')}`,
     '',
   ].join('\n')
@@ -166,15 +166,24 @@ export async function buildAme3RuntimeContract() {
   return {
     generatedAt: new Date().toISOString(),
     externals: uniqueSorted(BUNDLE_EXTERNALS),
+    runlyUiExports: extractNamedExports(uiIndexSource),
     atlasUiExports: extractNamedExports(uiIndexSource),
+    legacyImportAliases: {
+      '@atlas/ui': '@runly/ui',
+      '@atlas/sdk': '@runly/sdk',
+      '@atlas/validators': '@runly/validators',
+      '@atlas/core': '@runly/core',
+      '@atlas/module-engine': '@runly/module-engine',
+      '@atlas/offline': '@runly/offline',
+    },
     importRules: {
       toast: {
         module: 'sonner',
         symbol: 'toast',
-        forbiddenModules: ['@atlas/ui'],
+        forbiddenModules: ['@runly/ui', '@atlas/ui'],
       },
       ui: {
-        module: '@atlas/ui',
+        module: '@runly/ui',
       },
     },
     customView: {
@@ -194,7 +203,7 @@ export async function buildAme3RuntimeContract() {
       'wrong file extension',
       'unsupported import',
       'stale bundle cache',
-      'toast imported from @atlas/ui instead of sonner',
+      'toast imported from @runly/ui instead of sonner',
     ],
     promptStarter: extractPromptStarter(runtimeDoc),
   }

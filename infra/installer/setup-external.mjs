@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { canonicalizeRunlyEnvText } from "./lib/env-compat.mjs";
+import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { configureOffice, checkOfficeRuntime } from "./lib/office-config.mjs";
 import { configureFirebase } from "./lib/firebase-config.mjs";
 // setup-external.mjs
@@ -44,7 +46,7 @@ const composeFile   = path.resolve(__dirname, "docker-compose.yml");
 const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml");
 const envFile       = path.resolve(__dirname, ".env.external");
 const envExampleFile = path.resolve(__dirname, ".env.external.example");
-const devKitDir     = path.resolve(__dirname, "custom-modules", "_atlas-devkit");
+const devKitDir     = resolveDevKitDir(path.resolve(__dirname, "custom-modules"));
 const liveKitConfigFile = path.resolve(__dirname, "livekit", "livekit.yaml");
 const liveKitCaddyFile = path.resolve(__dirname, "livekit", "Caddyfile");
 const legacyLiveKitExternalProxyFile = path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf");
@@ -53,16 +55,16 @@ const composeFiles = isLinux && fsSync.existsSync(linuxComposeOverride)
   ? ["-f", composeFile, "-f", linuxComposeOverride]
   : ["-f", composeFile];
 
-const docsRepoOwner = process.env.ATLAS_DOCS_REPO_OWNER ?? "raulbellosom";
-const docsRepoName  = process.env.ATLAS_DOCS_REPO_NAME  ?? "atlaserp";
-const docsRepoRef   = process.env.ATLAS_DOCS_REPO_REF   ?? "main";
-const docsRawBase   = process.env.ATLAS_DOCS_RAW_BASE   ??
+const docsRepoOwner = (process.env.RUNLY_DOCS_REPO_OWNER ?? process.env.ATLAS_DOCS_REPO_OWNER) ?? "raulbellosom";
+const docsRepoName  = (process.env.RUNLY_DOCS_REPO_NAME ?? process.env.ATLAS_DOCS_REPO_NAME)  ?? "runly-erp";
+const docsRepoRef   = (process.env.RUNLY_DOCS_REPO_REF ?? process.env.ATLAS_DOCS_REPO_REF)   ?? "main";
+const docsRawBase   = (process.env.RUNLY_DOCS_RAW_BASE ?? process.env.ATLAS_DOCS_RAW_BASE)   ??
   `https://raw.githubusercontent.com/${docsRepoOwner}/${docsRepoName}/${docsRepoRef}`;
 const DEVKIT_EXPORT_REPO_PATH = "infra/installer/devkit-export";
 
-const apiImage    = process.env.ATLAS_API_IMAGE           ?? "raulbellosom/atlaserp:api-latest";
-const workerImage = process.env.ATLAS_WORKER_IMAGE        ?? "raulbellosom/atlaserp:worker-latest";
-const webImage    = process.env.ATLAS_WEB_EXTERNAL_IMAGE  ?? "raulbellosom/atlaserp:web-latest";
+const apiImage    = (process.env.RUNLY_API_IMAGE ?? process.env.ATLAS_API_IMAGE)           ?? "raulbellosom/runlyerp:api-latest";
+const workerImage = (process.env.RUNLY_WORKER_IMAGE ?? process.env.ATLAS_WORKER_IMAGE)        ?? "raulbellosom/runlyerp:worker-latest";
+const webImage    = (process.env.RUNLY_WEB_EXTERNAL_IMAGE ?? process.env.ATLAS_WEB_EXTERNAL_IMAGE)  ?? "raulbellosom/runlyerp:web-latest";
 const liveKitImage = process.env.LIVEKIT_IMAGE ?? "livekit/livekit-server:v1.12.0";
 const liveKitRedisImage = process.env.LIVEKIT_REDIS_IMAGE ?? "redis:7-alpine";
 const liveKitCaddyImage = process.env.LIVEKIT_CADDY_IMAGE ?? "caddy:2-alpine";
@@ -219,7 +221,7 @@ async function writeComposeEnv(envFilePath) {
   const content = await fs.readFile(envFilePath, "utf8");
   const supabaseUrl  = parseEnvValue(content, "SUPABASE_URL")    ?? "";
   const anonKey      = parseEnvValue(content, "SUPABASE_ANON_KEY") ?? "";
-  const atlasApiUrl  = parseEnvValue(content, "ATLAS_API_URL")   ?? "http://localhost:4010";
+  const atlasApiUrl  = (process.env.RUNLY_API_URL ?? process.env.ATLAS_API_URL ?? parseEnvValue(content, "RUNLY_API_URL") ?? parseEnvValue(content, "ATLAS_API_URL"))   ?? "http://localhost:4010";
 
   // Docker Compose auto-loads ".env" (no extension) in the same directory for
   // ${VAR} interpolation. The web service uses ${ATLAS_API_URL}, ${SUPABASE_URL},
@@ -234,7 +236,7 @@ async function writeComposeEnv(envFilePath) {
     `ATLAS_API_URL=${atlasApiUrl}`,
     "",
   ].join("\n");
-  await fs.writeFile(composeEnvFile, composeEnvContent, "utf8");
+  await fs.writeFile(composeEnvFile, canonicalizeRunlyEnvText(composeEnvContent), "utf8");
 }
 
 async function appendMissingOptionalVars(filePath) {
@@ -243,7 +245,7 @@ async function appendMissingOptionalVars(filePath) {
   const lines = [];
 
   for (const group of OPTIONAL_VAR_GROUPS) {
-    const missingVars = group.vars.filter((v) => !hasEnvKey(content, v.key));
+    const missingVars = group.vars.filter((v) => !hasEnvKey(content, v.key) && !hasEnvKey(content, v.key.replace(/^ATLAS_/, "RUNLY_")));
     if (missingVars.length === 0) continue;
     lines.push("", ...group.header);
     for (const { key, placeholder, comment } of missingVars) {
@@ -255,7 +257,7 @@ async function appendMissingOptionalVars(filePath) {
 
   if (addedKeys.length === 0) return;
   lines.push("");
-  await fs.appendFile(filePath, lines.join("\n"), "utf8");
+  await fs.appendFile(filePath, canonicalizeRunlyEnvText(lines.join("\n")), "utf8");
 
   console.warn("");
   console.warn("[setup-external] New variables appended to .env.external:");
@@ -647,8 +649,11 @@ async function main() {
     {
       env: {
         ...process.env,
+        RUNLY_API_IMAGE:          resolvedApiImage,
         ATLAS_API_IMAGE:          resolvedApiImage,
+        RUNLY_WORKER_IMAGE:       resolvedWorkerImage,
         ATLAS_WORKER_IMAGE:       resolvedWorkerImage,
+        RUNLY_WEB_EXTERNAL_IMAGE: resolvedWebImage,
         ATLAS_WEB_EXTERNAL_IMAGE: resolvedWebImage,
         LIVEKIT_IMAGE:            liveKitImage,
         LIVEKIT_REDIS_IMAGE:      liveKitRedisImage,

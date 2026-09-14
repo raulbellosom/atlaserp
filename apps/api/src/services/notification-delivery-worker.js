@@ -39,7 +39,7 @@ function normalizeBaseUrl(value) {
 
 async function resolveAppBaseUrl({ prisma }) {
   const envCandidates = [
-    process.env.ATLAS_APP_URL,
+    (process.env.RUNLY_APP_URL ?? process.env.ATLAS_APP_URL),
     process.env.APP_URL,
     process.env.PUBLIC_APP_URL,
     process.env.WEB_APP_URL,
@@ -214,10 +214,10 @@ function brandHeaderHtml(brand) {
   if (name) {
     return `<div style="font-size:18px;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin-bottom:8px">${escapeHtml(name)}</div>`;
   }
-  return `<div style="font-size:18px;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin-bottom:8px">Atlas<span style="color:#2563eb">ERP</span></div>`;
+  return `<div style="font-size:18px;font-weight:700;letter-spacing:-.01em;color:#0f172a;margin-bottom:8px">Runly<span style="color:#2563eb">ERP</span></div>`;
 }
 
-const EMAIL_FOOTER_HTML = `<tr><td style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:12px;color:#64748b">Este correo fue generado automaticamente por Atlas ERP.</td></tr>`;
+const EMAIL_FOOTER_HTML = `<tr><td style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f8fafc;font-size:12px;color:#64748b">Este correo fue generado automaticamente por Runly ERP.</td></tr>`;
 
 function buildChatEmail({ notification, link, brand, createdAt }) {
   const meta = notification?.metadata ?? {};
@@ -282,7 +282,7 @@ function buildNotificationEmail({ notification, appBaseUrl, brand = null }) {
     return buildChatEmail({ notification, link, brand, createdAt });
   }
 
-  const title = notification?.title ?? "Notificacion de Atlas";
+  const title = notification?.title ?? "Notificacion de Runly";
   const body = notification?.body ?? "";
   const eventStart = formatDateTime(notification?.metadata?.startAt);
   const reminderLead = reminderLeadText(notification?.metadata?.minutesBefore);
@@ -306,7 +306,7 @@ function buildNotificationEmail({ notification, appBaseUrl, brand = null }) {
     <tr>
       <td style="padding:20px 24px;border-bottom:1px solid #eef2ff;background:#f8fafc">
         ${brandHeaderHtml(brand)}
-        <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Notificaciones Atlas</div>
+        <div style="font-size:12px;color:#6b7280;letter-spacing:.06em;text-transform:uppercase">Notificaciones Runly</div>
         <h1 style="margin:6px 0 0 0;font-size:24px;line-height:1.25;color:#0f172a">${titleEsc}</h1>
       </td>
     </tr>
@@ -337,7 +337,7 @@ function buildNotificationEmail({ notification, appBaseUrl, brand = null }) {
   `.trim();
 
   const text = [
-    brand?.companyName || "Atlas ERP",
+    brand?.companyName || "Runly ERP",
     "",
     title,
     body ? body : null,

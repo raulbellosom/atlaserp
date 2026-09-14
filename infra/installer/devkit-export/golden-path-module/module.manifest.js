@@ -1,6 +1,6 @@
-import { defineAtlasModule } from '@atlas/module-engine'
+import { defineRunlyModule } from '@runly/module-engine'
 
-export default defineAtlasModule({
+export default defineRunlyModule({
   key: 'custom.goldenpath',
   name: 'Golden Path',
   version: '0.1.0',

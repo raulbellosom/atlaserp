@@ -69,7 +69,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.site',
         entityId: created.id,
         action: 'site.create',
@@ -110,7 +110,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.site',
         entityId: siteId,
         action: 'site.update',
@@ -133,7 +133,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId:    actorId ?? null,
-        moduleKey:  'atlas.website',
+        moduleKey:  'runly.website',
         entityType: 'website.site',
         entityId:   siteId,
         action:     'site.delete',
@@ -235,7 +235,7 @@ export function createWebsiteService({ prisma }) {
       await prisma.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: 'atlas.website',
+          moduleKey: 'runly.website',
           entityType: 'website.page',
           entityId: restored.id,
           action: 'page.restore',
@@ -266,7 +266,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.page',
         entityId: created.id,
         action: 'page.create',
@@ -294,7 +294,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.page',
         entityId: pageId,
         action: 'page.update',
@@ -318,7 +318,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.page',
         entityId: pageId,
         action: 'page.save_draft',
@@ -382,7 +382,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.page',
         entityId: pageId,
         action: 'page.publish',
@@ -402,7 +402,7 @@ export function createWebsiteService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.website',
+        moduleKey: 'runly.website',
         entityType: 'website.page',
         entityId: pageId,
         action: 'page.delete',

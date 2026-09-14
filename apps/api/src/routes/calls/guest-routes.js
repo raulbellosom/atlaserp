@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { callGuestJoinSchema, callRoomMessageSchema } from "@atlas/validators";
+import { callGuestJoinSchema, callRoomMessageSchema } from "@runly/validators";
 
 function guestToken(c) {
   const auth = c.req.header("authorization") || c.req.header("Authorization");

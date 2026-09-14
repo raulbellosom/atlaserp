@@ -6,7 +6,7 @@ import { parseEnv } from 'node:util'
 export function prepareAndroidFirebase(repository, androidApp, environment = process.env) {
   const envFile = resolve(repository, '.env')
   const local = existsSync(envFile) ? parseEnv(readFileSync(envFile, 'utf8')) : {}
-  const configPath = environment.ATLAS_ANDROID_GOOGLE_SERVICES_JSON ?? local.ATLAS_ANDROID_GOOGLE_SERVICES_JSON
+  const configPath = (environment.RUNLY_ANDROID_GOOGLE_SERVICES_JSON ?? environment.ATLAS_ANDROID_GOOGLE_SERVICES_JSON) ?? (local.RUNLY_ANDROID_GOOGLE_SERVICES_JSON ?? local.ATLAS_ANDROID_GOOGLE_SERVICES_JSON)
   const projectId = environment.FIREBASE_PROJECT_ID ?? local.FIREBASE_PROJECT_ID
   const destination = resolve(androidApp, 'google-services.json')
   if (!configPath) {

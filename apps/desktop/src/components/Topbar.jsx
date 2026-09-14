@@ -6,12 +6,12 @@ import { useCommandStore } from "../stores/command";
 import { ThemeToggle } from "./ThemeToggle";
 import { CompanySwitcher } from "./CompanySwitcher";
 import { useState } from "react";
-import { ActivityBellTrigger, SyncStatusPopover } from "@atlas/ui";
+import { ActivityBellTrigger, SyncStatusPopover } from "@runly/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { atlas } from "../lib/atlas";
-import ActivityDetailSheet from "../modules/atlas.activity/ActivityDetailSheet";
-import { useOfflineStore } from "@atlas/offline";
+import ActivityDetailSheet from "../modules/runly.activity/ActivityDetailSheet";
+import { useOfflineStore } from "@runly/offline";
 
 export function Topbar({
   onLauncherOpen,
@@ -86,9 +86,15 @@ export function Topbar({
             className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-80 overflow-hidden"
           >
             <img
-              src="/brand/atlas-logo-isotype.png"
-              alt="Atlas ERP"
-              className="w-full h-full object-contain"
+              src="/runly/runly-isotipo-light.png"
+              alt="Runly ERP"
+              className="w-full h-full object-contain dark:hidden"
+              draggable={false}
+            />
+            <img
+              src="/runly/runly-isotipo-dark.png"
+              alt="Runly ERP"
+              className="hidden w-full h-full object-contain dark:block"
               draggable={false}
             />
           </button>

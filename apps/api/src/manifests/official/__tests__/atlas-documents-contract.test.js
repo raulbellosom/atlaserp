@@ -56,7 +56,7 @@ test("forward migration creates document tables, constraints, and indexes", asyn
 });
 
 test("atlas.documents is an official core module with granular permissions", () => {
-  assert.equal(atlasDocumentsManifest.key, "atlas.documents");
+  assert.equal(atlasDocumentsManifest.key, "runly.documents");
   assert.equal(atlasDocumentsManifest.core, true);
   assert.equal(atlasDocumentsManifest.icon, "Files");
   assert.equal(atlasDocumentsManifest.color, "#0F766E");
@@ -66,10 +66,10 @@ test("atlas.documents is an official core module with granular permissions", () 
   });
   assert.deepEqual(
     atlasDocumentsManifest.dependencies.map((item) => item.key),
-    ["atlas.core", "atlas.files", "atlas.company"],
+    ["runly.core", "runly.files", "runly.company"],
   );
   assert.ok(
-    coreModules.some((manifest) => manifest.key === "atlas.documents"),
+    coreModules.some((manifest) => manifest.key === "runly.documents"),
   );
 
   const permissionKeys = atlasDocumentsManifest.permissions.map(

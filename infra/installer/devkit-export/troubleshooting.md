@@ -8,11 +8,11 @@
 - Wrong file extension: module UI files must be `.jsx`, not `.tsx`.
 - Unsupported import: stay within the documented externals and allowed bundled dependencies.
 - Stale bundle cache: force a rebuild with `POST /modules/<key>/sync` and reload the page.
-- Import mistake: never import `toast` from `@atlas/ui`; use `import { toast } from 'sonner'`.
+- Import mistake: never import `toast` from `@runly/ui`; use `import { toast } from 'sonner'`.
 
 ## Explicit Imports
 
 - Use `import { toast } from 'sonner'` for toast notifications.
-- Never use `import { toast } from '@atlas/ui'` — that export does not exist in installer mode.
-- Use `@atlas/ui` for UI primitives such as `ActionMenu`, `ActivityBellTrigger`, `ActivityDrawer`, `ActivityTimeline`, `Alert`, `AlertDescription`, `AlertTitle`, `AppShell`.
+- Never use `import { toast } from '@runly/ui'` — that export does not exist in installer mode.
+- Use `@runly/ui` for UI primitives such as `Accordion`, `AccordionContent`, `AccordionItem`, `AccordionTrigger`, `ActionMenu`, `ActivityBellTrigger`, `ActivityDrawer`, `ActivityTimeline`.
 

@@ -3,9 +3,8 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Server, Layers, Building2, Mail, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { TextField, PasswordField, Button } from '@atlas/ui'
+import { TextField, PasswordField, Button } from '@runly/ui'
 import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
-import { useBrandingStore } from '../stores/branding'
 import { atlas } from '../lib/atlas'
 import { useAuth } from './AuthProvider'
 import { normalizeAuthReturnPath } from './authReturnPath.js'
@@ -20,7 +19,6 @@ export function LoginScreen({ returnTo = '/app' }) {
   const navigate = useNavigate()
   const destination = normalizeAuthReturnPath(returnTo)
   const { session, loading: authLoading } = useAuth()
-  const branding = useBrandingStore((s) => s.branding)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -80,45 +78,38 @@ export function LoginScreen({ returnTo = '/app' }) {
 
   return (
     <div className="flex min-h-dvh">
-      {/* Sidebar — color always from CSS var (set before render, no flash) */}
+      {/* Sidebar — Midnight/Navy base per the brand guide (the warm gradient
+          is an accent, never a full-bleed fill); matches the setup wizard's
+          hero panel treatment so both auth-adjacent screens read as one product. */}
       <div
         className="hidden lg:flex lg:w-105 lg:shrink-0 flex-col justify-between px-12 py-14 relative overflow-hidden"
-        style={{ backgroundColor: 'var(--brand-primary)' }}
+        style={{
+          background: 'linear-gradient(145deg, #0C172D 0%, #132646 55%, #0C172D 100%)',
+        }}
       >
-        {/* Background depth glows */}
+        {/* Background depth glows — warm accent, per brand guide */}
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="absolute -top-32 -left-32 w-md h-112 rounded-full bg-white/5 blur-3xl" />
-          <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
+          <div
+            className="absolute -top-32 -left-32 w-md h-112 rounded-full blur-3xl opacity-20"
+            style={{ background: 'radial-gradient(circle, rgba(253,96,22,0.85) 0%, transparent 65%)' }}
+          />
+          <div
+            className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full blur-3xl opacity-10"
+            style={{ background: 'radial-gradient(circle, rgba(19,38,70,0.85) 0%, transparent 65%)' }}
+          />
         </div>
 
-        {/* Top: Atlas logo + company branding */}
+        {/* Top: Runly logo — the login screen is shared across every company on
+            this instance (multi-tenant), so it never shows a specific
+            company's branding; that only appears once inside the app, after
+            the user picks/activates a company. */}
         <div className="relative flex flex-col gap-4">
           <img
-            src="/brand/atlas-logo-monochrome-light.png"
-            alt="Atlas ERP"
+            src="/runly/runly-logo-dark.png"
+            alt="Runly ERP"
             className="w-40 object-contain"
             draggable={false}
           />
-          <span className="text-white/40 text-[11px] font-semibold uppercase tracking-[0.18em]">
-            Meridian Edition
-          </span>
-          {(branding?.logoUrl || branding?.companyName) && (
-            <div className="mt-2 pt-4 border-t border-white/10 flex flex-col gap-2">
-              {branding.logoUrl && (
-                <img
-                  src={branding.logoUrl}
-                  alt={branding.companyName ?? 'Logo de la empresa'}
-                  className="w-32 object-contain opacity-80"
-                  draggable={false}
-                />
-              )}
-              {branding.companyName && (
-                <p className="text-white/70 text-sm font-semibold leading-tight">
-                  {branding.companyName}
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Middle: Feature list */}
@@ -126,8 +117,11 @@ export function LoginScreen({ returnTo = '/app' }) {
           <ul className="flex flex-col gap-5" role="list">
             {SIDEBAR_FEATURES.map(({ icon: Icon, label }) => (
               <li key={label} className="flex items-center gap-3">
-                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 shrink-0">
-                  <Icon className="w-4 h-4 text-white" aria-hidden="true" />
+                <span
+                  className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0"
+                  style={{ background: 'rgba(253,139,42,0.24)' }}
+                >
+                  <Icon className="w-4 h-4" style={{ color: '#FD8B2A' }} aria-hidden="true" />
                 </span>
                 <span className="text-sm text-white/75 font-medium leading-snug">{label}</span>
               </li>
@@ -138,9 +132,9 @@ export function LoginScreen({ returnTo = '/app' }) {
         {/* Bottom: slogan + version stamp */}
         <div className="relative flex flex-col gap-2">
           <p className="text-white/60 text-xs font-semibold uppercase tracking-[0.22em]">
-            Conecta. Gestiona. Crece.
+            Business in motion.
           </p>
-          <p className="text-white/20 text-xs tracking-wide">v2.0 &middot; Meridian Edition</p>
+          <p className="text-white/20 text-xs tracking-wide">v2.0</p>
         </div>
       </div>
 
@@ -149,16 +143,20 @@ export function LoginScreen({ returnTo = '/app' }) {
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-3">
             <img
-              src="/brand/atlas-logo-isotype.png"
-              alt="Atlas ERP"
-              className="w-10 h-10 object-contain"
+              src="/runly/runly-isotipo-light.png"
+              alt="Runly ERP"
+              className="w-10 h-10 object-contain dark:hidden"
+              draggable={false}
+            />
+            <img
+              src="/runly/runly-isotipo-dark.png"
+              alt="Runly ERP"
+              className="hidden w-10 h-10 object-contain dark:block"
               draggable={false}
             />
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {branding?.companyName
-                  ? branding.companyName
-                  : 'Atlas ERP · Meridian Edition'}
+                Runly ERP
               </p>
               <h1 className="text-2xl font-semibold tracking-tight">Bienvenido de nuevo</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">

@@ -38,9 +38,9 @@ const argv = new Set(process.argv.slice(2));
 // default or --push → docker buildx multi-platform build + push to registry
 const localBuildMode = argv.has("--build");
 
-const REGISTRY  = "raulbellosom/atlaserp";
+const REGISTRY  = "raulbellosom/runlyerp";
 const PLATFORMS = "linux/amd64,linux/arm64";
-const BUILDER   = "atlas-multiplatform";
+const BUILDER   = "runly-multiplatform";
 
 const ALL_IMAGES = [
   {

@@ -116,7 +116,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         await prisma.auditLog.create({
           data: {
             actorId,
-            moduleKey: 'atlas.website',
+            moduleKey: 'runly.website',
             entityType: 'website.site',
             entityId: siteId,
             action: 'site.source_type.update',

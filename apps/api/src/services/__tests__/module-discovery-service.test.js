@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { discoverModules, loadModuleMigrations } from '../module-discovery-service.js'
+import { discoverModules, discoverOfficialModules, loadModuleManifest, loadModuleMigrations, validateDiscoveredModule } from '../module-discovery-service.js'
 
 test('loadModuleMigrations fails fast when manifest checksum does not match SQL file', async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-discovery-'))
@@ -115,4 +115,42 @@ test('discoverModules reads custom modules from ATLAS_MODULES_DIR when provided'
     delete process.env.ATLAS_MODULES_DIR
   }
   await fs.rm(projectRoot, { recursive: true, force: true })
+})
+
+const runlyManifest = {
+  key: 'runly.example', name: 'Runly Example', version: '1.0.0',
+  icon: 'Boxes', color: '#2563eb', pwa: { shortName: 'Example', startPath: '/' },
+}
+
+test('discovery accepts both official namespaces and reserves them from custom modules', () => {
+  for (const key of ['atlas.example', 'runly.example']) {
+    const record = { key, manifest: { ...runlyManifest, key } }
+    assert.equal(validateDiscoveredModule({ ...record, source: 'official' }).valid, true)
+    const custom = validateDiscoveredModule({ ...record, source: 'custom' })
+    assert.equal(custom.valid, false)
+    assert.match(custom.errors.join(' '), /reserved namespace/)
+  }
+  assert.equal(validateDiscoveredModule({ key: 'custom.example', manifest: { ...runlyManifest, key: 'custom.example' }, source: 'custom' }).valid, true)
+})
+
+test('Runly official manifests are discovered from disk; custom loads cannot bypass namespace checks', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'runly-discovery-'))
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()))
+    assert.ok(path.basename(root).startsWith('runly-discovery-'))
+    await fs.rm(root, { recursive: true, force: true })
+  })
+  await fs.writeFile(path.join(root, 'package.json'), '{"name":"fixture","type":"module"}')
+  await fs.writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages: []')
+  const folder = path.join(root, 'modules', 'official', 'runly.example')
+  await fs.mkdir(folder, { recursive: true })
+  const manifestPath = path.join(folder, 'module.manifest.js')
+  await fs.writeFile(manifestPath, `export default ${JSON.stringify(runlyManifest)}`)
+  const records = await discoverOfficialModules({ rootDir: root })
+  assert.equal(records.length, 1)
+  assert.equal(records[0].key, 'runly.example')
+  assert.equal(records[0].status, 'VALID')
+  const custom = await loadModuleManifest({ manifestPath, source: 'custom' })
+  assert.equal(custom.status, 'ERROR')
+  assert.match(custom.error.message, /reserved namespace/)
 })

@@ -677,7 +677,7 @@ describe("createStorefrontCaptureService", () => {
       {
         id: "audit-1",
         actorId: null,
-        moduleKey: "atlas.growth",
+        moduleKey: "runly.growth",
         entityType: "growth.lead",
         entityId: LEAD_ID,
         action: "growth.lead.create",

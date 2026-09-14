@@ -91,6 +91,8 @@ test('serves a stable module manifest with module-specific identity', async () =
 
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('content-type'), 'application/manifest+json')
+  assert.equal(manifest.name, 'Inventario — Runly')
+  assert.equal(manifest.short_name, 'Inventario')
   assert.equal(manifest.id, '/pwa/apps/atlas.inventory')
   assert.equal(manifest.start_url, '/app/m/atlas.inventory/inventory')
   assert.equal(manifest.scope, '/app/m/atlas.inventory/')
@@ -99,6 +101,37 @@ test('serves a stable module manifest with module-specific identity', async () =
     /^\/pwa\/icon\/atlas\.inventory\/192\.png\?v=[a-f0-9]{12}$/,
   )
   assert.match(response.headers.get('etag'), /^".+"$/)
+})
+
+test('refreshes a cached Atlas manifest without changing the installed app identity', async () => {
+  const moduleRow = modules.get('atlas.inventory')
+  const legacyHash = createHash('sha256').update(JSON.stringify({
+    key: moduleRow.key,
+    version: moduleRow.version,
+    name: moduleRow.manifest.name,
+    description: moduleRow.manifest.description,
+    icon: moduleRow.manifest.icon,
+    color: moduleRow.manifest.color,
+    logoUrl: moduleRow.manifest.logoUrl,
+    logoHash: null,
+    pwa: moduleRow.manifest.pwa,
+  })).digest('hex')
+  const app = createApp()
+  const url = 'https://runly.example.com/pwa/manifest/atlas.inventory.webmanifest'
+  const response = await app.request(url, {
+    headers: { 'if-none-match': `"${legacyHash}"` },
+  })
+  assert.equal(response.status, 200)
+  const manifest = await response.json()
+  assert.equal(manifest.name, 'Inventario — Runly')
+  assert.equal(manifest.id, '/pwa/apps/atlas.inventory')
+  assert.equal(manifest.scope, '/app/m/atlas.inventory/')
+  assert.equal(manifest.start_url, '/app/m/atlas.inventory/inventory')
+  assert.equal(manifest.icons[0].src, `/pwa/icon/atlas.inventory/192.png?v=${legacyHash.slice(0, 12)}`)
+  const revalidated = await app.request(url, {
+    headers: { 'if-none-match': response.headers.get('etag') },
+  })
+  assert.equal(revalidated.status, 304)
 })
 
 test('different modules expose different PWA ids and start URLs', async () => {

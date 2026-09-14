@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, User, Settings, LogOut, Monitor, Download, X, Smartphone, Share, Sun, Moon, Activity, MessageSquare, Building2 } from "lucide-react";
 import { useThemeStore } from "../stores/theme";
-import { useChatFloatStore } from "../modules/atlas.chat/store/chatFloatStore";
+import { useChatFloatStore } from "../modules/runly.chat/store/chatFloatStore";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { CompanySwitcherModal } from "./CompanySwitcherModal";
 import {
@@ -14,7 +14,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-} from "@atlas/ui";
+} from "@runly/ui";
 import { useAuth } from "../auth/AuthProvider";
 import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
 import { getMobilePwaInstallMode } from "../lib/pwaInstallUi.js";

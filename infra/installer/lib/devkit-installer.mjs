@@ -1,7 +1,14 @@
 import fs from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 
 export const DEVKIT_EXPORT_REPO_PATH = 'infra/installer/devkit-export'
+
+export function resolveDevKitDir(customModulesDir) {
+  const current = path.resolve(customModulesDir, '_runly-devkit')
+  const legacy = path.resolve(customModulesDir, '_atlas-devkit')
+  return existsSync(current) || !existsSync(legacy) ? current : legacy
+}
 
 export function getDevKitManifestRepoPath() {
   return `${DEVKIT_EXPORT_REPO_PATH}/manifest.json`
@@ -9,7 +16,7 @@ export function getDevKitManifestRepoPath() {
 
 async function downloadTextFile(url, { fetchImpl = fetch } = {}) {
   const response = await fetchImpl(url, {
-    headers: { 'User-Agent': 'atlaserp-installer' },
+    headers: { 'User-Agent': 'runlyerp-installer' },
     signal: AbortSignal.timeout(20000),
   })
   if (!response.ok) {

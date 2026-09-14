@@ -1,5 +1,5 @@
 import { atlas } from "./atlas.js";
-import { isNative } from '@atlas/core/native-runtime';
+import { isNative } from '@runly/core/native-runtime';
 
 const STORAGE_KEY = "atlas.notifications.webpush.subscriptionId";
 

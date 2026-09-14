@@ -48,7 +48,7 @@ function handleError(c, error) {
       error.status,
     );
   }
-  console.error("[atlas.documents]", error);
+  console.error("[runly.documents]", error);
   return c.json({ error: "Error interno de Documentos." }, 500);
 }
 

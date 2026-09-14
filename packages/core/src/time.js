@@ -7,7 +7,7 @@ function readEnv(name) {
 }
 
 export function getConfiguredTimeZone() {
-  return readEnv('ATLAS_TIME_ZONE') || readEnv('TZ') || DEFAULT_TIME_ZONE
+  return (readEnv('RUNLY_TIME_ZONE') ?? readEnv('ATLAS_TIME_ZONE')) || readEnv('TZ') || DEFAULT_TIME_ZONE
 }
 
 export function formatLocalDateTime(value = new Date(), options = {}) {

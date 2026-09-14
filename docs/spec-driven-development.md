@@ -27,7 +27,7 @@ Required reading:
 - Any existing spec or plan for related modules in `docs/superpowers/`
 
 Tasks during discovery:
-- Identify existing patterns to reuse (services, validators, SDK domains, UI components from `@atlas/ui`).
+- Identify existing patterns to reuse (services, validators, SDK domains, UI components from `@runly/ui`).
 - Identify risks, conflicts, and dependencies on other modules.
 - Identify which Prisma models exist and which would be new.
 - Identify whether any existing files are near the 800-line warning threshold and would need splitting.
@@ -160,8 +160,8 @@ Every spec file must contain the following 28 sections in this order. "N/A" is a
 10. **Data model** — Entities involved, their fields, field types, and relationships. Describe new models and changes to existing ones.
 11. **Prisma impact** — Which Prisma models are new, which are modified, and whether a new migration is required.
 12. **API contract** — All HTTP endpoints: method, path, auth requirement, request body shape, response shape, and error codes.
-13. **SDK contract** — New or modified methods on `@atlas/sdk`: domain name, method signature, parameters, and return type.
-14. **Validator contract** — New or modified Zod schemas in `@atlas/validators`: schema name and the fields it validates.
+13. **SDK contract** — New or modified methods on `@runly/sdk`: domain name, method signature, parameters, and return type.
+14. **Validator contract** — New or modified Zod schemas in `@runly/validators`: schema name and the fields it validates.
 15. **Module manifest impact** — Whether the feature requires a new or modified manifest in `packages/maps/`. Module key, dependencies, navigation entries, permissions array, and ACL map.
 16. **Navigation impact** — New navigation items: label (in Spanish), path, icon, layout, and permissionKey.
 17. **Blueprint impact** — Whether the feature defines new blueprints or modifies existing ones: blueprint key, kind, and schema summary.
@@ -236,14 +236,14 @@ Before a spec is considered complete, it must explicitly answer every question b
 - Does the feature require a new forward migration? (Atlas ORM migration in Phase 3+; Prisma migration in Phase 1–2 only)
 
 **Validators:**
-- What Zod schemas are required? (module-local `validators/index.js` in AME3; `@atlas/validators` only for truly shared contracts)
+- What Zod schemas are required? (module-local `validators/index.js` in AME3; `@runly/validators` only for truly shared contracts)
 
 **SDK:**
-- What SDK domain and methods are required in `@atlas/sdk`?
+- What SDK domain and methods are required in `@runly/sdk`?
 
 **Frontend:**
 - What views are required? (declared via `defineView` in AME3; Phase 1–2 only: screen files under `apps/desktop/src/modules/`)
-- Which existing `@atlas/ui` components can be reused?
+- Which existing `@runly/ui` components can be reused?
 
 **Documentation:**
 - Which section of `docs/TASKS.md` covers this feature?

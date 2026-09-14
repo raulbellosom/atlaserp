@@ -1,0 +1,533 @@
+# Runly - packages and Dev Kit
+
+Date: 2026-09-13
+Spec: `docs/superpowers/specs/2026-09-13-runly-packages-devkit-design.md`
+Status: Complete (local stage 3a)
+Mode: IMPLEMENTATION
+Authorization: continuation requested by the user.
+
+## Goal and architecture
+
+Canonical Runly packages with legacy workspace aliases and shared browser shims. Preserve technical identities and custom installations. Variables are the next independent delivery (3b).
+
+## File Structure Map
+
+Create:
+
+- `scripts/__tests__/runly-package-compatibility.test.js`
+- `docs/superpowers/specs/2026-09-13-runly-packages-devkit-design.md`
+- `docs/superpowers/plans/2026-09-13-runly-packages-devkit.md`
+
+Modify:
+
+- `.github/instructions/responsive-mobile.instructions.md`
+- `AGENTS.md`
+- `CLAUDE.md`
+- `README.md`
+- `apps/api/package.json`
+- `apps/api/src/index.js`
+- `apps/api/src/manifests/official/__tests__/atlas-pos-contract.test.js`
+- `apps/api/src/manifests/official/__tests__/pwa-identities.test.js`
+- `apps/api/src/manifests/official/core-modules.js`
+- `apps/api/src/manifests/official/feature-modules.js`
+- `apps/api/src/routes/__tests__/modules-upload-route.test.js`
+- `apps/api/src/routes/activity.js`
+- `apps/api/src/routes/calls/guest-routes.js`
+- `apps/api/src/routes/calls/index.js`
+- `apps/api/src/routes/chat/index.js`
+- `apps/api/src/routes/chat/meridian-service.js`
+- `apps/api/src/routes/chat/message-forward-routes.js`
+- `apps/api/src/routes/chat/moderation-routes.js`
+- `apps/api/src/routes/documents/document-validators.js`
+- `apps/api/src/routes/files.js`
+- `apps/api/src/routes/growth/growth-validators.js`
+- `apps/api/src/routes/modules.js`
+- `apps/api/src/routes/pfm/__tests__/wallets-service.test.js`
+- `apps/api/src/routes/pfm/assistant-service.js`
+- `apps/api/src/routes/pfm/assistant-tools.js`
+- `apps/api/src/routes/pfm/budgets-service.js`
+- `apps/api/src/routes/pfm/movements-service.js`
+- `apps/api/src/routes/pfm/summary-routes.js`
+- `apps/api/src/routes/pfm/summary-service.js`
+- `apps/api/src/routes/pfm/wallets-service.js`
+- `apps/api/src/routes/projects/projects-notification-service.js`
+- `apps/api/src/routes/pwa.js`
+- `apps/api/src/services/__tests__/files-workspace.test.js`
+- `apps/api/src/services/__tests__/office-chat-access.test.js`
+- `apps/api/src/services/__tests__/office-chat-wopi.test.js`
+- `apps/api/src/services/__tests__/office-fixture.js`
+- `apps/api/src/services/__tests__/office-postgres.test.js`
+- `apps/api/src/services/__tests__/office-validate.test.js`
+- `apps/api/src/services/__tests__/office-wopi.test.js`
+- `apps/api/src/services/activity-service.js`
+- `apps/api/src/services/contacts-service.js`
+- `apps/api/src/services/files-service.js`
+- `apps/api/src/services/files/query.js`
+- `apps/api/src/services/files/workspace.js`
+- `apps/api/src/services/hr-service.js`
+- `apps/api/src/services/module-bundler-service.js`
+- `apps/api/src/services/module-discovery-service.js`
+- `apps/api/src/services/module-migration-service.js`
+- `apps/api/src/services/notification-service.js`
+- `apps/api/src/services/office/access.js`
+- `apps/api/src/services/office/discovery.js`
+- `apps/desktop/package.json`
+- `apps/desktop/scripts/publish-release.mjs`
+- `apps/desktop/src/app/AppEntry.jsx`
+- `apps/desktop/src/app/AtlasApp.jsx`
+- `apps/desktop/src/app/GoogleCalendarCallbackScreen.jsx`
+- `apps/desktop/src/app/HomeScreen.jsx`
+- `apps/desktop/src/app/ModuleOutlet.jsx`
+- `apps/desktop/src/app/ProfileScreen.jsx`
+- `apps/desktop/src/app/ServerSetup.jsx`
+- `apps/desktop/src/auth/AuthGuard.jsx`
+- `apps/desktop/src/auth/AuthProvider.jsx`
+- `apps/desktop/src/auth/LoginScreen.jsx`
+- `apps/desktop/src/components/CommandPalette.jsx`
+- `apps/desktop/src/components/CompanySwitcher.jsx`
+- `apps/desktop/src/components/CompanySwitcherModal.jsx`
+- `apps/desktop/src/components/CreateCompanyDialog.jsx`
+- `apps/desktop/src/components/ModuleCard.jsx`
+- `apps/desktop/src/components/NotificationBell.jsx`
+- `apps/desktop/src/components/Topbar.jsx`
+- `apps/desktop/src/components/UserMenu.jsx`
+- `apps/desktop/src/hooks/useModuleLauncher.js`
+- `apps/desktop/src/lib/atlas.js`
+- `apps/desktop/src/lib/localDate.js`
+- `apps/desktop/src/lib/serverStore.js`
+- `apps/desktop/src/lib/supabase.js`
+- `apps/desktop/src/lib/webPush.js`
+- `apps/desktop/src/modules/atlas.activity/ActivityDetailSheet.jsx`
+- `apps/desktop/src/modules/atlas.activity/ActivityFeedScreen.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/AgendaView.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/CalendarFormModal.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/CalendarLeftSidebar.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/CalendarShareModal.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/CalendarToolbar.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/EventDetailModal.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/EventFormModal.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/GoogleCalendarCalendarPickerDialog.jsx`
+- `apps/desktop/src/modules/atlas.calendar/components/GoogleCalendarConnectionCard.jsx`
+- `apps/desktop/src/modules/atlas.calendar/hooks/useCalendarData.js`
+- `apps/desktop/src/modules/atlas.calendar/screens/CalendarScreen.jsx`
+- `apps/desktop/src/modules/atlas.catalog/components/ProductImageManager.jsx`
+- `apps/desktop/src/modules/atlas.catalog/components/StockMovementModal.jsx`
+- `apps/desktop/src/modules/atlas.catalog/components/VariantMatrix.jsx`
+- `apps/desktop/src/modules/atlas.catalog/components/VariantOptionsEditor.jsx`
+- `apps/desktop/src/modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx`
+- `apps/desktop/src/modules/atlas.catalog/screens/CatalogInventoryScreen.jsx`
+- `apps/desktop/src/modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx`
+- `apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/CallGuestSheet.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/CallInvitePanel.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/CallReactionButton.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/CallRoom.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/CallRoomLayout.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/CallShareDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/DraggablePip.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/IncomingCallDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/guest/GuestCallRoom.jsx`
+- `apps/desktop/src/modules/atlas.chat/calls/guest/GuestCallScreen.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/AddChannelMembersDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/CallLogCard.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChannelDangerZoneTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChannelDirectorySheet.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChannelEventsTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChannelGeneralTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChannelMembersTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChannelRolesTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatAttachmentViewer.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatConversationItem.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatFilesGallery.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatHeader.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatMessageBubble.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatMessageList.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatRecordingsGallery.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatSettingsDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatSidebar.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ChatWindow.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ConversationInfoTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ConversationMediaTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ConversationRowActions.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/CreateChannelModal.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/CreateChatModal.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/EntityFileViewer.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/EntityReferencePicker.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/FileReferenceGroup.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/FloatingChatHub.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ForwardMessageModal.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/GroupsInCommonTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MeridianPanel.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageActionSheet.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageAttachments.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageComposer.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageReactionPicker.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageReactionsModal.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageReceiptDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MessageSearchResults.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/MiniChatWindow.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/NewMeetingDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/NotificationsTab.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/PinnedMessagesBar.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/PinnedMessagesSheet.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/RecordingReadyCard.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/RoleEditorDialog.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/ThreadPanel.jsx`
+- `apps/desktop/src/modules/atlas.chat/components/UserPicker.jsx`
+- `apps/desktop/src/modules/atlas.chat/lib/chatUtils.js`
+- `apps/desktop/src/modules/atlas.chat/lib/officeFileActions.js`
+- `apps/desktop/src/modules/atlas.chat/screens/ChatOfficeEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.chat/screens/ChatScreen.jsx`
+- `apps/desktop/src/modules/atlas.chat/screens/ChatTemplatesScreen.jsx`
+- `apps/desktop/src/modules/atlas.chat/screens/ExternalInboxScreen.jsx`
+- `apps/desktop/src/modules/atlas.company/screens/CompanyAddress.jsx`
+- `apps/desktop/src/modules/atlas.company/screens/CompanyBranding.jsx`
+- `apps/desktop/src/modules/atlas.company/screens/CompanyProfile.jsx`
+- `apps/desktop/src/modules/atlas.contacts/components/ContactFormSheet.jsx`
+- `apps/desktop/src/modules/atlas.contacts/screens/ContactsScreen.jsx`
+- `apps/desktop/src/modules/atlas.core/screens/InstanceSettings.jsx`
+- `apps/desktop/src/modules/atlas.core/screens/ModuleCatalog.jsx`
+- `apps/desktop/src/modules/atlas.core/screens/Overview.jsx`
+- `apps/desktop/src/modules/atlas.core/screens/SmtpSettingsScreen.jsx`
+- `apps/desktop/src/modules/atlas.core/screens/UploadModuleSheet.jsx`
+- `apps/desktop/src/modules/atlas.core/screens/WebPushSettingsScreen.jsx`
+- `apps/desktop/src/modules/atlas.documents/components/DocumentBlockEditor.jsx`
+- `apps/desktop/src/modules/atlas.documents/components/DocumentPreviewDialog.jsx`
+- `apps/desktop/src/modules/atlas.documents/screens/DocumentTemplateEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.documents/screens/DocumentTemplatesScreen.jsx`
+- `apps/desktop/src/modules/atlas.documents/screens/GeneratedDocumentsScreen.jsx`
+- `apps/desktop/src/modules/atlas.files/components/AdvancedFileViewer.jsx`
+- `apps/desktop/src/modules/atlas.files/components/CreateDocumentDialog.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FileDetailPanel.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FileInvitations.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FileRenameModal.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FileSharingDialog.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FilesCardView.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FilesGridView.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FilesToolbar.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FilesWorkspaceHeader.jsx`
+- `apps/desktop/src/modules/atlas.files/components/FilesWorkspaceTable.jsx`
+- `apps/desktop/src/modules/atlas.files/lib/file-kind.js`
+- `apps/desktop/src/modules/atlas.files/screens/FilesScreen.jsx`
+- `apps/desktop/src/modules/atlas.files/screens/OfficeEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/CoverageTypeBadge.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/DriverAvatarCell.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/DriverLicenseBadge.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/DriverStatusBadge.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/InsuranceBadgeCell.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/ReportStatusBadge.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/VehicleImageCell.jsx`
+- `apps/desktop/src/modules/atlas.fleet/components/VehicleStatusBadge.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/CatalogsScreen.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/DriversScreen.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/InsuranceScreen.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/ReportDetailScreen.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/ReportFormPage.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/ReportsScreen.jsx`
+- `apps/desktop/src/modules/atlas.fleet/screens/VehiclesScreen.jsx`
+- `apps/desktop/src/modules/atlas.growth/components/ConvertLeadDialog.jsx`
+- `apps/desktop/src/modules/atlas.growth/components/CreateLeadDialog.jsx`
+- `apps/desktop/src/modules/atlas.growth/components/GenerateDocumentDialog.jsx`
+- `apps/desktop/src/modules/atlas.growth/components/GrowthAnalyticsReports.jsx`
+- `apps/desktop/src/modules/atlas.growth/components/LeadPriorityBadge.jsx`
+- `apps/desktop/src/modules/atlas.growth/components/LeadStatusBadge.jsx`
+- `apps/desktop/src/modules/atlas.growth/screens/GrowthAnalyticsScreen.jsx`
+- `apps/desktop/src/modules/atlas.growth/screens/GrowthLeadDetailScreen.jsx`
+- `apps/desktop/src/modules/atlas.growth/screens/GrowthLeadsScreen.jsx`
+- `apps/desktop/src/modules/atlas.hr/components/HrEmployeeActivityPanel.jsx`
+- `apps/desktop/src/modules/atlas.hr/screens/HrCatalogsScreen.jsx`
+- `apps/desktop/src/modules/atlas.hr/screens/HrEmployeeDetail.jsx`
+- `apps/desktop/src/modules/atlas.hr/screens/HrEmployeeForm.jsx`
+- `apps/desktop/src/modules/atlas.hr/screens/HrOrgChartScreen.jsx`
+- `apps/desktop/src/modules/atlas.hr/screens/HrScreen.jsx`
+- `apps/desktop/src/modules/atlas.identity/components/PermissionFeatureTree.jsx`
+- `apps/desktop/src/modules/atlas.identity/components/UserPermissionGrantsCard.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/ChatReportsScreen.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/IdentityOverview.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/RoleEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/RolesScreen.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/UserCreateScreen.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/UserEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.identity/screens/UsersScreen.jsx`
+- `apps/desktop/src/modules/atlas.inventory/components/InventoryAssignmentPanel.jsx`
+- `apps/desktop/src/modules/atlas.inventory/components/InventoryCommentThread.jsx`
+- `apps/desktop/src/modules/atlas.inventory/components/InventoryCustomFieldsForm.jsx`
+- `apps/desktop/src/modules/atlas.inventory/components/InventoryEmployeeWidget.jsx`
+- `apps/desktop/src/modules/atlas.inventory/components/InventoryFileGallery.jsx`
+- `apps/desktop/src/modules/atlas.inventory/components/InventoryGroupedView.jsx`
+- `apps/desktop/src/modules/atlas.inventory/screens/InventoryAssignmentsScreen.jsx`
+- `apps/desktop/src/modules/atlas.inventory/screens/InventoryCatalogsScreen.jsx`
+- `apps/desktop/src/modules/atlas.inventory/screens/InventoryItemDetail.jsx`
+- `apps/desktop/src/modules/atlas.inventory/screens/InventoryItemForm.jsx`
+- `apps/desktop/src/modules/atlas.inventory/screens/InventoryScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/hooks/use-ledger-queries.js`
+- `apps/desktop/src/modules/atlas.ledger/screens/AccountScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/AccountsScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/CategoriesScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/GroupScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/GroupsScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/ImportWizard.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/MembershipsScreen.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/SpreadsheetRegister.jsx`
+- `apps/desktop/src/modules/atlas.ledger/screens/TypesScreen.jsx`
+- `apps/desktop/src/modules/atlas.notes/NotesScreen.jsx`
+- `apps/desktop/src/modules/atlas.notes/PublicCanvasView.jsx`
+- `apps/desktop/src/modules/atlas.notes/PublicNoteScreen.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/CanvasEditor.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/CanvasLayersPanel.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/DrawingCanvas.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/ImageAnnotationOverlay.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/ImageCropModal.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/KeyboardShortcutsDialog.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/NoteEditor.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/NoteSettingsPanel.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/NoteShareModal.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/NoteTitleEditor.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/NoteToolbar.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/NotesList.jsx`
+- `apps/desktop/src/modules/atlas.notes/components/PresenceStack.jsx`
+- `apps/desktop/src/modules/atlas.notifications/NotificationSettingsScreen.jsx`
+- `apps/desktop/src/modules/atlas.notifications/NotificationsInboxScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/AdjustBalanceSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/AssistantActionCard.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/AssistantComposer.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/AssistantMessageList.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/AssistantThreadList.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/BudgetBars.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/BudgetFormSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/CategoryDonut.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/ConfirmChargeDialog.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/CreditCyclePanel.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/CreditUsageBlock.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/GoalFormSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/GoalRings.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/InvestmentPanel.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/MovementRow.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/PfmAssistantSidebar.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/QuickAddMovementSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/ReceiptDetailDialog.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/ReceiptParsedInfo.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/ReceiptReviewSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/RecurringRuleSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/UpcomingChargesCard.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/WalletFormSheet.jsx`
+- `apps/desktop/src/modules/atlas.pfm/components/WalletMembersDialog.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/BudgetsScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/CategoriesScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/OverviewScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/ReceiptsScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/RecurringScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/WalletDetailScreen.jsx`
+- `apps/desktop/src/modules/atlas.pfm/screens/WalletsScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/CashMovementDialog.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/ComandaLineList.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/FloorPropertiesPanel.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/KitchenStationBoard.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/LineEditSheet.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/ModifierSheet.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/OrderPanel.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/OutletFlagsFields.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/PaymentDialog.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/PosModifiersTab.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/PosScreenShell.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/ProductGrid.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/ProductStationsPanel.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/ReservationFormDialog.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/SeatChips.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/SessionCloseDialog.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/SessionOpenDialog.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/SplitBillDialog.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/TableMap.jsx`
+- `apps/desktop/src/modules/atlas.pos/components/WaiterShiftsPanel.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/ComandaScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosFloorPlannerScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosOrdersScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosSessionsScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosSettingsScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosStationsScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosTablesScreen.jsx`
+- `apps/desktop/src/modules/atlas.pos/screens/PosTerminalScreen.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/KanbanView.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/ListView.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/MembersPanel.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/MentionTextarea.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/ProjectFieldsSheet.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/ProjectFormModal.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/StatusEditor.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/SubtaskRow.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/TaskDetailPanel.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/TaskFormModal.jsx`
+- `apps/desktop/src/modules/atlas.projects/components/TimelineView.jsx`
+- `apps/desktop/src/modules/atlas.projects/lib/AssigneeChip.jsx`
+- `apps/desktop/src/modules/atlas.projects/screens/ProjectsScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/components/DistUploadPanel.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/FormApiPanel.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/FormFieldBuilder.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/FormSettingsPanel.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/FormSubmissionsPanel.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/MenuItemDialog.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/MenuItemTree.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/TemplatePreviewScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/ThemeTypographyEditor.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteBlogPostEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteBlogScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteFormsScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteMenusScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteNewBlogPostDialog.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteNewPageDialog.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteOverviewScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsitePageEditorScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsitePagesScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsitePaymentsScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteSettingsScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteTemplateDetailScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteTemplatesScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/WebsiteThemeScreen.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepIdentity.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepInfo.jsx`
+- `apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepTemplate.jsx`
+- `apps/desktop/src/modules/platform-settings/screens/SmtpSettingsScreen.jsx`
+- `apps/desktop/src/native/NativeHostDiagnostics.jsx`
+- `apps/desktop/src/native/__tests__/native-host.test.js`
+- `apps/desktop/src/native/index.js`
+- `apps/desktop/src/providers/OfficeProvider.jsx`
+- `apps/desktop/src/setup/StepAdmin.jsx`
+- `apps/desktop/src/setup/StepBranding.jsx`
+- `apps/desktop/src/setup/StepCompany.jsx`
+- `apps/desktop/src/setup/StepReview.jsx`
+- `apps/desktop/src/shell/BlueprintCrudScreen.jsx`
+- `apps/desktop/src/shell/PublicModuleOutlet.jsx`
+- `apps/desktop/src/shims/ext-atlas-sdk.js`
+- `apps/desktop/src/shims/ext-atlas-ui.js`
+- `apps/desktop/src/shims/ext-atlas-validators.js`
+- `apps/desktop/src/website/TemplatePickerModal.jsx`
+- `apps/desktop/vite.config.js`
+- `apps/worker/package.json`
+- `apps/worker/src/index.js`
+- `codex/00_MASTER_PROMPT.md`
+- `docs/00_project_status.md`
+- `docs/01_erp_architecture.md`
+- `docs/02_module_system.md`
+- `docs/03_custom_modules.md`
+- `docs/07_auth_permissions_strategy.md`
+- `docs/08_blueprints.md`
+- `docs/TASKS.md`
+- `docs/ai-context/__tests__/ame3-contract-docs.test.js`
+- `docs/ai-context/ame3-modules.md`
+- `docs/ai-context/ame3-runtime-capabilities.md`
+- `docs/ai-context/atlas-storefront-sdk.md`
+- `docs/ai-context/design-system-guide.md`
+- `docs/ai-context/notifications-audit-2026-09-06.md`
+- `docs/ai-context/ui-screen-audit-checklist.md`
+- `docs/architecture/atlas-module-engine-v3.md`
+- `docs/deployment/office-collabora.md`
+- `docs/integrations/google-calendar-setup.md`
+- `docs/mobile/ATLAS_NATIVE_HOST.md`
+- `docs/module-quality-standards.md`
+- `docs/spec-driven-development.md`
+- `eslint.config.js`
+- `infra/docker/api-entrypoint.sh`
+- `infra/docker/web.Dockerfile`
+- `infra/docker/worker.Dockerfile`
+- `infra/installer/__tests__/devkit-installer.test.js`
+- `infra/installer/__tests__/package-json.test.js`
+- `infra/installer/devkit-export/AGENTS.md`
+- `infra/installer/devkit-export/README.md`
+- `infra/installer/devkit-export/capabilities.runtime.json`
+- `infra/installer/devkit-export/docs/02_module_system.md`
+- `infra/installer/devkit-export/docs/03_core_modules.md`
+- `infra/installer/devkit-export/docs/03_custom_modules.md`
+- `infra/installer/devkit-export/docs/ai-context/ame3-modules.md`
+- `infra/installer/devkit-export/docs/ai-context/ame3-runtime-capabilities.md`
+- `infra/installer/devkit-export/docs/ai-context/atlas-storefront-sdk.md`
+- `infra/installer/devkit-export/docs/architecture/atlas-module-engine-v3.md`
+- `infra/installer/devkit-export/docs/module-quality-standards.md`
+- `infra/installer/devkit-export/golden-path-module/api/index.js`
+- `infra/installer/devkit-export/golden-path-module/components/ModuleDashboard.jsx`
+- `infra/installer/devkit-export/golden-path-module/components/index.js`
+- `infra/installer/devkit-export/golden-path-module/models/sample.model.js`
+- `infra/installer/devkit-export/golden-path-module/module.manifest.js`
+- `infra/installer/devkit-export/golden-path-module/views/dashboard.custom.js`
+- `infra/installer/devkit-export/golden-path-module/views/sample.detail.js`
+- `infra/installer/devkit-export/golden-path-module/views/sample.form.js`
+- `infra/installer/devkit-export/golden-path-module/views/sample.page.js`
+- `infra/installer/devkit-export/golden-path-module/views/sample.table.js`
+- `infra/installer/devkit-export/manifest.json`
+- `infra/installer/devkit-export/prompt-starter.txt`
+- `infra/installer/devkit-export/troubleshooting.md`
+- `infra/installer/lib/devkit-installer.mjs`
+- `infra/installer/package.json`
+- `infra/installer/setup-external.mjs`
+- `infra/installer/setup-local.mjs`
+- `package.json`
+- `packages/core/package.json`
+- `packages/core/src/index.js`
+- `packages/module-engine/package.json`
+- `packages/module-engine/src/index.js`
+- `packages/offline/package.json`
+- `packages/offline/src/index.js`
+- `packages/offline/src/ledger-sqlite.js`
+- `packages/sdk/package.json`
+- `packages/storefront-sdk/README.md`
+- `packages/storefront-sdk/package.json`
+- `packages/storefront-sdk/src/__tests__/react-exports.test.js`
+- `packages/ui/package.json`
+- `packages/ui/src/atlas-renderer/BulkActionBar.jsx`
+- `packages/ui/src/components/OfficeAttachmentAction.jsx`
+- `packages/ui/src/lib/apiHeaders.js`
+- `packages/validators/package.json`
+- `pnpm-lock.yaml`
+- `scripts/__tests__/export-ame3-devkit.test.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/components/ModuleDashboard.jsx`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/models/sample.model.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/module.manifest.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/views/dashboard.custom.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/views/sample.detail.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/views/sample.form.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/views/sample.page.js`
+- `scripts/fixtures/ame3-devkit/custom.goldenpath/views/sample.table.js`
+- `scripts/lib/ame3-devkit.js`
+- `scripts/scaffold/templates/custom.js`
+- `scripts/scaffold/templates/manifest.js`
+- `scripts/scaffold/templates/model.js`
+- `scripts/scaffold/templates/views.js`
+
+## Task 1 - Canonical packages [complete]
+
+- [x] Rename workspace packages/imports/scripts and public storefront SDK metadata.
+- [x] Add legacy workspace aliases and public factory/renderer aliases.
+- [x] Preserve both bundle externals and Vite importmap/resolve aliases.
+
+Validation: mixed-scope import and bundler tests, web and SDK builds, dependency lockfile review.
+
+## Task 2 - Dev Kit [complete]
+
+- [x] New _runly-devkit with existing _atlas-devkit reuse.
+- [x] New runly:* installer commands while preserving atlas:* shortcuts.
+- [x] Update current authoring docs and regenerate the versioned Dev Kit snapshot.
+
+Validation: installer/bootstrap, directory selection, exporter and snapshot tests.
+
+## Task 3 - Verification [complete]
+
+- [x] Frozen pnpm installation, focused node:test suites, Vite/SDK builds, lint and React Doctor.
+- [x] Record results and limits in this plan and TASKS.md.
+
+## Rollback
+
+Restore this stage only and its lockfile, reinstall dependencies. No database, domain, user directory or publication operations.
+
+## Evidence
+
+Verified locally on 2026-09-13:
+
+- Frozen pnpm installation passed. External package resolutions/snapshots are byte-identical to HEAD; only workspace importers changed. Reverted an incidental Zod latest-tag refresh before the final installation/build/tests.
+- Focused Node tests passed: package identity and mixed-scope esbuild/importmaps; Dev Kit exporter and versioned snapshot; installer/bootstrap/directory selection; module bundler; define-module/model/view; authoring docs; public storefront SDK suites.
+- `pnpm.cmd --filter @runly/desktop build:web` passed (existing large-chunk warnings). Built HTML maps both scopes to identical existing shim files; all five Runly renderer exports share the exact emitted binding with their Atlas aliases.
+- `pnpm.cmd --filter @raulbellosom/runly-sdk build` passed. The SDK React export test now checks the public package entry after building, including the compiled ChatWidget; its previous source import referenced the nonexistent precompiled ChatWidget.js.
+- ESLint API checked 457 changed JavaScript/JSX/MJS paths: zero errors; one ignored documentation-test file warning under the existing lint config. That file passed Node tests. `git diff --check` passed.
+- React Doctor: 352 files scanned, 48/100, 58 warnings (53 complexity, 1 duplicate JSX, 4 transition-all). The larger scanned scope includes additional existing components. Compared all 329 frontend source files touched by this stage against the pre-stage snapshot: changes are exclusively package scope replacements, so these warnings do not result from new UI logic/styles. No unrelated UI refactors or suppressions.
+- Corrected the authoring-doc test's escaped regex to expect the new package scope. Historical task/publication records and dated audits retain their original names.
+
+Deployment limits: these are local repository changes. No npm publication, Docker build/push, native build, database seed/sync/migration, customer-directory changes or live deployment. Publish compatible API/web/worker images together before authors use @runly imports against installed runtimes. The renamed public SDK requires npm publication before external installation. Stage 3b (environment-variable aliases) remains pending.

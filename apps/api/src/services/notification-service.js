@@ -3,9 +3,9 @@ import {
   notificationListQuerySchema,
   notificationPreferenceUpsertSchema,
   webPushSubscriptionSchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 
-import { getDefaultNotificationPreference } from '@atlas/core';
+import { getDefaultNotificationPreference } from '@runly/core';
 
 const DEDUPE_WINDOW_MS = 5000;
 

@@ -57,6 +57,12 @@ const PUSH_MODULE_REGISTRY = {
   },
 }
 
+// Runly-spelled keys alias the same handler config: fresh installs report
+// their module key as "runly.*", existing installs still report "atlas.*".
+PUSH_MODULE_REGISTRY['runly.contacts'] = PUSH_MODULE_REGISTRY['atlas.contacts']
+PUSH_MODULE_REGISTRY['runly.hr'] = PUSH_MODULE_REGISTRY['atlas.hr']
+PUSH_MODULE_REGISTRY['runly.catalog'] = PUSH_MODULE_REGISTRY['atlas.catalog']
+
 export function createSyncPushService({ prisma, registry }) {
   const moduleRegistry = registry ?? PUSH_MODULE_REGISTRY
   // activeCompanyId: the caller's validated active company, resolved by the

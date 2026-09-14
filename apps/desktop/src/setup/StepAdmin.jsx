@@ -1,6 +1,6 @@
 import { useState, forwardRef, useImperativeHandle } from "react";
 import { User, Mail, Lock } from "lucide-react";
-import { TextField, PasswordField } from "@atlas/ui";
+import { TextField, PasswordField } from "@runly/ui";
 
 export const StepAdmin = forwardRef(function StepAdmin(
   { data, onChange },

@@ -255,7 +255,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       await bridge.logAndPublish({
         auditEntry: {
           actorId: creatorProfileId ?? 'system',
-          moduleKey: 'atlas.inventory',
+          moduleKey: 'runly.inventory',
           entityType: 'InvItem',
           entityId: created.id,
           action: 'inventory.item.created',
@@ -384,7 +384,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       await bridge.logAndPublish({
         auditEntry: {
           actorId: 'system',
-          moduleKey: 'atlas.inventory',
+          moduleKey: 'runly.inventory',
           entityType: 'InvItem',
           entityId: id,
           action: 'inventory.item.updated',

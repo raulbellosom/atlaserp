@@ -256,10 +256,15 @@ export { ActivityBellTrigger } from "./components/ActivityBellTrigger.jsx";
 // Atlas blueprint renderer
 export {
   AtlasTable,
+  AtlasTable as RunlyTable,
   AtlasForm,
+  AtlasForm as RunlyForm,
   AtlasDetail,
+  AtlasDetail as RunlyDetail,
   AtlasCrudView,
+  AtlasCrudView as RunlyCrudView,
   AtlasCardView,
+  AtlasCardView as RunlyCardView,
   BulkActionBar,
   normalizeSpanishLabel,
   shouldUsePageMode,

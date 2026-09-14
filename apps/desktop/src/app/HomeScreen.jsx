@@ -1,5 +1,5 @@
 import { WifiOff } from "lucide-react";
-import { Skeleton, Separator } from "@atlas/ui";
+import { Skeleton, Separator } from "@runly/ui";
 import { useAuth } from "../auth/AuthProvider";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { useModuleLauncher } from "../hooks/useModuleLauncher";

@@ -15,7 +15,7 @@ export function generateTableView(config, entity) {
     })
     .join('\n')
 
-  return `import { defineView } from '@atlas/module-engine'
+  return `import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: '${viewKey}',
@@ -70,7 +70,7 @@ export function generateFormView(config, entity) {
     })
     .join('\n')
 
-  return `import { defineView } from '@atlas/module-engine'
+  return `import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: '${viewKey}',
@@ -108,7 +108,7 @@ export function generateDetailView(config, entity) {
     })
     .join('\n')
 
-  return `import { defineView } from '@atlas/module-engine'
+  return `import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: '${viewKey}',
@@ -143,7 +143,7 @@ export function generatePageView(config, entity) {
   const path = `/app/m/${config.key}/${slug}-${toKebab(entity.name)}s`
   const labelPlural = entity.labelPlural || entity.label + 's'
 
-  return `import { definePage } from '@atlas/module-engine'
+  return `import { definePage } from '@runly/module-engine'
 
 export default definePage({
   key: '${pageKey}',

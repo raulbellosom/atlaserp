@@ -1,4 +1,4 @@
-import { formatLogTimestamp } from '@atlas/core'
+import { formatLogTimestamp } from '@runly/core'
 import { config as loadEnv } from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -69,7 +69,7 @@ const prisma = new PrismaClient({ adapter: prismaAdapter })
 const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
 const deliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin: workerSupabaseAdmin })
 const calendarNotificationService = createCalendarNotificationService({ prisma })
-const DELIVERY_INTERVAL_MS = Number(process.env.ATLAS_NOTIFICATION_DELIVERY_INTERVAL_MS ?? 30000)
+const DELIVERY_INTERVAL_MS = Number((process.env.RUNLY_NOTIFICATION_DELIVERY_INTERVAL_MS ?? process.env.ATLAS_NOTIFICATION_DELIVERY_INTERVAL_MS) ?? 30000)
 const syncCleanupWorker = createSyncLogCleanupWorker({ prisma })
 const SYNC_CLEANUP_INTERVAL_MS = syncCleanupWorker.SYNC_CLEANUP_INTERVAL_MS
 const projectsNotifService = createProjectsNotificationService({
@@ -103,8 +103,8 @@ const pfmInvestmentsService = createPfmInvestmentsService({ prisma })
 const PFM_YIELD_INTERVAL_MS = 60 * 60 * 1000
 const growthAggregationWorker = createGrowthAggregationWorker({ prisma })
 const GROWTH_AGGREGATION_INTERVAL_MS = Number(
-  process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS ??
-    process.env.ATLAS_GROWTH_RETENTION_INTERVAL_MS ??
+  (process.env.RUNLY_GROWTH_AGGREGATION_INTERVAL_MS ?? process.env.ATLAS_GROWTH_AGGREGATION_INTERVAL_MS) ??
+    (process.env.RUNLY_GROWTH_RETENTION_INTERVAL_MS ?? process.env.ATLAS_GROWTH_RETENTION_INTERVAL_MS) ??
     60 * 60 * 1000,
 )
 

@@ -48,8 +48,8 @@ describe("fleet PDF generators converge on the shared branding service", () => {
       );
     });
 
-    it(`${file} never hardcodes "Generado por Atlas ERP"`, () => {
-      assert.doesNotMatch(src, /Generado por Atlas ERP/);
+    it(`${file} never hardcodes "Generado por Runly ERP"`, () => {
+      assert.doesNotMatch(src, /Generado por Runly ERP/);
     });
   }
 });
@@ -65,7 +65,7 @@ describe("resolveCompanyName", () => {
     );
   });
 
-  it("returns an empty string (never 'Atlas ERP') when there is no company", async () => {
+  it("returns an empty string (never 'Runly ERP') when there is no company", async () => {
     const prisma = { company: { findUnique: async () => null } };
     assert.equal(await resolveCompanyName({ prisma, companyId: "x" }), "");
   });
@@ -91,12 +91,12 @@ describe("Excel exports are authored by the company", () => {
     const meta = await workbookMeta(buffer);
     assert.equal(meta.creator, "ACME S.A. de C.V.");
     assert.equal(meta.company, "ACME S.A. de C.V.");
-    assert.notEqual(meta.creator, "Atlas ERP");
+    assert.notEqual(meta.creator, "Runly ERP");
   });
 
-  it("falls back to 'Atlas ERP' only when no company name is provided", async () => {
+  it("falls back to 'Runly ERP' only when no company name is provided", async () => {
     const buffer = await buildVehiclesExcelBuffer({ rows: [] });
     const meta = await workbookMeta(buffer);
-    assert.equal(meta.creator, "Atlas ERP");
+    assert.equal(meta.creator, "Runly ERP");
   });
 });

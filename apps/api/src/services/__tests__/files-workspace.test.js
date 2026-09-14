@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { OFFICE_FORMATS } from "@atlas/core";
+import { OFFICE_FORMATS } from "@runly/core";
 import { validateOfficeDocument } from "../office/validate-document.js";
 import { createOfficeService } from "../office/service.js";
 import { officeEnv } from "./office-fixture.js";

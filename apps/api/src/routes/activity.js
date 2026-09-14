@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import ExcelJS from "exceljs";
-import { toLocalIso, formatLocalDateTime } from "@atlas/core";
+import { toLocalIso, formatLocalDateTime } from "@runly/core";
 import {
   createActivityService,
   ActivityServiceError,
@@ -8,7 +8,7 @@ import {
 import {
   activityPublishSchema,
   activityListQuerySchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 
 export function createActivityRouter({ prisma, requirePermission }) {
   const app = new Hono();

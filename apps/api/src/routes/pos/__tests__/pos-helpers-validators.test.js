@@ -51,7 +51,7 @@ describe("POS service helpers", () => {
       metadata: { source: "test" },
     });
 
-    assert.equal(entry.moduleKey, "atlas.pos");
+    assert.equal(entry.moduleKey, "runly.pos");
     assert.deepEqual(entry.before, { status: "DRAFT" });
     assert.deepEqual(entry.after, { status: "OPEN" });
     assert.deepEqual(entry.metadata, { source: "test" });

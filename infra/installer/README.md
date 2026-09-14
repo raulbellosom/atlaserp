@@ -1,13 +1,34 @@
-# Atlas ERP Docker Installer
+# Runly ERP Docker Installer
+
+Los comandos `runly:*` son los nombres principales; los atajos `atlas:*` siguen disponibles.
+Las instalaciones nuevas usan `custom-modules/_runly-devkit/`. Si ya existe `_atlas-devkit/`, el instalador lo reutiliza; si existen ambas carpetas, prefiere `_runly-devkit/`.
+
+Migraci?n Atlas ? Runly: las im?genes predeterminadas y las fuentes de descarga usan Runly.
+Los paquetes internos usan `@runly/*` con alias `@atlas/*`. Se conservan los overrides anteriores como respaldo y los nombres del proyecto, servicios y vol?menes Compose.
+Publicar las tres imágenes Runly antes de desplegar estos cambios del instalador.
+Las instalaciones con overrides explícitos de imágenes conservan su selección;
+actualizarlos al cambiar a las imágenes publicadas de Runly.
+
+Variables nuevas: `RUNLY_*` y `VITE_RUNLY_*`. Las equivalentes `ATLAS_*` y
+`VITE_ATLAS_*` siguen funcionando cuando no se define el nombre Runly. Dentro de
+una misma fuente, Runly tiene prioridad; en la preparacion del instalador, el entorno
+del proceso prevalece sobre el archivo guardado incluso si usa el nombre anterior.
+Los valores vacios son explicitos y pasan por las validaciones/defaults existentes.
+
+Ejemplos: `RUNLY_API_URL`, `RUNLY_API_IMAGE`, `RUNLY_API_LOCAL_IMAGE`,
+`RUNLY_WORKER_IMAGE`, `RUNLY_WEB_EXTERNAL_IMAGE`, `RUNLY_DOCS_REPO_REF`,
+`RUNLY_SUPABASE_PUBLIC_URL`, `RUNLY_OFFICE_ENABLED` y `RUNLY_WOPI_SECRET`.
+Los servicios/volumenes Compose mantienen sus identidades actuales. Instala las
+imagenes Runly compatibles antes de usar configuracion con los nombres nuevos.
 
 Repositorio oficial:
-- GitHub: `https://github.com/raulbellosom/atlaserp`
-- Docker Hub: `https://hub.docker.com/r/raulbellosom/atlaserp`
+- GitHub: `https://github.com/raulbellosom/runly-erp`
+- Docker Hub: `https://hub.docker.com/r/raulbellosom/runlyerp`
 
-Imagenes disponibles:
-- API: `raulbellosom/atlaserp:api-latest`
-- Worker: `raulbellosom/atlaserp:worker-latest`
-- Web: `raulbellosom/atlaserp:web-latest`
+Imágenes de distribución (requieren publicación):
+- API: `raulbellosom/runlyerp:api-latest`
+- Worker: `raulbellosom/runlyerp:worker-latest`
+- Web: `raulbellosom/runlyerp:web-latest`
 
 La imagen web no lleva credenciales. Al arrancar el container, `web-entrypoint.sh`
 inyecta `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `ATLAS_API_URL` desde las variables
@@ -31,16 +52,16 @@ Requiere: Docker Desktop (o Docker Engine + Compose v2), Node.js 20+, npx.
 ### Windows (PowerShell)
 
 ```powershell
-# Desde la carpeta donde quieras instalar Atlas ERP:
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
+# Desde la carpeta donde quieras instalar Runly ERP:
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
 powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
 ### Linux / macOS / Git Bash
 
 ```bash
-# Desde la carpeta donde quieras instalar Atlas ERP:
-curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-local.sh
+# Desde la carpeta donde quieras instalar Runly ERP:
+curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.sh
 chmod +x bootstrap-local.sh
 ./bootstrap-local.sh
 ```
@@ -54,7 +75,7 @@ chmod +x bootstrap-local.sh
 1. Inicializa Supabase local en `.supabase-local/`.
 2. Levanta Supabase sin `logflare` ni `vector`.
 3. Genera `.env.local` automaticamente con las credenciales del stack local.
-4. Descarga el Dev Kit AME3 exportado a `custom-modules/_atlas-devkit/` (siempre actualizado
+4. Descarga el Dev Kit AME3 exportado a `custom-modules/_runly-devkit/` (siempre actualizado
    desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
    guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
    `troubleshooting.md` y `golden-path-module/`.
@@ -68,26 +89,26 @@ chmod +x bootstrap-local.sh
 ### Opciones utiles
 
 ```bash
-npm run atlas:local       # instalacion / actualizacion completa
-npm run atlas:local:docs  # solo descarga/refresca el Dev Kit
-npm run atlas:local:quick # salta docker pull y reutiliza imagenes locales
+npm run runly:local       # instalacion / actualizacion completa
+npm run runly:local:docs  # solo descarga/refresca el Dev Kit
+npm run runly:local:quick # salta docker pull y reutiliza imagenes locales
 node ./setup-local.mjs --skip-compose-up  # solo inicializa Supabase, no levanta Atlas
 ```
 
 En PowerShell, si `npm` falla por `ExecutionPolicy`, usa `npm.cmd`:
 
 ```powershell
-npm.cmd run atlas:local
-npm.cmd run atlas:local:docs
-npm.cmd run atlas:stop:local
+npm.cmd run runly:local
+npm.cmd run runly:local:docs
+npm.cmd run runly:stop:local
 ```
 
 ### Comandos simples recomendados
 
 ```bash
-npm run atlas:local
-npm run atlas:local:docs
-npm run atlas:stop:local
+npm run runly:local
+npm run runly:local:docs
+npm run runly:stop:local
 ```
 
 ---
@@ -100,30 +121,30 @@ Para un servidor Linux con Supabase self-hosted o Supabase Cloud ya configurado.
 ### Instalacion en servidor nuevo (Linux)
 
 ```bash
-curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
 chmod +x bootstrap-external.sh
 ./bootstrap-external.sh
 
 nano .env.external
-npm run atlas:external
+npm run runly:external
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-# Desde la carpeta donde quieras instalar Atlas ERP:
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.ps1" -OutFile ".\bootstrap-external.ps1"
+# Desde la carpeta donde quieras instalar Runly ERP:
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.ps1" -OutFile ".\bootstrap-external.ps1"
 powershell -ExecutionPolicy Bypass -File .\bootstrap-external.ps1
 
 notepad .\.env.external
-npm.cmd run atlas:external
+npm.cmd run runly:external
 ```
 
 ### Que hace `setup-external.mjs`
 
 1. Valida que `.env.external` existe y tiene las credenciales.
 2. Valida que Docker Compose esta disponible.
-3. Descarga el Dev Kit AME3 exportado a `custom-modules/_atlas-devkit/` (siempre actualizado
+3. Descarga el Dev Kit AME3 exportado a `custom-modules/_runly-devkit/` (siempre actualizado
    desde main) usando un `manifest.json` versionado. Incluye `AGENTS.md`,
    guias AME3, `capabilities.runtime.json`, `prompt-starter.txt`,
    `troubleshooting.md` y `golden-path-module/`.
@@ -137,18 +158,18 @@ npm.cmd run atlas:external
 ### Opciones utiles
 
 ```bash
-npm run atlas:external        # instalacion / actualizacion completa
-npm run atlas:external:docs   # solo descarga/refresca el Dev Kit
-npm run atlas:external:quick  # reinicio rapido sin pull ni migraciones
+npm run runly:external        # instalacion / actualizacion completa
+npm run runly:external:docs   # solo descarga/refresca el Dev Kit
+npm run runly:external:quick  # reinicio rapido sin pull ni migraciones
 node ./setup-external.mjs --skip-dev-kit       # omite descarga del Dev Kit AME3
 ```
 
 ### Comandos simples recomendados
 
 ```bash
-npm run atlas:external
-npm run atlas:external:docs
-npm run atlas:stop:external
+npm run runly:external
+npm run runly:external:docs
+npm run runly:stop:external
 ```
 
 ### Variables en `.env.external`
@@ -285,7 +306,7 @@ Para validar que AME3 quedo bien actualizado en un workspace installer-mode:
 3. En la app, entra a Modulos y usa `Sincronizar modulos`.
 4. Instala tu modulo custom desde el catalogo.
 5. Si el modulo usa una vista `CUSTOM`, abre su ruta y confirma que no aparece `Componente de modulo no disponible`.
-6. Si falla un import, revisa primero `custom-modules/_atlas-devkit/troubleshooting.md` y `capabilities.runtime.json`.
+6. Si falla un import, revisa primero `custom-modules/_runly-devkit/troubleshooting.md` y `capabilities.runtime.json`.
 
 ### Componentes React en modulos (dynamic bundle)
 
@@ -358,10 +379,10 @@ curl http://localhost:4010/modules/custom.mymodule/bundle.js
     y recrear el contenedor.
 
 Empieza aqui:
-- `custom-modules/_atlas-devkit/README.md`
-- `custom-modules/_atlas-devkit/docs/ai-context/ame3-modules.md`
-- `custom-modules/_atlas-devkit/docs/ai-context/ame3-runtime-capabilities.md`
-- `custom-modules/_atlas-devkit/capabilities.runtime.json`
+- `custom-modules/_runly-devkit/README.md`
+- `custom-modules/_runly-devkit/docs/ai-context/ame3-modules.md`
+- `custom-modules/_runly-devkit/docs/ai-context/ame3-runtime-capabilities.md`
+- `custom-modules/_runly-devkit/capabilities.runtime.json`
 
 ---
 
@@ -397,9 +418,9 @@ solo afecta CORS/autenticacion/rutas del API, publica solo `api`. No hace falta 
 Forzar tags personalizados en setup:
 
 ```bash
-export ATLAS_API_IMAGE=raulbellosom/atlaserp:api-latest
-export ATLAS_WORKER_IMAGE=raulbellosom/atlaserp:worker-latest
-export ATLAS_WEB_EXTERNAL_IMAGE=raulbellosom/atlaserp:web-latest
+export ATLAS_API_IMAGE=raulbellosom/runlyerp:api-latest
+export ATLAS_WORKER_IMAGE=raulbellosom/runlyerp:worker-latest
+export ATLAS_WEB_EXTERNAL_IMAGE=raulbellosom/runlyerp:web-latest
 node ./setup-external.mjs --skip-pull
 ```
 ## Editor Office opcional (Collabora CODE)
@@ -412,7 +433,7 @@ nuevas aunque el código ya estuviera publicado en `main`. Para renovar esa copi
 una vez, desde la carpeta del instalador:
 
 ```bash
-curl -fsSLo bootstrap-external.sh.next https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh && bash -n bootstrap-external.sh.next && mv bootstrap-external.sh.next bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh.next https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh && bash -n bootstrap-external.sh.next && mv bootstrap-external.sh.next bootstrap-external.sh
 bash ./bootstrap-external.sh
 ```
 
@@ -422,7 +443,7 @@ se detienen sin sustituir el bootstrap. Conservan los archivos de entorno y las
 credenciales de `.secrets/`. Una versión antigua necesita la renovación manual
 anterior para incorporar esta capacidad.
 
-El bootstrap descarga los scripts y Compose. El setup (`npm run atlas:external`)
+El bootstrap descarga los scripts y Compose. El setup (`npm run runly:external`)
 descarga las imágenes/Dev Kit y ejecuta la instalación. Para preparar únicamente
 las variables y carpeta de Firebase después del bootstrap:
 
@@ -451,13 +472,13 @@ imagenes de Atlas y los archivos del instalador. Desde la **carpeta existente de
 instalador**, refresca los scripts y Compose con el bootstrap actualizado:
 
 ```bash
-curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh
+curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
 bash ./bootstrap-external.sh
 ```
 
 Conserva `.env.external` y `custom-modules/`; sobrescribe los archivos distribuidos
 del instalador, por lo que debes guardar/reaplicar cualquier personalizacion de
-esos archivos. El comando `npm run atlas:external` descarga imagenes y Dev Kit,
+esos archivos. El comando `npm run runly:external` descarga imagenes y Dev Kit,
 pero **no actualiza sus propios scripts ni Compose**.
 
 Configura el DNS y proxy HTTPS/WebSocket de Office, y edita estas variables en
@@ -471,7 +492,7 @@ COLLABORA_INTERNAL_URL=http://collabora:9980
 ATLAS_WOPI_URL=http://api:4010
 ```
 
-Ejecuta `npm run atlas:external`. La primera vez descarga la imagen fijada
+Ejecuta `npm run runly:external`. La primera vez descarga la imagen fijada
 `collabora/code:26.04.2.4.1`, crea el servicio `collabora` y genera/persiste la clave
 WOPI. Requiere las nuevas imagenes de API y web y la migracion Office; no uses
 `atlas:external:quick` para esta primera activacion. El instalador no crea el DNS
@@ -486,7 +507,7 @@ anteriores. Las tareas temporales de migracion/seed se eliminan con `--rm`.
 Las imagenes antiguas pueden seguir ocupando disco aunque no haya contenedores
 duplicados. Guarda y cierra los documentos antes de desplegar: la API se reinicia.
 
-Para desarrollo local, configura `.env.local` y ejecuta `npm run atlas:local`.
+Para desarrollo local, configura `.env.local` y ejecuta `npm run runly:local`.
 Para desactivar Office, cambia el indicador a `false` y ejecuta el setup; detiene
 el editor y conserva los documentos y su clave para futuras activaciones.
 

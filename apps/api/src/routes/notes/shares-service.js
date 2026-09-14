@@ -102,7 +102,7 @@ export function createSharesService({ prisma, broadcaster, notificationService }
       WHERE m_owner.user_id  = ${actorUserId}::uuid  AND m_owner.enabled  = true
         AND m_target.user_id = ${targetUserId}::uuid AND m_target.enabled = true
         AND (
-          r.key IN ('atlas.admin', 'system.admin')
+          r.key IN ('runly.admin', 'atlas.admin', 'system.admin')
           OR EXISTS (
             SELECT 1 FROM role_permission rp
             JOIN permission p ON p.id = rp.permission_id
@@ -134,7 +134,7 @@ export function createSharesService({ prisma, broadcaster, notificationService }
         AND m_target.enabled = true
         AND m_target.user_id <> ${actorUserId}::uuid
         AND (
-          r.key IN ('atlas.admin', 'system.admin')
+          r.key IN ('runly.admin', 'atlas.admin', 'system.admin')
           OR EXISTS (
             SELECT 1 FROM role_permission rp
             JOIN permission p ON p.id = rp.permission_id

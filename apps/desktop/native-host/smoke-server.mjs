@@ -8,8 +8,8 @@ const server = createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('Cache-Control', 'no-store')
   if (path !== '/app/no-policy' && !process.argv.includes('--no-policy')) res.setHeader('Content-Security-Policy', NATIVE_CSP)
-  res.end(`<!doctype html><html lang="es"><meta name="viewport" content="width=device-width"><title>Atlas Native Smoke</title>
-    <h1>Atlas Native Host: prueba local</h1><pre id="result">Cargando bridge…</pre>
+  res.end(`<!doctype html><html lang="es"><meta name="viewport" content="width=device-width"><title>Runly Native Smoke</title>
+    <h1>Runly Native Host: prueba local</h1><pre id="result">Cargando bridge…</pre>
     <script>
     window.smoke = {};
     (async () => {

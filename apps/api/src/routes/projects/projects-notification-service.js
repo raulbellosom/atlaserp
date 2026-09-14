@@ -1,4 +1,4 @@
-import { toLocalIso } from '@atlas/core'
+import { toLocalIso } from '@runly/core'
 import { createNotificationService } from '../../services/notification-service.js'
 
 export function createProjectsNotificationService({ prisma, notificationService }) {

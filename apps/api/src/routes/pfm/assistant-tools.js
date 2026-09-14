@@ -7,7 +7,7 @@
 //
 // Runners receive (args, ctx) where ctx = { companyId, actorId } from the
 // authenticated request — never from the model.
-import { toLocalIso, toLocalMonth } from "@atlas/core";
+import { toLocalIso, toLocalMonth } from "@runly/core";
 import { createMovementSchema } from "./validators.js";
 
 const MONTH_RE = /^\d{4}-\d{2}$/;

@@ -1,1 +1,2 @@
-window.__ATLAS_RUNTIME_CONFIG__ = {};
+window.__RUNLY_RUNTIME_CONFIG__ = {};
+window.__ATLAS_RUNTIME_CONFIG__ = window.__RUNLY_RUNTIME_CONFIG__;

@@ -27,7 +27,7 @@ export function OfficeEditorLoading({ fileName, sessionReady = false }) {
           <span className="office-loading-spark office-loading-spark-one" />
           <span className="office-loading-spark office-loading-spark-two" />
         </div>
-        <p className="office-loading-eyebrow">ATLAS ERP <span>/</span> DOCUMENTOS</p>
+        <p className="office-loading-eyebrow">RUNLY ERP <span>/</span> DOCUMENTOS</p>
         <h2>{sessionReady ? 'Abriendo tu documento' : 'Preparando tu espacio'}</h2>
         <p className="office-loading-description">{sessionReady ? 'Estamos cargando el contenido en el editor.' : 'Estamos conectando con el editor de documentos.'}</p>
         {fileName && <div className="office-loading-filename" title={fileName}><Icon aria-hidden="true" /><span>{fileName}</span></div>}

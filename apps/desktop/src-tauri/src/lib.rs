@@ -37,5 +37,5 @@ pub fn run() {
         .setup(mobile_host::setup);
     builder
         .run(tauri::generate_context!())
-        .expect("error while running Atlas ERP");
+        .expect("error while running Runly ERP");
 }

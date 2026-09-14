@@ -56,6 +56,8 @@ describe("buildCallInviteEmail", () => {
     assert.match(out.html, /Raul te invitó/);
     assert.match(out.html, /href="https:\/\/x\.test\/p\/call\/tok\?i=inv"/);
     assert.match(out.html, /#general/);
+    assert.match(out.text, /Runly ERP/);
+    assert.match(out.html, /en Runly ERP/);
   });
   it("falls back to generic wording without an inviter", () => {
     const out = buildCallInviteEmail({ joinUrl: "https://x.test/p/call/tok", env: {} });

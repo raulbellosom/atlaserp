@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { Button, Label, PageHeader, Skeleton, Switch, TextField } from '@atlas/ui'
+import { Button, Label, PageHeader, Skeleton, Switch, TextField } from '@runly/ui'
 import { toast } from 'sonner'
 
 async function apiFetch(path, token, options = {}) {
@@ -167,7 +167,7 @@ export default function SmtpSettingsScreen() {
 
             <TextField
               label="Nombre del remitente"
-              placeholder="Atlas ERP"
+              placeholder="Runly ERP"
               value={form.from_name}
               onChange={(e) => setForm((f) => ({ ...f, from_name: e.target.value }))}
             />

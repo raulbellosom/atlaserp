@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "@atlas/ui";
+} from "@runly/ui";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { CreateCompanyDialog } from "./CreateCompanyDialog";

@@ -19,12 +19,45 @@ importers:
 
   .:
     dependencies:
+      '@atlas/core':
+        specifier: workspace:@runly/core@*
+        version: link:packages/core
       '@atlas/module-engine':
-        specifier: workspace:*
+        specifier: workspace:@runly/module-engine@*
         version: link:packages/module-engine
+      '@atlas/offline':
+        specifier: workspace:@runly/offline@*
+        version: link:packages/offline
+      '@atlas/sdk':
+        specifier: workspace:@runly/sdk@*
+        version: link:packages/sdk
+      '@atlas/ui':
+        specifier: workspace:@runly/ui@*
+        version: link:packages/ui
+      '@atlas/validators':
+        specifier: workspace:@runly/validators@*
+        version: link:packages/validators
       '@prisma/adapter-pg':
         specifier: ^7.8.0
         version: 7.8.0
+      '@runly/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@runly/module-engine':
+        specifier: workspace:*
+        version: link:packages/module-engine
+      '@runly/offline':
+        specifier: workspace:*
+        version: link:packages/offline
+      '@runly/sdk':
+        specifier: workspace:*
+        version: link:packages/sdk
+      '@runly/ui':
+        specifier: workspace:*
+        version: link:packages/ui
+      '@runly/validators':
+        specifier: workspace:*
+        version: link:packages/validators
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -60,13 +93,13 @@ importers:
   apps/api:
     dependencies:
       '@atlas/core':
-        specifier: workspace:^
+        specifier: workspace:@runly/core@*
         version: link:../../packages/core
       '@atlas/module-engine':
-        specifier: workspace:*
+        specifier: workspace:@runly/module-engine@*
         version: link:../../packages/module-engine
       '@atlas/validators':
-        specifier: workspace:*
+        specifier: workspace:@runly/validators@*
         version: link:../../packages/validators
       '@hono/node-server':
         specifier: ^1.19.17
@@ -77,6 +110,15 @@ importers:
       '@prisma/client':
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))
+      '@runly/core':
+        specifier: workspace:^
+        version: link:../../packages/core
+      '@runly/module-engine':
+        specifier: workspace:*
+        version: link:../../packages/module-engine
+      '@runly/validators':
+        specifier: workspace:*
+        version: link:../../packages/validators
       '@supabase/supabase-js':
         specifier: ^2.105.1
         version: 2.105.1
@@ -138,16 +180,16 @@ importers:
   apps/desktop:
     dependencies:
       '@atlas/core':
-        specifier: workspace:*
+        specifier: workspace:@runly/core@*
         version: link:../../packages/core
       '@atlas/offline':
-        specifier: workspace:*
+        specifier: workspace:@runly/offline@*
         version: link:../../packages/offline
       '@atlas/sdk':
-        specifier: workspace:*
+        specifier: workspace:@runly/sdk@*
         version: link:../../packages/sdk
       '@atlas/ui':
-        specifier: workspace:*
+        specifier: workspace:@runly/ui@*
         version: link:../../packages/ui
       '@dnd-kit/core':
         specifier: ^6.3.1
@@ -170,6 +212,18 @@ importers:
       '@raulbellosom/atlas-web-builder':
         specifier: ^0.2.0
         version: 0.2.0(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(use-sync-external-store@1.6.0(react@19.3.0))
+      '@runly/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@runly/offline':
+        specifier: workspace:*
+        version: link:../../packages/offline
+      '@runly/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@runly/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@supabase/supabase-js':
         specifier: ^2.105.1
         version: 2.105.1
@@ -346,7 +400,7 @@ importers:
   apps/worker:
     dependencies:
       '@atlas/core':
-        specifier: workspace:^
+        specifier: workspace:@runly/core@*
         version: link:../../packages/core
       '@prisma/adapter-pg':
         specifier: ^7.8.0
@@ -354,17 +408,30 @@ importers:
       '@prisma/client':
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))
+      '@runly/core':
+        specifier: workspace:^
+        version: link:../../packages/core
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
 
   packages/core: {}
 
-  packages/module-engine: {}
+  packages/module-engine:
+    dependencies:
+      '@atlas/core':
+        specifier: workspace:@runly/core@*
+        version: link:../core
+      '@runly/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/offline:
     dependencies:
       '@atlas/core':
+        specifier: workspace:@runly/core@*
+        version: link:../core
+      '@runly/core':
         specifier: workspace:*
         version: link:../core
       '@tanstack/react-query':
@@ -408,7 +475,7 @@ importers:
   packages/ui:
     dependencies:
       '@atlas/core':
-        specifier: workspace:*
+        specifier: workspace:@runly/core@*
         version: link:../core
       '@dnd-kit/core':
         specifier: ^6.3.1
@@ -464,6 +531,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@runly/core':
+        specifier: workspace:*
+        version: link:../core
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

@@ -176,6 +176,14 @@ const SYNC_MODULE_REGISTRY = {
   },
 }
 
+// Runly-spelled keys alias the same handler config: fresh installs report
+// their module key as "runly.*", existing installs still report "atlas.*".
+SYNC_MODULE_REGISTRY['runly.contacts'] = SYNC_MODULE_REGISTRY['atlas.contacts']
+SYNC_MODULE_REGISTRY['runly.hr'] = SYNC_MODULE_REGISTRY['atlas.hr']
+SYNC_MODULE_REGISTRY['runly.calendar'] = SYNC_MODULE_REGISTRY['atlas.calendar']
+SYNC_MODULE_REGISTRY['runly.catalog'] = SYNC_MODULE_REGISTRY['atlas.catalog']
+SYNC_MODULE_REGISTRY['runly.ledger'] = SYNC_MODULE_REGISTRY['atlas.ledger']
+
 export function createSyncService({ prisma }) {
   // activeCompanyId: the caller's validated active company, resolved by the
   // API's tenant middleware and threaded down from routes/sync.js — never

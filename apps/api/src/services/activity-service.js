@@ -1,4 +1,4 @@
-import { activityPublishSchema, ACTIVITY_CONSTANTS } from "@atlas/validators";
+import { activityPublishSchema, ACTIVITY_CONSTANTS } from "@runly/validators";
 
 export class ActivityServiceError extends Error {
   constructor(message, status = 500, code = "activity_error") {

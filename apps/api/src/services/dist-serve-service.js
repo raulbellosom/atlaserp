@@ -95,7 +95,7 @@ export function injectErpBadge(html, erpPath = '/app/') {
     "var r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('width','20');r.setAttribute('height','20');r.setAttribute('rx','6');r.setAttribute('fill','#6366f1');",
     "var p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M6 10h8M10 6v8');p.setAttribute('stroke','#fff');p.setAttribute('stroke-width','1.5');p.setAttribute('stroke-linecap','round');",
     's.appendChild(r);s.appendChild(p);',
-    "var l=document.createElement('span');l.textContent='Atlas ERP';l.style.cssText='white-space:nowrap;transition:opacity .15s;opacity:0;';",
+    "var l=document.createElement('span');l.textContent='Runly ERP';l.style.cssText='white-space:nowrap;transition:opacity .15s;opacity:0;';",
     'a.appendChild(s);a.appendChild(l);',
     "var isTch=navigator.maxTouchPoints>0||('ontouchstart' in window);",
     "if(isTch){",
@@ -120,7 +120,7 @@ export function injectErpBadge(html, erpPath = '/app/') {
   return html + script
 }
 
-export function injectAtlasConfig(html, {
+export function injectRunlyConfig(html, {
   supabaseUrl,
   supabaseAnonKey,
   apiUrl,
@@ -143,8 +143,8 @@ export function injectAtlasConfig(html, {
   if (currency) payload.currency = currency
   const raw  = JSON.stringify(payload)
   const safe = raw.replace(/<\//g, '<\\/')
-  const tag  = `<script>window.ATLAS_CONFIG=${safe};<\/script>`
-  const sdkTag = '<script src="/public/site/atlas-sdk.js" defer></script>'
+  const tag  = `<script>window.RUNLY_CONFIG=${safe};<\/script>`
+  const sdkTag = '<script src="/public/site/runly-sdk.js" defer></script>'
   return html.replace(/(<head(?:[^>]*)>)/i, `$1\n  ${tag}\n  ${sdkTag}`)
 }
 
@@ -380,8 +380,8 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
     // ATLAS_APP_URL is the ERP instance's root URL (e.g. https://atlas.racoondevs.com).
     // The storefront SDK uses it as baseUrl for /public/storefront/* requests.
     // site.domain is the storefront's public domain — it is NOT the ERP API.
-    const erpApiUrl = (process.env.ATLAS_APP_URL ?? '').replace(/\/$/, '') || siteOrigin
-    const withConfig = injectAtlasConfig(rewritten, {
+    const erpApiUrl = ((process.env.RUNLY_APP_URL ?? process.env.ATLAS_APP_URL) ?? '').replace(/\/$/, '') || siteOrigin
+    const withConfig = injectRunlyConfig(rewritten, {
       supabaseUrl:          process.env.SUPABASE_URL    ?? '',
       supabaseAnonKey:      process.env.SUPABASE_ANON_KEY ?? '',
       apiUrl:               erpApiUrl,

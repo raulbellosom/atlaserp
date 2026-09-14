@@ -19,15 +19,17 @@ RUN pnpm install --frozen-lockfile
 # leaves them empty. At runtime, web-entrypoint.sh injects real values via
 # SUPABASE_URL / SUPABASE_ANON_KEY / ATLAS_API_URL container env vars.
 ARG VITE_ATLAS_API_URL=""
+ARG VITE_RUNLY_API_URL
 ARG VITE_SUPABASE_URL=""
 ARG VITE_SUPABASE_ANON_KEY=""
 ARG VITE_BASE_PATH=/app/
-ENV VITE_ATLAS_API_URL=$VITE_ATLAS_API_URL
+ENV VITE_RUNLY_API_URL=${VITE_RUNLY_API_URL:-$VITE_ATLAS_API_URL}
+ENV VITE_ATLAS_API_URL=$VITE_RUNLY_API_URL
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
 
-RUN pnpm --filter @atlas/desktop build:web
+RUN pnpm --filter @runly/desktop build:web
 
 FROM nginx:alpine
 COPY --from=build /app/apps/desktop/dist /usr/share/nginx/html

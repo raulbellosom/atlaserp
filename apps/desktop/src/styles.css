@@ -52,18 +52,24 @@ html {
 }
 
 :root {
-  --atlas-navy: #0a1d44;
-  --atlas-navy-2: #102a5e;
-  --atlas-navy-dark: #06152f;
-  --atlas-blue: #0a7bff;
-  --atlas-cyan: #21c7ff;
+  /* Runly palette (2026-09-13 brand guide). Structural tokens map to
+     Midnight/Navy; --atlas-blue/--atlas-cyan carry the warm accent used for
+     buttons, active states and the loader's moving stroke — see
+     docs/superpowers/specs/2026-09-13-runly-brand-assets-design.md. Variable
+     names kept as-is (atlas-* legacy naming) to avoid touching every
+     consumer; only the hex values changed. */
+  --atlas-navy: #0c172d; /* Midnight */
+  --atlas-navy-2: #132646; /* Navy */
+  --atlas-navy-dark: #070d18; /* Runly dark-neutral background */
+  --atlas-blue: #f6381a; /* Red — brand-primary hover/pressed */
+  --atlas-cyan: #fd6016; /* Flame — brand-primary accent */
   --atlas-gray-light: #e6eaf0;
   --atlas-gray-text: #5f6b7a;
 
   --brand-primary: var(--atlas-cyan);
   --brand-primary-hover: var(--atlas-blue);
   --brand-primary-foreground: var(--atlas-navy-dark);
-  --brand-soft: rgba(33, 199, 255, 0.14);
+  --brand-soft: rgba(253, 96, 22, 0.14);
   --background: 210 20% 98%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;
@@ -144,7 +150,7 @@ html {
   --surface-1: 222 47% 8%;
   --surface-2: 222 47% 6%;
   --surface-3: 222 47% 10%;
-  --brand-soft: rgba(33, 199, 255, 0.18);
+  --brand-soft: rgba(253, 96, 22, 0.2);
 
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-bg-strong: rgba(255, 255, 255, 0.15);
@@ -371,6 +377,12 @@ body,
   border-radius: 50%;
   background: var(--brand-primary);
   animation: loader-dot-bounce 1.2s ease-in-out var(--dot-delay, 0s) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-halo {
+    animation: none;
+  }
 }
 
 /* ── TipTap Notes editor ─────────────────────────────────── */

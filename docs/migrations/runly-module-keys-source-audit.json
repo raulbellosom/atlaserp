@@ -1,0 +1,3575 @@
+{
+  "version": 1,
+  "mode": "source-only",
+  "dataConversionReady": false,
+  "databaseInspected": false,
+  "pairs": [
+    {
+      "legacy": "atlas.core",
+      "current": "runly.core"
+    },
+    {
+      "legacy": "atlas.identity",
+      "current": "runly.identity"
+    },
+    {
+      "legacy": "atlas.files",
+      "current": "runly.files"
+    },
+    {
+      "legacy": "atlas.company",
+      "current": "runly.company"
+    },
+    {
+      "legacy": "atlas.contacts",
+      "current": "runly.contacts"
+    },
+    {
+      "legacy": "atlas.hr",
+      "current": "runly.hr"
+    },
+    {
+      "legacy": "atlas.fleet",
+      "current": "runly.fleet"
+    },
+    {
+      "legacy": "atlas.ledger",
+      "current": "runly.ledger"
+    },
+    {
+      "legacy": "atlas.pfm",
+      "current": "runly.pfm"
+    },
+    {
+      "legacy": "atlas.website",
+      "current": "runly.website"
+    },
+    {
+      "legacy": "atlas.growth",
+      "current": "runly.growth"
+    },
+    {
+      "legacy": "atlas.documents",
+      "current": "runly.documents"
+    },
+    {
+      "legacy": "atlas.calendar",
+      "current": "runly.calendar"
+    },
+    {
+      "legacy": "atlas.activity",
+      "current": "runly.activity"
+    },
+    {
+      "legacy": "atlas.notifications",
+      "current": "runly.notifications"
+    },
+    {
+      "legacy": "atlas.catalog",
+      "current": "runly.catalog"
+    },
+    {
+      "legacy": "atlas.pos",
+      "current": "runly.pos"
+    },
+    {
+      "legacy": "atlas.projects",
+      "current": "runly.projects"
+    },
+    {
+      "legacy": "atlas.inventory",
+      "current": "runly.inventory"
+    },
+    {
+      "legacy": "atlas.chat",
+      "current": "runly.chat"
+    },
+    {
+      "legacy": "atlas.notes",
+      "current": "runly.notes"
+    }
+  ],
+  "schemaReferences": [
+    {
+      "model": "AtlasModule",
+      "table": "atlas_module",
+      "column": "key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "AtlasModule",
+      "table": "atlas_module",
+      "column": "manifest",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasModule",
+      "table": "atlas_module",
+      "column": "lifecycle_config",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CompanyModule",
+      "table": "company_module",
+      "column": "config",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Blueprint",
+      "table": "blueprint",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Blueprint",
+      "table": "blueprint",
+      "column": "schema",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasModel",
+      "table": "atlas_model",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "AtlasModel",
+      "table": "atlas_model",
+      "column": "schema",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasField",
+      "table": "atlas_field",
+      "column": "default_value",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasField",
+      "table": "atlas_field",
+      "column": "options",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasField",
+      "table": "atlas_field",
+      "column": "relation",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasField",
+      "table": "atlas_field",
+      "column": "validation",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasView",
+      "table": "atlas_view",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "AtlasView",
+      "table": "atlas_view",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AtlasView",
+      "table": "atlas_view",
+      "column": "schema",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "ModuleMigration",
+      "table": "module_migration",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "Company",
+      "table": "company",
+      "column": "industry_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "UserTablePreference",
+      "table": "user_table_preference",
+      "column": "table_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "UserTablePreference",
+      "table": "user_table_preference",
+      "column": "config",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Role",
+      "table": "role",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Permission",
+      "table": "permission",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Permission",
+      "table": "permission",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "FileAsset",
+      "table": "file_asset",
+      "column": "object_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "FileAsset",
+      "table": "file_asset",
+      "column": "access_scope",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "FileAsset",
+      "table": "file_asset",
+      "column": "creation_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "FileAsset",
+      "table": "file_asset",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "FileAsset",
+      "table": "file_asset",
+      "column": "metadata",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "FileAssetVersion",
+      "table": "file_asset_version",
+      "column": "object_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AuditLog",
+      "table": "audit_log",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "AuditLog",
+      "table": "audit_log",
+      "column": "before",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AuditLog",
+      "table": "audit_log",
+      "column": "after",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "AuditLog",
+      "table": "audit_log",
+      "column": "metadata",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Activity",
+      "table": "activity",
+      "column": "payload",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Contact",
+      "table": "contact",
+      "column": "metadata",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "HrEmployee",
+      "table": "hr_employee",
+      "column": "metadata",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "InstanceConfig",
+      "table": "instance_config",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Notification",
+      "table": "notification",
+      "column": "metadata",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "Notification",
+      "table": "notification",
+      "column": "dedupe_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "UserPreference",
+      "table": "user_preference",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "UserPreference",
+      "table": "user_preference",
+      "column": "value",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "settings",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "seo_defaults",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "dist_manifest",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "stripe_publishable_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "stripe_secret_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "turnstile_site_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteSite",
+      "table": "website_site",
+      "column": "turnstile_secret_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePage",
+      "table": "website_page",
+      "column": "route_path",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePage",
+      "table": "website_page",
+      "column": "draft_builder_data",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePage",
+      "table": "website_page",
+      "column": "published_builder_data",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePage",
+      "table": "website_page",
+      "column": "seo",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePageVersion",
+      "table": "website_page_version",
+      "column": "builder_data",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePageVersion",
+      "table": "website_page_version",
+      "column": "seo",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteTheme",
+      "table": "website_theme",
+      "column": "tokens",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteTheme",
+      "table": "website_theme",
+      "column": "typography",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteTheme",
+      "table": "website_theme",
+      "column": "layout",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteMenuItem",
+      "table": "website_menu_item",
+      "column": "url",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsitePublishedRender",
+      "table": "website_published_render",
+      "column": "path",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteBlogPost",
+      "table": "website_blog_post",
+      "column": "draft_builder_data",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteBlogPost",
+      "table": "website_blog_post",
+      "column": "published_builder_data",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteBlogPost",
+      "table": "website_blog_post",
+      "column": "seo",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteFormField",
+      "table": "website_form_field",
+      "column": "semantic_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteFormField",
+      "table": "website_form_field",
+      "column": "options",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteFormSubmission",
+      "table": "website_form_submission",
+      "column": "data",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "WebsiteFormSubmission",
+      "table": "website_form_submission",
+      "column": "idempotency_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthVisitor",
+      "table": "growth_visitor",
+      "column": "first_source",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthVisitor",
+      "table": "growth_visitor",
+      "column": "last_source",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthSession",
+      "table": "growth_session",
+      "column": "landing_path",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthSession",
+      "table": "growth_session",
+      "column": "exit_path",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthEvent",
+      "table": "growth_event",
+      "column": "idempotency_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthEvent",
+      "table": "growth_event",
+      "column": "path",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthEvent",
+      "table": "growth_event",
+      "column": "properties",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthLead",
+      "table": "growth_lead",
+      "column": "attribution",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthLeadActivity",
+      "table": "growth_lead_activity",
+      "column": "payload",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthDailyMetric",
+      "table": "growth_daily_metric",
+      "column": "dimension_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GrowthDailyMetric",
+      "table": "growth_daily_metric",
+      "column": "metrics",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "DocumentTemplate",
+      "table": "document_template",
+      "column": "key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "DocumentTemplateVersion",
+      "table": "document_template_version",
+      "column": "blocks",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GeneratedDocument",
+      "table": "generated_document",
+      "column": "metadata",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GoogleCalendarConnection",
+      "table": "google_calendar_connection",
+      "column": "scopes",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "GoogleCalendarEventLink",
+      "table": "google_calendar_event_link",
+      "column": "raw_snapshot",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CalendarEvent",
+      "table": "calendar_event",
+      "column": "video_url",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CalendarEvent",
+      "table": "calendar_event",
+      "column": "recurrence_rule",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CallRecording",
+      "table": "call_recording",
+      "column": "playlist_object_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CatalogProduct",
+      "table": "catalog_product",
+      "column": "attributes",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CatalogProduct",
+      "table": "catalog_product",
+      "column": "images",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "CatalogProductVariant",
+      "table": "catalog_product_variant",
+      "column": "option_values",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PosOrder",
+      "table": "pos_order",
+      "column": "raw_external_payload",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PosOrderLine",
+      "table": "pos_order_line",
+      "column": "modifiers_snapshot",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PosFloorElement",
+      "table": "pos_floor_element",
+      "column": "style",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PosReceipt",
+      "table": "pos_receipt",
+      "column": "payload",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "SyncCursor",
+      "table": "sync_cursor",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "SyncMutationLog",
+      "table": "sync_mutation_log",
+      "column": "idempotency_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "SyncMutationLog",
+      "table": "sync_mutation_log",
+      "column": "module_key",
+      "classification": "exact-module-key"
+    },
+    {
+      "model": "ProjectField",
+      "table": "project_field",
+      "column": "options",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "InvItem",
+      "table": "inv_item",
+      "column": "license_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "InvCustomField",
+      "table": "inv_custom_field",
+      "column": "field_key",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "InvCustomField",
+      "table": "inv_custom_field",
+      "column": "options",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PfmRecurringRule",
+      "table": "pfm_recurring_rule",
+      "column": "rrule",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PfmReceipt",
+      "table": "pfm_receipt",
+      "column": "raw_response",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PfmReceipt",
+      "table": "pfm_receipt",
+      "column": "parsed",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "PfmAssistantMessage",
+      "table": "pfm_assistant_message",
+      "column": "tool_calls",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "ChatMeridianRun",
+      "table": "chat_meridian_run",
+      "column": "tool_calls",
+      "classification": "candidate-needs-review"
+    },
+    {
+      "model": "ChatMeridianRun",
+      "table": "chat_meridian_run",
+      "column": "route",
+      "classification": "candidate-needs-review"
+    }
+  ],
+  "uuidRelations": [
+    {
+      "model": "CompanyModule",
+      "table": "company_module",
+      "action": "preserve-module-uuid"
+    },
+    {
+      "model": "ModuleDependency",
+      "table": "module_dependency",
+      "action": "preserve-module-uuid"
+    },
+    {
+      "model": "Blueprint",
+      "table": "blueprint",
+      "action": "preserve-module-uuid"
+    },
+    {
+      "model": "Permission",
+      "table": "permission",
+      "action": "preserve-module-uuid"
+    }
+  ],
+  "sourceReferences": [
+    {
+      "file": "apps/api/src/__tests__/cross-tenant/fixtures.mjs",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/index.js",
+      "counts": {
+        "atlas.identity": 1,
+        "atlas.company": 1
+      }
+    },
+    {
+      "file": "apps/api/src/manifests/official/__tests__/atlas-documents-contract.test.js",
+      "counts": {
+        "atlas.documents": 3,
+        "atlas.core": 1,
+        "atlas.files": 1,
+        "atlas.company": 1
+      }
+    },
+    {
+      "file": "apps/api/src/manifests/official/__tests__/atlas-pos-contract.test.js",
+      "counts": {
+        "atlas.pos": 10
+      }
+    },
+    {
+      "file": "apps/api/src/manifests/official/__tests__/storefront-capture-foundation-contract.test.js",
+      "counts": {
+        "atlas.growth": 3
+      }
+    },
+    {
+      "file": "apps/api/src/manifests/official/core-modules.js",
+      "counts": {
+        "atlas.core": 11,
+        "atlas.identity": 4,
+        "atlas.files": 5,
+        "atlas.company": 2,
+        "atlas.ledger": 7,
+        "atlas.fleet": 13,
+        "atlas.calendar": 3,
+        "atlas.catalog": 5,
+        "atlas.pos": 6,
+        "atlas.notifications": 1,
+        "atlas.inventory": 1,
+        "atlas.hr": 1,
+        "atlas.notes": 1,
+        "atlas.pfm": 7
+      }
+    },
+    {
+      "file": "apps/api/src/manifests/official/feature-modules.js",
+      "counts": {
+        "atlas.contacts": 2,
+        "atlas.core": 8,
+        "atlas.identity": 5,
+        "atlas.hr": 1,
+        "atlas.files": 2,
+        "atlas.website": 2,
+        "atlas.growth": 1,
+        "atlas.documents": 1,
+        "atlas.company": 2,
+        "atlas.activity": 1,
+        "atlas.notifications": 4,
+        "atlas.projects": 1,
+        "atlas.calendar": 1,
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/permission-catalog.js",
+      "counts": {
+        "atlas.website": 1,
+        "atlas.chat": 1,
+        "atlas.inventory": 1,
+        "atlas.notes": 1,
+        "atlas.calendar": 1,
+        "atlas.catalog": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/__tests__/pwa.test.js",
+      "counts": {
+        "atlas.inventory": 18,
+        "atlas.projects": 5,
+        "atlas.calendar": 5
+      }
+    },
+    {
+      "file": "apps/api/src/routes/__tests__/search-routes.test.js",
+      "counts": {
+        "atlas.contacts": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/calendar/calendar-notification-service.js",
+      "counts": {
+        "atlas.calendar": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/calendar/calendar-routes.js",
+      "counts": {
+        "atlas.calendar": 8
+      }
+    },
+    {
+      "file": "apps/api/src/routes/calls/__tests__/call-routes.test.js",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/calls/call-guest-service.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/calls/call-service.js",
+      "counts": {
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/api/src/routes/catalog/__tests__/catalog-tenant.test.js",
+      "counts": {
+        "atlas.catalog": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/catalog/categories-routes.js",
+      "counts": {
+        "atlas.catalog": 3
+      }
+    },
+    {
+      "file": "apps/api/src/routes/catalog/products-routes.js",
+      "counts": {
+        "atlas.catalog": 4
+      }
+    },
+    {
+      "file": "apps/api/src/routes/catalog/stock-routes.js",
+      "counts": {
+        "atlas.catalog": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/__tests__/chat-channel-links-service.test.js",
+      "counts": {
+        "atlas.projects": 10
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/__tests__/chat-entity-references-service.test.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.files": 2,
+        "atlas.hr": 1,
+        "atlas.ledger": 1,
+        "atlas.projects": 2,
+        "atlas.calendar": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/__tests__/chat-service.test.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.projects": 8,
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/__tests__/chat-tenant.test.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/chat-attachments-service.js",
+      "counts": {
+        "atlas.chat": 5
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/chat-channel-links-service.js",
+      "counts": {
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/chat-entity-references-service.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.files": 1,
+        "atlas.hr": 1,
+        "atlas.projects": 2,
+        "atlas.calendar": 1,
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/chat-member-avatar-service.js",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/chat-search-service.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/chat-service.js",
+      "counts": {
+        "atlas.chat": 6
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/guest-service.js",
+      "counts": {
+        "atlas.growth": 2,
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/index.js",
+      "counts": {
+        "atlas.chat": 6,
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/meridian-routes.js",
+      "counts": {
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/meridian-service.js",
+      "counts": {
+        "atlas.chat": 7
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/message-forward-routes.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/message-receipt-routes.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/moderation-routes.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/chat/template-routes.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/documents/document-generation-routes.js",
+      "counts": {
+        "atlas.documents": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/documents/document-generation-service.js",
+      "counts": {
+        "atlas.documents": 5
+      }
+    },
+    {
+      "file": "apps/api/src/routes/documents/document-template-routes.js",
+      "counts": {
+        "atlas.documents": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/documents/document-template-service.js",
+      "counts": {
+        "atlas.documents": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/files.js",
+      "counts": {
+        "atlas.hr": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/__tests__/company-isolation.test.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/catalog-service.js",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/catalogs-routes.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/driver-service.js",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/drivers-routes.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/fleet-service.js",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/insurance-routes.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/insurance-service.js",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/reports-routes.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/reports-schema.js",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/reports-service.js",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/fleet/vehicles-routes.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/growth/__tests__/growth-lead-service.test.js",
+      "counts": {
+        "atlas.growth": 2,
+        "atlas.documents": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/growth/growth-analytics-routes.js",
+      "counts": {
+        "atlas.growth": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/growth/growth-comment-routes.js",
+      "counts": {
+        "atlas.growth": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/growth/growth-lead-routes.js",
+      "counts": {
+        "atlas.growth": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/growth/growth-lead-service.js",
+      "counts": {
+        "atlas.growth": 9,
+        "atlas.documents": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/inventory/index.js",
+      "counts": {
+        "atlas.inventory": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/accounts-routes.js",
+      "counts": {
+        "atlas.ledger": 4
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/categories-routes.js",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/collaboration-routes.js",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/collaboration-service.js",
+      "counts": {
+        "atlas.ledger": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/group-service.js",
+      "counts": {
+        "atlas.ledger": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/groups-routes.js",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/ledger/types-routes.js",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/modules.js",
+      "counts": {
+        "atlas.core": 1,
+        "atlas.identity": 1,
+        "atlas.files": 1,
+        "atlas.company": 1,
+        "atlas.contacts": 1,
+        "atlas.hr": 1,
+        "atlas.fleet": 1,
+        "atlas.ledger": 1,
+        "atlas.calendar": 1,
+        "atlas.catalog": 1,
+        "atlas.pos": 1,
+        "atlas.website": 1,
+        "atlas.growth": 1,
+        "atlas.activity": 1,
+        "atlas.notifications": 1,
+        "atlas.projects": 1,
+        "atlas.inventory": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/notes/__tests__/notes-access.test.js",
+      "counts": {
+        "atlas.notes": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/notes/shares-service.js",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/__tests__/pfm-calendar-bridge.test.js",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/assistant-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/budgets-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/budgets-service.js",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/categories-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/investments-service.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/movements-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/pfm-calendar-bridge.js",
+      "counts": {
+        "atlas.pfm": 4,
+        "atlas.calendar": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/pfm-rrule.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/receipts-routes.js",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/receipts-service.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/recurring-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/recurring-service.js",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/summary-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/wallets-routes.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pfm/wallets-service.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pos/__tests__/pos-helpers-validators.test.js",
+      "counts": {
+        "atlas.pos": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pos/pos-routes.js",
+      "counts": {
+        "atlas.pos": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/pos/service-helpers.js",
+      "counts": {
+        "atlas.pos": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/projects/__tests__/projects-calendar-bridge.test.js",
+      "counts": {
+        "atlas.calendar": 2,
+        "atlas.projects": 2
+      }
+    },
+    {
+      "file": "apps/api/src/routes/projects/__tests__/projects-notification-service.test.js",
+      "counts": {
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/projects/projects-calendar-bridge.js",
+      "counts": {
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/projects/projects-notification-service.js",
+      "counts": {
+        "atlas.projects": 8
+      }
+    },
+    {
+      "file": "apps/api/src/routes/projects/projects-routes.js",
+      "counts": {
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/sync.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.hr": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/website/dist-routes.js",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/api/src/routes/website/website-service.js",
+      "counts": {
+        "atlas.website": 9
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/activity-bridge.test.js",
+      "counts": {
+        "atlas.hr": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/files-workspace.test.js",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/inventory-service.test.js",
+      "counts": {
+        "atlas.inventory": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/inventory-tenant-isolation.test.js",
+      "counts": {
+        "atlas.inventory": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/module-dependency-utils.test.js",
+      "counts": {
+        "atlas.core": 3,
+        "atlas.files": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/module-discovery-service.test.js",
+      "counts": {
+        "atlas.core": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/notification-service.test.js",
+      "counts": {
+        "atlas.notes": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/office-fixture.js",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/office-postgres.test.js",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/office-wopi.test.js",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/rbac-granular-contract.test.js",
+      "counts": {
+        "atlas.core": 1,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/route-loader-service.test.js",
+      "counts": {
+        "atlas.ledger": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/search-providers.test.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.identity": 1,
+        "atlas.hr": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/storefront-capture-service.test.js",
+      "counts": {
+        "atlas.growth": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/sync-push-service.test.js",
+      "counts": {
+        "atlas.contacts": 13,
+        "atlas.catalog": 7
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/sync-service.test.js",
+      "counts": {
+        "atlas.contacts": 9,
+        "atlas.hr": 2,
+        "atlas.calendar": 6,
+        "atlas.catalog": 5,
+        "atlas.ledger": 7
+      }
+    },
+    {
+      "file": "apps/api/src/services/__tests__/web-push-service.test.js",
+      "counts": {
+        "atlas.notifications": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/activity-bridge.js",
+      "counts": {
+        "atlas.catalog": 7
+      }
+    },
+    {
+      "file": "apps/api/src/services/company-service.js",
+      "counts": {
+        "atlas.company": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/files-service.js",
+      "counts": {
+        "atlas.files": 4,
+        "atlas.hr": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/files/workspace.js",
+      "counts": {
+        "atlas.files": 4
+      }
+    },
+    {
+      "file": "apps/api/src/services/hr-service.js",
+      "counts": {
+        "atlas.hr": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/inventory-notification-service.js",
+      "counts": {
+        "atlas.inventory": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/inventory-service.js",
+      "counts": {
+        "atlas.inventory": 7
+      }
+    },
+    {
+      "file": "apps/api/src/services/module-cleanup-registry.js",
+      "counts": {
+        "atlas.contacts": 4,
+        "atlas.hr": 4
+      }
+    },
+    {
+      "file": "apps/api/src/services/module-lifecycle-service.js",
+      "counts": {
+        "atlas.core": 7,
+        "atlas.identity": 1,
+        "atlas.files": 1,
+        "atlas.company": 1,
+        "atlas.contacts": 1,
+        "atlas.hr": 1,
+        "atlas.fleet": 1,
+        "atlas.ledger": 1,
+        "atlas.calendar": 1,
+        "atlas.catalog": 1,
+        "atlas.pos": 1,
+        "atlas.website": 1,
+        "atlas.growth": 1,
+        "atlas.activity": 1,
+        "atlas.notifications": 1,
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/office/access.js",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/office/service.js",
+      "counts": {
+        "atlas.files": 1,
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/search-providers.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.identity": 1,
+        "atlas.hr": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/storefront-capture-service.js",
+      "counts": {
+        "atlas.growth": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/sync-push-service.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.hr": 1,
+        "atlas.catalog": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/sync-service.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.hr": 1,
+        "atlas.calendar": 1,
+        "atlas.catalog": 1,
+        "atlas.ledger": 2
+      }
+    },
+    {
+      "file": "apps/api/src/services/vision-service.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/api/src/services/web-push-service.js",
+      "counts": {
+        "atlas.notifications": 1
+      }
+    },
+    {
+      "file": "apps/desktop/public/sw-notifications.js",
+      "counts": {
+        "atlas.notifications": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/AppEntry.jsx",
+      "counts": {
+        "atlas.chat": 3,
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/AtlasApp.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/GoogleCalendarCallbackScreen.jsx",
+      "counts": {
+        "atlas.calendar": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/ModuleOutlet.jsx",
+      "counts": {
+        "atlas.pfm": 25,
+        "atlas.core": 9,
+        "atlas.company": 8,
+        "atlas.identity": 22,
+        "atlas.contacts": 8,
+        "atlas.files": 11,
+        "atlas.hr": 14,
+        "atlas.ledger": 31,
+        "atlas.fleet": 34,
+        "atlas.website": 32,
+        "atlas.growth": 10,
+        "atlas.documents": 10,
+        "atlas.calendar": 4,
+        "atlas.projects": 3,
+        "atlas.chat": 17,
+        "atlas.catalog": 13,
+        "atlas.pos": 39,
+        "atlas.activity": 2,
+        "atlas.notifications": 4,
+        "atlas.notes": 16,
+        "atlas.inventory": 20
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/ProfileScreen.jsx",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/sidebar-slots.js",
+      "counts": {
+        "atlas.notes": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/useRuntimeModules.js",
+      "counts": {
+        "atlas.company": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/app/useServiceWorkerNotifications.js",
+      "counts": {
+        "atlas.chat": 2,
+        "atlas.notifications": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/auth/__tests__/auth-return-path.test.js",
+      "counts": {
+        "atlas.inventory": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/components/CreateCompanyDialog.jsx",
+      "counts": {
+        "atlas.company": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/components/NotificationBell.jsx",
+      "counts": {
+        "atlas.notifications": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/components/Topbar.jsx",
+      "counts": {
+        "atlas.activity": 3,
+        "atlas.notifications": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/components/UserMenu.jsx",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.core": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/hooks/__tests__/pwa-install-controller.test.js",
+      "counts": {
+        "atlas.inventory": 2,
+        "atlas.projects": 2,
+        "atlas.calendar": 9
+      }
+    },
+    {
+      "file": "apps/desktop/src/hooks/usePushAutoSubscribe.js",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.notifications": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/commandPalette.test.js",
+      "counts": {
+        "atlas.contacts": 9,
+        "atlas.ledger": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/module-component-registry-core.test.js",
+      "counts": {
+        "atlas.core": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/moduleLauncher.test.js",
+      "counts": {
+        "atlas.ledger": 2,
+        "atlas.hr": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/notification-worker.test.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/pwa-bootstrap.test.js",
+      "counts": {
+        "atlas.inventory": 4,
+        "atlas.calendar": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/pwa-install-ui.test.js",
+      "counts": {
+        "atlas.calendar": 2,
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/__tests__/webPush.test.js",
+      "counts": {
+        "atlas.notifications": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/moduleComponentRegistry.js",
+      "counts": {
+        "atlas.fleet": 20,
+        "atlas.growth": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/lib/webPush.js",
+      "counts": {
+        "atlas.notifications": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.activity/ActivityFeedScreen.jsx",
+      "counts": {
+        "atlas.activity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.calendar/components/EventDetailModal.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.calendar/components/EventFormModal.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.calendar/hooks/useCalendarData.js",
+      "counts": {
+        "atlas.calendar": 21,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.calendar/hooks/useGoogleCalendarData.js",
+      "counts": {
+        "atlas.calendar": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/components/ProductImageManager.jsx",
+      "counts": {
+        "atlas.catalog": 1,
+        "atlas.files": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/components/StockMovementModal.jsx",
+      "counts": {
+        "atlas.catalog": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/components/VariantMatrix.jsx",
+      "counts": {
+        "atlas.catalog": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/components/VariantOptionsEditor.jsx",
+      "counts": {
+        "atlas.catalog": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/screens/CatalogCategoriesScreen.jsx",
+      "counts": {
+        "atlas.catalog": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/screens/CatalogInventoryScreen.jsx",
+      "counts": {
+        "atlas.catalog": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/screens/CatalogProductDetailScreen.jsx",
+      "counts": {
+        "atlas.catalog": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.catalog/screens/CatalogProductsScreen.jsx",
+      "counts": {
+        "atlas.catalog": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/calls/CallsProvider.jsx",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/calls/lib/callEphemeral.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/calls/lib/callLayout.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/AddChannelMembersDialog.jsx",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/AssistantMarkdown.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChannelDangerZoneTab.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChannelDirectorySheet.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChannelEventsTab.jsx",
+      "counts": {
+        "atlas.chat": 2,
+        "atlas.calendar": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChannelGeneralTab.jsx",
+      "counts": {
+        "atlas.chat": 6,
+        "atlas.calendar": 1,
+        "atlas.files": 3,
+        "atlas.projects": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChannelMembersTab.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChatAttachmentViewer.jsx",
+      "counts": {
+        "atlas.files": 4,
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChatSettingsDialog.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChatTemplatePopover.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ChatWindow.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ConversationInfoTab.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ConversationMediaTab.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ConversationProfilePanel.jsx",
+      "counts": {
+        "atlas.chat": 2,
+        "atlas.files": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/CreateChannelModal.jsx",
+      "counts": {
+        "atlas.projects": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/CreateChatModal.jsx",
+      "counts": {
+        "atlas.identity": 1,
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/DropZoneOverlay.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/EntityFileViewer.jsx",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.files": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/EntityReferencePicker.jsx",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.files": 1,
+        "atlas.hr": 1,
+        "atlas.ledger": 1,
+        "atlas.projects": 3,
+        "atlas.calendar": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/FileReferenceGroup.jsx",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.files": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/FloatingChatHub.jsx",
+      "counts": {
+        "atlas.chat": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ForwardMessageModal.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/GroupsInCommonTab.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MeridianIntro.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MeridianPanel.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MessageAttachments.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MessageReactions.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MessageReactionsModal.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MessageReceiptDialog.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/MiniChatWindow.jsx",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/NewMeetingDialog.jsx",
+      "counts": {
+        "atlas.calendar": 1,
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/NotificationsTab.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/PinnedMessagesBar.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/PinnedMessagesSheet.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/ThreadPanel.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/components/UserPicker.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChannelRoles.js",
+      "counts": {
+        "atlas.chat": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChannels.js",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatConversationDetail.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatConversations.js",
+      "counts": {
+        "atlas.chat": 9
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatMessageSearch.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatMessages.js",
+      "counts": {
+        "atlas.chat": 8,
+        "atlas.notifications": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatModeration.js",
+      "counts": {
+        "atlas.chat": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatPreferences.jsx",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useChatUpload.js",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useConversationFiles.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useCreateConversation.js",
+      "counts": {
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useExternalChatData.js",
+      "counts": {
+        "atlas.chat": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useExternalInbox.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useFileRefSignedUrl.js",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useMeridian.js",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useMeridianPanel.js",
+      "counts": {
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/usePinnedMessages.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/hooks/useThreadReplies.js",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/lib/__tests__/meridian.test.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/lib/meridian.js",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/lib/messageActionLayout.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/lib/messageMedia.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/lib/officeFileActions.js",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/lib/pendingAttachments.js",
+      "counts": {
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/screens/ChatOfficeEditorScreen.jsx",
+      "counts": {
+        "atlas.files": 1,
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/screens/ChatScreen.jsx",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/screens/ChatTemplatesScreen.jsx",
+      "counts": {
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.chat/screens/ExternalInboxScreen.jsx",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.company/screens/CompanyAddress.jsx",
+      "counts": {
+        "atlas.company": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.company/screens/CompanyBranding.jsx",
+      "counts": {
+        "atlas.company": 3,
+        "atlas.files": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.company/screens/CompanyOverview.jsx",
+      "counts": {
+        "atlas.company": 9
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.company/screens/CompanyProfile.jsx",
+      "counts": {
+        "atlas.company": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.contacts/screens/ContactsScreen.jsx",
+      "counts": {
+        "atlas.contacts": 13
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.core/screens/InstanceSettings.jsx",
+      "counts": {
+        "atlas.core": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.core/screens/Overview.jsx",
+      "counts": {
+        "atlas.core": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.core/screens/SmtpSettingsScreen.jsx",
+      "counts": {
+        "atlas.core": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.core/screens/WebPushSettingsScreen.jsx",
+      "counts": {
+        "atlas.core": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.documents/screens/DocumentTemplateEditorScreen.jsx",
+      "counts": {
+        "atlas.growth": 2,
+        "atlas.documents": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.documents/screens/DocumentTemplatesScreen.jsx",
+      "counts": {
+        "atlas.documents": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.documents/screens/GeneratedDocumentsScreen.jsx",
+      "counts": {
+        "atlas.documents": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/components/CreateDocumentDialog.jsx",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/components/FileInvitations.jsx",
+      "counts": {
+        "atlas.files": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/components/FileSharingDialog.jsx",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.files": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/components/FilesCardView.jsx",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/components/FilesWorkspaceTable.jsx",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/hooks/useFilesExplorer.js",
+      "counts": {
+        "atlas.files": 1,
+        "atlas.company": 1,
+        "atlas.contacts": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/lib/file-origin-resolver.js",
+      "counts": {
+        "atlas.core": 1,
+        "atlas.identity": 1,
+        "atlas.files": 5,
+        "atlas.company": 3,
+        "atlas.contacts": 3,
+        "atlas.hr": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/screens/FilesScreen.jsx",
+      "counts": {
+        "atlas.files": 14
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.files/screens/OfficeEditorScreen.jsx",
+      "counts": {
+        "atlas.files": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/CoverageTypeBadge.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/DriverLicenseBadge.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/DriverStatusBadge.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/InsuranceBadgeCell.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/ReportStatusBadge.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/VehicleImageCell.jsx",
+      "counts": {
+        "atlas.files": 1,
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/components/VehicleStatusBadge.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/CatalogsScreen.jsx",
+      "counts": {
+        "atlas.fleet": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/DriversScreen.jsx",
+      "counts": {
+        "atlas.fleet": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/InsuranceScreen.jsx",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/ReportDetailScreen.jsx",
+      "counts": {
+        "atlas.fleet": 11
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/ReportFormPage.jsx",
+      "counts": {
+        "atlas.fleet": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/ReportsScreen.jsx",
+      "counts": {
+        "atlas.fleet": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.fleet/screens/VehiclesScreen.jsx",
+      "counts": {
+        "atlas.fleet": 11
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.growth/components/ConvertLeadDialog.jsx",
+      "counts": {
+        "atlas.contacts": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.growth/components/GenerateDocumentDialog.jsx",
+      "counts": {
+        "atlas.documents": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.growth/hooks/useGrowthLeadComments.js",
+      "counts": {
+        "atlas.growth": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.growth/screens/GrowthAnalyticsScreen.jsx",
+      "counts": {
+        "atlas.growth": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.growth/screens/GrowthLeadDetailScreen.jsx",
+      "counts": {
+        "atlas.growth": 9,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.growth/screens/GrowthLeadsScreen.jsx",
+      "counts": {
+        "atlas.growth": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.hr/screens/HrCatalogsScreen.jsx",
+      "counts": {
+        "atlas.hr": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.hr/screens/HrEmployeeDetail.jsx",
+      "counts": {
+        "atlas.files": 5,
+        "atlas.inventory": 1,
+        "atlas.hr": 9,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.hr/screens/HrEmployeeForm.jsx",
+      "counts": {
+        "atlas.files": 9,
+        "atlas.hr": 16,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.hr/screens/HrOrgChartScreen.jsx",
+      "counts": {
+        "atlas.hr": 3,
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.hr/screens/HrScreen.jsx",
+      "counts": {
+        "atlas.hr": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/components/UserPermissionGrantsCard.jsx",
+      "counts": {
+        "atlas.identity": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/ChatReportsScreen.jsx",
+      "counts": {
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/IdentityOverview.jsx",
+      "counts": {
+        "atlas.identity": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/RoleEditorScreen.jsx",
+      "counts": {
+        "atlas.identity": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/RolesScreen.jsx",
+      "counts": {
+        "atlas.identity": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/UserCreateScreen.jsx",
+      "counts": {
+        "atlas.identity": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/UserEditorScreen.jsx",
+      "counts": {
+        "atlas.files": 1,
+        "atlas.identity": 10
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.identity/screens/UsersScreen.jsx",
+      "counts": {
+        "atlas.identity": 8
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/components/InventoryAssignmentPanel.jsx",
+      "counts": {
+        "atlas.hr": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/components/InventoryCommentThread.jsx",
+      "counts": {
+        "atlas.identity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/components/InventoryEmployeeWidget.jsx",
+      "counts": {
+        "atlas.inventory": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/hooks/useInventoryCatalogs.js",
+      "counts": {
+        "atlas.inventory": 20
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/hooks/useInventoryComments.js",
+      "counts": {
+        "atlas.inventory": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/hooks/useInventoryItems.js",
+      "counts": {
+        "atlas.inventory": 10
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/screens/InventoryAssignmentsScreen.jsx",
+      "counts": {
+        "atlas.inventory": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/screens/InventoryItemDetail.jsx",
+      "counts": {
+        "atlas.inventory": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/screens/InventoryItemForm.jsx",
+      "counts": {
+        "atlas.inventory": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.inventory/screens/InventoryScreen.jsx",
+      "counts": {
+        "atlas.inventory": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/AccountScreen.jsx",
+      "counts": {
+        "atlas.ledger": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/AccountSummary.jsx",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/AccountsScreen.jsx",
+      "counts": {
+        "atlas.ledger": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/GroupScreen.jsx",
+      "counts": {
+        "atlas.ledger": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/GroupsScreen.jsx",
+      "counts": {
+        "atlas.ledger": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/ImportWizard.jsx",
+      "counts": {
+        "atlas.ledger": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/MembershipsScreen.jsx",
+      "counts": {
+        "atlas.ledger": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/SpreadsheetRegister.jsx",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.ledger/screens/TypesScreen.jsx",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/PublicNoteScreen.jsx",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/components/NoteCoverBanner.jsx",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/components/NoteEditor.jsx",
+      "counts": {
+        "atlas.notes": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/components/NoteSettingsPanel.jsx",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/components/NoteShareModal.jsx",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/components/NotesSidebarSlot.jsx",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/hooks/useCanvasScene.js",
+      "counts": {
+        "atlas.notes": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/hooks/useNote.js",
+      "counts": {
+        "atlas.notes": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/hooks/useNoteFolders.js",
+      "counts": {
+        "atlas.notes": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/hooks/useNoteShares.js",
+      "counts": {
+        "atlas.notes": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/hooks/useNoteTags.js",
+      "counts": {
+        "atlas.notes": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/hooks/useNotes.js",
+      "counts": {
+        "atlas.notes": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/lib/SupabaseYjsProvider.js",
+      "counts": {
+        "atlas.notes": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/lib/canvasImages.js",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notes/lib/noteImageUpload.js",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notifications/NotificationSettingsScreen.jsx",
+      "counts": {
+        "atlas.chat": 1,
+        "atlas.projects": 1,
+        "atlas.calendar": 1,
+        "atlas.website": 1,
+        "atlas.notifications": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.notifications/NotificationsInboxScreen.jsx",
+      "counts": {
+        "atlas.notifications": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/__tests__/assistant-format.test.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/__tests__/format.test.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/AdjustBalanceSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/AssistantActionCard.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/AssistantComposer.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/AssistantMessage.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/AssistantMessageList.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/AssistantThreadList.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/BudgetBars.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/BudgetFormSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/CategoryDonut.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/ConfirmChargeDialog.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/CreditCyclePanel.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/CreditUsageBlock.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/GoalFormSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/GoalRings.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/InvestmentPanel.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/MovementRow.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/PfmAssistantSidebar.jsx",
+      "counts": {
+        "atlas.pfm": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/QuickAddMovementSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/ReceiptDetailDialog.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/ReceiptParsedInfo.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/ReceiptReviewSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/ReceiptThumb.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/RecurringRuleSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/SpendTrendBar.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/UpcomingChargesCard.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/WalletFormSheet.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/WalletMembersDialog.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/components/YieldGroupRow.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/hooks/use-pfm-assistant.js",
+      "counts": {
+        "atlas.pfm": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/hooks/use-pfm-queries.js",
+      "counts": {
+        "atlas.pfm": 41,
+        "atlas.files": 1,
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/lib/assistant-format.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/lib/format.js",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/BudgetsScreen.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/CategoriesScreen.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/OverviewScreen.jsx",
+      "counts": {
+        "atlas.pfm": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/ReceiptsScreen.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/RecurringScreen.jsx",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/WalletDetailScreen.jsx",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pfm/screens/WalletsScreen.jsx",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosCatalog.js",
+      "counts": {
+        "atlas.catalog": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosFloor.js",
+      "counts": {
+        "atlas.pos": 9
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosKitchen.js",
+      "counts": {
+        "atlas.pos": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosModifiers.js",
+      "counts": {
+        "atlas.pos": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosOrder.js",
+      "counts": {
+        "atlas.pos": 14
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosProductConfigs.js",
+      "counts": {
+        "atlas.pos": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosReservation.js",
+      "counts": {
+        "atlas.pos": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosSession.js",
+      "counts": {
+        "atlas.pos": 7
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosSettings.js",
+      "counts": {
+        "atlas.pos": 14
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/hooks/usePosWaiterShifts.js",
+      "counts": {
+        "atlas.pos": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/screens/PosHomeRedirect.jsx",
+      "counts": {
+        "atlas.pos": 6
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/screens/PosOrdersScreen.jsx",
+      "counts": {
+        "atlas.pos": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/screens/PosSettingsScreen.jsx",
+      "counts": {
+        "atlas.pos": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/screens/PosTablesScreen.jsx",
+      "counts": {
+        "atlas.pos": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.pos/screens/PosTerminalScreen.jsx",
+      "counts": {
+        "atlas.pos": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.projects/components/TaskDetailPanel.jsx",
+      "counts": {
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.projects/hooks/useProjectsData.js",
+      "counts": {
+        "atlas.projects": 38,
+        "atlas.identity": 1,
+        "atlas.activity": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.projects/screens/ProjectsScreen.jsx",
+      "counts": {
+        "atlas.projects": 7,
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/lib/colorExtract.js",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/FormSettingsPanel.jsx",
+      "counts": {
+        "atlas.growth": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/TemplatePreviewScreen.jsx",
+      "counts": {
+        "atlas.website": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteBlogPostEditorScreen.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteBlogScreen.jsx",
+      "counts": {
+        "atlas.website": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteFormsScreen.jsx",
+      "counts": {
+        "atlas.growth": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteOverviewScreen.jsx",
+      "counts": {
+        "atlas.website": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsitePageEditorScreen.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsitePagesScreen.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteSettingsScreen.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteTemplateDetailScreen.jsx",
+      "counts": {
+        "atlas.website": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteTemplatesScreen.jsx",
+      "counts": {
+        "atlas.website": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteThemeScreen.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/WebsiteWizard.jsx",
+      "counts": {
+        "atlas.website": 5
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepIdentity.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/modules/atlas.website/screens/wizard/WizardStepTemplate.jsx",
+      "counts": {
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/native/__tests__/notification-policy.test.js",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "apps/desktop/src/providers/OfficeProvider.jsx",
+      "counts": {
+        "atlas.files": 2,
+        "atlas.chat": 1
+      }
+    },
+    {
+      "file": "apps/desktop/src/providers/RealtimeProvider.jsx",
+      "counts": {
+        "atlas.chat": 4
+      }
+    },
+    {
+      "file": "apps/desktop/src/shell/PublicWebsiteEntry.jsx",
+      "counts": {
+        "atlas.website": 2
+      }
+    },
+    {
+      "file": "apps/desktop/src/website/atlasBlocks/bookingFormBlock.jsx",
+      "counts": {
+        "atlas.calendar": 1
+      }
+    },
+    {
+      "file": "infra/installer/setup-external.mjs",
+      "counts": {
+        "atlas.pfm": 1
+      }
+    },
+    {
+      "file": "infra/installer/setup-local.mjs",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "packages/core/src/module-registry.js",
+      "counts": {
+        "atlas.contacts": 2
+      }
+    },
+    {
+      "file": "packages/offline/src/__tests__/db.test.js",
+      "counts": {
+        "atlas.contacts": 7
+      }
+    },
+    {
+      "file": "packages/offline/src/__tests__/ledger-sync-adapter.test.js",
+      "counts": {
+        "atlas.ledger": 10
+      }
+    },
+    {
+      "file": "packages/offline/src/__tests__/mutation-queue.test.js",
+      "counts": {
+        "atlas.contacts": 1
+      }
+    },
+    {
+      "file": "packages/offline/src/__tests__/offline-modules.test.js",
+      "counts": {
+        "atlas.ledger": 2,
+        "atlas.contacts": 1,
+        "atlas.hr": 1,
+        "atlas.calendar": 1,
+        "atlas.catalog": 1
+      }
+    },
+    {
+      "file": "packages/offline/src/__tests__/offline-transport.test.js",
+      "counts": {
+        "atlas.contacts": 9,
+        "atlas.catalog": 8
+      }
+    },
+    {
+      "file": "packages/offline/src/__tests__/sync-engine.test.js",
+      "counts": {
+        "atlas.contacts": 29
+      }
+    },
+    {
+      "file": "packages/offline/src/ledger-sync-adapter.js",
+      "counts": {
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "packages/offline/src/offline-modules.js",
+      "counts": {
+        "atlas.contacts": 1,
+        "atlas.hr": 1,
+        "atlas.calendar": 1,
+        "atlas.catalog": 1,
+        "atlas.ledger": 1
+      }
+    },
+    {
+      "file": "packages/offline/src/offline-provider.jsx",
+      "counts": {
+        "atlas.ledger": 2
+      }
+    },
+    {
+      "file": "packages/offline/src/offline-transport.js",
+      "counts": {
+        "atlas.contacts": 3,
+        "atlas.hr": 9,
+        "atlas.catalog": 6
+      }
+    },
+    {
+      "file": "packages/sdk/src/__tests__/sdk-calendar.test.js",
+      "counts": {
+        "atlas.chat": 3
+      }
+    },
+    {
+      "file": "packages/sdk/src/domains/chat.js",
+      "counts": {
+        "atlas.projects": 1
+      }
+    },
+    {
+      "file": "packages/storefront-sdk/src/__tests__/discovery.test.js",
+      "counts": {
+        "atlas.catalog": 10,
+        "atlas.hr": 1,
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "packages/ui/src/atlas-renderer/__tests__/detail-presentation.test.js",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "packages/ui/src/components/ActivityBellTrigger.jsx",
+      "counts": {
+        "atlas.activity": 1
+      }
+    },
+    {
+      "file": "packages/ui/src/components/ListLayout.jsx",
+      "counts": {
+        "atlas.files": 1
+      }
+    },
+    {
+      "file": "packages/ui/src/index.js",
+      "counts": {
+        "atlas.activity": 1
+      }
+    },
+    {
+      "file": "packages/validators/src/index.js",
+      "counts": {
+        "atlas.activity": 1,
+        "atlas.notifications": 1,
+        "atlas.growth": 1
+      }
+    },
+    {
+      "file": "packages/validators/src/notes.js",
+      "counts": {
+        "atlas.notes": 1
+      }
+    },
+    {
+      "file": "prisma/schema.prisma",
+      "counts": {
+        "atlas.website": 1,
+        "atlas.ledger": 1,
+        "atlas.fleet": 1,
+        "atlas.catalog": 1,
+        "atlas.inventory": 1,
+        "atlas.pfm": 1,
+        "atlas.chat": 2
+      }
+    },
+    {
+      "file": "prisma/seed.js",
+      "counts": {
+        "atlas.pfm": 2
+      }
+    },
+    {
+      "file": "scripts/check-module-manifest-migrations.mjs",
+      "counts": {
+        "atlas.fleet": 2
+      }
+    },
+    {
+      "file": "scripts/fixtures/ame3-devkit/custom.goldenpath/module.manifest.js",
+      "counts": {
+        "atlas.core": 1
+      }
+    },
+    {
+      "file": "scripts/migrate-website-images-to-public.mjs",
+      "counts": {
+        "atlas.files": 2,
+        "atlas.website": 1
+      }
+    },
+    {
+      "file": "scripts/scaffold/__tests__/validate.test.js",
+      "counts": {
+        "atlas.core": 1
+      }
+    },
+    {
+      "file": "scripts/scaffold/templates/manifest.js",
+      "counts": {
+        "atlas.core": 1
+      }
+    },
+    {
+      "file": "scripts/sync-fleet-blueprints.mjs",
+      "counts": {
+        "atlas.fleet": 25
+      }
+    }
+  ],
+  "notes": [
+    "Tracked source inventory only; custom/untracked module trees and deployed bundles require separate review.",
+    "Database counts and collisions are unknown until an explicit read-only database audit.",
+    "No records, routes in saved JSON, permission keys, migration checksums, or physical tables were renamed."
+  ]
+}

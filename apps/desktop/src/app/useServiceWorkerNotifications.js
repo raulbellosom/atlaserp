@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { playCallSound } from "../modules/atlas.chat/calls/callSounds.js";
+import { playCallSound } from "../modules/runly.chat/calls/callSounds.js";
 import { notificationKey, claimNotification } from "../lib/notificationDedup.js";
 
 function resolveNotificationLink(href) {

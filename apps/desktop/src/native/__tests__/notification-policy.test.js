@@ -5,7 +5,7 @@ import { nativeNotificationOptions, notificationId, notificationTarget, prepareA
 test('call notification retains a bounded target and stable ID for replacement/dismissal', () => {
   const options = nativeNotificationOptions({ title: 'Ana', tag: 'call:call-1', data: { callId: 'call-1', token: 'must-not-leak' }, requireInteraction: true })
   assert.equal(options.id, notificationId('call:call-1'))
-  assert.equal(options.channelId, 'atlas-calls-v1')
+  assert.equal(options.channelId, 'runly-calls-v1')
   assert.deepEqual(options.extra, { target: { kind: 'call', targetId: 'call-1' } })
   assert.ok(options.id > 0 && options.id <= 2147483647)
   assert.notEqual(options.id, notificationId('call:call-2'))

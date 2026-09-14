@@ -1,12 +1,17 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=RUNLY_NATIVE_ENV");
+    println!("cargo:rerun-if-env-changed=RUNLY_NATIVE_ORIGIN");
     println!("cargo:rerun-if-env-changed=ATLAS_NATIVE_ENV");
     println!("cargo:rerun-if-env-changed=ATLAS_NATIVE_ORIGIN");
     println!("cargo:rerun-if-changed=../native-host/environments.json");
     let target = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target == "android" || target == "ios" {
-        let environment =
-            std::env::var("ATLAS_NATIVE_ENV").expect("Use scripts/native-host.mjs to build Mobile");
-        let origin = std::env::var("ATLAS_NATIVE_ORIGIN").expect("Missing compiled native origin");
+        let environment = std::env::var("RUNLY_NATIVE_ENV")
+            .or_else(|_| std::env::var("ATLAS_NATIVE_ENV"))
+            .expect("Use scripts/native-host.mjs to build Mobile");
+        let origin = std::env::var("RUNLY_NATIVE_ORIGIN")
+            .or_else(|_| std::env::var("ATLAS_NATIVE_ORIGIN"))
+            .expect("Missing compiled native origin");
         let config: serde_json::Value =
             serde_json::from_str(include_str!("../native-host/environments.json")).unwrap();
         match environment.as_str() {

@@ -1,4 +1,4 @@
-import { Button } from '@atlas/ui'
+import { Button } from '@runly/ui'
 import { X } from 'lucide-react'
 
 export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePageApplied }) {

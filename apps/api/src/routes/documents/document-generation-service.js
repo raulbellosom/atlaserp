@@ -162,7 +162,7 @@ export function createDocumentGenerationService({
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: "atlas.documents",
+        moduleKey: "runly.documents",
         entityType: "DocumentTemplateVersion",
         entityId: version.id,
         action: "documents.template.preview",
@@ -261,7 +261,7 @@ export function createDocumentGenerationService({
       .toISOString()
       .replace(/[:.]/g, "-")}.pdf`;
     const objectKey =
-      `modules/atlas.documents/GeneratedDocument/${pending.id}/` +
+      `modules/runly.documents/GeneratedDocument/${pending.id}/` +
       `${generatedAt.getTime()}-${originalName}`;
     const bucket = supabaseAdmin.storage.from(STORAGE_BUCKET);
     const { error: uploadError } = await bucket.upload(
@@ -295,7 +295,7 @@ export function createDocumentGenerationService({
             sizeBytes: rendered.buffer.length,
             checksum,
             visibility: "PRIVATE",
-            moduleKey: "atlas.documents",
+            moduleKey: "runly.documents",
             entityType: "GeneratedDocument",
             entityId: companyId,
             uploadedById: actorId ?? null,
@@ -325,7 +325,7 @@ export function createDocumentGenerationService({
         await tx.auditLog.create({
           data: {
             actorId: actorId ?? null,
-            moduleKey: "atlas.documents",
+            moduleKey: "runly.documents",
             entityType: "GeneratedDocument",
             entityId: pending.id,
             action: "documents.generated.create",
@@ -443,7 +443,7 @@ export function createDocumentGenerationService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.documents",
+          moduleKey: "runly.documents",
           entityType: "GeneratedDocument",
           entityId: id,
           action: parsed.enabled

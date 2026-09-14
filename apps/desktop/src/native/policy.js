@@ -34,7 +34,7 @@ export function supportsCapability(info, capability, minimumVersion = '0.0.0') {
 export function parseDeepLink(value) {
   try {
     const url = new URL(value)
-    if (url.protocol !== 'atlas:' || !['chat', 'call'].includes(url.hostname) || url.username || url.password || url.port || url.search || url.hash) return null
+    if (url.protocol !== 'runly:' || !['chat', 'call'].includes(url.hostname) || url.username || url.password || url.port || url.search || url.hash) return null
     const targetId = url.pathname.slice(1)
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(targetId)) return null
     return { kind: url.hostname, targetId }
@@ -49,7 +49,7 @@ export function createEventPump({ read, acknowledge }) {
     running = true
     try {
       for (const event of await read()) {
-        const valid = parseDeepLink(`atlas://${event.kind}/${event.targetId}`)
+        const valid = parseDeepLink(`runly://${event.kind}/${event.targetId}`)
         if (!valid || !Number.isSafeInteger(event.id) || event.id < 1) continue
         if (await handler(event) !== false) await acknowledge([event.id])
       }

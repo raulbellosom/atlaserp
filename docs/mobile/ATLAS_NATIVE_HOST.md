@@ -61,7 +61,7 @@ Cambios de React, CSS y módulos requieren despliegue web. Cambios Kotlin/Swift/
 | Desktop | `tauri.conf.json`: `frontendDist: ../dist`, Vite 5173, CSP null, main con Notification/SQL/Store/Shell. Se conserva el modelo y se restringe su capability a Desktop. |
 | Mobile | Proyecto Android generado bajo `src-tauri/gen/android`. Config separada generada por el wrapper, main construido desde Rust, shell local y origen fijo. |
 | Runtime | `desktopRuntime.js`/`serverStore.js` trataban todo Tauri como Desktop. La detección compartida distingue web, PWA, Desktop, Android e iOS; Mobile usa configuración web y nunca ofrece elegir servidor. |
-| Packages | `@atlas/core` alberga detección sin React ni plugins; `@atlas/offline` reserva SQLite a Desktop. UI/SDK/module-engine siguen compartidos. |
+| Packages | `@runly/core` alberga detección sin React ni plugins; `@runly/offline` reserva SQLite a Desktop. UI/SDK/module-engine siguen compartidos. |
 | Auth | `LoginScreen` usa `signInWithPassword`; Supabase persiste y refresca sesión. `detectSessionInUrl: false`. AuthProvider recupera sesión y perfil, maneja expiración/logout. |
 | Persistencia | Supabase usa almacenamiento web por defecto; SessionVault duplica sesión en IndexedDB para offline. No hay cifrado nativo de esos tokens. Se conserva comportamiento y aislamiento por origen. |
 | Realtime | RealtimeProvider y chat utilizan Supabase; CallsProvider combina eventos, postgres_changes y polling/focus recovery. No se sustituyen. |

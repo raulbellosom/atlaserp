@@ -255,7 +255,7 @@ export async function resolveCompanyBranding({ prisma, companyId }) {
   }).catch(() => null);
 
   return {
-    companyName: toSafeText(company?.name, "Atlas ERP"),
+    companyName: toSafeText(company?.name, "Runly ERP"),
     legalName: toSafeText(company?.legalName, ""),
     taxId,
     rfc: taxId,
@@ -282,7 +282,7 @@ export function drawPdfHeader(doc, { branding, title, subtitle, folio }) {
   const brandColor = normalizeHexColor(branding.primaryColor, "#0F766E");
   const C_BORDER = "#E2E8F0";
   const C_MUTED = "#64748B";
-  const companyName = toSafeText(branding.companyName, "Atlas ERP");
+  const companyName = toSafeText(branding.companyName, "Runly ERP");
 
   doc.rect(0, 0, pageWidth, HEADER_H).fill("#FFFFFF");
   doc.rect(0, 0, 6, HEADER_H).fill(brandColor);
@@ -378,7 +378,7 @@ export function drawPdfFooter(doc, { branding, pageNumber, totalPages }) {
   const brandColor = normalizeHexColor(branding.primaryColor, "#0F766E");
   const C_MUTED = "#94A3B8";
   const C_WATERMARK = "#CBD5E1";
-  const companyName = toSafeText(branding.companyName, "Atlas ERP");
+  const companyName = toSafeText(branding.companyName, "Runly ERP");
 
   doc.lineWidth(0.4).moveTo(MARGIN, FOOTER_Y - 6).lineTo(pageWidth - MARGIN, FOOTER_Y - 6).stroke("#E2E8F0");
 
@@ -400,7 +400,7 @@ export function drawPdfFooter(doc, { branding, pageNumber, totalPages }) {
     .font("Helvetica")
     .fontSize(7)
     .fillColor(C_WATERMARK)
-    .text("Hecho con Atlas ERP", MARGIN + colW, FOOTER_Y, {
+    .text("Hecho con Runly ERP", MARGIN + colW, FOOTER_Y, {
       width: colW,
       align: "center",
       lineBreak: false,

@@ -40,13 +40,13 @@ export default [
           selector:
             "CallExpression[callee.property.name='slice'][callee.object.callee.property.name='toISOString']",
           message:
-            "toISOString() is UTC. Use toLocalIso()/toLocalMonth() from @atlas/core to derive a local date/month.",
+            "toISOString() is UTC. Use toLocalIso()/toLocalMonth() from @runly/core to derive a local date/month.",
         },
         {
           selector:
             "CallExpression[callee.property.name='split'][callee.object.callee.property.name='toISOString']",
           message:
-            "toISOString() is UTC. Use toLocalIso() from @atlas/core to derive a local date.",
+            "toISOString() is UTC. Use toLocalIso() from @runly/core to derive a local date.",
         },
       ],
     },

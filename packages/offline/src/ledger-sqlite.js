@@ -203,7 +203,7 @@ async function loadTauriDatabase(path) {
   return Database.load(path)
 }
 
-export { isNativeDesktop as isTauriAvailable } from '@atlas/core/native-runtime'
+export { isNativeDesktop as isTauriAvailable } from '@runly/core/native-runtime'
 
 export class LedgerSQLiteStore {
   #dbLoader

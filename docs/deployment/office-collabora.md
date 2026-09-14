@@ -57,7 +57,7 @@ Office is disabled by default. An ordinary update does not enable it automatical
 2. On the VPS, enter the **existing installer directory** containing `.env.external` and `custom-modules/`. Back up your deployment configuration before refreshing the installer. Download and run the updated bootstrap:
 
    ```bash
-   curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-external.sh
+   curl -fsSLo bootstrap-external.sh https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-external.sh
    bash ./bootstrap-external.sh
    ```
 
@@ -187,7 +187,7 @@ Tauri currently has no restrictive configured CSP; this change does not relax it
 
 ## Session and endpoints
 
-Frontend uses `@atlas/sdk` methods `files.officeStatus(token)` and `files.createOfficeSession(id, mode, token)`; no session is persisted in the TanStack offline cache. The responsive shared `OfficeDocumentEditor` POSTs the temporary token and expiry to the discovered action in a full-screen iframe. File previews/detail actions and shared attachments use `/app/m/atlas.files/files/:id/edit`. The session decides view/edit from actual company permissions (`auto`); explicit `edit` is rejected without update permission.
+Frontend uses `@runly/sdk` methods `files.officeStatus(token)` and `files.createOfficeSession(id, mode, token)`; no session is persisted in the TanStack offline cache. The responsive shared `OfficeDocumentEditor` POSTs the temporary token and expiry to the discovered action in a full-screen iframe. File previews/detail actions and shared attachments use `/app/m/atlas.files/files/:id/edit`. The session decides view/edit from actual company permissions (`auto`); explicit `edit` is rejected without update permission.
 
 | Endpoint | Authorization / operation |
 |---|---|

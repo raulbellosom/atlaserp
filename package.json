@@ -1,5 +1,5 @@
 {
-  "name": "atlas-erp-starter",
+  "name": "runly-erp-starter",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -7,13 +7,13 @@
   "scripts": {
     "start": "bash scripts/start-dev.sh",
     "dev": "node scripts/start-office-dev.mjs && concurrently --kill-others-on-fail -n api,web,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm dev:frontend\" \"pnpm dev:worker\"",
-    "dev:api": "pnpm --filter @atlas/api dev",
-    "dev:frontend": "pnpm --filter @atlas/desktop dev:web",
-    "dev:web": "pnpm --filter @atlas/desktop dev:web",
+    "dev:api": "pnpm --filter @runly/api dev",
+    "dev:frontend": "pnpm --filter @runly/desktop dev:web",
+    "dev:web": "pnpm --filter @runly/desktop dev:web",
     "native:android": "node apps/desktop/scripts/native-host.mjs android",
     "native:ios": "node apps/desktop/scripts/native-host.mjs ios",
-    "dev:worker": "pnpm --filter @atlas/worker dev",
-    "dev:tauri": "node scripts/start-office-dev.mjs && concurrently --kill-others-on-fail -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @atlas/desktop dev\" \"pnpm dev:worker\"",
+    "dev:worker": "pnpm --filter @runly/worker dev",
+    "dev:tauri": "node scripts/start-office-dev.mjs && concurrently --kill-others-on-fail -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @runly/desktop dev\" \"pnpm dev:worker\"",
     "build": "pnpm -r build",
     "lint": "eslint .",
     "lint:packages": "pnpm -r lint",
@@ -46,14 +46,25 @@
     "db:advisor-equivalent": "node scripts/check-supabase-advisor-equivalent.mjs"
   },
   "dependencies": {
-    "@atlas/module-engine": "workspace:*",
+    "@runly/module-engine": "workspace:*",
     "@prisma/adapter-pg": "^7.8.0",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "hono": "^4.13.5",
     "pdfkit": "^0.18.0",
     "pg": "^8.13.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@atlas/module-engine": "workspace:@runly/module-engine@*",
+    "@runly/core": "workspace:*",
+    "@atlas/core": "workspace:@runly/core@*",
+    "@runly/sdk": "workspace:*",
+    "@atlas/sdk": "workspace:@runly/sdk@*",
+    "@runly/validators": "workspace:*",
+    "@atlas/validators": "workspace:@runly/validators@*",
+    "@runly/ui": "workspace:*",
+    "@atlas/ui": "workspace:@runly/ui@*",
+    "@runly/offline": "workspace:*",
+    "@atlas/offline": "workspace:@runly/offline@*"
   },
   "devDependencies": {
     "@prisma/client": "^7.8.0",

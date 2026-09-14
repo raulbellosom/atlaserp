@@ -1,6 +1,6 @@
-# Atlas ERP — Custom Modules
+# Runly ERP — Custom Modules
 
-This document explains how to create a custom module for Atlas ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md).
+This document explains how to create a custom module for Runly ERP using Atlas Module Engine v3 (AME3). For the full architectural rationale and roadmap, see [docs/architecture/atlas-module-engine-v3.md](architecture/atlas-module-engine-v3.md).
 
 For installer-mode runtime limits/capabilities (blueprints, components, and available frontend libraries), read:
 - [docs/ai-context/ame3-runtime-capabilities.md](ai-context/ame3-runtime-capabilities.md)
@@ -23,7 +23,7 @@ Every new module requires an approved spec and implementation plan before any co
 3. Write implementation plan at `docs/superpowers/plans/YYYY-MM-DD-ame3-<moduleKey>.md`
 4. Get plan approved (explicit confirmation — not implied)
 5. Create module folder at `modules/custom/<moduleKey>/`
-6. Write `module.manifest.js` using `defineAtlasModule`
+6. Write `module.manifest.js` using `defineRunlyModule`
 7. Declare models in `models/*.model.js` using `defineModel`
 8. Declare views in `views/*.view.js` using `defineView` (TABLE, FORM, DETAIL, CUSTOM kinds)
 9. Declare pages in `pages/*.page.js` using `definePage`
@@ -76,7 +76,7 @@ If the AME3 layer needed to avoid these edits is not yet available, wait for it.
 
 ```
 modules/custom/<moduleKey>/
-  module.manifest.js       ← REQUIRED — defineAtlasModule export
+  module.manifest.js       ← REQUIRED — defineRunlyModule export
   models/
     shipment.model.js      ← defineModel declarations
     carrier.model.js
@@ -102,13 +102,13 @@ modules/custom/<moduleKey>/
 
 ## Module manifest
 
-`module.manifest.js` must use `defineAtlasModule` from `@atlas/module-engine`. This is the only supported manifest API for new modules.
+`module.manifest.js` must use `defineRunlyModule` from `@runly/module-engine`. This is the only supported manifest API for new modules.
 
 ```js
 // modules/custom/custom.deliveries/module.manifest.js
-import { defineAtlasModule } from '@atlas/module-engine'
+import { defineRunlyModule } from '@runly/module-engine'
 
-export default defineAtlasModule({
+export default defineRunlyModule({
   key: 'custom.deliveries',
   name: 'Envios',
   description: 'Gestion de envios, transportistas y seguimiento de entregas.',
@@ -191,7 +191,7 @@ export default defineAtlasModule({
 })
 ```
 
-> `createModuleManifest` from `@atlas/core` is deprecated. Do not use it for new modules.
+> `createModuleManifest` from `@runly/core` is deprecated. Do not use it for new modules.
 
 ---
 
@@ -201,7 +201,7 @@ Models define the entities owned by the module. The Atlas ORM reads these and pr
 
 ```js
 // modules/custom/custom.deliveries/models/shipment.model.js
-import { defineModel } from '@atlas/module-engine'
+import { defineModel } from '@runly/module-engine'
 
 export default defineModel({
   key: 'shipment',
@@ -241,7 +241,7 @@ Views are blueprint definitions that describe how to render an entity. They repl
 
 ```js
 // modules/custom/custom.deliveries/views/shipment.list.view.js
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'deliveries.shipment.list',
@@ -252,7 +252,7 @@ export default defineView({
     label: 'Envios',
     shell: 'atlas.dashboardShell',
     layout: 'atlas.crudLayout',
-    component: 'AtlasTable',
+    component: 'RunlyTable',
     columns: ['tracking_number', 'origin', 'destination', 'status'],
     defaultSort: { field: 'tracking_number', direction: 'asc' },
     filters: [
@@ -267,7 +267,7 @@ export default defineView({
 
 ```js
 // modules/custom/custom.deliveries/views/shipment.form.view.js
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'deliveries.shipment.form',
@@ -277,7 +277,7 @@ export default defineView({
     entity: 'shipment',
     label: 'Envio',
     layout: 'atlas.crudLayout',
-    component: 'AtlasForm',
+    component: 'RunlyForm',
     sections: [
       {
         title: 'Identificacion',
@@ -309,7 +309,7 @@ Pages compose views and components into a full routed screen.
 
 ```js
 // modules/custom/custom.deliveries/pages/deliveries.page.js
-import { definePage } from '@atlas/module-engine'
+import { definePage } from '@runly/module-engine'
 
 export default definePage({
   key: 'deliveries.shipments.index',
@@ -331,9 +331,9 @@ Available from Phase 3. In Phase 1–2, register screens manually in `apps/deskt
 ```js
 // modules/custom/custom.deliveries/api/index.js
 import { Hono } from 'hono'
-import { requirePermission } from '@atlas/api/middleware'
+import { requirePermission } from '@runly/api/middleware'
 import { deliveriesService } from './deliveries-service.js'
-import { registerModuleHandler } from '@atlas/api/services/module-cleanup-registry'
+import { registerModuleHandler } from '@runly/api/services/module-cleanup-registry'
 import { deliveriesCleanupHandler } from './deliveries-cleanup.js'
 
 registerModuleHandler('custom.deliveries', deliveriesCleanupHandler)
@@ -476,15 +476,15 @@ import { toast } from 'sonner'
 | `react`, `react-dom`, `react/jsx-runtime` | Yes | External — in main Vite bundle |
 | `@tanstack/react-query` | Yes | External — in main Vite bundle |
 | `zustand` | Yes | External — in main Vite bundle |
-| `@atlas/ui` | Yes | External — full component library |
-| `@atlas/sdk` | Yes | External — Atlas API client |
+| `@runly/ui` | Yes | External — full component library |
+| `@runly/sdk` | Yes | External — Atlas API client |
 | `react-router-dom` | Yes | External — in main Vite bundle |
 | Packages in root `node_modules` | Yes | esbuild bundles them into the module bundle |
 | CDN: `https://esm.sh/<pkg>` | Yes | Browser fetches at runtime |
 | Node.js built-ins (`fs`, `path`) | No | Browser environment only |
 | `exceljs`, `pdfkit`, `sharp` | No | API-only; use in `api/` not `components/` |
 
-See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory.
+See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@runly/ui` component inventory.
 
 ### CUSTOM kind view — full screen
 
@@ -492,7 +492,7 @@ When a module needs a full custom screen, declare it as a CUSTOM kind view. No S
 
 ```js
 // modules/custom/custom.deliveries/views/shipment-detail.custom.js
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'deliveries.shipment-detail',
@@ -535,7 +535,7 @@ Use this checklist after completing the 13-step SDD workflow above. An item is c
 
 ### AME3 checklist (Phase 2+)
 
-- [ ] Create `modules/custom/<moduleKey>/module.manifest.js` using `defineAtlasModule`
+- [ ] Create `modules/custom/<moduleKey>/module.manifest.js` using `defineRunlyModule`
 - [ ] Module key uses `custom.*` or `community.*` namespace
 - [ ] `lifecycle` block declares `ownedEntities` and `sharedEntities`
 - [ ] All permission keys declared in `manifest.permissions`

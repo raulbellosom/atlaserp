@@ -8,14 +8,14 @@ function loadStorefrontSdk() {
   if (typeof window === 'undefined') {
     return Promise.reject(new Error('El SDK storefront requiere un navegador'))
   }
-  if (window.AtlasERP?.renderForm) return Promise.resolve(window.AtlasERP)
+  if (window.RunlyERP?.renderForm) return Promise.resolve(window.RunlyERP)
   if (sdkPromise) return sdkPromise
 
   sdkPromise = new Promise((resolve, reject) => {
-    const existing = document.getElementById('atlas-storefront-sdk')
+    const existing = document.getElementById('runly-storefront-sdk')
     const script = existing ?? document.createElement('script')
     const handleLoad = () => {
-      if (window.AtlasERP?.renderForm) resolve(window.AtlasERP)
+      if (window.RunlyERP?.renderForm) resolve(window.RunlyERP)
       else reject(new Error('El SDK storefront no expuso renderForm'))
     }
     script.addEventListener('load', handleLoad, { once: true })
@@ -25,8 +25,8 @@ function loadStorefrontSdk() {
       { once: true },
     )
     if (!existing) {
-      script.id = 'atlas-storefront-sdk'
-      script.src = `${getApiUrl()}/public/site/atlas-sdk.js`
+      script.id = 'runly-storefront-sdk'
+      script.src = `${getApiUrl()}/public/site/runly-sdk.js`
       script.defer = true
       document.head.appendChild(script)
     }
@@ -54,8 +54,8 @@ export default function ContactFormRenderer({
     if (errorRef.current) errorRef.current.style.display = 'none'
 
     loadStorefrontSdk()
-      .then((atlas) =>
-        atlas.renderForm(targetRef.current, {
+      .then((sdk) =>
+        sdk.renderForm(targetRef.current, {
           formId,
           theme: 'auto',
           labels: {

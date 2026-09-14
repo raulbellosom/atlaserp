@@ -85,7 +85,7 @@ export function createGrowthAnalyticsRoutes({
         await prisma.auditLog.create({
           data: {
             actorId: actorId(c),
-            moduleKey: "atlas.growth",
+            moduleKey: "runly.growth",
             entityType: "growth.analytics",
             entityId: companyId(c),
             action: "growth.analytics.export",

@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
-import { LoadingState } from "@atlas/ui";
+import { LoadingState } from "@runly/ui";
 
 export function AuthGuard() {
   const { session, loading } = useAuth();

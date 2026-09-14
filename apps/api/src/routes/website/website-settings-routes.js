@@ -71,7 +71,7 @@ export function createWebsiteSettingsRouter({ prisma, requirePermission }) {
 
       await smtpSvc.sendEmail({
         to:      userProfile?.email ?? 'test@example.com',
-        subject: 'Atlas Website — Prueba de SMTP',
+        subject: 'Runly Website — Prueba de SMTP',
         html:    `<p>La configuracion SMTP del sitio web funciona correctamente.</p><p><small>Origen: ${config.source === 'website' ? 'SMTP propio del website' : 'SMTP de plataforma (fallback)'}</small></p>`,
         text:    `La configuracion SMTP del sitio web funciona correctamente. Origen: ${config.source === 'website' ? 'SMTP propio del website' : 'SMTP de plataforma (fallback)'}`,
       })

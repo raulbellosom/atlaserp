@@ -46,10 +46,10 @@ If a proposed module requires any of the above, the implementation does not yet 
 
 ## 3. Module API
 
-Every AME3 module uses `defineAtlasModule` from `@atlas/module-engine`:
+Every AME3 module uses `defineAtlasModule` from `@runly/module-engine`:
 
 ```js
-import { defineAtlasModule } from "@atlas/module-engine";
+import { defineAtlasModule } from "@runly/module-engine";
 
 export default defineAtlasModule({
   key: "custom.fleet",
@@ -59,7 +59,7 @@ export default defineAtlasModule({
 });
 ```
 
-`createModuleManifest` from `@atlas/core` is **deprecated**. It exists only in legacy code during migration. Documentation does not present it as a recommended path. New modules must not use it.
+`createModuleManifest` from `@runly/core` is **deprecated**. It exists only in legacy code during migration. Documentation does not present it as a recommended path. New modules must not use it.
 
 ---
 
@@ -129,7 +129,7 @@ Only `module.manifest.js` is required. Every other directory is optional.
 `module.manifest.js` exports a default object created with `defineAtlasModule`:
 
 ```js
-import { defineAtlasModule } from "@atlas/module-engine";
+import { defineAtlasModule } from "@runly/module-engine";
 
 export default defineAtlasModule({
   key: "custom.fleet",
@@ -265,7 +265,7 @@ The Atlas ORM is the data layer for module-owned entities. Modules declare their
 
 ```js
 // modules/custom/custom.fleet/models/vehicle.model.js
-import { defineModel } from "@atlas/module-engine";
+import { defineModel } from "@runly/module-engine";
 
 export default defineModel({
   key: "vehicle",
@@ -377,7 +377,7 @@ Blueprints may declare layout and component keys that the renderer resolves:
 
 ```js
 // modules/custom/custom.fleet/views/vehicle.list.view.js
-import { defineView } from "@atlas/module-engine";
+import { defineView } from "@runly/module-engine";
 
 export default defineView({
   key: "fleet.vehicle.list",
@@ -405,7 +405,7 @@ export default defineView({
 
 ```js
 // modules/custom/custom.fleet/views/vehicle.form.view.js
-import { defineView } from "@atlas/module-engine";
+import { defineView } from "@runly/module-engine";
 
 export default defineView({
   key: "fleet.vehicle.form",
@@ -440,7 +440,7 @@ export default defineView({
 ### Using a custom component in a blueprint
 
 ```js
-import { defineView } from "@atlas/module-engine";
+import { defineView } from "@runly/module-engine";
 
 export default defineView({
   key: "fleet.vehicle.status-card",
@@ -486,7 +486,7 @@ The Component Registry maps string keys to React component implementations. Modu
 
 ```js
 // modules/custom/custom.fleet/components/index.js
-import { registry } from "@atlas/module-engine";
+import { registry } from "@runly/module-engine";
 import { VehicleStatusBadge } from "./VehicleStatusBadge.jsx";
 import { FleetKanbanBoard } from "./FleetKanbanBoard.jsx";
 
@@ -590,7 +590,7 @@ No AME3 work may begin implementation without:
 
 This applies without exception to every:
 
-- `@atlas/module-engine` package feature
+- `@runly/module-engine` package feature
 - Atlas ORM feature (`defineModel`, table provisioning, migrations)
 - Blueprint renderer (`AtlasTable`, `AtlasForm`, `AtlasDetail`, `AtlasCrudView`, `AtlasPage`)
 - Module discovery service
@@ -677,7 +677,7 @@ Every new module — official or custom — must follow this workflow:
 
 ### 14.6 AME3 platform change workflow
 
-Every change to the AME3 platform itself — the `@atlas/module-engine` package, Atlas ORM, Blueprint renderer, Route Loader, Component Registry, or module lifecycle — must follow:
+Every change to the AME3 platform itself — the `@runly/module-engine` package, Atlas ORM, Blueprint renderer, Route Loader, Component Registry, or module lifecycle — must follow:
 
 1. **Write a platform spec** covering architecture impact, migration safety, and acceptance criteria
 2. **Review and approve the spec** before writing any code
@@ -706,7 +706,7 @@ Each AME3 roadmap phase requires a spec and plan before any code is written for 
 
 | Phase                                                 | Required spec                              | Required plan                              |
 | ----------------------------------------------------- | ------------------------------------------ | ------------------------------------------ |
-| AME3 Phase 1 — `@atlas/module-engine` package         | `YYYY-MM-DD-ame3-module-engine-package.md` | `YYYY-MM-DD-ame3-module-engine-package.md` |
+| AME3 Phase 1 — `@runly/module-engine` package         | `YYYY-MM-DD-ame3-module-engine-package.md` | `YYYY-MM-DD-ame3-module-engine-package.md` |
 | AME3 Phase 2 — Custom module sample (`custom.fleet`)  | `YYYY-MM-DD-ame3-custom-fleet-module.md`   | `YYYY-MM-DD-ame3-custom-fleet-module.md`   |
 | AME3 Phase 3 — Metadata tables and Atlas ORM          | `YYYY-MM-DD-ame3-atlas-orm-metadata.md`    | `YYYY-MM-DD-ame3-atlas-orm-metadata.md`    |
 | AME3 Phase 3 — Blueprint renderer                     | `YYYY-MM-DD-ame3-blueprint-renderer.md`    | `YYYY-MM-DD-ame3-blueprint-renderer.md`    |
@@ -721,7 +721,7 @@ The next required spec before any Phase 1 code is written:
 docs/superpowers/specs/YYYY-MM-DD-ame3-module-engine-package.md
 ```
 
-This spec must cover: the `@atlas/module-engine` package structure, the `defineAtlasModule`, `defineModel`, `defineView`, and `definePage` APIs, the `modules/custom/` discovery scan, integration with the existing `ModuleRegistry` and `createModuleManifest` deprecation path, and all acceptance criteria for Phase 1 AME3 Phase 1.
+This spec must cover: the `@runly/module-engine` package structure, the `defineAtlasModule`, `defineModel`, `defineView`, and `definePage` APIs, the `modules/custom/` discovery scan, integration with the existing `ModuleRegistry` and `createModuleManifest` deprecation path, and all acceptance criteria for Phase 1 AME3 Phase 1.
 
 ---
 
@@ -823,7 +823,7 @@ For each module:
 
 ### Phase 1 acceptance criteria
 
-1. `defineAtlasModule` is importable from `@atlas/module-engine`.
+1. `defineAtlasModule` is importable from `@runly/module-engine`.
 2. A developer places `modules/custom/custom.fleet/module.manifest.js` (using `defineAtlasModule`), calls `POST /modules/sync`, and sees `custom.fleet` in `GET /modules` with `status: UNINSTALLED`.
 3. A module with a reserved namespace (`atlas.core`) is rejected with `status: ERROR`.
 4. After install, all module permissions have `active: true`. After disable/uninstall, `active: false`.
@@ -853,7 +853,7 @@ For each module:
 | Blueprint           | Declarative JSON document describing an entity, form, table, page, or UI element       |
 | Component Registry  | Runtime map from component key strings to React component implementations              |
 | Cleanup Handler     | Module-registered function that deletes the module's owned data rows in a transaction  |
-| `defineAtlasModule` | The new module manifest API from `@atlas/module-engine`                                |
+| `defineAtlasModule` | The new module manifest API from `@runly/module-engine`                                |
 | `defineModel`       | Declares an AME3 entity model; replaces Prisma model additions for module-owned tables |
 | `defineView`        | Declares a blueprint/view for a model                                                  |
 | `definePage`        | Declares a full page layout in the module                                              |
@@ -866,7 +866,7 @@ For each module:
 
 | Deprecated                                                       | Replaced by                                     | When    |
 | ---------------------------------------------------------------- | ----------------------------------------------- | ------- |
-| `createModuleManifest` from `@atlas/core`                        | `defineAtlasModule` from `@atlas/module-engine` | Phase 1 |
+| `createModuleManifest` from `@runly/core`                        | `defineAtlasModule` from `@runly/module-engine` | Phase 1 |
 | `packages/maps/src/feature-modules.js`                           | `modules/official/*/module.manifest.js`         | Phase 5 |
 | `packages/maps/src/core-modules.js`                              | `modules/official/*/module.manifest.js`         | Phase 7 |
 | Manual Prisma model additions for feature tables                 | `defineModel` in Atlas ORM                      | Phase 3 |

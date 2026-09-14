@@ -11,7 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-} from "@atlas/ui";
+} from "@runly/ui";
 import { atlas } from "../lib/atlas";
 
 function timeAgo(date) {

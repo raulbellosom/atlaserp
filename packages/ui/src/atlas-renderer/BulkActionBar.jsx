@@ -1,5 +1,5 @@
 import { Download, X } from "lucide-react";
-import { toLocalIso } from "@atlas/core";
+import { toLocalIso } from "@runly/core";
 import { Button } from "../components/Button.jsx";
 
 function getByPath(input, path) {

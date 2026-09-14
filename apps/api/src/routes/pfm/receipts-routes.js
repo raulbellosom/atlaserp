@@ -84,7 +84,7 @@ export function createReceiptsRouter({
         authUserId,
         activeContext: tenantActiveContext(c),
         file,
-        fields: { moduleKey: "atlas.pfm", entityType: "PfmReceipt", visibility: "PRIVATE" },
+        fields: { moduleKey: "runly.pfm", entityType: "PfmReceipt", visibility: "PRIVATE" },
       });
       const receipt = await receipts.createReceipt({
         companyId: getCompanyId(c),

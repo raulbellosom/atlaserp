@@ -44,7 +44,7 @@ function handleError(c, error) {
       error.status,
     );
   }
-  console.error("[atlas.documents.generation]", error);
+  console.error("[runly.documents.generation]", error);
   return c.json({ error: "Error interno al generar el documento." }, 500);
 }
 

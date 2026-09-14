@@ -160,7 +160,7 @@ test("generates a pending database ID before building the storage key", async ()
   assert.match(
     upload.objectKey,
     new RegExp(
-      `^modules/atlas\\.documents/GeneratedDocument/${GENERATED_ID}/`,
+      `^modules/runly\\.documents/GeneratedDocument/${GENERATED_ID}/`,
     ),
   );
   const file = calls.find(([name]) => name === "file.create")[1];

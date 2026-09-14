@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
-import { detectRuntime, isNativeMobile } from '@atlas/core/native-runtime'
+import { detectRuntime, isNativeMobile } from '@runly/core/native-runtime'
 import { compareVersions, supportsCapability, parseDeepLink, createEventPump } from '../policy.js'
 import { resolveEnvironment, makeConfig } from '../../../scripts/native-host.mjs'
 import { nativeHostHeaders, NATIVE_CSP } from '../../../native-host/web-policy.js'
@@ -62,8 +62,8 @@ test('semantic versions and capability negotiation fail closed', () => {
 })
 
 test('deep links accept only bounded chat/call IDs without tokens or redirects', () => {
-  assert.deepEqual(parseDeepLink('atlas://chat/abc-123'), { kind: 'chat', targetId: 'abc-123' })
-  for (const value of ['https://atlas.racoondevs.com/app/', 'atlas://call/a?token=secret', 'atlas://evil/a', 'atlas://call/a%2fb', 'atlas://call/a/b', 'atlas://user@chat/a', 'atlas://chat/']) {
+  assert.deepEqual(parseDeepLink('runly://chat/abc-123'), { kind: 'chat', targetId: 'abc-123' })
+  for (const value of ['https://atlas.racoondevs.com/app/', 'runly://call/a?token=secret', 'runly://evil/a', 'runly://call/a%2fb', 'runly://call/a/b', 'runly://user@chat/a', 'runly://chat/']) {
     assert.equal(parseDeepLink(value), null, value)
   }
 })

@@ -1,9 +1,10 @@
-// @atlas/module-engine — Atlas Module Engine v3 public API
+// @runly/module-engine — Atlas Module Engine v3 public API
 // Phase 1: error class, manifest/model/view/page declarations and validators,
 //          registries, SQL generator, migration safety guard, model checksum.
 
 export { ModuleEngineError }             from './errors.js'
 export { defineAtlasModule,
+         defineAtlasModule as defineRunlyModule,
          validateManifest,
          validateModulePwaIdentity }     from './define-module.js'
 export { defineModel,

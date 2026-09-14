@@ -12,6 +12,21 @@ async function importInstallerTools() {
   }
 }
 
+test('Dev Kit uses the new directory and reuses legacy installations without moving files', async (t) => {
+  const { resolveDevKitDir } = await importInstallerTools()
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'runly-devkit-paths-'))
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  const current = path.join(root, '_runly-devkit')
+  const legacy = path.join(root, '_atlas-devkit')
+  assert.equal(resolveDevKitDir(root), current)
+  await fs.mkdir(legacy)
+  await fs.writeFile(path.join(legacy, 'local-notes.txt'), 'keep me')
+  assert.equal(resolveDevKitDir(root), legacy)
+  await fs.mkdir(current)
+  assert.equal(resolveDevKitDir(root), current)
+  assert.equal(await fs.readFile(path.join(legacy, 'local-notes.txt'), 'utf8'), 'keep me')
+})
+
 test('installer devkit downloader uses the exported manifest and writes nested files into _atlas-devkit', async () => {
   const mod = await importInstallerTools()
   assert.ok(!mod.__importError, mod.__importError?.message ?? 'infra/installer/lib/devkit-installer.mjs must exist')
@@ -35,7 +50,7 @@ test('installer devkit downloader uses the exported manifest and writes nested f
   }
 
   const outDir = await fs.mkdtemp(path.join(os.tmpdir(), 'atlas-devkit-installer-'))
-  const docsRawBase = 'https://raw.githubusercontent.com/raulbellosom/atlaserp/main'
+  const docsRawBase = 'https://raw.githubusercontent.com/raulbellosom/runly-erp/main'
   const requests = []
 
   const result = await mod.downloadDevKitSnapshot({

@@ -14,7 +14,7 @@ import {
   Skeleton,
   normalizeSpanishLabel,
   shouldUsePageMode,
-} from "@atlas/ui";
+} from "@runly/ui";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
@@ -554,7 +554,7 @@ export function BlueprintCrudScreen() {
         activeKeys.push(row.key);
       }
     }
-    componentRegistry.setActiveModules(activeKeys);
+    componentRegistry.setActiveModules(activeKeys, [...moduleMap.keys()]);
   }, [moduleMap]);
 
   const blueprintsQuery = useQuery({
@@ -1060,7 +1060,7 @@ export function BlueprintCrudScreen() {
                 Componentes din&aacute;micos no disponibles
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Atlas no pudo cargar o registrar algunos componentes referenciados por
+                Runly no pudo cargar o registrar algunos componentes referenciados por
                 los blueprints. Reintenta la carga y revisa la consola si el problema
                 contin&uacute;a.
               </p>

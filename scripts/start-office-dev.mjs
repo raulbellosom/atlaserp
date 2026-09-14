@@ -4,15 +4,16 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import dotenv from 'dotenv';
 import { resolveOfficeConfig } from '../infra/installer/lib/office-config.mjs';
+import { withRunlyEnvAliases } from '../infra/installer/lib/env-compat.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export function startOfficeDev({ values, run = spawnSync } = {}) {
   if (!values) {
     const envPath = path.join(repoRoot, '.env');
-    values = { ...(fs.existsSync(envPath) ? dotenv.parse(fs.readFileSync(envPath)) : {}), ...process.env };
+    values = withRunlyEnvAliases(fs.existsSync(envPath) ? dotenv.parse(fs.readFileSync(envPath)) : {}, process.env);
   }
-  if (values.ATLAS_OFFICE_ENABLED !== 'true') return { status: 'disabled' };
+  if ((values.RUNLY_OFFICE_ENABLED ?? values.ATLAS_OFFICE_ENABLED) !== 'true') return { status: 'disabled' };
   const office = resolveOfficeConfig(values);
   const internal = new URL(office.env.COLLABORA_INTERNAL_URL);
   if (!['localhost', '127.0.0.1', '[::1]'].includes(internal.hostname)) {

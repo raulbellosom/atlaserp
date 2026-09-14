@@ -1,6 +1,8 @@
 export * from './module-registry.js'
+export * from './module-identity.js'
 export * from './module-contract.js'
 export * from './events.js'
+export { AtlasEventBus as RunlyEventBus } from './events.js'
 export * from './time.js'
 export * from './notification-preferences.js'
 export * from './office-formats.js'

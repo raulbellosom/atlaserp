@@ -13,7 +13,7 @@ import {
   isTauriRuntime,
   requestSystemNotificationPermission,
 } from "../lib/systemNotifications";
-import { unlockCallSounds } from "../modules/atlas.chat/calls/callSounds";
+import { unlockCallSounds } from "../modules/runly.chat/calls/callSounds";
 import { native } from '../native/index.js';
 import { createNotificationPreparation } from '../lib/notificationPreparation.js';
 
@@ -22,7 +22,7 @@ const ENABLE_NOTIFICATIONS_TOAST_ID = "atlas-enable-notifications";
 function getPwaLabel() {
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
   if (isStandalone) {
-    const title = document.title?.trim() || "Atlas PWA";
+    const title = document.title?.trim() || "Runly PWA";
     return title.length > 40 ? `${title.slice(0, 40)}...` : title;
   }
   const ua = navigator.userAgent ?? "";
@@ -44,7 +44,7 @@ function enableFromUserGesture(token) {
   Promise.all([soundActivation, notificationActivation])
     .then(([soundUnlocked]) => {
       if (!soundUnlocked) throw new Error("El dispositivo no permitio activar el sonido.");
-      toast.success(native.isMobile() ? "Avisos locales activados mientras Atlas está abierto." : "Notificaciones y sonidos activados.");
+      toast.success(native.isMobile() ? "Avisos locales activados mientras Runly está abierto." : "Notificaciones y sonidos activados.");
     })
     .catch((error) => {
       toast.error(error?.message ?? "No se pudieron activar las notificaciones.");
@@ -55,8 +55,8 @@ function showEnablePrompt(token) {
   toast("Activa las notificaciones", {
     id: ENABLE_NOTIFICATIONS_TOAST_ID,
     description: native.isMobile()
-      ? "Permite los avisos mientras Atlas está abierto. Los avisos con la app cerrada todavía no están disponibles."
-      : "Recibe avisos y escucha las llamadas aunque Atlas no este visible.",
+      ? "Permite los avisos mientras Runly está abierto. Los avisos con la app cerrada todavía no están disponibles."
+      : "Recibe avisos y escucha las llamadas aunque Runly no este visible.",
     duration: Infinity,
     action: {
       label: "Activar",

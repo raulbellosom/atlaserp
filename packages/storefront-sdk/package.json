@@ -1,8 +1,8 @@
 {
-  "name": "@raulbellosom/atlas-sdk",
+  "name": "@raulbellosom/runly-sdk",
   "version": "0.5.4",
   "type": "module",
-  "description": "Generic JavaScript client for AtlasERP storefront APIs",
+  "description": "Generic JavaScript client for Runly ERP storefront APIs",
   "main": "./dist/index.js",
   "exports": {
     ".": "./dist/index.js",
@@ -17,7 +17,7 @@
     "prepublishOnly": "node build.mjs"
   },
   "keywords": [
-    "atlas",
+    "runly",
     "erp",
     "storefront",
     "sdk"

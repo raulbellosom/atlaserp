@@ -1,6 +1,18 @@
 # AME3 Runtime Capabilities (Installer Mode)
 
-This document defines what custom modules can use when Atlas ERP is installed from Docker images (without full source build).
+This document defines what custom modules can use when Runly ERP is installed from Docker images (without full source build).
+
+## Runly package migration
+
+New modules use `@runly/*`. Existing `@atlas/*` imports remain supported and share the same implementation.
+`defineRunlyModule`, `createRunlyClient`, and `RunlyTable`/`RunlyForm` are aliases of the existing factories/renderers.
+Use these new imports after deploying the matching Runly API and web images; earlier web images do not resolve the new scope.
+Module keys such as `atlas.core` remain unchanged. Use `RUNLY_MODULES_DIR`,
+`RUNLY_PROJECT_ROOT`, `RUNLY_API_URL`, and `VITE_RUNLY_API_URL` in new configuration;
+the corresponding Atlas variable remains a fallback when the Runly key is absent.
+The web runtime exposes `window.__RUNLY_RUNTIME_CONFIG__` and its legacy alias to
+the same public object. Storefront `window.ATLAS_CONFIG` and native host globals
+keep their existing contracts.
 
 ## Scope
 
@@ -12,7 +24,7 @@ Installer mode means:
 
 ## What Works in Installer Mode
 
-- AME3 module manifest (`defineAtlasModule`)
+- AME3 module manifest (`defineRunlyModule`)
 - Module models (`defineModel`) and Atlas ORM provisioning flow
 - Module API routes, services, validators
 - Module lifecycle operations (`sync`, install, uninstall, reset)
@@ -70,9 +82,9 @@ There are two categories. Use **Category A** (external) whenever possible — it
 | `react-dom` | `createPortal`, `flushSync` |
 | `@tanstack/react-query` | `useQuery`, `useMutation`, `useQueryClient`, `QueryClient`, `QueryClientProvider` … |
 | `zustand` | `create`, `useStore` |
-| `@atlas/ui` | **Full component library** — cards, inputs, forms, badges, tables, dialogs, datepickers, file uploaders, layout primitives, and the `Toaster` renderer (full list below) |
-| `@atlas/sdk` | `createAtlasClient` — Atlas API client factory |
-| `@atlas/validators` | Shared Zod schemas |
+| `@runly/ui` | **Full component library** — cards, inputs, forms, badges, tables, dialogs, datepickers, file uploaders, layout primitives, and the `Toaster` renderer (full list below) |
+| `@runly/sdk` | `createRunlyClient` — Atlas API client factory |
+| `@runly/validators` | Shared Zod schemas |
 | `react-router-dom` | `useNavigate`, `useParams`, `useLocation`, `Link` … |
 | `sonner` | `toast()` — trigger toast notifications programmatically |
 | `lucide-react` | All Lucide icons (`Music`, `Play`, `Settings`, `Plus` …) |
@@ -82,7 +94,7 @@ There are two categories. Use **Category A** (external) whenever possible — it
 
 | Import | Notes |
 |---|---|
-| `react-hook-form` | `useForm`, `Controller` — prefer using `@atlas/ui` Form components which already wrap it |
+| `react-hook-form` | `useForm`, `Controller` — prefer using `@runly/ui` Form components which already wrap it |
 | `motion` (Framer Motion) | ~280 KB — use sparingly |
 | `country-state-city` | Geo data helpers |
 | Any package resolvable from the module's Node resolution chain | esbuild bundles it at install time |
@@ -130,7 +142,7 @@ curl -X POST http://localhost:4010/modules/custom.mymodule/sync \
 ### TABLE — data grid with filters and actions
 
 ```js
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'mymodule.vehicle.list',
@@ -139,7 +151,7 @@ export default defineView({
   schema: {
     entity: 'vehicle',
     label: 'Vehiculos',
-    component: 'AtlasTable',
+    component: 'RunlyTable',
     columns: ['plate', 'brand', 'model', 'year', 'status'],
     defaultSort: { field: 'plate', direction: 'asc' },
     filters: [
@@ -162,7 +174,7 @@ export default defineView({
   schema: {
     entity: 'vehicle',
     label: 'Vehiculo',
-    component: 'AtlasForm',
+    component: 'RunlyForm',
     sections: [
       { title: 'Identificacion', columns: 2, fields: ['plate', 'brand', 'model', 'year'] },
       { title: 'Estado y asignacion', columns: 2, fields: ['status', 'driverId'] },
@@ -182,13 +194,38 @@ export default defineView({
   schema: {
     entity: 'vehicle',
     label: 'Detalle de vehiculo',
-    component: 'AtlasDetail',
+    component: 'RunlyDetail',
     sections: [
       { title: 'Vehiculo', fields: ['plate', 'brand', 'model', 'year', 'status'] },
     ],
   },
 })
 ```
+
+#### Detail presentation layer (opt-in)
+
+A DETAIL `schema` may declare any of the keys below. Omit them all and the detail
+renders as a plain stack of `label / value` sections (unchanged behaviour).
+
+- `schema.hero` — `{ titleField, subtitleFields: [], statusField, statusMap?,
+  imageField?, imageDocsPath?, fallbackIcon, accentColorField?, metaChips: [] }`.
+  Renders `DetailHero` at the top and hands it the page actions (Volver /
+  header actions / Editar). `imageField` is a file-asset id resolved to a signed
+  URL client-side; if it is empty and `imageDocsPath` (a `:id` template) is set,
+  the first `image/*` document at that path is used; otherwise the branded
+  `fallbackIcon` panel shows, faintly tinted by `accentColorField`. `statusMap`
+  maps a raw status value (e.g. `active` / a boolean) to a display label.
+  `metaChips` entries are `{ field, label?, icon?, type? }`; `type: 'color'`
+  renders a swatch.
+- `schema.kpis` — `[{ label, field, type?, icon?, hrefTemplate? }]`. Renders
+  `StatStrip`. `field` supports dotted paths; values are formatted with the same
+  rules as detail fields (dates, `boolean` -> Si/No, currency, status pills).
+- `schema.layout: 'two-column'` + `section.column: 'main' | 'aside'` — on `lg+`
+  the body becomes a main column (2/3) plus an aside column (1/3). Default
+  `column` is `main`.
+- On a `relation-card` section, `relationCard.avatarField` (a file-asset id) plus
+  `relationCard.contactActions: [{ type: 'call', field }]` add an avatar
+  (initials fallback) and `tel:` buttons.
 
 ### CUSTOM — full custom React screen
 
@@ -198,7 +235,7 @@ Use CUSTOM when TABLE/FORM/DETAIL renderers are insufficient. Requires a compone
 
 ```js
 // 1. views/dashboard.custom.js  — declares the route and component key
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'mymodule.dashboard',
@@ -231,7 +268,7 @@ import {
   Button,
   EmptyState,
   Skeleton,
-} from '@atlas/ui'
+} from '@runly/ui'
 
 // Helpers
 function useAtlasToken() {
@@ -297,7 +334,7 @@ export default function MyDashboard() {
 
 **Key rules for CUSTOM components:**
 - Import hooks as named imports: `import { useState } from 'react'` — never `React.useState()`
-- Import UI from `@atlas/ui` — all components in the library are available
+- Import UI from `@runly/ui` — all components in the library are available
 - Use `useQuery` from `@tanstack/react-query` for API calls — it's external and available
 - Every screen must start with `<PageHeader />`
 - Use `<Skeleton />` for loading states, `<EmptyState />` for empty/error states
@@ -316,12 +353,12 @@ These imports are guaranteed and should be used exactly as written:
 | Need | Import |
 |---|---|
 | Toasts | `import { toast } from 'sonner'` |
-| Page shell / cards / forms | `import { PageHeader, Card, Button, EmptyState, ErrorState, Skeleton } from '@atlas/ui'` |
+| Page shell / cards / forms | `import { PageHeader, Card, Button, EmptyState, ErrorState, Skeleton } from '@runly/ui'` |
 | Data fetching | `import { useQuery, useMutation } from '@tanstack/react-query'` |
 | Routing | `import { useNavigate, useParams, Link } from 'react-router-dom'` |
 
-If a component or function is not documented in this file or exported by `@atlas/ui`, do not assume it exists.
-Never import toast from `@atlas/ui`.
+If a component or function is not documented in this file or exported by `@runly/ui`, do not assume it exists.
+Never import toast from `@runly/ui`.
 The correct import is always `import { toast } from 'sonner'`.
 
 ## Troubleshooting CUSTOM Views and Bundles
@@ -333,9 +370,11 @@ The correct import is always `import { toast } from 'sonner'`.
 - Unsupported import: stay within the documented externals and supported bundled dependencies.
 - Stale bundle cache: rebuild with `POST /modules/<key>/sync` and reload the page.
 
-## @atlas/ui Component Library
+## @runly/ui Component Library
 
-Import from `@atlas/ui` in any component. All exports below are available.
+Import from `@runly/ui` in any component. All exports below are available.
+
+For the visual identity rules (glass tiers, radius/z-index scales, brand-token usage, component decision tree, anti-patterns), see `docs/ai-context/design-system-guide.md`. Full audit and fix backlog: `docs/superpowers/decisions/2026-08-24-design-system-unification-audit.md`.
 
 ### Core primitives
 
@@ -344,8 +383,13 @@ Import from `@atlas/ui` in any component. All exports below are available.
 | `Button`, `buttonVariants` | Action button with size/variant props |
 | `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter` | Content card container |
 | `Badge`, `badgeVariants` | Status and label badge |
+| `TypeBadge` | Accent-coloured pill (`accent` hex, e.g. file/asset type). Background/border derived via `color-mix` for light+dark. |
 | `Separator` | Horizontal or vertical divider |
 | `Skeleton` | Loading placeholder |
+| `ProgressBar` | Determinate (`value` 0-100) or indeterminate (`value={null}`) progress bar for long-running background operations |
+| `ProgressMeter` | Threshold-aware bar with an optional label/value row. `value`/`max`; `tone="auto"` colours green→amber (`warnAt`, default 0.8)→red (≥1). Use for budgets, quota, reorder points. |
+| `RingProgress` | Circular SVG progress ring. `value`/`max`, `size`, `stroke`, `color`; renders `children` centred. Use for goals/completion. |
+| `SectionCard` | Glass `Card` with a `title` (+ optional `description`, `action` slot) header and a body. Standardises the "titled card" pattern; `variant` passes through to `Card`. |
 | `Avatar`, `AvatarImage`, `AvatarFallback` | User avatar with fallback initials |
 
 ### Forms
@@ -389,6 +433,7 @@ Import from `@atlas/ui` in any component. All exports below are available.
 |---|---|
 | `AppShell` | Main app layout: fixed sidebar + scrollable content |
 | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | Tab navigation |
+| `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` | Collapsible sections (Radix accordion). Use `type="single" collapsible` on `Accordion` for one-open-at-a-time; wrap each section in `AccordionItem value="..."` |
 | `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuLabel`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioItem`, `DropdownMenuSub`, `DropdownMenuSubTrigger`, `DropdownMenuSubContent`, `DropdownMenuRadioGroup`, `DropdownMenuShortcut`, `DropdownMenuGroup`, `DropdownMenuPortal` | Dropdown / context menu |
 | `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator`, `BreadcrumbEllipsis` | Breadcrumb navigation |
 
@@ -407,6 +452,7 @@ Import from `@atlas/ui` in any component. All exports below are available.
 | `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogFooter`, `DialogTitle`, `DialogDescription`, `DialogClose`, `DialogPortal`, `DialogOverlay` | Modal dialog |
 | `Sheet`, `SheetTrigger`, `SheetContent`, `SheetHeader`, `SheetFooter`, `SheetTitle`, `SheetDescription`, `SheetClose`, `SheetPortal`, `SheetOverlay` | Slide-in panel |
 | `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor` | Floating popover |
+| `SyncStatusPopover` | One-icon Topbar site status (online/offline/syncing/pending) with a popover detail panel |
 | `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` | Tooltip |
 | `Toaster` | Toast notification renderer (mount once in app root) |
 | `Alert`, `AlertTitle`, `AlertDescription` | Inline alert banner |
@@ -415,10 +461,13 @@ Import from `@atlas/ui` in any component. All exports below are available.
 
 | Export | Description |
 |---|---|
-| `PageHeader` | Page title bar with actions slot |
+| `PageHeader` | Page title bar with actions slot. The actions slot wraps (`flex-wrap`) — pass a fragment or a `flex flex-wrap` container, never a non-wrapping `flex` div (its buttons clip off the right edge on mobile). |
+| `UnsavedChangesBar` | Sticky "you have unsaved changes" bar. Props: `message`, `saving`, `onDiscard`, `onSave`, `saveLabel`, `savingLabel`, `discardLabel`, `className`. Stacks vertically below `sm` (primary action on top) and clears the mobile bottom nav via `env(safe-area-inset-bottom)`. Use instead of hand-rolling a save/discard footer. |
 | `EmptyState` | Empty list placeholder with icon and message |
 | `ErrorState` | Error display with retry option |
 | `StatCard` | KPI metric card with label, value, trend |
+| `StatStrip` | Responsive key-figures strip — a 6-up grid on desktop, a horizontal snap-scroll carousel on mobile. Consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.kpis`. Items: `[{ key, label, value (node), icon (lucide name), href }]`. |
+| `DetailHero` | Redesigned entity-detail header: a representative image (or a branded fallback panel tinted by an accent colour) + title + subtitle + status pill + meta chips + an actions slot. Presentational only; consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.hero`. |
 | `SearchInput` | Search text field with icon |
 | `FilterBar` | Horizontal filter control bar |
 | `DynamicTable` | Blueprint-driven table renderer |
@@ -433,19 +482,21 @@ Import from `@atlas/ui` in any component. All exports below are available.
 | `DocumentsPanel` | Documents list panel |
 | `ImageViewer` | Image lightbox |
 | `ImageUploader` | Image crop and upload widget |
+| `SwatchField` | Pick an accent colour from a small preset palette (`swatches` prop, defaults to `DEFAULT_SWATCHES`). Use instead of a raw `<input type="color">` when only a themeable accent is needed. |
 | `DatePickerField` | Standalone date picker |
 | `PageFooter` | Page footer bar |
 | `BrandFooter` | Branded footer with logo |
+| `ModuleNavIcon` | Renders a module/navigation `icon` name as a component. Resolves against the full lucide set plus legacy aliases and the custom `FleetVehicle` glyph; falls back to `Box`. Backed by `resolveModuleIcon(name, { fallback })` / `getModuleIconComponent(name)` (returns `null` when unresolved, for initials fallback). Single source of truth for the command palette, module sidebar, and module cards. |
 
 ### Atlas blueprint renderer
 
 | Export | Description |
 |---|---|
-| `AtlasTable` | Renders TABLE kind blueprints |
-| `AtlasForm` | Renders FORM kind blueprints |
-| `AtlasDetail` | Renders DETAIL kind blueprints |
-| `AtlasCrudView` | Combined list + form + detail view |
-| `AtlasCardView` | Card grid alternative to AtlasTable |
+| `RunlyTable` | Renders TABLE kind blueprints |
+| `RunlyForm` | Renders FORM kind blueprints |
+| `RunlyDetail` | Renders DETAIL kind blueprints |
+| `RunlyCrudView` | Combined list + form + detail view |
+| `RunlyCardView` | Card grid alternative to RunlyTable |
 | `BulkActionBar` | Multi-select action toolbar |
 | `CostsSummaryPanel` | Costs summary panel |
 | `normalizeSpanishLabel` | Label normalization helper |
@@ -458,12 +509,17 @@ Import from `@atlas/ui` in any component. All exports below are available.
 | `ViewModeSwitch`, `getStoredViewMode` | Table/card toggle with localStorage persistence |
 | `MobileFiltersSheet` | Mobile filter slide-in panel |
 | `ListLayout` | Responsive list container |
+| `SwipeableRow` | WhatsApp/Telegram-style swipeable list row (touch only; inert on non-coarse pointers). `rightActions` (tray revealed on left-swipe), `onFullSwipeRight` + `fullSwipeLabel`/`fullSwipeIcon`/`fullSwipeTone` (right-swipe past threshold), `onLongPress`, controlled `open`/`onOpenChange`. Axis-locked so vertical list scroll is never hijacked. Pair with `ContextMenu` for the desktop equivalent. |
+| `ContextMenu`, `ContextMenuTrigger`, `ContextMenuContent`, `ContextMenuItem`, `ContextMenuCheckboxItem`, `ContextMenuRadioItem`, `ContextMenuLabel`, `ContextMenuSeparator`, `ContextMenuShortcut`, `ContextMenuGroup`, `ContextMenuPortal`, `ContextMenuSub`, `ContextMenuSubContent`, `ContextMenuSubTrigger`, `ContextMenuRadioGroup` | Right-click / long-press context menu (Radix-backed, same visual language as `DropdownMenu`). Anchored at the pointer instead of a trigger element. |
 
 ### Hooks
 
 | Export | Description |
 |---|---|
 | `useAttachmentsController` | Manages file attachment list state |
+| `useIsMobile` | `boolean` — true below the given breakpoint (default 768px), updates on resize |
+| `useLongPress` | `useLongPress({ onLongPress, delay=450, moveTolerance=10, disabled })` → pointer handlers; fires after a stationary press, cancels on move/scroll, ignores interactive targets, vibrates |
+| `useSwipeToReply` | `useSwipeToReply({ onReply, threshold=64, direction, disabled })` → `{ handlers, translateX }`; fires only on a horizontal drag past the threshold, yields to vertical scroll |
 | `cn` | Tailwind class merge utility (from `lib/utils`) |
 
 ---
@@ -475,8 +531,8 @@ use all of them without rebuilding the image when the change stays inside the mo
 itself.
 
 **Category A (external/shared — no bundle weight):**
-`react`, `react-dom`, `@tanstack/react-query`, `zustand`, `@atlas/ui`, `@atlas/sdk`,
-`@atlas/validators`, `react-router-dom`, `sonner`, `lucide-react`, `recharts`
+`react`, `react-dom`, `@tanstack/react-query`, `zustand`, `@runly/ui`, `@runly/sdk`,
+`@runly/validators`, `react-router-dom`, `sonner`, `lucide-react`, `recharts`
 
 **Category B (bundled by esbuild into the module bundle):**
 `react-hook-form`, `motion`, `country-state-city`, `@supabase/supabase-js`
@@ -493,11 +549,11 @@ Use this instruction before generating module code:
 > Follow AME3 rules exactly.
 > Custom React components in `components/index.js` are compiled at install time by esbuild and are available without rebuilding the web image — no image rebuild is ever needed for module UI.
 > Use the normal automatic JSX runtime. Do not add `/** @jsxRuntime classic */`, `/** @jsx createElement */`, or `import { createElement } from 'react'` in module components.
-> Never import `toast` from `@atlas/ui`; use `import { toast } from 'sonner'`.
-> Prefer blueprint-driven UI (TABLE, FORM, DETAIL kinds) and existing `@atlas/ui` primitives whenever possible.
+> Never import `toast` from `@runly/ui`; use `import { toast } from 'sonner'`.
+> Prefer blueprint-driven UI (TABLE, FORM, DETAIL kinds) and existing `@runly/ui` primitives whenever possible.
 > Use CUSTOM kind blueprints when a screen requires logic that TABLE/FORM/DETAIL cannot express.
 > Do not add entries to SCREEN_MAP for new custom modules — use CUSTOM kind views instead.
 >
-> **UI-first rule:** Never use native HTML form elements (`<select>`, `<input>`, `<textarea>`) — always use the `@atlas/ui` equivalent. For any searchable select with optional inline creation, use `CreatableComboboxField` with `placeholder="Buscar o crear..."`. For read-only searchable selects, use `ComboboxField`. Plain `SelectField` only for short fixed lists. All screens start with `PageHeader`. All destructive confirmations use `ConfirmDialog`. File attachments use `AttachmentsPanel` / `FileUploader` inline — never redirect to atlas.files.
+> **UI-first rule:** Never use native HTML form elements (`<select>`, `<input>`, `<textarea>`) — always use the `@runly/ui` equivalent. For any searchable select with optional inline creation, use `CreatableComboboxField` with `placeholder="Buscar o crear..."`. For read-only searchable selects, use `ComboboxField`. Plain `SelectField` only for short fixed lists. All screens start with `PageHeader`. All destructive confirmations use `ConfirmDialog`. File attachments use `AttachmentsPanel` / `FileUploader` inline — never redirect to atlas.files.
 >
 > If a fix touches the shared runtime host in `apps/desktop` (importmap, shims, externals) or credentialed browser/API CORS behavior in `apps/api`, publish new Docker images for `web` and/or `api`. Dynamic module bundling only avoids rebuilds for module-local code changes.

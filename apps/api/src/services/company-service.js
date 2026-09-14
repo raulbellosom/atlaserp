@@ -265,7 +265,7 @@ export function createCompanyService({ prisma, supabaseAdmin }) {
             enabled: true,
             OR: [
               { entityId: companyId },
-              { moduleKey: "atlas.company", entityType: "BrandingConfig" },
+              { moduleKey: { in: ["runly.company", "atlas.company"] }, entityType: "BrandingConfig" },
             ],
           },
         });

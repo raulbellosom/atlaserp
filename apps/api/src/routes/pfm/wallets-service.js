@@ -1,5 +1,5 @@
 // apps/api/src/routes/pfm/wallets-service.js
-import { toLocalIso, toLocalMonth } from "@atlas/core";
+import { toLocalIso, toLocalMonth } from "@runly/core";
 import {
   PfmServiceError,
   isTableNotFoundError,

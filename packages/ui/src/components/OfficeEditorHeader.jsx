@@ -18,12 +18,12 @@ export function OfficeEditorHeader({ fileName, mode, ready, dirty, saving, saved
   const StatusIcon = status.Icon;
 
   return (
-    <header className="office-editor-header" data-format={format} aria-label="Documento en Atlas ERP">
+    <header className="office-editor-header" data-format={format} aria-label="Documento en Runly ERP">
       <div className="office-editor-header-main">
-        <Button variant="ghost" className="office-editor-back" onClick={onBack} disabled={saving} aria-label="Volver a Atlas ERP" title="Volver a Atlas ERP">
+        <Button variant="ghost" className="office-editor-back" onClick={onBack} disabled={saving} aria-label="Volver a Runly ERP" title="Volver a Runly ERP">
           <ArrowLeft aria-hidden="true" />
           <img className="office-editor-logo" src="/brand/atlas-logo-isotype.png" width="24" height="24" alt="" />
-          <span className="office-editor-back-label">Atlas ERP</span>
+          <span className="office-editor-back-label">Runly ERP</span>
         </Button>
         <div className="office-editor-document">
           <PageHeader compact className="office-editor-heading" title={<span title={fileName}>{fileName ?? 'Preparando documento…'}</span>} />

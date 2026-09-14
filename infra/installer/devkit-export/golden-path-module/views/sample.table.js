@@ -1,4 +1,4 @@
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'goldenpath.sample.table',
@@ -6,7 +6,7 @@ export default defineView({
   version: '0.1.0',
   schema: {
     entity: 'sample',
-    component: 'AtlasTable',
+    component: 'RunlyTable',
     apiPath: '/goldenpath/samples',
     columns: [{ field: 'name', label: 'Nombre' }],
   },

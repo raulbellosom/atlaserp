@@ -65,7 +65,7 @@ pub(crate) fn check_remote(window: &WebviewWindow) -> Result<(), String> {
 }
 
 pub fn parse_deep_link(url: &Url) -> Option<(String, String)> {
-    if url.scheme() != "atlas"
+    if url.scheme() != "runly"
         || !url.username().is_empty()
         || url.password().is_some()
         || url.port().is_some()
@@ -278,7 +278,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let metadata = serde_json::json!({ "platform": std::env::consts::OS, "bridgeVersion": 1 });
     let init = format!("Object.defineProperty(window, '__ATLAS_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});");
     WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("Atlas ERP")
+        .title("Runly ERP")
         .user_agent(USER_AGENT)
         .initialization_script(init)
         .on_navigation(move |url| {
@@ -333,12 +333,12 @@ mod tests {
     #[test]
     fn events_survive_reads_and_deduplicate() {
         let state = HostState::default();
-        let url = Url::parse("atlas://call/abc-123").unwrap();
+        let url = Url::parse("runly://call/abc-123").unwrap();
         state.enqueue(&url);
         state.enqueue(&url);
         assert_eq!(state.events.lock().unwrap().len(), 1);
-        assert!(parse_deep_link(&Url::parse("atlas://call/abc?token=secret").unwrap()).is_none());
-        assert!(parse_deep_link(&Url::parse("atlas://chat/a%2Fb").unwrap()).is_none());
+        assert!(parse_deep_link(&Url::parse("runly://call/abc?token=secret").unwrap()).is_none());
+        assert!(parse_deep_link(&Url::parse("runly://chat/a%2Fb").unwrap()).is_none());
     }
     #[test]
     fn require_real_frame_directive() {

@@ -4,7 +4,7 @@ export function BrandFooter({ className }) {
   return (
     <footer className={cn("shrink-0 h-12 border-t border-[hsl(var(--border))] px-4 flex items-center justify-between gap-4 bg-[hsl(var(--background))]", className)}>
       <span className="text-[11px] text-[hsl(var(--muted-foreground))] leading-none">
-        Atlas ERP Meridian <span className="font-medium">v0.1</span>
+        Runly ERP Meridian <span className="font-medium">v0.1</span>
       </span>
       <a
         href="https://racoondevs.com"

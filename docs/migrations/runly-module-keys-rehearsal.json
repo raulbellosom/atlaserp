@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mode": "synthetic-postgres-rehearsal",
+  "dataConversionReady": false,
+  "persisted": false,
+  "reversalVerified": true,
+  "fixtureTables": 19,
+  "convertedColumns": [
+    {
+      "table": "atlas_module",
+      "column": "key",
+      "matchingRows": 21
+    },
+    {
+      "table": "atlas_model",
+      "column": "module_key",
+      "matchingRows": 21
+    },
+    {
+      "table": "atlas_view",
+      "column": "module_key",
+      "matchingRows": 21
+    },
+    {
+      "table": "module_migration",
+      "column": "module_key",
+      "matchingRows": 21
+    },
+    {
+      "table": "permission",
+      "column": "module_key",
+      "matchingRows": 21
+    },
+    {
+      "table": "file_asset",
+      "column": "module_key",
+      "matchingRows": 21
+    }
+  ],
+  "deferred": [
+    "Full runtime read/write cutover",
+    "Semantic JSON/path conversion",
+    "Audit and offline identity policy",
+    "Representative installation-copy rehearsal",
+    "Post-commit operational rollback"
+  ]
+}

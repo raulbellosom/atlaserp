@@ -8,13 +8,13 @@ import {
 } from "react-router-dom";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { AtlasOfflineDatabase, createDexiePersister } from "@atlas/offline";
-import { Toaster, TooltipProvider } from "@atlas/ui";
+import { AtlasOfflineDatabase, createDexiePersister } from "@runly/offline";
+import { Toaster, TooltipProvider } from "@runly/ui";
 import { AuthProvider } from "../auth/AuthProvider";
 import { ActiveCompanyProvider, ActiveCompanyGate } from "../company/ActiveCompanyProvider";
 import { RealtimeProvider } from "../providers/RealtimeProvider";
 import { OfficeProvider } from "../providers/OfficeProvider";
-import { CallsProvider } from "../modules/atlas.chat/calls/CallsProvider";
+import { CallsProvider } from "../modules/runly.chat/calls/CallsProvider";
 import { AtlasApp } from "./AtlasApp";
 import { HomeScreen } from "./HomeScreen";
 import { ModuleOutlet } from "./ModuleOutlet";
@@ -35,10 +35,10 @@ import { ServerSetup } from "./ServerSetup.jsx";
 import { native } from '../native/index.js';
 import { NativeHostDiagnostics } from '../native/NativeHostDiagnostics.jsx';
 import { AppRouteGuard } from "./AppRouteGuard.jsx";
-import PublicNoteScreen from "../modules/atlas.notes/PublicNoteScreen.jsx";
+import PublicNoteScreen from "../modules/runly.notes/PublicNoteScreen.jsx";
 
-const GuestCallScreen = lazy(() => import("../modules/atlas.chat/calls/guest/GuestCallScreen.jsx"));
-import { useCallSoundUnlock } from "../modules/atlas.chat/calls/useCallSoundUnlock.js";
+const GuestCallScreen = lazy(() => import("../modules/runly.chat/calls/guest/GuestCallScreen.jsx"));
+import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
 useThemeStore.getState().init();
@@ -77,6 +77,11 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
   useEffect(() => {
     if (requiresServerSetup) return undefined
 
+    // A local/warm API can resolve this in well under the loader's own
+    // animation cycle — without a floor, the Runly loader iframe (a heavy,
+    // hand-built HTML asset) gets unmounted before it ever paints.
+    const MIN_LOADER_MS = 900;
+    const startedAt = Date.now();
     let mounted = true;
     atlas.instance
       .status()
@@ -86,7 +91,10 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
       })
       .catch(() => applyBrandTheme())
       .finally(() => {
-        if (mounted) setBrandReady(true);
+        const wait = Math.max(0, MIN_LOADER_MS - (Date.now() - startedAt));
+        setTimeout(() => {
+          if (mounted) setBrandReady(true);
+        }, wait);
       });
     return () => {
       mounted = false;

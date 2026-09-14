@@ -98,7 +98,7 @@ async function toPdfBuffer({ report, parts, branding }) {
     "#0F766E",
   );
   const brandColorLight = lightenHex(brandColor, 0.88);
-  const companyName = toSafeText(branding.companyName, "Atlas ERP");
+  const companyName = toSafeText(branding.companyName, "Runly ERP");
   const logoBuffer = Buffer.isBuffer(branding.logoBuffer)
     ? branding.logoBuffer
     : null;
@@ -624,7 +624,7 @@ async function toPdfBuffer({ report, parts, branding }) {
       .font("Helvetica")
       .fontSize(7)
       .fillColor("#CBD5E1")
-      .text("Hecho con Atlas ERP", left + contentWidth / 3, footerY, {
+      .text("Hecho con Runly ERP", left + contentWidth / 3, footerY, {
         width: contentWidth / 3,
         align: "center",
         lineBreak: false,

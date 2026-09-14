@@ -5,7 +5,7 @@ import {
   callLinkPatchSchema,
   callInviteSchema,
   callRoomMessageSchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 import { createCallService, CallServiceError } from "./call-service.js";
 import { createCallLinksService, CallLinkError } from "./call-links-service.js";
 import { createCallGuestService, CallGuestError } from "./call-guest-service.js";

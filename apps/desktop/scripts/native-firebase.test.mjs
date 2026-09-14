@@ -34,6 +34,14 @@ test('explicit empty environment overrides local config and removes stale build 
   assert.equal(existsSync(f.destination), false)
 })
 
+test('Runly Android input wins conflicts and a legacy process override beats a Runly file value', t => {
+  const f = fixture(t)
+  writeFileSync(join(f.root, '.env'), 'FIREBASE_PROJECT_ID=test-project\nRUNLY_ANDROID_GOOGLE_SERVICES_JSON=android.json\n')
+  assert.equal(prepareAndroidFirebase(f.root, f.app, { RUNLY_ANDROID_GOOGLE_SERVICES_JSON: 'android.json', ATLAS_ANDROID_GOOGLE_SERVICES_JSON: 'missing.json' }), true)
+  assert.equal(prepareAndroidFirebase(f.root, f.app, { ATLAS_ANDROID_GOOGLE_SERVICES_JSON: '' }), false)
+  assert.equal(existsSync(f.destination), false)
+})
+
 test('rejects server credentials even when a file also contains Android fields', (t) => {
   const f = fixture(t)
   writeFileSync(join(f.root, 'android.json'), JSON.stringify({ ...f.config, private_key: 'test-private-material' }))

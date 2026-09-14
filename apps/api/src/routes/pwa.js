@@ -4,7 +4,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import * as LucideIcons from 'lucide-react'
 import sharp from 'sharp'
-import { validateModulePwaIdentity } from '@atlas/module-engine'
+import { validateModulePwaIdentity } from '@runly/module-engine'
 import { loadModuleLogo } from './pwa-icon-source.js'
 
 const MODULE_KEY_RE = /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9_-]*)+$/
@@ -68,7 +68,7 @@ function buildWebManifest(moduleRow, identityHash) {
   const startUrl = normalizeStartUrl(moduleKey, manifest.pwa.startPath)
 
   return {
-    name: `${manifest.name} — Atlas`,
+    name: `${manifest.name} — Runly`,
     short_name: manifest.pwa.shortName,
     description: manifest.description ?? '',
     id: `/pwa/apps/${moduleKey}`,
@@ -171,12 +171,13 @@ export function createPwaRouter({
     if (!visual) return c.json({ error: 'Icono no disponible.' }, 404)
 
     const { identityHash } = visual
-    const etag = `"${identityHash}"`
+    const body = JSON.stringify(buildWebManifest(moduleRow, identityHash))
+    const etag = `"${createHash('sha256').update(body).digest('hex')}"`
     c.header('Content-Type', 'application/manifest+json')
     c.header('Cache-Control', 'public, max-age=300, must-revalidate')
     c.header('ETag', etag)
     if (matchesEtag(c, etag)) return c.body(null, 304)
-    return c.body(JSON.stringify(buildWebManifest(moduleRow, identityHash)))
+    return c.body(body)
   })
 
   router.get('/icon/:moduleKey/:sizeFile', async (c) => {

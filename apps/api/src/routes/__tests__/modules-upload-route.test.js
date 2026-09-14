@@ -27,7 +27,7 @@ test('POST /modules/:key/upload recibe multipart, extrae el ZIP y responde con e
 
   const zip = new JSZip()
   zip.file('custom.uploadroute/module.manifest.js', `
-    import { defineAtlasModule } from '@atlas/module-engine'
+    import { defineAtlasModule } from '@runly/module-engine'
     export default defineAtlasModule({
       key: 'custom.uploadroute',
       name: 'Prueba de carga',

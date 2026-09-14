@@ -1,4 +1,13 @@
-# Atlas ERP
+# Runly ERP
+
+Migration from Atlas ERP is in progress. Distribution now targets GitHub
+`raulbellosom/runly-erp` and Docker Hub `raulbellosom/runlyerp`. Workspace
+packages use `@runly/*`, with `@atlas/*` aliases for existing modules. Installer
+commands use `runly:*`, with `atlas:*` aliases. Environment inputs use `RUNLY_*`
+and `VITE_RUNLY_*`, falling back to their Atlas counterparts. Module keys and
+Docker service/volume identities remain unchanged until their migration stages.
+New images and `Runly-ERP-Setup.exe` must be published before rolling out
+these distribution changes. See the [migration plan](docs/superpowers/plans/2026-09-13-runly-distribution.md).
 
 Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Hono API, Prisma, and a dedicated self-hosted Supabase instance.
 
@@ -8,31 +17,43 @@ Desktop-first, full-stack modular ERP built with React + Vite + Tauri, a Node/Ho
 
 Installer files live in `infra/installer/`.
 
-- `external` profile: Atlas ERP against an existing Supabase instance.
-- `local` profile: Atlas ERP + local Supabase (fully automated via `setup-local.mjs`).
+- `external` profile: Runly ERP against an existing Supabase instance.
+- `local` profile: Runly ERP + local Supabase (fully automated via `setup-local.mjs`).
 - Custom modules mount path: `infra/installer/custom-modules/` on the host -> `/app/modules/custom` inside the container.
 
-Images: `raulbellosom/atlaserp:api-latest`, `worker-latest`, `web-latest` (single web image for both profiles — Supabase URL and API URL are injected at container startup via env vars, not baked into the image).
+Images: `raulbellosom/runlyerp:api-latest`, `worker-latest`, `web-latest` (single web image for both profiles — Supabase URL and API URL are injected at container startup via env vars, not baked into the image).
 
 Quick install on any machine without cloning the repo:
 
 ```powershell
-# Desde la carpeta donde quieras instalar Atlas ERP:
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
+# Desde la carpeta donde quieras instalar Runly ERP:
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer/bootstrap-local.ps1" -OutFile ".\bootstrap-local.ps1"
 powershell -ExecutionPolicy Bypass -File .\bootstrap-local.ps1
 ```
 
 See [infra/installer/README.md](infra/installer/README.md) for full copy/paste steps (Windows, Linux, macOS), external Supabase setup, optional LiveKit calls, image tags, and reset commands.
-The installer also downloads an exported AME3 Dev Kit to `custom-modules/_atlas-devkit/`, including `capabilities.runtime.json`, `prompt-starter.txt`, `troubleshooting.md`, and a `golden-path-module/` sample for installer-mode module development.
+The installer also downloads an exported AME3 Dev Kit to `custom-modules/_runly-devkit/`, including `capabilities.runtime.json`, `prompt-starter.txt`, `troubleshooting.md`, and a `golden-path-module/` sample for installer-mode module development.
+Existing installations reuse `custom-modules/_atlas-devkit/` when present. Both package scopes resolve to the same implementation; no module rewrite is required for this stage. See the [package migration plan](docs/superpowers/plans/2026-09-13-runly-packages-devkit.md).
 
 Stop and reset (from the installer directory):
 
 ```bash
-npm.cmd run atlas:stop:local  # stop, keep data
+npm.cmd run runly:stop:local  # stop, keep data
 node stop-local.mjs --reset   # full wipe — removes containers, volumes, generated files
 ```
 
 ## Contributor setup (cloning the repo)
+
+### Runly environment compatibility
+
+Use `RUNLY_*` (and `VITE_RUNLY_*` for Vite) in new configuration. The corresponding
+`ATLAS_*` / `VITE_ATLAS_*` value is used when the Runly key is absent. Explicit empty
+values do not revive an old value; existing validation/default rules still apply.
+For installer-managed settings, process overrides beat saved values regardless of
+which spelling they use. New generated assignments use Runly names; existing
+custom settings and Office secrets survive refreshes. Deploy matching Runly images
+before switching configuration names; older images may only understand Atlas.
+See the [environment migration evidence](docs/superpowers/plans/2026-09-13-runly-environment.md).
 
 ### 1. Fill environment variables
 
@@ -120,14 +141,14 @@ also start `collabora-dev` in the Docker `atlaserp` group. See the
 
 | Command               | What it does |
 | --------------------- | ------------ |
-| `pnpm --filter @atlas/desktop build` | Build desktop app and leave the installer as `Atlas-ERP-Setup.exe` |
-| `pnpm --filter @atlas/desktop publish:release` | Upload `Atlas-ERP-Setup.exe` to the GitHub release matching `apps/desktop/src-tauri/tauri.conf.json` |
-| `pnpm --filter @atlas/desktop release` | Build the installer, create/update the matching GitHub release, and mark it as `latest` |
+| `pnpm --filter @runly/desktop build` | Build desktop app and leave the installer as `Runly-ERP-Setup.exe` |
+| `pnpm --filter @runly/desktop publish:release` | Upload `Runly-ERP-Setup.exe` to the GitHub release matching `apps/desktop/src-tauri/tauri.conf.json` |
+| `pnpm --filter @runly/desktop release` | Build the installer, create/update the matching GitHub release, and mark it as `latest` |
 
 ### Desktop release
 
-- The public download URL is always `https://github.com/raulbellosom/atlaserp/releases/latest/download/Atlas-ERP-Setup.exe`
-- `pnpm --filter @atlas/desktop release` reads the version from `apps/desktop/src-tauri/tauri.conf.json`, uploads `apps/desktop/src-tauri/target/release/bundle/nsis/Atlas-ERP-Setup.exe`, and marks that release as `latest`
+- The public download URL is always `https://github.com/raulbellosom/runly-erp/releases/latest/download/Runly-ERP-Setup.exe`
+- `pnpm --filter @runly/desktop release` reads the version from `apps/desktop/src-tauri/tauri.conf.json`, uploads `apps/desktop/src-tauri/target/release/bundle/nsis/Runly-ERP-Setup.exe`, and marks that release as `latest`
 - If the tag does not exist, the script creates it; if it already exists, the script replaces the asset with `--clobber`
 | --------------------- | ------------ |
 | `pnpm build`          | Build all apps and packages |
@@ -161,7 +182,7 @@ apps/
   worker/      Background job handler
 packages/
   core/           Module registry, event bus, manifest contract
-  module-engine/  @atlas/module-engine (defineAtlasModule, defineModel, defineView, definePage)
+  module-engine/  @runly/module-engine (defineAtlasModule, defineModel, defineView, definePage)
   ui/             Shared React components
   sdk/            Atlas API client (createAtlasClient)
   validators/     Zod schemas shared between API and frontend
@@ -174,13 +195,13 @@ prisma/
 ```
 
 Request flow:
-`React -> @atlas/sdk -> Hono API -> Zod validation -> Prisma / Atlas ORM -> Supabase PostgreSQL`
+`React -> @runly/sdk -> Hono API -> Zod validation -> Prisma / Atlas ORM -> Supabase PostgreSQL`
 
 No direct database access from the frontend.
 
 ## Module system
 
-Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, API endpoints, and React components.
+Runly ERP is a module engine. New AME3 modules live in `modules/custom/` and declare their own models, views, pages, navigation, permissions, API endpoints, and React components.
 
 - Core modules (`core: true`, `uninstallable: false`):
   - `atlas.core`
@@ -192,11 +213,11 @@ Atlas ERP is a module engine. New AME3 modules live in `modules/custom/` and dec
 - Custom modules: `custom.*` or `community.*` in `modules/custom/`
 - Official manifest snapshots: `apps/api/src/manifests/official/`
 
-New modules use `defineAtlasModule` from `@atlas/module-engine`.
+New modules use `defineAtlasModule` from `@runly/module-engine`.
 
-Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild is needed for module-local UI changes. The frontend loads bundles via dynamic `import()` at startup. If you change the shared module runtime in `apps/desktop` (for example importmap/shims/externals) or credentialed cross-origin API behavior in `apps/api`, publish fresh `web` and/or `api` images and recreate the installer containers. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@atlas/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
+Modules can include React components in `components/` compiled at install time by esbuild — no web image rebuild is needed for module-local UI changes. The frontend loads bundles via dynamic `import()` at startup. If you change the shared module runtime in `apps/desktop` (for example importmap/shims/externals) or credentialed cross-origin API behavior in `apps/api`, publish fresh `web` and/or `api` images and recreate the installer containers. See `docs/ai-context/ame3-runtime-capabilities.md` for the full `@runly/ui` component inventory and view kind examples (TABLE, FORM, DETAIL, CUSTOM).
 
-For installer-mode workspaces, the authoritative module-authoring bundle lives in `custom-modules/_atlas-devkit/`. Start with:
+For installer-mode workspaces, the authoritative module-authoring bundle lives in `custom-modules/_runly-devkit/`. Start with:
 - `README.md`
 - `docs/ai-context/ame3-modules.md`
 - `docs/ai-context/ame3-runtime-capabilities.md`

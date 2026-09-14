@@ -1,3 +1,5 @@
+import { findModuleByKey } from './module-identity.js';
+
 export class ModuleRegistry {
   constructor() {
     this.modules = new Map();
@@ -16,7 +18,7 @@ export class ModuleRegistry {
   }
 
   get(key) {
-    return this.modules.get(key);
+    return findModuleByKey(this.modules, key);
   }
 
   resolveNavigation() {
@@ -32,7 +34,7 @@ export class ModuleRegistry {
   assertDependencies() {
     for (const module of this.list()) {
       for (const dependency of module.dependencies ?? []) {
-        if (!dependency.optional && !this.modules.has(dependency.key)) {
+        if (!dependency.optional && !this.get(dependency.key)) {
           throw new Error(`Module ${module.key} requires ${dependency.key}`);
         }
       }

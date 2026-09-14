@@ -1,7 +1,7 @@
 // apps/api/src/routes/pfm/budgets-service.js
 import { PfmServiceError, isTableNotFoundError, toPlainNumber } from "./service-helpers.js";
 
-import { toLocalMonth } from "@atlas/core";
+import { toLocalMonth } from "@runly/core";
 
 const NOT_INSTALLED = "El modulo de finanzas personales no esta instalado.";
 

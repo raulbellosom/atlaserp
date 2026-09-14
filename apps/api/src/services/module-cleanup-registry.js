@@ -12,6 +12,8 @@
  *   Must NEVER delete from shared entities (Company, UserProfile, AuditLog, etc.).
  */
 
+import { findModuleByKey } from '@runly/core'
+
 const handlers = new Map()
 
 export function registerModuleHandler(moduleKey, { count, purge }) {
@@ -22,7 +24,7 @@ export function registerModuleHandler(moduleKey, { count, purge }) {
 }
 
 export function getModuleHandler(moduleKey) {
-  return handlers.get(moduleKey) ?? null
+  return findModuleByKey(handlers, moduleKey) ?? null
 }
 
 export function listRegisteredHandlers() {

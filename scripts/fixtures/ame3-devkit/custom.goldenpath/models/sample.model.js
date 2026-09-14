@@ -1,4 +1,4 @@
-import { defineModel } from '@atlas/module-engine'
+import { defineModel } from '@runly/module-engine'
 
 export default defineModel({
   key: 'sample',

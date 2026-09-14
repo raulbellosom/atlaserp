@@ -43,7 +43,7 @@ function auditData({
 }) {
   return {
     actorId: actorId ?? null,
-    moduleKey: "atlas.documents",
+    moduleKey: "runly.documents",
     entityType,
     entityId,
     action,

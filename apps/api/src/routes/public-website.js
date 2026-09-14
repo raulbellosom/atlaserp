@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { createCatalogPublicService } from './catalog/catalog-public-service.js'
 
-const ERP_PREFIXES = ['atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fleet.']
+const ERP_PREFIXES = ['runly.', 'atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fleet.']
 
 export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
   const app = new Hono()

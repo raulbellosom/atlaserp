@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
 
-  const title = payload?.title || "Atlas Notifications";
+  const title = payload?.title || "Runly Notifications";
   const isIncomingCall = payload?.data?.eventType === "chat.call.incoming";
   const link =
     payload?.data?.link || payload?.link || "/app/m/atlas.notifications";

@@ -23,13 +23,13 @@ import {
   hrEmployeeUpdateSchema,
   moduleInstallSchema,
   setupInitializeSchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 import {
   formatLogTimestamp,
   getConfiguredTimeZone,
   toLocalIso,
   formatLocalDateTime,
-} from "@atlas/core";
+} from "@runly/core";
 import {
   getPermissionPresentation,
   groupPermissionsForUi,
@@ -166,7 +166,7 @@ const getAllActivePermissionKeys = createPermissionKeysCache({
 // actual TCP port. This export has no effect on normal `node src/index.js`
 // execution — the server still boots exactly as before, below.
 export const app = new Hono();
-const port = Number(process.env.ATLAS_API_PORT ?? 4010);
+const port = Number((process.env.RUNLY_API_PORT ?? process.env.ATLAS_API_PORT) ?? 4010);
 const contactsService = createContactsService({ prisma });
 
 const supabaseAdmin = createClient(
@@ -291,7 +291,7 @@ async function authMiddleware(c, next) {
   await next();
 }
 
-const ADMIN_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+const ADMIN_ROLE_KEYS = new Set(["runly.admin", "atlas.admin", "system.admin"]);
 const BASE_PERMISSION_KEYS = new Set(["profile.self.read"]);
 
 const _userContextInFlight = new Map();
@@ -626,7 +626,7 @@ function requireModuleAccess(moduleKey) {
 
 async function syncAdminRolesPermissions(db) {
   const adminRoles = await db.role.findMany({
-    where: { key: { in: ["atlas.admin", "system.admin"] } },
+    where: { key: { in: ["runly.admin", "atlas.admin", "system.admin"] } },
     select: { id: true },
   });
   if (adminRoles.length === 0) return;
@@ -656,18 +656,18 @@ async function ensureSetupAdminRole(db) {
   // Prisma rejects `null` inside a compound-unique where (companyId_key), so
   // this system role (companyId IS NULL) is upserted by hand via findFirst.
   const existing = await db.role.findFirst({
-    where: { companyId: null, key: "atlas.admin" },
+    where: { companyId: null, key: { in: ["runly.admin", "atlas.admin"] } },
   });
   const data = {
     enabled: true,
     system: true,
-    name: "Atlas Admin",
+    name: "Runly Admin",
     description: "Acceso total del sistema",
   };
   if (existing) {
     return db.role.update({ where: { id: existing.id }, data });
   }
-  return db.role.create({ data: { key: "atlas.admin", ...data } });
+  return db.role.create({ data: { key: "runly.admin", ...data } });
 }
 
 async function getSignedUrlByFileId(fileId, variant = "full") {
@@ -743,7 +743,7 @@ function parseIdentityUserIds(value) {
     );
 }
 
-const PROTECTED_IDENTITY_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+const PROTECTED_IDENTITY_ROLE_KEYS = new Set(["runly.admin", "atlas.admin", "system.admin"]);
 
 function hasProtectedIdentityAdminRole(user) {
   const memberships = Array.isArray(user?.memberships) ? user.memberships : [];
@@ -891,7 +891,7 @@ async function uploadIdentityAvatar({ profileId, file }) {
       originalName: file.name,
       mimeType: file.type,
       sizeBytes: file.size,
-      moduleKey: "atlas.identity",
+      moduleKey: "runly.identity",
       entityType: "UserProfile",
       entityId: profileId,
     },
@@ -991,7 +991,7 @@ await bundlerService.restoreModuleBundlesOnBoot();
 // indefinitely — desired for `node --watch src/index.js`, but it would
 // prevent the opt-in cross-tenant test suite (which imports this module,
 // see ATLAS_API_TEST_MODE above) from ever exiting after its tests finish.
-if (process.env.ATLAS_API_TEST_MODE !== "1") {
+if ((process.env.RUNLY_API_TEST_MODE ?? process.env.ATLAS_API_TEST_MODE) !== "1") {
   bundlerService.startDevWatcher();
 }
 
@@ -1001,7 +1001,7 @@ app.get("/health", (c) => {
   const now = new Date();
   return c.json({
     ok: true,
-    name: "Atlas API",
+    name: "Runly API",
     time: now.toISOString(),
     localTime: formatLogTimestamp(now),
     timeZone: getConfiguredTimeZone(),
@@ -1242,7 +1242,7 @@ app.post("/setup/initialize", async (c) => {
               originalName: logoFile.name,
               mimeType: logoFile.type,
               sizeBytes: logoFile.size,
-              moduleKey: "atlas.company",
+              moduleKey: "runly.company",
               entityType: "BrandingConfig",
               entityId: company.id,
             },
@@ -1795,7 +1795,7 @@ app.get(
           initialized: values.initialized === "true",
           companyId: values.company_id ?? null,
           completedAt: values.completed_at ?? null,
-          instanceName: values.instance_name ?? "Atlas ERP",
+          instanceName: values.instance_name ?? "Runly ERP",
           timeZone: values.instance_time_zone ?? "America/Mexico_City",
           currency: values.instance_currency ?? "MXN",
           description: values.instance_description ?? "",
@@ -2663,7 +2663,7 @@ app.delete(
         return c.json(
           {
             error:
-              "No se pueden eliminar usuarios con rol Atlas Admin o System Admin.",
+              "No se pueden eliminar usuarios con rol Runly Admin o System Admin.",
           },
           400,
         );
@@ -3007,7 +3007,7 @@ app.delete(
         return c.json(
           {
             error:
-              "No se puede eliminar un usuario con rol Atlas Admin o System Admin.",
+              "No se puede eliminar un usuario con rol Runly Admin o System Admin.",
           },
           400,
         );
@@ -3063,7 +3063,7 @@ app.patch(
           return c.json(
             {
               error:
-                "No se puede deshabilitar un usuario con rol Atlas Admin o System Admin.",
+                "No se puede deshabilitar un usuario con rol Runly Admin o System Admin.",
             },
             400,
           );
@@ -3198,7 +3198,7 @@ app.patch(
             return c.json(
               {
                 error:
-                  "Asignar el rol Atlas Admin o System Admin requiere permisos de gestion de roles.",
+                  "Asignar el rol Runly Admin o System Admin requiere permisos de gestion de roles.",
               },
               403,
             );
@@ -3664,7 +3664,7 @@ app.route("/pwa", pwaRouter);
 //    ASKING THE REPO OWNER (Raul) DIRECTLY FIRST.
 //    These routers are mounted at "/" and are registered BEFORE the public website
 //    handlers (`/public/site/*`, `/public/blueprints`, `/public/modules`, the
-//    atlas-sdk, the ERP badge) and BEFORE the dist-serve SPA-fallback middleware.
+//    runly-sdk, the ERP badge) and BEFORE the dist-serve SPA-fallback middleware.
 //    Any `use("*", authMiddleware)` installed at the ROOT of one of these sub-apps
 //    (i.e. `sub.use("*", authMiddleware)` + `app.route("", sub)`) will therefore
 //    swallow EVERY unmatched anonymous request with a 401 and take down the public
@@ -3680,9 +3680,9 @@ app.route("/", createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requir
 
 app.get("/public", (c) => {
   return c.json({
-    api: "Atlas ERP Public API",
+    api: "Runly ERP Public API",
     version: "1.0",
-    docs: "https://github.com/raulbellosom/atlaserp",
+    docs: "https://github.com/raulbellosom/runly-erp",
     endpoints: [
       // Discovery
       { method: "GET",  path: "/public",                                auth: "none",       description: "This index — lists all public endpoints" },
@@ -3725,22 +3725,26 @@ app.get("/public", (c) => {
   });
 });
 
-// Atlas client SDK — served at /atlas-sdk.js via nginx rewrite (/ → /public/site$uri)
-app.get("/public/site/atlas-sdk.js", async (c) => {
+// Runly client SDK — served at /runly-sdk.js via nginx rewrite (/ → /public/site$uri).
+// /public/site/atlas-sdk.js is kept serving the same file so pages generated
+// before this rename (their static HTML hardcodes that script src) keep working.
+async function serveRunlySdk(c) {
   const { readFile } = await import('node:fs/promises')
   const { fileURLToPath } = await import('node:url')
   const { dirname, join } = await import('node:path')
   const __dir   = dirname(fileURLToPath(import.meta.url))
-  const sdkPath = join(__dir, 'public', 'atlas-sdk.js')
+  const sdkPath = join(__dir, 'public', 'runly-sdk.js')
   try {
     const code = await readFile(sdkPath, 'utf8')
     c.header('Content-Type', 'application/javascript; charset=utf-8')
     c.header('Cache-Control', 'public, max-age=3600')
     return c.text(code)
   } catch {
-    return c.text('/* atlas-sdk not found */', 404)
+    return c.text('/* runly-sdk not found */', 404)
   }
-})
+}
+app.get("/public/site/runly-sdk.js", serveRunlySdk)
+app.get("/public/site/atlas-sdk.js", serveRunlySdk)
 
 // ERP beacon check — called client-side by the injected badge script.
 // Returns { show: true } only when the request carries a valid Atlas session
@@ -5103,7 +5107,7 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
   const secret = c.req.header("x-internal-secret");
   if (
     process.env.NODE_ENV === "production" &&
-    secret !== process.env.ATLAS_INTERNAL_SECRET
+    secret !== (process.env.RUNLY_INTERNAL_SECRET ?? process.env.ATLAS_INTERNAL_SECRET)
   ) {
     return c.json({ error: "Unauthorized" }, 401);
   }
@@ -5143,9 +5147,9 @@ app.post("/internal/notifications/process-deliveries", async (c) => {
 // module for app.request(...) and must never also bind the real port —
 // nothing else in the codebase sets this variable, and it defaults to
 // starting the server exactly as before.
-if (process.env.ATLAS_API_TEST_MODE !== "1") {
+if ((process.env.RUNLY_API_TEST_MODE ?? process.env.ATLAS_API_TEST_MODE) !== "1") {
   const server = serve({ fetch: app.fetch, port });
-  console.log(`Atlas API running on http://localhost:${port}`);
+  console.log(`Runly API running on http://localhost:${port}`);
 
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
   process.on("SIGINT", () => server.close(() => process.exit(0)));

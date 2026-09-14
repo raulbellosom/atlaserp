@@ -163,3 +163,12 @@ Kanban boards with drag-and-drop (desktop + touch), inline @mention for members,
 Canonical runtime/seed manifests for official modules are in:
 - `apps/api/src/manifests/official/core-modules.js` — atlas.core, atlas.identity, atlas.files, atlas.company, atlas.fleet, atlas.ledger, atlas.catalog, atlas.calendar
 - `apps/api/src/manifests/official/feature-modules.js` — atlas.contacts, atlas.hr, atlas.website, atlas.activity, atlas.notifications (and `featureModules = []` export, all are seeded via `coreModules` array in core-modules.js)
+## atlas.files Office extension
+
+`atlas.files` optionally opens DOCX/XLSX/PPTX at
+`/app/m/atlas.files/files/:id/edit` with Collabora CODE. Read-only users receive a
+view session; editing requires current `files.assets.update` in the document's
+company and access to any parent entity. Shared attachments reuse the same
+entry point. FileAssetVersion stores internal recovery pointers; no extra asset
+is created on save. The original file previews/downloads remain available when
+Office is disabled. See [Office operations](deployment/office-collabora.md).

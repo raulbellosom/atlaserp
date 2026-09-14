@@ -16,7 +16,7 @@ Atlas ERP is a module engine. Each ERP capability is modeled as a module that de
 Every AME3 module uses `defineAtlasModule` in `module.manifest.js`.
 
 ```js
-import { defineAtlasModule } from '@atlas/module-engine'
+import { defineAtlasModule } from '@runly/module-engine'
 
 export default defineAtlasModule({
   key: 'custom.fleet',

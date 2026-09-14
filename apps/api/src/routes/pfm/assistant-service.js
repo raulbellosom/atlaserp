@@ -4,7 +4,7 @@
 // in-memory per-actor rate limit, and the Groq tool-calling loop. Writes never
 // happen here — propose_movement (in assistant-tools.js) only validates and
 // returns a proposal for the client to confirm through the normal endpoint.
-import { toLocalIso, toLocalMonth } from "@atlas/core";
+import { toLocalIso, toLocalMonth } from "@runly/core";
 import { PfmServiceError, isTableNotFoundError } from "./service-helpers.js";
 import { TOOL_DEFS, buildToolRunners } from "./assistant-tools.js";
 import { isReasoningModel } from "../../services/groq-model-helpers.js";
@@ -25,7 +25,7 @@ function systemPrompt() {
   const date = toLocalIso(); // "2026-09-02" in ATLAS_TIME_ZONE
   const month = toLocalMonth(); // "2026-09"
   return [
-    "Eres el asistente de finanzas personales del usuario dentro de Atlas ERP.",
+    "Eres el asistente de finanzas personales del usuario dentro de Runly ERP.",
     `Hoy es ${date} y el mes en curso es ${month}. NO calcules fechas: usa estos valores.`,
     "Responde SOLO con datos obtenidos de las herramientas. Nunca inventes cifras.",
     "Si una herramienta no devuelve datos, dilo con claridad.",

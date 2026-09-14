@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, LogIn, RefreshCcw } from 'lucide-react'
-import { Button, Card, CardContent, ErrorState } from '@atlas/ui'
+import { Button, Card, CardContent, ErrorState } from '@runly/ui'
 import { toast } from 'sonner'
 import { useAuth } from '../auth/AuthProvider'
 import { AppLoader } from '../components/AppLoader'
-import { useFinishGoogleCalendarConnect } from '../modules/atlas.calendar/hooks/useGoogleCalendarData'
+import { useFinishGoogleCalendarConnect } from '../modules/runly.calendar/hooks/useGoogleCalendarData'
 
 const CALENDAR_RETURN_PATH = '/app/m/atlas.calendar/calendar'
 
@@ -14,7 +14,7 @@ function buildGoogleErrorMessage(errorCode) {
     return 'Cancelaste la autorizacion en Google. Puedes intentarlo de nuevo cuando quieras.'
   }
 
-  return `Google devolvio el error "${errorCode}". Intenta nuevamente desde Atlas.`
+  return `Google devolvio el error "${errorCode}". Intenta nuevamente desde Runly.`
 }
 
 export function GoogleCalendarCallbackScreen() {
@@ -156,7 +156,7 @@ export function GoogleCalendarCallbackScreen() {
               title="No se pudo completar la conexion con Google"
               description={
                 finishConnect.error?.message ||
-                'Reintenta la conexion desde Atlas o valida la configuracion OAuth.'
+                'Reintenta la conexion desde Runly o valida la configuracion OAuth.'
               }
               className="px-2 py-6"
             />

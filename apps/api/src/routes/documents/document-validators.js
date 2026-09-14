@@ -12,4 +12,4 @@ export {
   documentVersionPublishSchema,
   documentVersionUpdateSchema,
   validateDocumentBindings,
-} from "@atlas/validators";
+} from "@runly/validators";

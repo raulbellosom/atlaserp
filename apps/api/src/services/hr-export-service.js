@@ -61,7 +61,7 @@ const STATUS_LABELS = {
 
 export async function buildEmployeesExcelBuffer({ rows, companyName = "" }) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Atlas ERP";
+  wb.creator = "Runly ERP";
   wb.created = new Date();
 
   const sheet = wb.addWorksheet("Colaboradores", {

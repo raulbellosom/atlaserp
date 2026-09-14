@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useOfflineStore, OFFLINE_MODULES } from "@atlas/offline";
+import { useOfflineStore, OFFLINE_MODULES } from "@runly/offline";
 import { getModuleLaunchPath, getSortedDisplay } from "../lib/runtimeModules";
 import { isModuleOfflineBlocked, resolveMenuAnchor } from "../lib/moduleLauncher";
 import { useAppViewPrefs } from "./useAppViewPrefs";

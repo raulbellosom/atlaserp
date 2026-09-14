@@ -4,7 +4,7 @@
 // attachments) into one or more target conversations. Split into a sibling
 // file to keep index.js under the CLAUDE.md 1000-line limit.
 import { Hono } from "hono";
-import { chatForwardMessagesSchema } from "@atlas/validators";
+import { chatForwardMessagesSchema } from "@runly/validators";
 import { ChatServiceError } from "./chat-service-error.js";
 import { ChatPermissionsError } from "./chat-permissions-service.js";
 

@@ -1,4 +1,4 @@
-import { contactCreateSchema } from "@atlas/validators";
+import { contactCreateSchema } from "@runly/validators";
 
 class ContactsServiceError extends Error {
   constructor(message, status = 500) {

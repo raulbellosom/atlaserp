@@ -151,8 +151,8 @@ async function main() {
   // (companyId IS NULL) are upserted by hand via findFirst + create/update
   // instead of prisma.role.upsert().
   await upsertSystemRole({
-    key: 'atlas.admin',
-    name: 'Atlas Admin',
+    key: 'runly.admin',
+    name: 'Runly Admin',
     description: 'Full system access',
     system: true,
     enabled: true,
@@ -167,7 +167,7 @@ async function main() {
   })
 
   const adminRoles = await prisma.role.findMany({
-    where: { key: { in: ['atlas.admin', 'system.admin'] } },
+    where: { key: { in: ['runly.admin', 'system.admin'] } },
     select: { id: true }
   })
   const allPermissions = await prisma.permission.findMany({ select: { id: true } })
@@ -279,7 +279,7 @@ async function main() {
     // Table doesn't exist yet or migration not run — skip silently
   }
 
-  // Seed atlas.pfm system categories (owner_id = NULL) for every company.
+  // Seed runly.pfm system categories (owner_id = NULL) for every company.
   const PFM_SYSTEM_CATEGORIES = [
     { name: 'Comida',         kind: 'EXPENSE', color: '#f97316', icon: 'Utensils' },
     { name: 'Transporte',     kind: 'EXPENSE', color: '#3b82f6', icon: 'Car' },
@@ -310,12 +310,12 @@ async function main() {
         `
       }
     }
-    console.log(`atlas.pfm system categories seeded for ${allCompanies.length} company(s)`)
+    console.log(`runly.pfm system categories seeded for ${allCompanies.length} company(s)`)
   } catch {
     // Table doesn't exist yet or migration not run — skip silently
   }
 
-  console.log(`Atlas modules seeded (${officialModuleManifests.length})`)
+  console.log(`Runly modules seeded (${officialModuleManifests.length})`)
 
   // ------------------------------------------------------------------
   // Chat message templates (default set per company)
@@ -395,7 +395,7 @@ async function main() {
         WHERE up.is_bot = true LIMIT 1
       `
       if (existing.length) continue
-      const email = `meridian+${company.id}@bots.atlas.local`
+      const email = `meridian+${company.id}@bots.runly.local`
       const inserted = await prisma.$queryRaw`
         INSERT INTO user_profile (id, auth_user_id, display_name, first_name, last_name, email, is_bot, enabled, updated_at)
         VALUES (uuidv7(), gen_random_uuid(), 'MeridIAn', 'MeridIAn', '', ${email}, true, true, NOW())

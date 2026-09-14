@@ -1,4 +1,4 @@
-import { getOfficeFormat } from '@atlas/core';
+import { getOfficeFormat } from '@runly/core';
 import { OfficeError } from './errors.js';
 import { createFileAccess, FileAccessError } from '../files/access.js';
 
@@ -27,7 +27,7 @@ export function createOfficeAccess({ prisma }) {
     if (!role?.enabled) throw new OfficeError('No tienes acceso al documento.', 403, 'forbidden');
     const permissions = new Set();
     for (const { permission } of role.permissions) if (permission.active) permissions.add(permission.key);
-    const admin = ['atlas.admin', 'system.admin'].includes(role.key);
+    const admin = ['runly.admin', 'atlas.admin', 'system.admin'].includes(role.key);
     const can = key => admin || permissions.has(key);
     const requireAccess = key => { if (!can(key)) throw new OfficeError('No tienes permiso para abrir o editar este documento.', 403, 'forbidden'); };
     requireAccess('files.assets.read');
@@ -54,7 +54,7 @@ export function createOfficeAccess({ prisma }) {
       requireAccess(`${hr ? 'hr.employee' : 'contacts.contacts'}.${operation}`);
     } else if (file.entityType === 'InvItem' && file.invItemFiles.length) {
       // Verified above from the persisted join, never from the supplied item UUID.
-    } else if (file.entityType !== 'AtlasFile' || ![null, 'atlas.files'].includes(file.moduleKey) || (file.metadata?.sourceEntityId && file.metadata.sourceEntityId !== companyId)) {
+    } else if (file.entityType !== 'AtlasFile' || ![null, 'runly.files', 'atlas.files'].includes(file.moduleKey) || (file.metadata?.sourceEntityId && file.metadata.sourceEntityId !== companyId)) {
       throw new OfficeError('Este origen aún no admite edición Office.', 403, 'unsupported_scope');
     }
     try { await fileAccess.assertAccess(file, { profileId: profile.id, admin }, mode === 'edit' ? 'write' : 'read', db); }

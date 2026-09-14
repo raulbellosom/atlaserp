@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, PageHeader, EmptyState, ErrorState } from '@atlas/ui'
+import { Button, PageHeader, EmptyState, ErrorState } from '@runly/ui'
 import { native } from './index.js'
 
 export function NativeHostDiagnostics() {
@@ -28,7 +28,7 @@ export function NativeHostDiagnostics() {
         call: testCallNotification,
         media: testMedia,
         haptics: async () => { await native.haptics.impact(); return 'Vibración solicitada.' },
-        external: () => native.openExternal('https://github.com/raulbellosom/atlaserp'),
+        external: () => native.openExternal('https://github.com/raulbellosom/runly-erp'),
       }[kind]
       const message = await action()
       if (typeof message === 'string') setStatus(message)
@@ -54,7 +54,7 @@ export function NativeHostDiagnostics() {
 
   async function testNotification() {
     if (await native.notifications.requestPermission() !== 'granted') throw new Error('Permiso de notificaciones denegado.')
-    await native.notifications.show({ title: 'Atlas ERP', body: 'La notificación local funciona.', tag: 'native-diagnostics' })
+    await native.notifications.show({ title: 'Runly ERP', body: 'La notificación local funciona.', tag: 'native-diagnostics' })
     return 'Notificación enviada.'
   }
 
@@ -66,8 +66,8 @@ export function NativeHostDiagnostics() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <PageHeader title="Diagnóstico de Atlas" description="Comprueba la conexión con las funciones de tu dispositivo." />
-      {!native.isAvailable() ? <EmptyState title="Atlas Web" description="Estas pruebas están disponibles desde la aplicación instalada." /> : <>
+      <PageHeader title="Diagnóstico de Runly" description="Comprueba la conexión con las funciones de tu dispositivo." />
+      {!native.isAvailable() ? <EmptyState title="Runly Web" description="Estas pruebas están disponibles desde la aplicación instalada." /> : <>
         {info && <dl className="grid grid-cols-2 gap-3 text-sm">
           <dt>Versión de la aplicación nativa</dt><dd>{info.nativeHostVersion}</dd>
           <dt>Plataforma</dt><dd>{info.platform}</dd>

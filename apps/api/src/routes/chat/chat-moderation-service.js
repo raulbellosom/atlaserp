@@ -14,7 +14,7 @@ export class ChatModerationServiceError extends Error {
 // resolveReport is reachable via the narrower identity.chat_reports.manage permission
 // (not identity.users.update), so someone granted only "review chat reports" must not
 // be able to disable an Atlas Admin / System Admin account through this side door.
-const PROTECTED_IDENTITY_ROLE_KEYS = new Set(["atlas.admin", "system.admin"]);
+const PROTECTED_IDENTITY_ROLE_KEYS = new Set(["runly.admin", "atlas.admin", "system.admin"]);
 
 function hasProtectedIdentityAdminRole(user) {
   const memberships = Array.isArray(user?.memberships) ? user.memberships : [];
@@ -178,7 +178,7 @@ export function createChatModerationService({ prisma }) {
       });
       if (hasProtectedIdentityAdminRole(targetUser)) {
         throw new ChatModerationServiceError(
-          "No se puede deshabilitar un usuario con rol Atlas Admin o System Admin.",
+          "No se puede deshabilitar un usuario con rol Runly Admin o System Admin.",
           400,
         );
       }

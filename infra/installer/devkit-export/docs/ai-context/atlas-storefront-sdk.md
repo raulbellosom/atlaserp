@@ -1,8 +1,11 @@
 # Atlas Storefront SDK - AI Context Reference
 
+Migration: `@raulbellosom/runly-sdk` is the new local package name. Publish it before switching external npm installations; existing `@raulbellosom/atlas-sdk` consumers remain compatible.
+
+
 This document is the canonical integration reference for public Atlas websites:
 
-- npm package `@raulbellosom/atlas-sdk` in `packages/storefront-sdk`
+- npm package `@raulbellosom/runly-sdk` in `packages/storefront-sdk`
 - browser IIFE `/atlas-sdk.js` in `apps/api/src/public/atlas-sdk.js`
 - runtime config `window.ATLAS_CONFIG`
 - Website Builder and uploaded `dist` sites
@@ -45,7 +48,7 @@ The Builder runtime receives the equivalent config from
 ## npm SDK 0.4.7
 
 ```js
-import { createStorefrontClient } from '@raulbellosom/atlas-sdk'
+import { createStorefrontClient } from '@raulbellosom/runly-sdk'
 
 const cfg = (typeof window !== 'undefined' && window.ATLAS_CONFIG) ? window.ATLAS_CONFIG : {}
 
@@ -309,7 +312,7 @@ await sdk.guestChat.closeSession(token)
 
 **React:** `useGuestChat(sdk)` manages the full lifecycle (availability, session restore, messages, realtime). Returns `{ screen, setScreen, availability, session, trackingCode, messages, isSending, startError, resumeError, startSession, resumeByCode, sendMessage, sendFile, closeSession }`.
 
-`<ChatWidget sdk={sdk} companyName="..." accentColor="#..." />` is a drop-in fully-styled floating widget built on `useGuestChat`. Import from `@raulbellosom/atlas-sdk/react`.
+`<ChatWidget sdk={sdk} companyName="..." accentColor="#..." />` is a drop-in fully-styled floating widget built on `useGuestChat`. Import from `@raulbellosom/runly-sdk/react`.
 
 ## Verification
 
@@ -321,5 +324,5 @@ node --test apps/api/src/public/__tests__/atlas-sdk.test.js
 node --test apps/api/src/routes/storefront/__tests__/storefront-capture-routes.test.js
 node --test apps/api/src/services/__tests__/storefront-capture-service.test.js
 node --test apps/api/src/services/__tests__/growth-retention-worker.test.js
-pnpm --filter @atlas/desktop build:web
+pnpm --filter @runly/desktop build:web
 ```

@@ -1,4 +1,4 @@
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'goldenpath.dashboard',

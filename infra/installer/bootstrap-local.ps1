@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$baseUrl = "https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer"
+$baseUrl = "https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer"
 if (-not $SkipBootstrapRefresh) {
   $bootstrapDownload = "$PSCommandPath.download"
   try {
@@ -30,6 +30,7 @@ $files = @(
   "docker-compose.yml",
   "docker-compose.linux.yml",
   "lib/devkit-installer.mjs",
+  "lib/env-compat.mjs",
   "lib/office-config.mjs",
   "lib/firebase-config.mjs",
   "lib/livekit-config.mjs",
@@ -58,10 +59,10 @@ New-Item -ItemType Directory -Force -Path (Join-Path $PWD ".secrets/firebase") |
 
 Write-Host "[atlas-bootstrap] Archivos listos."
 if ($SkipRun) {
-  Write-Host "[atlas-bootstrap] Ejecucion omitida. Usa: npm.cmd run atlas:local"
+  Write-Host "[atlas-bootstrap] Ejecucion omitida. Usa: npm.cmd run runly:local"
   exit 0
 }
 
 Write-Host "[atlas-bootstrap] Iniciando instalacion local..."
-& npm.cmd run atlas:local
+& npm.cmd run runly:local
 exit $LASTEXITCODE

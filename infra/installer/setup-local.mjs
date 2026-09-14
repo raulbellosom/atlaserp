@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { withRunlyEnvAliases, canonicalizeRunlyEnvText, mergeRunlyEnvText } from "./lib/env-compat.mjs";
+import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { configureOffice, checkOfficeRuntime, OFFICE_ENV_KEYS, parseOfficeEnv } from "./lib/office-config.mjs";
 import { configureFirebase, preserveFirebaseEnv } from "./lib/firebase-config.mjs";
 
@@ -33,7 +35,7 @@ const linuxComposeOverride = path.resolve(__dirname, "docker-compose.linux.yml")
 const localEnvFile = path.resolve(__dirname, ".env.local");
 const supabaseWorkdir = path.resolve(__dirname, ".supabase-local");
 const supabaseConfig = path.resolve(supabaseWorkdir, "supabase", "config.toml");
-const devKitDir = path.resolve(__dirname, "custom-modules", "_atlas-devkit");
+const devKitDir = resolveDevKitDir(path.resolve(__dirname, "custom-modules"));
 const liveKitConfigFile = path.resolve(__dirname, "livekit", "livekit.yaml");
 const liveKitCaddyFile = path.resolve(__dirname, "livekit", "Caddyfile");
 const legacyLiveKitExternalProxyFile = path.resolve(__dirname, "livekit", "reverse-proxy.nginx.conf");
@@ -47,28 +49,28 @@ const composeFiles = isLinux && fsSync.existsSync(linuxComposeOverride)
   ? ["-f", composeFile, "-f", linuxComposeOverride]
   : ["-f", composeFile];
 
-const docsRepoOwner = process.env.ATLAS_DOCS_REPO_OWNER ?? "raulbellosom";
-const docsRepoName = process.env.ATLAS_DOCS_REPO_NAME ?? "atlaserp";
-const docsRepoRef = process.env.ATLAS_DOCS_REPO_REF ?? "main";
+const docsRepoOwner = (process.env.RUNLY_DOCS_REPO_OWNER ?? process.env.ATLAS_DOCS_REPO_OWNER) ?? "raulbellosom";
+const docsRepoName = (process.env.RUNLY_DOCS_REPO_NAME ?? process.env.ATLAS_DOCS_REPO_NAME) ?? "runly-erp";
+const docsRepoRef = (process.env.RUNLY_DOCS_REPO_REF ?? process.env.ATLAS_DOCS_REPO_REF) ?? "main";
 const docsRawBase =
-  process.env.ATLAS_DOCS_RAW_BASE ??
+  (process.env.RUNLY_DOCS_RAW_BASE ?? process.env.ATLAS_DOCS_RAW_BASE) ??
   `https://raw.githubusercontent.com/${docsRepoOwner}/${docsRepoName}/${docsRepoRef}`;
 const DEVKIT_EXPORT_REPO_PATH = "infra/installer/devkit-export";
 
 const apiImage =
-  process.env.ATLAS_API_LOCAL_IMAGE ?? "raulbellosom/atlaserp:api-latest";
+  (process.env.RUNLY_API_LOCAL_IMAGE ?? process.env.ATLAS_API_LOCAL_IMAGE) ?? "raulbellosom/runlyerp:api-latest";
 const workerImage =
-  process.env.ATLAS_WORKER_LOCAL_IMAGE ??
-  "raulbellosom/atlaserp:worker-latest";
+  (process.env.RUNLY_WORKER_LOCAL_IMAGE ?? process.env.ATLAS_WORKER_LOCAL_IMAGE) ??
+  "raulbellosom/runlyerp:worker-latest";
 const webImage =
-  process.env.ATLAS_WEB_LOCAL_IMAGE ?? "raulbellosom/atlaserp:web-latest";
+  (process.env.RUNLY_WEB_LOCAL_IMAGE ?? process.env.ATLAS_WEB_LOCAL_IMAGE) ?? "raulbellosom/runlyerp:web-latest";
 const liveKitImage = process.env.LIVEKIT_IMAGE ?? "livekit/livekit-server:v1.12.0";
 const liveKitRedisImage = process.env.LIVEKIT_REDIS_IMAGE ?? "redis:7-alpine";
 const liveKitCaddyImage = process.env.LIVEKIT_CADDY_IMAGE ?? "caddy:2-alpine";
 
-const fallbackApiImage = "raulbellosom/atlaserp:api-latest";
-const fallbackWorkerImage = "raulbellosom/atlaserp:worker-latest";
-const fallbackWebImage = "raulbellosom/atlaserp:web-latest";
+const fallbackApiImage = "raulbellosom/runlyerp:api-latest";
+const fallbackWorkerImage = "raulbellosom/runlyerp:worker-latest";
+const fallbackWebImage = "raulbellosom/runlyerp:web-latest";
 
 function run(command, args, { cwd = installerDir, env = process.env } = {}) {
   const result = spawnSync(command, args, {
@@ -406,16 +408,19 @@ async function writeLocalEnv(envMap) {
 
   const containerSupabaseUrl = replaceUrlHost(envMap.get("API_URL"), "host.docker.internal");
   const containerDbUrl = replaceUrlHost(envMap.get("DB_URL"), "host.docker.internal");
-  // On a VPS exposed via Nginx, set ATLAS_SUPABASE_PUBLIC_URL to the public Supabase URL
+  // On a VPS exposed via Nginx, set RUNLY_SUPABASE_PUBLIC_URL to the public Supabase URL
   // (e.g. https://supabase.yourdomain.com) so the browser can reach it from the internet.
-  const browserSupabaseUrl = process.env.ATLAS_SUPABASE_PUBLIC_URL
-    ? process.env.ATLAS_SUPABASE_PUBLIC_URL.replace(/\/$/, "")
-    : replaceUrlHost(envMap.get("API_URL"), "localhost");
-
   // Preserve user-configured vars across re-runs so re-generating Supabase credentials
   // does not wipe deployment-specific settings (CORS, Google OAuth, etc.).
   let existingEnvContent = "";
   try { existingEnvContent = await fs.readFile(localEnvFile, "utf8"); } catch { /* first run */ }
+  let existingComposeContent = "";
+  try { existingComposeContent = await fs.readFile(path.resolve(installerDir, ".env"), "utf8"); } catch { /* first run */ }
+  const deploymentValues = withRunlyEnvAliases(parseOfficeEnv(existingComposeContent), parseOfficeEnv(existingEnvContent), process.env);
+  const browserSupabaseUrl = deploymentValues.RUNLY_SUPABASE_PUBLIC_URL
+    ? deploymentValues.RUNLY_SUPABASE_PUBLIC_URL.replace(/\/$/, "")
+    : replaceUrlHost(envMap.get("API_URL"), "localhost");
+  const publicApiUrl = deploymentValues.RUNLY_API_URL ?? "";
 
   const corsOrigin         = parseEnvValue(existingEnvContent, "CORS_ORIGIN")                 || "http://localhost:5173";
   const googleClientId     = parseEnvValue(existingEnvContent, "GOOGLE_OAUTH_CLIENT_ID")     || "<YOUR_GOOGLE_OAUTH_CLIENT_ID>";
@@ -447,7 +452,7 @@ async function writeLocalEnv(envMap) {
   });
   await writeLiveKitArtifacts(liveKit);
 
-  const officeValues = { ...parseOfficeEnv(existingEnvContent), ...process.env };
+  const officeValues = withRunlyEnvAliases(parseOfficeEnv(existingEnvContent), process.env);
   const officePreserved = OFFICE_ENV_KEYS.filter(key => officeValues[key] !== undefined).map(key => `${key}=${officeValues[key]}`).join("\n");
   const envContent = `${preserveFirebaseEnv(existingEnvContent)}\n${officePreserved}\n# Auto-generated by infra/installer/setup-local.mjs
 # Re-run the script anytime to refresh local Supabase credentials.
@@ -471,6 +476,7 @@ DIRECT_URL=${containerDbUrl}
 
 VITE_SUPABASE_URL=${browserSupabaseUrl}
 VITE_SUPABASE_ANON_KEY=${envMap.get("ANON_KEY")}
+RUNLY_SUPABASE_PUBLIC_URL=${deploymentValues.RUNLY_SUPABASE_PUBLIC_URL ?? ""}
 VITE_ATLAS_API_URL=http://localhost:4010
 CORS_ORIGIN=${corsOrigin}
 
@@ -507,7 +513,7 @@ LIVEKIT_API_KEY=${liveKit.apiKey}
 LIVEKIT_API_SECRET=${liveKit.apiSecret}
 `;
 
-  await fs.writeFile(localEnvFile, envContent, { encoding: "utf8", mode: 0o600 });
+  await fs.writeFile(localEnvFile, mergeRunlyEnvText(envContent, existingEnvContent, process.env), { encoding: "utf8", mode: 0o600 });
   try { await fs.chmod(localEnvFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
 
   // Docker Compose auto-loads a file named exactly ".env" in the same directory
@@ -522,9 +528,9 @@ LIVEKIT_API_SECRET=${liveKit.apiSecret}
 #   ATLAS_SUPABASE_PUBLIC_URL=https://supabase.yourdomain.com ATLAS_API_URL=https://api.yourdomain.com node setup-local.mjs
 SUPABASE_URL=${browserSupabaseUrl}
 SUPABASE_ANON_KEY=${envMap.get("ANON_KEY")}
-${process.env.ATLAS_API_URL ? `ATLAS_API_URL=${process.env.ATLAS_API_URL}` : "# ATLAS_API_URL defaults to http://localhost:4010 — override for VPS/public deployments"}
+${publicApiUrl ? `RUNLY_API_URL=${publicApiUrl}` : "# ATLAS_API_URL defaults to http://localhost:4010 — override for VPS/public deployments"}
 `;
-  await fs.writeFile(composeEnvFile, composeEnvContent, "utf8");
+  await fs.writeFile(composeEnvFile, canonicalizeRunlyEnvText(composeEnvContent), "utf8");
   const office = await configureOffice({ envFile: localEnvFile, composeEnvFile });
   await configureFirebase({ envFile: localEnvFile });
   return { liveKit, office };
@@ -636,8 +642,11 @@ async function main() {
     {
       env: {
         ...process.env,
+        RUNLY_API_LOCAL_IMAGE: resolvedApiImage,
         ATLAS_API_LOCAL_IMAGE: resolvedApiImage,
+        RUNLY_WORKER_LOCAL_IMAGE: resolvedWorkerImage,
         ATLAS_WORKER_LOCAL_IMAGE: resolvedWorkerImage,
+        RUNLY_WEB_LOCAL_IMAGE: resolvedWebImage,
         ATLAS_WEB_LOCAL_IMAGE: resolvedWebImage,
         LIVEKIT_IMAGE: liveKitImage,
         LIVEKIT_REDIS_IMAGE: liveKitRedisImage,

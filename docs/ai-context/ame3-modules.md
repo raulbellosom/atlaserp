@@ -1,13 +1,13 @@
 # AME3 Custom Modules — AI Reference Guide
 
-This is the single source of truth for creating and modifying custom AME3 modules in Atlas ERP v2.
+This is the single source of truth for creating and modifying custom AME3 modules in Runly ERP v2.
 Read this document before touching any file under `modules/custom/`.
 
 ---
 
 ## 1. What is AME3
 
-Atlas ERP v2 uses Atlas Module Engine v3 (AME3) for all ERP feature modules. A module is a
+Runly ERP v2 uses Atlas Module Engine v3 (AME3) for all ERP feature modules. A module is a
 self-contained directory under `modules/custom/<moduleKey>/` that declares its own data models,
 views, pages, API routes, and permissions. The Atlas Core reads these declarations and drives
 all behavior from them.
@@ -24,10 +24,12 @@ all behavior from them.
 
 For installer-mode workspaces, the official authoring flow is:
 
-1. Read `custom-modules/_atlas-devkit/AGENTS.md`
-2. Read `custom-modules/_atlas-devkit/docs/ai-context/ame3-modules.md`
-3. Read `custom-modules/_atlas-devkit/docs/ai-context/ame3-runtime-capabilities.md`
-4. Copy `custom-modules/_atlas-devkit/golden-path-module/`
+Existing installations may use `_atlas-devkit/`; use that directory in the steps below when present.
+
+1. Read `custom-modules/_runly-devkit/AGENTS.md`
+2. Read `custom-modules/_runly-devkit/docs/ai-context/ame3-modules.md`
+3. Read `custom-modules/_runly-devkit/docs/ai-context/ame3-runtime-capabilities.md`
+4. Copy `custom-modules/_runly-devkit/golden-path-module/`
 5. Rename it to your new module key and edit the files directly
 
 For source-mode workspaces inside this repo, use the same structure and patterns.
@@ -107,7 +109,7 @@ Complete module with two entities:
 
 ```
 modules/custom/custom.crm/
-  module.manifest.js             ← defineAtlasModule — metadata, permissions, nav
+  module.manifest.js             ← defineRunlyModule — metadata, permissions, nav
   models/
     contact.model.js             ← defineModel for crm_contact table
     company.model.js             ← defineModel for crm_company table
@@ -396,9 +398,9 @@ import { CrmServiceError } from './service-helpers.js'
 ### 4.8 Complete `module.manifest.js` example
 
 ```js
-import { defineAtlasModule } from '@atlas/module-engine'
+import { defineRunlyModule } from '@runly/module-engine'
 
-export default defineAtlasModule({
+export default defineRunlyModule({
   key: 'custom.crm',
   name: 'CRM',
   version: '0.1.0',
@@ -450,7 +452,7 @@ export default defineAtlasModule({
 ### 4.9 Complete `models/contact.model.js` example
 
 ```js
-import { defineModel } from '@atlas/module-engine'
+import { defineModel } from '@runly/module-engine'
 
 export default defineModel({
   key: 'contact',
@@ -520,7 +522,7 @@ Source of truth: `packages/module-engine/src/constants.js` (`FIELD_TYPES` export
 Permission key format: `<moduleSlug>.<entityName>.<action>` where action ∈ {read, create, update, delete}.
 
 ```js
-// Declare in defineAtlasModule
+// Declare in defineRunlyModule
 permissions: [
   { key: 'crm.contact.read',   name: 'Ver contactos' },
   { key: 'crm.contact.create', name: 'Crear contactos' },
@@ -600,7 +602,7 @@ a registered React component at a specific URL via `ImmersiveShell`.
 
 ```js
 // views/dashboard.custom.js
-import { defineView } from '@atlas/module-engine'
+import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: 'crm.dashboard',
@@ -628,7 +630,7 @@ export async function register(registry) {
 // components/CrmDashboard.jsx
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PageHeader, Card, CardHeader, CardTitle, CardContent, Skeleton, EmptyState } from '@atlas/ui'
+import { PageHeader, Card, CardHeader, CardTitle, CardContent, Skeleton, EmptyState } from '@runly/ui'
 
 export default function CrmDashboard() {
   const [filter, setFilter] = useState('all')

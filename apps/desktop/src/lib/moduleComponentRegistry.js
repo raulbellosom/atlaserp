@@ -1,18 +1,18 @@
 import { createModuleComponentRegistry } from "./module-component-registry-core.js";
 
 // atlas.fleet static cell components (migrated from bundle to static import)
-import VehicleStatusBadge from "../modules/atlas.fleet/components/VehicleStatusBadge.jsx";
-import DriverStatusBadge from "../modules/atlas.fleet/components/DriverStatusBadge.jsx";
-import DriverLicenseBadge from "../modules/atlas.fleet/components/DriverLicenseBadge.jsx";
-import ReportStatusBadge from "../modules/atlas.fleet/components/ReportStatusBadge.jsx";
-import DriverAvatarCell from "../modules/atlas.fleet/components/DriverAvatarCell.jsx";
-import DriverAssignedVehicleCell from "../modules/atlas.fleet/components/DriverAssignedVehicleCell.jsx";
-import VehicleImageCell from "../modules/atlas.fleet/components/VehicleImageCell.jsx";
-import InsuranceBadgeCell from "../modules/atlas.fleet/components/InsuranceBadgeCell.jsx";
-import CoverageTypeBadge from "../modules/atlas.fleet/components/CoverageTypeBadge.jsx";
+import VehicleStatusBadge from "../modules/runly.fleet/components/VehicleStatusBadge.jsx";
+import DriverStatusBadge from "../modules/runly.fleet/components/DriverStatusBadge.jsx";
+import DriverLicenseBadge from "../modules/runly.fleet/components/DriverLicenseBadge.jsx";
+import ReportStatusBadge from "../modules/runly.fleet/components/ReportStatusBadge.jsx";
+import DriverAvatarCell from "../modules/runly.fleet/components/DriverAvatarCell.jsx";
+import DriverAssignedVehicleCell from "../modules/runly.fleet/components/DriverAssignedVehicleCell.jsx";
+import VehicleImageCell from "../modules/runly.fleet/components/VehicleImageCell.jsx";
+import InsuranceBadgeCell from "../modules/runly.fleet/components/InsuranceBadgeCell.jsx";
+import CoverageTypeBadge from "../modules/runly.fleet/components/CoverageTypeBadge.jsx";
 
-import LeadStatusBadge from "../modules/atlas.growth/components/LeadStatusBadge.jsx";
-import LeadPriorityBadge from "../modules/atlas.growth/components/LeadPriorityBadge.jsx";
+import LeadStatusBadge from "../modules/runly.growth/components/LeadStatusBadge.jsx";
+import LeadPriorityBadge from "../modules/runly.growth/components/LeadPriorityBadge.jsx";
 
 const _isDev = Boolean(import.meta.env?.DEV);
 

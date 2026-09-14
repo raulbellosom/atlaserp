@@ -8,9 +8,12 @@ test('installer package.json exposes simple cross-platform scripts for local, ex
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'))
   const scripts = packageJson.scripts ?? {}
 
-  assert.equal(packageJson.name, 'atlaserp-installer')
+  assert.equal(packageJson.name, 'runlyerp-installer')
   assert.equal(packageJson.private, true)
   assert.equal(packageJson.type, 'module')
+  for (const key of ['local', 'local:docs', 'external', 'external:docs', 'stop:local', 'stop:external']) {
+    assert.equal(scripts[`runly:${key}`], scripts[`atlas:${key}`])
+  }
 
   assert.equal(scripts['atlas:local'], 'node ./setup-local.mjs')
   assert.equal(scripts['atlas:local:docs'], 'node ./setup-local.mjs --docs-only')
@@ -23,10 +26,10 @@ test('installer package.json exposes simple cross-platform scripts for local, ex
 test('installer README advertises npm script shortcuts after bootstrap download', async () => {
   const readme = await fs.readFile(path.resolve('infra/installer/README.md'), 'utf8')
 
-  assert.match(readme, /npm run atlas:local/i, 'installer README must advertise npm run atlas:local')
-  assert.match(readme, /npm\.cmd run atlas:local/i, 'installer README must show npm.cmd for PowerShell users')
-  assert.match(readme, /npm run atlas:external/i, 'installer README must advertise npm run atlas:external')
-  assert.match(readme, /npm run atlas:local:docs/i, 'installer README must advertise npm run atlas:local:docs')
+  assert.match(readme, /npm run runly:local/i, 'installer README must advertise npm run runly:local')
+  assert.match(readme, /npm\.cmd run runly:local/i, 'installer README must show npm.cmd for PowerShell users')
+  assert.match(readme, /npm run runly:external/i, 'installer README must advertise npm run runly:external')
+  assert.match(readme, /npm run runly:local:docs/i, 'installer README must advertise npm run runly:local:docs')
 })
 
 test('installer quick-start docs use bootstrap scripts instead of hardcoded file lists or fixed drive paths', async () => {

@@ -148,7 +148,7 @@ describe("shares-service — listShareableUsers", () => {
 
     assert.deepEqual(users, [{ id: OTHER, displayName: "Dana", email: "d@x.com", avatarUrl: null }]);
     assert.match(captured, /p\.key = 'notes\.notes\.read'/);
-    assert.match(captured, /r\.key in \('atlas\.admin', 'system\.admin'\)/);
+    assert.match(captured, /r\.key in \('runly\.admin', 'atlas\.admin', 'system\.admin'\)/);
     assert.match(captured, /m_target\.user_id <> /);
   });
 });

@@ -86,12 +86,12 @@ Source of truth: Prisma → API service → Zod validator → Blueprint (UI hint
 Every blueprint stored in the database must have a corresponding:
 - Prisma model
 - API routes (minimum: list + create)
-- Zod schema in `@atlas/validators`
+- Zod schema in `@runly/validators`
 - UI renderer (DynamicForm/DynamicTable or custom component)
 
 ## DynamicForm and DynamicTable (Phase 3)
 
-**DynamicForm** — reads ENTITY or FORM blueprint, renders React Hook Form. Field validation sourced from `@atlas/validators` Zod schemas.
+**DynamicForm** — reads ENTITY or FORM blueprint, renders React Hook Form. Field validation sourced from `@runly/validators` Zod schemas.
 
 **DynamicTable** — reads TABLE blueprint, renders TanStack Table with configured columns, sortable headers, and pagination.
 

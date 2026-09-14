@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { getLegacyModuleKey } from '@runly/core';
 import { useQuery } from "@tanstack/react-query";
 import { atlas } from "../lib/atlas";
 import { getAvailableModules, mergeRuntimeModules } from "../lib/runtimeModules";
@@ -22,6 +23,7 @@ export function useRuntimeModules() {
     () =>
       mergeRuntimeModules(modulesQuery.data, {
         includeManifestFallback: false,
+        preferApiNavigation: true,
       }),
     [modulesQuery.data],
   );
@@ -31,7 +33,7 @@ export function useRuntimeModules() {
   const runtimeModulesResolved = useMemo(() => {
     if (!companyPrimaryColor) return runtimeModules;
     return runtimeModules.map((m) =>
-      m.key === "atlas.company" ? { ...m, color: companyPrimaryColor } : m,
+      getLegacyModuleKey(m.key) === "atlas.company" ? { ...m, color: companyPrimaryColor } : m,
     );
   }, [runtimeModules, companyPrimaryColor]);
 

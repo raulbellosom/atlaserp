@@ -65,9 +65,9 @@ export function generateManifest(config) {
     .map((e) => `  '${slug}_${e.name}',`)
     .join('\n')
 
-  return `import { defineAtlasModule } from '@atlas/module-engine'
+  return `import { defineRunlyModule } from '@runly/module-engine'
 
-export default defineAtlasModule({
+export default defineRunlyModule({
   key: '${config.key}',
   name: '${config.name}',
   version: '${version}',

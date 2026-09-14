@@ -250,7 +250,7 @@ export const PERMISSION_CATALOG = {
   "platform.erp.access": {
     displayNameEs: "Acceder al ERP",
     descriptionEs:
-      "Permite iniciar sesion y usar la aplicacion Atlas ERP. Sin este permiso el usuario solo puede acceder al sitio web publico.",
+      "Permite iniciar sesion y usar la aplicacion Runly ERP. Sin este permiso el usuario solo puede acceder al sitio web publico.",
     groupKey: "platform",
     order: 1,
   },

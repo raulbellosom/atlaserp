@@ -21,5 +21,5 @@
 #-renamesourcefileattribute SourceFile
 
 # Loaded by Tauri's Rust registration through reflection.
--keep class com.racoondevs.atlaserp.ScreenSharePlugin { *; }
--keep class com.racoondevs.atlaserp.ScreenShareArgs { *; }
+-keep class com.racoondevs.runlyerp.ScreenSharePlugin { *; }
+-keep class com.racoondevs.runlyerp.ScreenShareArgs { *; }

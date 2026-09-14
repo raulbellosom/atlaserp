@@ -100,7 +100,7 @@ export function createSettingsRouter({ prisma, requirePermission }) {
 
       await smtpSvc.sendEmail({
         to:      userProfile?.email ?? 'test@example.com',
-        subject: 'Atlas ERP — Prueba de SMTP',
+        subject: 'Runly ERP — Prueba de SMTP',
         html:    '<p>La configuracion SMTP funciona correctamente.</p>',
         text:    'La configuracion SMTP funciona correctamente.',
       })

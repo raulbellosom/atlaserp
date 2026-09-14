@@ -8,7 +8,7 @@ import { PublicPageLoader, storePublicSiteHint } from '../components/PublicPageL
 import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'
 import { EditorContextBar } from '../website/EditorContextBar.jsx'
-import WebsitePageEditorScreen from '../modules/atlas.website/screens/WebsitePageEditorScreen.jsx'
+import WebsitePageEditorScreen from '../modules/runly.website/screens/WebsitePageEditorScreen.jsx'
 import { BAR_H_PX } from '../website/EditorContextBar.jsx'
 import { toast } from 'sonner'
 
@@ -133,8 +133,8 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
           borderBottom: '1px solid rgba(17,16,16,.07)',
         }}>
           <img
-            src="/brand/atlas-logo-monochrome-dark.png"
-            alt="Atlas ERP"
+            src="/runly/runly-logo-light.png"
+            alt="Runly ERP"
             style={{ height: 28, width: 'auto', display: 'block', objectFit: 'contain' }}
           />
 
@@ -154,7 +154,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
           >
             {isLoggedIn ? (
               <>
-                Ir a Atlas ERP
+                Ir a Runly ERP
                 <svg viewBox="0 0 14 14" fill="none" style={{ width: 11, height: 11 }}>
                   <path d="M2.5 7h9M8 3.5l3.5 3.5L8 10.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -207,7 +207,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
             fontWeight: 700, letterSpacing: '0.28em',
             textTransform: 'uppercase', whiteSpace: 'nowrap',
           }}>
-            Atlas ERP · Sitio web
+            Runly ERP · Sitio web
           </div>
 
           {/* Corner lines — bottom right */}
@@ -300,7 +300,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
               e.currentTarget.style.gap = '10px'
             }}
             >
-              {isLoggedIn ? 'Ir a Atlas ERP' : 'Panel de administracion'}
+              {isLoggedIn ? 'Ir a Runly ERP' : 'Panel de administracion'}
               <svg viewBox="0 0 16 16" fill="none" style={{ width: 12, height: 12 }}>
                 <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -319,7 +319,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
           borderTop: '1px solid rgba(17,16,16,.06)',
         }}>
           <span style={{ color: 'rgba(17,16,16,.25)', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-            Atlas ERP
+            Runly ERP
           </span>
           <span style={{ color: 'rgba(17,16,16,.2)', fontSize: 10, fontWeight: 500 }}>
             {new Date().getFullYear()} — Todos los derechos reservados
@@ -444,7 +444,7 @@ function DraftViewScreen({ onOpenEditor, topOffset = 0 }) {
           textTransform: 'uppercase', whiteSpace: 'nowrap',
           zIndex: 2,
         }}>
-          Atlas ERP · Editor
+          Runly ERP · Editor
         </div>
 
         {/* Corner dots decoration */}
@@ -664,7 +664,7 @@ function ErpBeacon({ erpPath = '/app/' }) {
           <path d="M6 10h8M10 6v8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <span style={{ whiteSpace: 'nowrap', transition: 'opacity .15s', opacity: expanded ? 1 : 0 }}>
-          Atlas ERP
+          Runly ERP
         </span>
       </a>
     </div>
@@ -763,8 +763,8 @@ export function PublicWebsiteEntry() {
   useLayoutEffect(() => {
     const publicSite = resolveData?.site
     if (!publicSite) return
-    window.ATLAS_CONFIG = {
-      ...(window.ATLAS_CONFIG ?? {}),
+    window.RUNLY_CONFIG = {
+      ...(window.RUNLY_CONFIG ?? {}),
       apiUrl: getApiUrl(),
       company: publicSite.company ?? '',
       siteId: publicSite.id ?? '',
@@ -772,19 +772,22 @@ export function PublicWebsiteEntry() {
       analyticsMode: publicSite.analyticsMode ?? 'off',
       turnstileSiteKey: publicSite.turnstileSiteKey ?? '',
     }
+    // Kept for the SDK's own fallback read path and any already-published
+    // dist pages whose inline script only checks window.ATLAS_CONFIG.
+    window.ATLAS_CONFIG = window.RUNLY_CONFIG
   }, [resolveData])
 
   useEffect(() => {
     const publicSite = resolveData?.site
     if (!publicSite || publicSite.sourceType !== 'builder') return undefined
-    if (window.AtlasERP?.analytics) {
-      window.AtlasERP.analytics.start().catch(() => {})
+    if (window.RunlyERP?.analytics) {
+      window.RunlyERP.analytics.start().catch(() => {})
       return undefined
     }
-    if (document.getElementById('atlas-storefront-sdk')) return undefined
+    if (document.getElementById('runly-storefront-sdk')) return undefined
     const script = document.createElement('script')
-    script.id = 'atlas-storefront-sdk'
-    script.src = `${getApiUrl()}/public/site/atlas-sdk.js`
+    script.id = 'runly-storefront-sdk'
+    script.src = `${getApiUrl()}/public/site/runly-sdk.js`
     script.defer = true
     document.head.appendChild(script)
     return undefined

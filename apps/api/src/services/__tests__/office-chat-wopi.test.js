@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Hono } from 'hono';
-import { OFFICE_FORMATS } from '@atlas/core';
+import { OFFICE_FORMATS } from '@runly/core';
 import { createOfficeService } from '../office/service.js';
 import { createOfficeRouter } from '../../routes/office.js';
 import { officeEnv, officeBytes } from './office-fixture.js';

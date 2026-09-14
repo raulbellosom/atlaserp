@@ -1,3 +1,5 @@
+import { getModuleKeyAliases } from '@runly/core';
+
 function normalizeKey(value) {
   if (typeof value !== "string") return null;
   const key = value.trim();
@@ -7,6 +9,8 @@ function normalizeKey(value) {
 export function createModuleComponentRegistry(options = {}) {
   const store = new Map();
   const activeModuleKeys = new Set();
+  const knownModuleKeys = new Set();
+  let activeCatalogSet = false;
   const listeners = new Set();
   let version = 0;
   const warn = typeof options.warn === "function" ? options.warn : () => {};
@@ -47,13 +51,19 @@ export function createModuleComponentRegistry(options = {}) {
     resolve(key) {
       const normalizedKey = normalizeKey(key);
       if (!normalizedKey) return null;
-      if (normalizedKey.includes(":")) {
-        const [moduleKey] = normalizedKey.split(":");
-        if (activeModuleKeys.size > 0 && !activeModuleKeys.has(moduleKey)) {
-          return null;
-        }
+      const separator = normalizedKey.indexOf(':');
+      if (separator < 0) return store.get(normalizedKey) ?? null;
+      const moduleKey = normalizedKey.slice(0, separator);
+      const suffix = normalizedKey.slice(separator);
+      const aliases = getModuleKeyAliases(moduleKey);
+      const owner = aliases.find(key => knownModuleKeys.has(key));
+      if (activeCatalogSet && (!owner || !activeModuleKeys.has(owner))) return null;
+      for (const candidate of aliases) {
+        if (activeCatalogSet && candidate !== owner && knownModuleKeys.has(candidate)) continue;
+        const component = store.get(`${candidate}${suffix}`);
+        if (component != null) return component;
       }
-      return store.get(normalizedKey) ?? null;
+      return null;
     },
 
     has(key) {
@@ -65,13 +75,19 @@ export function createModuleComponentRegistry(options = {}) {
       return Array.from(store.keys());
     },
 
-    setActiveModules(moduleKeys) {
+    setActiveModules(moduleKeys, knownKeys = moduleKeys) {
+      activeCatalogSet = true;
       activeModuleKeys.clear();
-      if (!Array.isArray(moduleKeys)) return;
-      for (const key of moduleKeys) {
+      knownModuleKeys.clear();
+      for (const key of Array.isArray(knownKeys) ? knownKeys : []) {
+        const normalizedKey = normalizeKey(key);
+        if (normalizedKey) knownModuleKeys.add(normalizedKey);
+      }
+      for (const key of Array.isArray(moduleKeys) ? moduleKeys : []) {
         const normalizedKey = normalizeKey(key);
         if (!normalizedKey) continue;
         activeModuleKeys.add(normalizedKey);
+        knownModuleKeys.add(normalizedKey);
       }
       notify();
     },

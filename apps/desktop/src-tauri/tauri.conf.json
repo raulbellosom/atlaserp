@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Atlas ERP",
+  "productName": "Runly ERP",
   "version": "0.2.0",
-  "identifier": "com.racoondevs.atlaserp",
+  "identifier": "com.racoondevs.runlyerp",
   "build": {
     "beforeDevCommand": "pnpm dev:web",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,8 @@
   "app": {
     "windows": [
       {
-        "title": "Atlas ERP",
+        "title": "Runly ERP",
+        "url": "/app/login",
         "width": 1280,
         "height": 820,
         "minWidth": 1100,

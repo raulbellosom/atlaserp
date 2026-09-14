@@ -13,7 +13,7 @@ export function generateModel(config, entity) {
 
   const indexLines = buildDefaultIndexes(entity, companyScoped)
 
-  return `import { defineModel } from '@atlas/module-engine'
+  return `import { defineModel } from '@runly/module-engine'
 
 export default defineModel({
   key: '${entity.name}',

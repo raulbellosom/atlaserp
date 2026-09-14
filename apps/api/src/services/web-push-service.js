@@ -71,7 +71,7 @@ export function isPermanentSubscriptionError(err) {
 }
 
 export function buildPushPayload({ notification }) {
-  const title = notification?.title ?? "Atlas Notifications";
+  const title = notification?.title ?? "Runly Notifications";
   const body = notification?.body ?? "";
   const link = notification?.link ?? "/app/m/atlas.notifications";
   return {

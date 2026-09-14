@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { ATLAS_PUBLIC_DESKTOP_CONFIG_PATH } from './appConfig.js'
 import { getApiUrl, runtimeConfig } from './runtimeConfig.js'
-import { isNativeDesktop } from '@atlas/core/native-runtime'
+import { isNativeDesktop } from '@runly/core/native-runtime'
 
 let currentSupabaseClient = null
 let currentSupabaseKey = null

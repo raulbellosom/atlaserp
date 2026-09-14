@@ -1,17 +1,19 @@
 import fs from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
+import { withRunlyEnvAliases, canonicalizeRunlyEnvText } from './env-compat.mjs';
 
 export const CODE_IMAGE = 'collabora/code:26.04.2.4.1';
 export const OFFICE_ENV_KEYS = ['ATLAS_OFFICE_ENABLED', 'COLLABORA_INTERNAL_URL', 'COLLABORA_PUBLIC_URL', 'ATLAS_WOPI_URL', 'ATLAS_OFFICE_HOST_ORIGIN', 'ATLAS_OFFICE_ADDITIONAL_ORIGINS', 'ATLAS_WOPI_SECRET', 'ATLAS_WOPI_TOKEN_SECONDS'];
 
 export function parseOfficeEnv(text = '') {
-  return Object.fromEntries(text.split(/\r?\n/).filter(line => /^[A-Z_]+=/.test(line)).map(line => {
+  return withRunlyEnvAliases(Object.fromEntries(text.split(/\r?\n/).filter(line => /^[A-Z_0-9]+=/.test(line)).map(line => {
     const index = line.indexOf('=');
     return [line.slice(0, index), line.slice(index + 1).trim().replace(/^(['"])(.*)\1$/, '$2')];
-  }));
+  })));
 }
 
 export function resolveOfficeConfig(values = {}) {
+  values = withRunlyEnvAliases(values);
   const enabled = values.ATLAS_OFFICE_ENABLED === 'true';
   if (!enabled) return { enabled: false, env: { ATLAS_OFFICE_ENABLED: 'false', ...Object.fromEntries(OFFICE_ENV_KEYS.filter(key => key !== 'ATLAS_OFFICE_ENABLED' && values[key] !== undefined).map(key => [key, values[key]])) }, profiles: [], compose: {} };
   const env = {
@@ -51,19 +53,19 @@ export function resolveOfficeConfig(values = {}) {
 }
 
 export function renderOfficeEnv(office) {
-  return Object.entries(office.env).map(([key, value]) => `${key}=${value}`).join('\n') + '\n';
+  return canonicalizeRunlyEnvText(Object.entries(office.env).map(([key, value]) => `${key}=${value}`).join('\n') + '\n');
 }
 
 export async function configureOffice({ envFile, composeEnvFile, environment = process.env }) {
   const text = await fs.readFile(envFile, 'utf8');
   const stored = parseOfficeEnv(text);
-  const values = Object.fromEntries(OFFICE_ENV_KEYS.map(key => [key, environment[key] ?? stored[key]]));
+  const values = withRunlyEnvAliases(stored, environment);
   const office = resolveOfficeConfig(values);
   // Remove our old heading and its blank lines as well as managed variables.
   // Previous installers accumulated a heading on every run. Keep custom comments.
   const withoutHeadings = text.replace(/^[ \t]*# Optional Office[ \t]*\r?\n(?:[ \t]*\r?\n)*/gm, '');
   const preserved = withoutHeadings.split(/\r?\n/).filter(line => line.trim() !== '# Optional Office'
-    && !OFFICE_ENV_KEYS.some(key => line.startsWith(`${key}=`))).join('\n');
+    && !OFFICE_ENV_KEYS.some(key => line.startsWith(`${key}=`) || line.startsWith(`${key.replace(/^ATLAS_/, 'RUNLY_')}=`))).join('\n');
   const updated = preserved.trimEnd() + '\n\n# Optional Office\n' + renderOfficeEnv(office);
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   await fs.writeFile(envFile, updated.replaceAll('\n', eol), { mode: 0o600 });

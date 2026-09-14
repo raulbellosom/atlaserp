@@ -1,1 +1,1 @@
-export * from '@atlas/ui'
+export * from '@runly/ui'

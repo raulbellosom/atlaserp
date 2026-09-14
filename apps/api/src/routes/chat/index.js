@@ -19,7 +19,7 @@ import {
   chatPinConversationSchema,
   chatToggleReactionSchema,
   chatMessageSearchQuerySchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 import { createChatService, ChatServiceError, resolveUserProfileId } from "./chat-service.js";
 import { createMeridianService } from "./meridian-service.js";
 import { createMeridianRoutes } from "./meridian-routes.js";

@@ -1,4 +1,5 @@
 import { ModuleEngineError } from './errors.js'
+import { findModuleByKey } from '@runly/core'
 
 // In-memory registry of module manifests (results of defineAtlasModule).
 // The discovery service (Phase 2) will maintain the singleton instance in apps/api.
@@ -15,10 +16,10 @@ export class ModuleRegistry {
     this.#modules.set(manifest.key, manifest)
   }
 
-  get(key) { return this.#modules.get(key) ?? null }
-  has(key) { return this.#modules.has(key) }
+  get(key) { return findModuleByKey(this.#modules, key) ?? null }
+  has(key) { return this.get(key) !== null }
   list()   { return [...this.#modules.values()] }
 
-  unregister(key) { this.#modules.delete(key) }
+  unregister(key) { const module = this.get(key); if (module) this.#modules.delete(module.key) }
   clear()         { this.#modules.clear() }
 }

@@ -18,6 +18,9 @@ const MODULE_EXTERNALS_IMPORTMAP = {
   "react/jsx-dev-runtime":  "ext-react-jsx-dev-runtime",
   "@tanstack/react-query":  "ext-tanstack-react-query",
   "zustand":                "ext-zustand",
+  "@runly/ui":              "ext-atlas-ui",
+  "@runly/sdk":             "ext-atlas-sdk",
+  "@runly/validators":      "ext-atlas-validators",
   "@atlas/ui":              "ext-atlas-ui",
   "@atlas/sdk":             "ext-atlas-sdk",
   "@atlas/validators":      "ext-atlas-validators",
@@ -113,7 +116,7 @@ export default defineConfig({
       // non-200 HTML — this keeps builder mode and no-website state working.
       name: 'atlas-dist-proxy',
       configureServer(server) {
-        const apiTarget = process.env.VITE_ATLAS_API_URL ?? 'http://127.0.0.1:4010'
+        const apiTarget = (process.env.VITE_RUNLY_API_URL ?? process.env.VITE_ATLAS_API_URL) ?? 'http://127.0.0.1:4010'
         const DIST_STATIC_RE = /\.(txt|xml|webmanifest|ico|rss|atom)$/i
         server.middlewares.use(async (req, res, next) => {
           if (req.method !== 'GET') return next()
@@ -157,7 +160,13 @@ export default defineConfig({
       "@atlas/module-engine": resolve(__dirname, "../../packages/module-engine/src/index.js"),
       "@atlas/sdk": resolve(__dirname, "../../packages/sdk/src/index.js"),
       "@atlas/ui": resolve(__dirname, "../../packages/ui/src/index.js"),
-      "@atlas/validators": resolve(
+      "@atlas/validators": resolve(__dirname, "../../packages/validators/src/index.js"),
+      "@runly/core/native-runtime": resolve(__dirname, "../../packages/core/src/native-runtime.js"),
+      "@runly/core": resolve(__dirname, "../../packages/core/src/index.js"),
+      "@runly/module-engine": resolve(__dirname, "../../packages/module-engine/src/index.js"),
+      "@runly/sdk": resolve(__dirname, "../../packages/sdk/src/index.js"),
+      "@runly/ui": resolve(__dirname, "../../packages/ui/src/index.js"),
+      "@runly/validators": resolve(
         __dirname,
         "../../packages/validators/src/index.js",
       ),
@@ -180,7 +189,7 @@ export default defineConfig({
       // entry modules, even if no other module in the build graph imports it.
       // Without this, Rolldown tree-shakes exports like `Alert` from the atlas-ui
       // chunk when the main app never imports them directly — the shim's
-      // `export * from '@atlas/ui'` then appears to provide no such export at
+      // `export * from '@runly/ui'` then appears to provide no such export at
       // runtime, breaking AME3 module bundles that use those components.
       preserveEntrySignatures: "allow-extension",
       input: {
@@ -236,7 +245,7 @@ export default defineConfig({
           ) {
             return "ui-vendor";
           }
-          // NOTE: @atlas/ui, @atlas/sdk, @atlas/validators are intentionally NOT
+          // NOTE: @runly/ui, @runly/sdk, @runly/validators are intentionally NOT
           // in manualChunks. Rolldown has a CJS-interop bug when React is imported
           // from a separate manual chunk — the chunk captures React as null, breaking
           // hooks in AME3 module bundles that use those packages via the shim.
@@ -251,7 +260,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: (function () {
-      const apiTarget = process.env.VITE_ATLAS_API_URL ?? "http://127.0.0.1:4010";
+      const apiTarget = (process.env.VITE_RUNLY_API_URL ?? process.env.VITE_ATLAS_API_URL) ?? "http://127.0.0.1:4010";
 
       function suppressStartup(proxy, label) {
         proxy.on("error", (err, _req, res) => {

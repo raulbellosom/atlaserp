@@ -1,6 +1,6 @@
 // apps/api/src/routes/pfm/summary-routes.js
 import { Hono } from "hono";
-import { toLocalMonth } from "@atlas/core";
+import { toLocalMonth } from "@runly/core";
 import { createSummaryService } from "./summary-service.js";
 import { PfmServiceError, getCompanyId, getActorId } from "./service-helpers.js";
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateModulePwaIdentity } from "@atlas/module-engine";
+import { validateModulePwaIdentity } from "@runly/module-engine";
 import { atlasPosManifest, coreModules } from "../core-modules.js";
 import { PERMISSION_CATALOG } from "../../../permission-catalog.js";
 
@@ -24,10 +24,10 @@ const REQUIRED_PERMISSION_KEYS = [
 ];
 
 test("atlas.pos is an official core module with PWA identity", () => {
-  assert.equal(atlasPosManifest.key, "atlas.pos");
+  assert.equal(atlasPosManifest.key, "runly.pos");
   assert.equal(atlasPosManifest.core, true);
   assert.equal(atlasPosManifest.uninstallable, false);
-  assert.ok(coreModules.some((manifest) => manifest.key === "atlas.pos"));
+  assert.ok(coreModules.some((manifest) => manifest.key === "runly.pos"));
 
   const pwaResult = validateModulePwaIdentity(atlasPosManifest);
   assert.equal(pwaResult.valid, true, pwaResult.errors.join("; "));
@@ -41,11 +41,11 @@ test("atlas.pos declares restaurant-first POS permissions and navigation", () =>
   }
 
   const navPaths = atlasPosManifest.navigation.map((item) => item.path);
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/caja"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/comandero"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/cocina"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/orders"));
-  assert.ok(navPaths.includes("/app/m/atlas.pos/pos/admin"));
+  assert.ok(navPaths.includes("/app/m/runly.pos/pos/caja"));
+  assert.ok(navPaths.includes("/app/m/runly.pos/pos/comandero"));
+  assert.ok(navPaths.includes("/app/m/runly.pos/pos/cocina"));
+  assert.ok(navPaths.includes("/app/m/runly.pos/pos/orders"));
+  assert.ok(navPaths.includes("/app/m/runly.pos/pos/admin"));
 });
 
 test("atlas.pos declares lifecycle ownership for POS tables", () => {

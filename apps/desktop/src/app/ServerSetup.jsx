@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, CardContent, PageHeader, TextField } from '@atlas/ui'
+import { Button, Card, CardContent, PageHeader, TextField } from '@runly/ui'
 import { Link2, Server } from 'lucide-react'
 import {
   connectToAtlasServer,
@@ -31,9 +31,9 @@ export function ServerSetup({ defaultUrl = '', initialError = '' }) {
       <div className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-2xl items-center justify-center">
         <div className="w-full space-y-6">
           <PageHeader
-            eyebrow="Atlas ERP Desktop"
+            eyebrow="Runly ERP Desktop"
             title="Conectar a tu servidor"
-            description="Ingresa la URL de tu instancia para usar Atlas ERP desde este equipo."
+            description="Ingresa la URL de tu instancia para usar Runly ERP desde este equipo."
           />
 
           <Card>

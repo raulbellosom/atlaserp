@@ -302,7 +302,7 @@ export function createGrowthLeadService({
     return {
       ...(fileAssetId ? { id: fileAssetId } : {}),
       entityId: companyId,
-      moduleKey: "atlas.growth",
+      moduleKey: { in: ["runly.growth", "atlas.growth"] },
       entityType: "GrowthLead",
       ...(enabled === undefined ? {} : { enabled }),
       metadata: {
@@ -323,9 +323,9 @@ export function createGrowthLeadService({
           equals: id,
         },
         OR: [
-          { moduleKey: "atlas.growth", entityType: "GrowthLead" },
+          { moduleKey: { in: ["runly.growth", "atlas.growth"] }, entityType: "GrowthLead" },
           {
-            moduleKey: "atlas.documents",
+            moduleKey: { in: ["runly.documents", "atlas.documents"] },
             entityType: "GeneratedDocument",
           },
         ],
@@ -399,7 +399,7 @@ export function createGrowthLeadService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.growth",
+          moduleKey: "runly.growth",
           entityType: "growth.lead",
           entityId: lead.id,
           action: "growth.lead.file.remove",
@@ -458,7 +458,7 @@ export function createGrowthLeadService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.growth",
+          moduleKey: "runly.growth",
           entityType: "growth.lead",
           entityId: created.id,
           action: "growth.lead.create",
@@ -583,7 +583,7 @@ export function createGrowthLeadService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.growth",
+          moduleKey: "runly.growth",
           entityType: "growth.lead",
           entityId: lead.id,
           action: onlyAssignment
@@ -646,7 +646,7 @@ export function createGrowthLeadService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.growth",
+          moduleKey: "runly.growth",
           entityType: "growth.lead",
           entityId: lead.id,
           action: "growth.lead.note",
@@ -695,7 +695,7 @@ export function createGrowthLeadService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.growth",
+          moduleKey: "runly.growth",
           entityType: "growth.lead",
           entityId: lead.id,
           action: parsed.enabled
@@ -806,7 +806,7 @@ export function createGrowthLeadService({
       await tx.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: "atlas.growth",
+          moduleKey: "runly.growth",
           entityType: "growth.lead",
           entityId: lead.id,
           action: "growth.lead.convert",

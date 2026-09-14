@@ -40,7 +40,7 @@ export function createOfficeService({ prisma, supabaseAdmin, env = process.env, 
         return { contentRevision: updated.contentRevision, updatedAt: updated.updatedAt };
       },
       audit: (db, context, action, metadata = {}) => db.auditLog.create({ data: {
-        actorId: context.profile.id, moduleKey: 'atlas.files', entityType: 'FileAsset', entityId: context.file.id, action,
+        actorId: context.profile.id, moduleKey: 'runly.files', entityType: 'FileAsset', entityId: context.file.id, action,
         metadata: { companyId: context.companyId, ...metadata },
       } }),
       afterCommit: () => {},
@@ -73,7 +73,7 @@ export function createOfficeService({ prisma, supabaseAdmin, env = process.env, 
         return { contentRevision: rows[0].content_revision, updatedAt: rows[0].updated_at };
       },
       audit: (db, context, action, metadata = {}) => db.auditLog.create({ data: {
-        actorId: context.profile.id, moduleKey: 'atlas.chat', entityType: 'ChatAttachment', entityId: context.file.id, action,
+        actorId: context.profile.id, moduleKey: 'runly.chat', entityType: 'ChatAttachment', entityId: context.file.id, action,
         metadata: { companyId: context.companyId, conversationId: context.conversationId, ...metadata },
       } }),
       afterCommit: (context, saved) => {

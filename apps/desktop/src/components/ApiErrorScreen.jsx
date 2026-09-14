@@ -16,24 +16,31 @@ import {
 } from "lucide-react";
 import { classifyError } from "../lib/classifyError.js";
 
-// ─── Atlas isotype (inline, no external dependency needed) ───────────────────
-const TOP_FACE = "M 18 38  L 50 10  L 82 38  L 66 46  L 50 26  L 34 46 Z";
-const LEFT_FACE = "M 12 44  L 34 48  L 34 90  L 12 86 Z";
-const RIGHT_FACE = "M 66 48  L 88 44  L 88 86  L 66 90 Z";
-
+// ─── Runly isotype (official mark, theme-aware) ──────────────────────────────
 function AtlasIsotype({ size = 40, muted = false }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path d={TOP_FACE} fill={muted ? "rgba(255,255,255,0.18)" : "#0A1D44"} />
-      <path d={LEFT_FACE} fill={muted ? "rgba(255,255,255,0.12)" : "#102A5E"} />
-      <path d={RIGHT_FACE} fill={muted ? "rgba(33,199,255,0.55)" : "#21C7FF"} />
-    </svg>
+    <>
+      <img
+        src="/runly/runly-isotipo-light.png"
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        width={size}
+        height={size}
+        className="dark:hidden"
+        style={{ opacity: muted ? 0.45 : 1, objectFit: "contain" }}
+      />
+      <img
+        src="/runly/runly-isotipo-dark.png"
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        width={size}
+        height={size}
+        className="hidden dark:block"
+        style={{ opacity: muted ? 0.45 : 1, objectFit: "contain" }}
+      />
+    </>
   );
 }
 
@@ -286,7 +293,7 @@ export function ApiErrorScreen({ error, onRetry, fullScreen = true, context }) {
             className="text-xs font-semibold tracking-widest uppercase"
             style={{ color: "hsl(var(--muted-foreground))" }}
           >
-            Atlas ERP
+            Runly ERP
           </span>
         </div>
 

@@ -2,7 +2,7 @@ import { moduleSlug } from './helpers.js'
 
 export function generateCustomDashboardView(config) {
   const slug = moduleSlug(config.key)
-  return `import { defineView } from '@atlas/module-engine'
+  return `import { defineView } from '@runly/module-engine'
 
 export default defineView({
   key: '${slug}.dashboard',
@@ -28,7 +28,7 @@ export function generateComponentsIndex(config) {
 }
 
 export function generateModuleDashboard(config) {
-  return `import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, PageHeader } from '@atlas/ui'
+  return `import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState, PageHeader } from '@runly/ui'
 import { toast } from 'sonner'
 
 export default function ModuleDashboard({ moduleKey }) {

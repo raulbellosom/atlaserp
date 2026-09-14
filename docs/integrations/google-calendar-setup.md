@@ -127,11 +127,11 @@ When a user saves the picker selection:
 ## Command verification
 
 ```bash
-cmd /c pnpm --filter @atlas/api exec node --test src/routes/calendar/__tests__/calendar-google-config.test.js
-cmd /c pnpm --filter @atlas/api exec node --test src/routes/calendar/__tests__/calendar-google-connection-service.test.js
-cmd /c pnpm --filter @atlas/api exec node --test src/routes/calendar/__tests__/calendar-google-oauth-service.test.js
-cmd /c pnpm --filter @atlas/api exec node --test src/routes/calendar/__tests__/calendar-google-source-service.test.js
-cmd /c pnpm --filter @atlas/api exec node --test src/routes/calendar/__tests__/calendar-google-routes.test.js
+cmd /c pnpm --filter @runly/api exec node --test src/routes/calendar/__tests__/calendar-google-config.test.js
+cmd /c pnpm --filter @runly/api exec node --test src/routes/calendar/__tests__/calendar-google-connection-service.test.js
+cmd /c pnpm --filter @runly/api exec node --test src/routes/calendar/__tests__/calendar-google-oauth-service.test.js
+cmd /c pnpm --filter @runly/api exec node --test src/routes/calendar/__tests__/calendar-google-source-service.test.js
+cmd /c pnpm --filter @runly/api exec node --test src/routes/calendar/__tests__/calendar-google-routes.test.js
 cmd /c pnpm exec node --test packages/sdk/src/__tests__/sdk-calendar.test.js
 cmd /c pnpm prisma validate
 cmd /c npx -y react-doctor@latest . --verbose --diff

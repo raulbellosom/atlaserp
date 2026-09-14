@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle } from "react";
-import { Button, Card, CardContent } from "@atlas/ui";
+import { Button, Card, CardContent } from "@runly/ui";
 import { Pencil } from "lucide-react";
 import { Country, State } from "country-state-city";
 import { ATLAS_DESKTOP_DOWNLOAD_URL } from "../lib/appConfig.js";
@@ -187,7 +187,7 @@ export const StepReview = forwardRef(function StepReview(
         <CardContent className="space-y-4 p-5">
           <div className="space-y-1">
             <p className="text-sm font-semibold text-foreground">
-              ¿Quieres usar Atlas ERP desde tu escritorio?
+              ¿Quieres usar Runly ERP desde tu escritorio?
             </p>
             <p className="text-sm text-muted-foreground">
               Descarga la app y conéctala a esta instancia.

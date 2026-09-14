@@ -11,12 +11,12 @@ import {
   validateModel,
   validatePage,
   validateView,
-} from '@atlas/module-engine'
+} from '@runly/module-engine'
 
 const SOURCE_OFFICIAL = 'official'
 const SOURCE_CUSTOM = 'custom'
 
-const RESERVED_CUSTOM_PREFIXES = ['atlas.', 'core.', 'system.', 'identity.']
+const RESERVED_CUSTOM_PREFIXES = ['runly.', 'atlas.', 'core.', 'system.', 'identity.']
 
 function toErrorMessage(error) {
   if (!error) return 'Unknown error'
@@ -228,8 +228,8 @@ export function validateDiscoveredModule(record) {
 
     const key = record.manifest.key
     if (record.source === SOURCE_OFFICIAL) {
-      if (typeof key !== 'string' || !key.startsWith('atlas.')) {
-        errors.push('official modules must use the atlas.* namespace')
+      if (typeof key !== 'string' || !['runly.', 'atlas.'].some(prefix => key.startsWith(prefix))) {
+        errors.push('official modules must use the runly.* or legacy atlas.* namespace')
       }
     }
 
@@ -271,7 +271,7 @@ export async function loadModuleManifest({ manifestPath, source }) {
       }
     }
 
-    const validation = validateManifest(manifest)
+    const validation = validateDiscoveredModule({ key: manifest.key, manifest, source })
     if (!validation.valid) {
       return {
         key: typeof manifest.key === 'string' ? manifest.key : null,
@@ -290,7 +290,7 @@ export async function loadModuleManifest({ manifestPath, source }) {
     }
   } catch (error) {
     const importMessage = toErrorMessage(error)
-    const packageResolutionHint = importMessage.includes("@atlas/module-engine")
+    const packageResolutionHint = importMessage.includes("@runly/module-engine")
       ? ' Module package resolution must be fixed through workspace/dependency linking; discovery does not rewrite source imports.'
       : ''
     return {

@@ -5,7 +5,7 @@ import {
   resolveHtmlCandidates,
   injectSeoTags,
   rewriteDistHtml,
-  injectAtlasConfig,
+  injectRunlyConfig,
   normalizeHost,
   createDistServeService,
   invalidatePrimaryCache,
@@ -225,7 +225,7 @@ describe('injectSeoTags', () => {
   })
 })
 
-describe('injectAtlasConfig', () => {
+describe('injectRunlyConfig', () => {
   const cfg = {
     supabaseUrl: 'https://supabase.racoondevs.com',
     supabaseAnonKey: 'eyJtest',
@@ -239,31 +239,31 @@ describe('injectAtlasConfig', () => {
     turnstileSiteKey: 'turnstile-public',
   }
 
-  it('injects window.ATLAS_CONFIG script into <head>', () => {
+  it('injects window.RUNLY_CONFIG script into <head>', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, cfg)
-    assert.ok(result.includes('window.ATLAS_CONFIG='))
-    assert.ok(result.includes('<script src="/public/site/atlas-sdk.js" defer></script>'))
+    const result = injectRunlyConfig(html, cfg)
+    assert.ok(result.includes('window.RUNLY_CONFIG='))
+    assert.ok(result.includes('<script src="/public/site/runly-sdk.js" defer></script>'))
     assert.ok(result.includes('supabase.racoondevs.com'))
     assert.ok(result.includes('eyJtest'))
   })
 
   it('computes storageKey from hostname', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, cfg)
+    const result = injectRunlyConfig(html, cfg)
     assert.ok(result.includes('"storageKey":"sb-supabase-auth-token"'))
   })
 
   it('injects company and siteName fields', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, cfg)
+    const result = injectRunlyConfig(html, cfg)
     assert.ok(result.includes('"company":"acme"'))
     assert.ok(result.includes('"siteName":"Acme Store"'))
   })
 
   it('injects public capture settings without a Turnstile secret', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, {
+    const result = injectRunlyConfig(html, {
       ...cfg,
       turnstileSecretKey: 'must-not-leak',
     })
@@ -276,7 +276,7 @@ describe('injectAtlasConfig', () => {
 
   it('injects stripePublishableKey and currency when provided', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, cfg)
+    const result = injectRunlyConfig(html, cfg)
     assert.ok(result.includes('"stripePublishableKey":"pk_test_123"'))
     assert.ok(result.includes('"currency":"usd"'))
   })
@@ -284,28 +284,28 @@ describe('injectAtlasConfig', () => {
   it('omits stripePublishableKey when not provided', () => {
     const { stripePublishableKey: _, ...rest } = cfg
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, rest)
+    const result = injectRunlyConfig(html, rest)
     assert.ok(!result.includes('stripePublishableKey'))
   })
 
   it('places script tag immediately after <head>', () => {
     const html = '<html><head><title>X</title></head><body></body></html>'
-    const result = injectAtlasConfig(html, cfg)
+    const result = injectRunlyConfig(html, cfg)
     const headIdx   = result.indexOf('<head>')
-    const scriptIdx = result.indexOf('<script>window.ATLAS_CONFIG')
+    const scriptIdx = result.indexOf('<script>window.RUNLY_CONFIG')
     assert.ok(scriptIdx > headIdx && scriptIdx < result.indexOf('<title>'))
   })
 
   it('escapes </script> sequences in values', () => {
     const tricky = { ...cfg, supabaseAnonKey: 'a</script>b' }
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, tricky)
+    const result = injectRunlyConfig(html, tricky)
     assert.ok(!result.includes('</script>b'))
   })
 
   it('returns html unchanged when supabaseUrl is missing', () => {
     const html = '<html><head></head><body></body></html>'
-    const result = injectAtlasConfig(html, { supabaseUrl: '', supabaseAnonKey: 'k', apiUrl: '/', company: '' })
+    const result = injectRunlyConfig(html, { supabaseUrl: '', supabaseAnonKey: 'k', apiUrl: '/', company: '' })
     assert.equal(result, html)
   })
 })

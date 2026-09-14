@@ -5,19 +5,20 @@ import {
   useEffect,
 } from "react";
 import { X, Palette } from "lucide-react";
-import { DistDropZone } from "@atlas/ui";
+import { DistDropZone } from "@runly/ui";
 
 const MAX_LOGO_BYTES = 10 * 1024 * 1024;
 
-// Fallback palette if logo has too few distinct colors
+// Fallback palette if logo has too few distinct colors — the official Runly
+// brand colors (Orange, Flame, Coral, Red, Crimson, Navy, Midnight).
 const FALLBACK_COLORS = [
-  "#21C7FF",
-  "#0A7BFF",
-  "#102A5E",
-  "#0A1D44",
-  "#06152F",
-  "#E6EAF0",
-  "#5F6B7A",
+  "#FD8B2A",
+  "#FD6016",
+  "#FC5736",
+  "#F6381A",
+  "#CF231A",
+  "#132646",
+  "#0C172D",
 ];
 
 function formatBytes(bytes) {

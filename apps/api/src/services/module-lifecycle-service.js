@@ -1,3 +1,4 @@
+import { isOfficialCoreModuleKey } from './module-manifests-service.js'
 import { getPermissionPresentation } from '../permission-catalog.js'
 import { getModuleHandler } from './module-cleanup-registry.js'
 import { createModuleMigrationService } from './module-migration-service.js'
@@ -15,10 +16,9 @@ import {
 import {
   detectRequiredDependencyCycle,
   formatDependencyCycle,
-  normalizeManifestDependencies,
+  loadManifestDependencies,
 } from './module-dependency-utils.js'
 
-const CORE_KEYS = new Set(['atlas.core', 'atlas.identity', 'atlas.files', 'atlas.company', 'atlas.contacts', 'atlas.hr', 'atlas.fleet', 'atlas.ledger', 'atlas.calendar', 'atlas.catalog', 'atlas.pos', 'atlas.website', 'atlas.growth', 'atlas.activity', 'atlas.notifications', 'atlas.projects'])
 const FAILED_INSTALL_CLEAR_MODES = new Set(['metadata-only', 'preserve-data', 'purge-empty-tables'])
 const UNINSTALL_MODES = new Set(['preserve-data', 'purge-data', 'purge-owned-tables'])
 const TABLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
@@ -50,14 +50,14 @@ function classifyInstallFailureStage(err) {
   if (err?.code === 'AME_ORM_MIGRATION_FAILED') return 'orm_migration'
   if (err?.code === 'AME_SQL_MIGRATION_EXECUTION_FAILED') return 'orm_migration'
   if (err?.name === 'ZodError') return 'validation'
-  if (err?.code === 'DEPENDENCY_NOT_FOUND') return 'dependency_sync'
+  if (['DEPENDENCY_NOT_FOUND', 'DEPENDENCY_ALIAS_VERSION_CONFLICT'].includes(err?.code)) return 'dependency_sync'
   if (err instanceof ModuleLifecycleError) return 'install'
   return 'unknown'
 }
 
 function isInstallFailureRetryable(stage, code) {
   if (stage === 'validation') return false
-  if (code === 'DEPENDENCY_NOT_FOUND') return false
+  if (['DEPENDENCY_NOT_FOUND', 'DEPENDENCY_ALIAS_VERSION_CONFLICT'].includes(code)) return false
   return true
 }
 
@@ -113,32 +113,13 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function syncDependencies(tx, moduleId, dependencies = []) {
-    await tx.moduleDependency.deleteMany({ where: { moduleId } })
-    const normalizedDependencies = normalizeManifestDependencies(dependencies)
-    if (!normalizedDependencies.length) return
-
-    const keys = [...new Set(normalizedDependencies.map((d) => d.key))]
-    const rows = await tx.atlasModule.findMany({
-      where: { key: { in: keys } },
-      select: { id: true, key: true },
-    })
-    const byKey = new Map(rows.map((r) => [r.key, r.id]))
-
-    const missing = normalizedDependencies
-      .filter((d) => !d.optional)
-      .map((d) => d.key)
-      .filter((k) => !byKey.has(k))
-    if (missing.length) {
-      throw new ModuleLifecycleError(
-        `Dependencias requeridas no encontradas: ${[...new Set(missing)].join(', ')}.`,
-        409
-      )
+    const { resolved, missingRequired } = await loadManifestDependencies(tx, dependencies)
+    if (missingRequired.length) {
+      throw Object.assign(new ModuleLifecycleError(
+        `Dependencias requeridas no encontradas: ${missingRequired.join(', ')}.`, 409
+      ), { code: 'DEPENDENCY_NOT_FOUND', keys: missingRequired })
     }
-
-    const requiredDependencyIds = normalizedDependencies
-      .filter((d) => !d.optional && byKey.has(d.key))
-      .map((d) => byKey.get(d.key))
-      .filter(Boolean)
+    const requiredDependencyIds = resolved.filter(dep => !dep.optional).map(dep => dep.dependencyId)
 
     if (requiredDependencyIds.length > 0) {
       const existingRequiredEdges = await tx.moduleDependency.findMany({
@@ -169,22 +150,18 @@ export function createModuleLifecycleService({ prisma }) {
       }
     }
 
-    await tx.moduleDependency.createMany({
-      data: normalizedDependencies
-        .filter((d) => d.key && byKey.has(d.key))
-        .map((d) => ({
-          moduleId,
-          dependencyId: byKey.get(d.key),
-          versionRange: d.versionRange ?? null,
-          optional: d.optional ?? false,
-        })),
-      skipDuplicates: true,
-    })
+    await tx.moduleDependency.deleteMany({ where: { moduleId } })
+    if (resolved.length) {
+      await tx.moduleDependency.createMany({
+        data: resolved.map(({ dependencyId, versionRange, optional }) => ({ moduleId, dependencyId, versionRange, optional })),
+        skipDuplicates: true,
+      })
+    }
   }
 
   async function syncAdminPermissions(db) {
     const adminRoles = await db.role.findMany({
-      where: { key: { in: ['atlas.admin', 'system.admin'] } },
+      where: { key: { in: ['runly.admin', 'atlas.admin', 'system.admin'] } },
       select: { id: true },
     })
     if (!adminRoles.length) return
@@ -207,7 +184,7 @@ export function createModuleLifecycleService({ prisma }) {
     await db.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.core',
+        moduleKey: 'runly.core',
         entityType: 'AtlasModule',
         entityId: entityId ?? null,
         action,
@@ -633,7 +610,7 @@ export function createModuleLifecycleService({ prisma }) {
         await prisma.auditLog.create({
           data: {
             actorId: actorId ?? null,
-            moduleKey: 'atlas.core',
+            moduleKey: 'runly.core',
             entityType: 'ModuleMigration',
             entityId: applyResult.migration.id,
             action: 'atlas.orm.migrate.manifest',
@@ -696,7 +673,7 @@ export function createModuleLifecycleService({ prisma }) {
       await prisma.auditLog.create({
         data: {
           actorId: actorId ?? null,
-          moduleKey: 'atlas.core',
+          moduleKey: 'runly.core',
           entityType: 'ModuleMigration',
           entityId: migration.id,
           action: 'atlas.orm.migrate',
@@ -782,7 +759,7 @@ export function createModuleLifecycleService({ prisma }) {
       }
     }
 
-    const isCore = CORE_KEYS.has(installManifest.key)
+    const isCore = isOfficialCoreModuleKey(installManifest.key)
     lifecycleConfig = installManifest.lifecycle ?? lifecycleConfig ?? null
     let result = null
 
@@ -1358,7 +1335,7 @@ export function createModuleLifecycleService({ prisma }) {
     for (const manifest of manifests) {
       await prisma.$transaction(async (tx) => {
         const existing = await tx.atlasModule.findUnique({ where: { key: manifest.key } })
-        const isCore = CORE_KEYS.has(manifest.key)
+        const isCore = isOfficialCoreModuleKey(manifest.key)
         const lifecycleConfig = manifest.lifecycle ?? null
 
         const data = {
@@ -1403,7 +1380,7 @@ export function createModuleLifecycleService({ prisma }) {
 
     await writeAuditLog(prisma, {
       action: 'core.module.sync',
-      moduleKey: 'atlas.core',
+      moduleKey: 'runly.core',
       entityId: null,
       actorId,
       after: { synced: manifests.length, added, updated },
@@ -1442,7 +1419,7 @@ export function createModuleLifecycleService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.core',
+        moduleKey: 'runly.core',
         entityType: 'AtlasModule',
         entityId: null,
         action: 'atlas.module.seed',
@@ -1484,7 +1461,7 @@ export function createModuleLifecycleService({ prisma }) {
     await prisma.auditLog.create({
       data: {
         actorId: actorId ?? null,
-        moduleKey: 'atlas.core',
+        moduleKey: 'runly.core',
         entityType: 'AtlasModule',
         entityId: null,
         action: 'atlas.module.teardown',

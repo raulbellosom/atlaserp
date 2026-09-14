@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { EmptyState, ErrorState, Skeleton } from '@atlas/ui'
+import { EmptyState, ErrorState, Skeleton } from '@runly/ui'
 import { Package } from 'lucide-react'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
 import { normalizePath } from '../lib/pathUtils'

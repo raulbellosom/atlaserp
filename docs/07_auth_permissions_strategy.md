@@ -17,7 +17,7 @@
 1. React calls `supabase.auth.signInWithPassword({ email, password })` (anon key)
 2. Supabase returns a signed JWT
 3. Supabase client stores session and handles refresh automatically
-4. Every `@atlas/sdk` request includes `Authorization: Bearer <jwt>`
+4. Every `@runly/sdk` request includes `Authorization: Bearer <jwt>`
 5. Atlas API calls `supabaseAdmin.auth.getUser(jwt)` to verify (service role key)
 6. API loads UserProfile by `authUserId` → Membership → Role → Permissions
 7. Route handler receives verified user context

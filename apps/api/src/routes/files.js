@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createFilesWorkspaceRouter } from './files-workspace.js';
-import { fileBulkDownloadSchema, fileRenameSchema } from "@atlas/validators";
+import { fileBulkDownloadSchema, fileRenameSchema } from "@runly/validators";
 import { FilesServiceError } from "../services/files-service.js";
 import { FileAccessError } from "../services/files/access.js";
 import { getActivityContext, publishActivityFromContext } from "../services/activity-publisher.js";
@@ -33,7 +33,7 @@ app.post(
       });
 
       if (
-        body.moduleKey === "atlas.hr" &&
+        ["runly.hr", "atlas.hr"].includes(body.moduleKey) &&
         body.entityType === "HrEmployee" &&
         body.entityId
       ) {
@@ -45,7 +45,7 @@ app.post(
           await prisma.auditLog.create({
             data: {
               actorId: actor.id,
-              moduleKey: "atlas.hr",
+              moduleKey: "runly.hr",
               entityType: "HrEmployee",
               entityId: String(body.entityId),
               action: "hr.employee.file.attach",

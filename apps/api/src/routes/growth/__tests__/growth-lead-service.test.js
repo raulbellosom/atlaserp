@@ -15,6 +15,15 @@ const ACTOR_ID = "01900000-0000-7000-8000-000000000006";
 const CONTACT_ID = "01900000-0000-7000-8000-000000000008";
 const NOW = new Date("2026-06-14T21:30:00.000Z");
 
+// Mirrors Prisma's `{ equals: x }` / plain-value and `{ in: [...] }` filter shapes,
+// since production code now filters moduleKey with `{ in: ["runly.x", "atlas.x"] }`.
+function matchesModuleKey(rowValue, filterValue) {
+  if (filterValue && typeof filterValue === "object" && Array.isArray(filterValue.in)) {
+    return filterValue.in.includes(rowValue);
+  }
+  return rowValue === filterValue;
+}
+
 function buildPrisma({ lead: leadOverride } = {}) {
   const lead = {
     id: LEAD_ID,
@@ -192,10 +201,10 @@ function buildPrisma({ lead: leadOverride } = {}) {
             (where.OR
               ? where.OR.some(
                   (branch) =>
-                    row.moduleKey === branch.moduleKey &&
+                    matchesModuleKey(row.moduleKey, branch.moduleKey) &&
                     row.entityType === branch.entityType,
                 )
-              : row.moduleKey === where.moduleKey &&
+              : matchesModuleKey(row.moduleKey, where.moduleKey) &&
                 row.entityType === where.entityType),
         ),
       findFirst: async ({ where }) =>
@@ -203,7 +212,7 @@ function buildPrisma({ lead: leadOverride } = {}) {
           (row) =>
             row.id === where.id &&
             row.entityId === where.entityId &&
-            row.moduleKey === where.moduleKey &&
+            matchesModuleKey(row.moduleKey, where.moduleKey) &&
             row.entityType === where.entityType &&
             row.metadata.sourceEntityId === where.metadata.equals,
         ) ?? null,

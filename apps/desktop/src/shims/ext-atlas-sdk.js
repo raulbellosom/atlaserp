@@ -1,1 +1,1 @@
-export * from '@atlas/sdk'
+export * from '@runly/sdk'

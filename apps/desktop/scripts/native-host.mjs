@@ -48,14 +48,14 @@ export function makeConfig(origin) {
         ],
       },
     },
-    plugins: { 'deep-link': { mobile: [{ scheme: ['atlas'], appLink: false }] } },
+    plugins: { 'deep-link': { mobile: [{ scheme: ['runly'], appLink: false }] } },
   }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [platform = 'android', action = 'dev', environment = process.env.ATLAS_NATIVE_ENV || 'staging'] = process.argv.slice(2)
+  const [platform = 'android', action = 'dev', environment = (process.env.RUNLY_NATIVE_ENV ?? process.env.ATLAS_NATIVE_ENV) || 'staging'] = process.argv.slice(2)
   if (!['android', 'ios'].includes(platform) || !['init', 'dev', 'build', 'config'].includes(action)) throw new Error('Usage: native-host.mjs android|ios init|dev|build|config development|staging|production')
-  const origin = resolveEnvironment(environment, process.env.ATLAS_NATIVE_DEV_ORIGIN, action, process.argv.slice(5).includes('--debug'))
+  const origin = resolveEnvironment(environment, (process.env.RUNLY_NATIVE_DEV_ORIGIN ?? process.env.ATLAS_NATIVE_DEV_ORIGIN), action, process.argv.slice(5).includes('--debug'))
   if (platform === 'android' && action !== 'init') {
     prepareAndroidFirebase(resolve(desktop, '../..'), resolve(desktop, 'src-tauri/gen/android/app'))
   }
@@ -65,7 +65,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   else {
     const extra = process.argv.slice(5)
     if (extra.some((arg) => !['--debug', '--apk', '--aab'].includes(arg))) throw new Error('Only --debug/--apk/--aab supported; use ATLAS_NATIVE_TARGET for ABI')
-    const target = process.env.ATLAS_NATIVE_TARGET || 'aarch64'
+    const target = (process.env.RUNLY_NATIVE_TARGET ?? process.env.ATLAS_NATIVE_TARGET) || 'aarch64'
     if (!['aarch64', 'armv7', 'i686', 'x86_64'].includes(target)) throw new Error('Invalid Android target')
     const cli = resolve(desktop, 'node_modules/@tauri-apps/cli/tauri.js')
     // A stable remote host must bootstrap from bundled assets even during development.
@@ -79,7 +79,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (platform === 'ios' && extra.some((arg) => ['--apk', '--aab'].includes(arg))) throw new Error('APK/AAB apply only to Android')
     if (tauriAction === 'build') args.push(...extra)
     const result = spawnSync(process.execPath, args, {
-      cwd: desktop, stdio: 'inherit', env: { ...process.env, ATLAS_NATIVE_ENV: environment, ATLAS_NATIVE_ORIGIN: origin },
+      cwd: desktop, stdio: 'inherit', env: { ...process.env, RUNLY_NATIVE_ENV: environment, RUNLY_NATIVE_ORIGIN: origin, ATLAS_NATIVE_ENV: environment, ATLAS_NATIVE_ORIGIN: origin },
     })
     if (result.error) throw result.error
     if (action === 'init' && result.status === 0) buildNativeBrandAssets()

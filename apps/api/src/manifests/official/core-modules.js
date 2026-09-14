@@ -1,4 +1,4 @@
-import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
+import { createModuleManifest, MODULE_KINDS } from "@runly/core";
 import {
   contactsMap,
   hrMap,
@@ -12,8 +12,8 @@ import {
 } from "./feature-modules.js";
 
 export const atlasCoreMap = createModuleManifest({
-  key: "atlas.core",
-  name: "Atlas Core",
+  key: "runly.core",
+  name: "Runly Core",
   description:
     "Nucleo del sistema: modulos, permisos, bitacora y configuracion de instancia.",
   version: "0.1.0",
@@ -22,7 +22,7 @@ export const atlasCoreMap = createModuleManifest({
   uninstallable: false,
   icon: "Layers",
   color: "#0A7BFF",
-  pwa: { shortName: "Atlas Core", startPath: "/modules" },
+  pwa: { shortName: "Runly Core", startPath: "/modules" },
   category: "sistema",
   summary: "Modulos, permisos, bitacora y configuracion del sistema",
   navigation: [
@@ -42,7 +42,7 @@ export const atlasCoreMap = createModuleManifest({
     },
   ],
   permissions: [
-    { key: "platform.erp.access", name: "Access Atlas ERP" },
+    { key: "platform.erp.access", name: "Access Runly ERP" },
     { key: "platform.settings.manage", name: "Manage Platform Settings" },
     { key: "core.access", name: "Access Core" },
     { key: "core.modules.read", name: "Read Core Modules" },
@@ -101,7 +101,7 @@ export const atlasCoreMap = createModuleManifest({
 });
 
 export const identityMap = createModuleManifest({
-  key: "atlas.identity",
+  key: "runly.identity",
   blueprints: [
     {
       key: "identity.user.entity",
@@ -151,7 +151,7 @@ export const identityMap = createModuleManifest({
   pwa: { shortName: "Identidad", startPath: "/identity/users" },
   category: "sistema",
   summary: "Usuarios, empresas, roles y membresias",
-  dependencies: [{ key: "atlas.core" }],
+  dependencies: [{ key: "runly.core" }],
   navigation: [
     {
       label: "Usuarios",
@@ -242,7 +242,7 @@ export const identityMap = createModuleManifest({
 });
 
 export const filesMap = createModuleManifest({
-  key: "atlas.files",
+  key: "runly.files",
   name: "Archivos",
   description: "Gestion de archivos, carga, almacenamiento y acceso seguro.",
   version: "0.1.0",
@@ -254,7 +254,7 @@ export const filesMap = createModuleManifest({
   pwa: { shortName: "Archivos", startPath: "/files" },
   category: "sistema",
   summary: "Gestion de archivos y almacenamiento",
-  dependencies: [{ key: "atlas.core" }],
+  dependencies: [{ key: "runly.core" }],
   navigation: [
     {
       label: "Archivos",
@@ -316,7 +316,7 @@ export const filesMap = createModuleManifest({
 });
 
 export const companyMap = createModuleManifest({
-  key: "atlas.company",
+  key: "runly.company",
   name: "Empresa",
   description:
     "Perfil de empresa, direccion, marca visual e identidad corporativa.",
@@ -329,7 +329,7 @@ export const companyMap = createModuleManifest({
   pwa: { shortName: "Empresa", startPath: "/" },
   category: "sistema",
   summary: "Perfil, direccion y marca visual de la empresa",
-  dependencies: [{ key: "atlas.core" }, { key: "atlas.files" }],
+  dependencies: [{ key: "runly.core" }, { key: "runly.files" }],
   navigation: [
     {
       label: "Resumen",
@@ -447,7 +447,7 @@ export const companyMap = createModuleManifest({
 });
 
 export const atlasLedgerManifest = createModuleManifest({
-  key: "atlas.ledger",
+  key: "runly.ledger",
   name: "Libro de cuentas",
   version: "0.1.3",
   kind: MODULE_KINDS.CORE,
@@ -462,7 +462,7 @@ export const atlasLedgerManifest = createModuleManifest({
   accentColor: "#15803d",
   initials: "LC",
   fullscreenPaths: ["/accounts/:id", "/accounts/:id/import"],
-  dependencies: [{ key: "atlas.core" }],
+  dependencies: [{ key: "runly.core" }],
   permissions: [
     { key: "ledger.accounts.read", name: "Ver cuentas" },
     { key: "ledger.accounts.create", name: "Crear cuentas" },
@@ -546,35 +546,35 @@ export const atlasLedgerManifest = createModuleManifest({
   navigation: [
     {
       label: "Cuentas",
-      path: "/app/m/atlas.ledger/accounts",
+      path: "/app/m/runly.ledger/accounts",
       icon: "Landmark",
       layout: "main",
       permissionKey: "ledger.accounts.read",
     },
     {
       label: "Grupos",
-      path: "/app/m/atlas.ledger/groups",
+      path: "/app/m/runly.ledger/groups",
       icon: "FolderOpen",
       layout: "main",
       permissionKey: "ledger.groups.read",
     },
     {
       label: "Categorias",
-      path: "/app/m/atlas.ledger/categories",
+      path: "/app/m/runly.ledger/categories",
       icon: "Tag",
       layout: "main",
       permissionKey: "ledger.categories.manage",
     },
     {
       label: "Tipos",
-      path: "/app/m/atlas.ledger/types",
+      path: "/app/m/runly.ledger/types",
       icon: "Hash",
       layout: "main",
       permissionKey: "ledger.types.manage",
     },
     {
       label: "Mis membresias",
-      path: "/app/m/atlas.ledger/memberships",
+      path: "/app/m/runly.ledger/memberships",
       icon: "Users",
       layout: "main",
       permissionKey: "ledger.groups.read",
@@ -583,7 +583,7 @@ export const atlasLedgerManifest = createModuleManifest({
 });
 
 export const atlasFleetManifest = createModuleManifest({
-  key: "atlas.fleet",
+  key: "runly.fleet",
   name: "Flota",
   version: "0.5.1",
   kind: MODULE_KINDS.CORE,
@@ -597,7 +597,7 @@ export const atlasFleetManifest = createModuleManifest({
   pwa: { shortName: "Flota", startPath: "/vehicles" },
   accentColor: "#0F766E",
   initials: "FL",
-  dependencies: [{ key: "atlas.core" }],
+  dependencies: [{ key: "runly.core" }],
   lifecycle: {
     installable: true,
     uninstallable: false,
@@ -797,74 +797,74 @@ export const atlasFleetManifest = createModuleManifest({
   navigation: [
     {
       label: "Vehiculos",
-      path: "/app/m/atlas.fleet/vehicles",
+      path: "/app/m/runly.fleet/vehicles",
       icon: "Truck",
       layout: "main",
       permissionKey: "fleet.vehicles.read",
     },
     {
       label: "Seguros",
-      path: "/app/m/atlas.fleet/insurance",
+      path: "/app/m/runly.fleet/insurance",
       icon: "ShieldCheck",
       layout: "main",
       permissionKey: "fleet.insurance.read",
     },
     {
       label: "Reportes",
-      path: "/app/m/atlas.fleet/reports",
+      path: "/app/m/runly.fleet/reports",
       icon: "ClipboardList",
       layout: "main",
       permissionKey: "fleet.reports.read",
       children: [
         {
           label: "Mantenimiento",
-          path: "/app/m/atlas.fleet/reports/maintenance",
+          path: "/app/m/runly.fleet/reports/maintenance",
           permissionKey: "fleet.reports.read",
         },
         {
           label: "Servicio",
-          path: "/app/m/atlas.fleet/reports/service",
+          path: "/app/m/runly.fleet/reports/service",
           permissionKey: "fleet.reports.read",
         },
         {
           label: "Reparacion",
-          path: "/app/m/atlas.fleet/reports/repair",
+          path: "/app/m/runly.fleet/reports/repair",
           permissionKey: "fleet.reports.read",
         },
         {
           label: "Otro",
-          path: "/app/m/atlas.fleet/reports/other",
+          path: "/app/m/runly.fleet/reports/other",
           permissionKey: "fleet.reports.read",
         },
       ],
     },
     {
       label: "Choferes",
-      path: "/app/m/atlas.fleet/drivers",
+      path: "/app/m/runly.fleet/drivers",
       icon: "UserCheck",
       layout: "main",
       permissionKey: "fleet.drivers.read",
     },
     {
       label: "Catalogos",
-      path: "/app/m/atlas.fleet/catalogs",
+      path: "/app/m/runly.fleet/catalogs",
       icon: "Layers",
       layout: "main",
       permissionKey: "fleet.catalogs.read",
       children: [
         {
           label: "Tipos de vehiculo",
-          path: "/app/m/atlas.fleet/catalogs/vehicle-types",
+          path: "/app/m/runly.fleet/catalogs/vehicle-types",
           permissionKey: "fleet.catalogs.read",
         },
         {
           label: "Marcas",
-          path: "/app/m/atlas.fleet/catalogs/vehicle-brands",
+          path: "/app/m/runly.fleet/catalogs/vehicle-brands",
           permissionKey: "fleet.catalogs.read",
         },
         {
           label: "Modelos",
-          path: "/app/m/atlas.fleet/catalogs/vehicle-models",
+          path: "/app/m/runly.fleet/catalogs/vehicle-models",
           permissionKey: "fleet.catalogs.read",
         },
       ],
@@ -873,7 +873,7 @@ export const atlasFleetManifest = createModuleManifest({
 });
 
 export const atlasCalendarManifest = createModuleManifest({
-  key: "atlas.calendar",
+  key: "runly.calendar",
   name: "Calendario",
   description:
     "Calendario personal y compartido con eventos, recordatorios y vistas por dia, semana y mes.",
@@ -890,11 +890,11 @@ export const atlasCalendarManifest = createModuleManifest({
   category: "sistema",
   summary: "Calendarios personales, eventos y recordatorios",
   fullscreenPaths: ["/calendar"],
-  dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  dependencies: [{ key: "runly.core" }, { key: "runly.identity" }],
   navigation: [
     {
       label: "Calendario",
-      path: "/app/m/atlas.calendar/calendar",
+      path: "/app/m/runly.calendar/calendar",
       icon: "Calendar",
       layout: "main",
       permissionKey: "calendar.access",
@@ -930,11 +930,11 @@ export const atlasCalendarManifest = createModuleManifest({
     "calendar.createEvent": "function",
     "calendar.getEvents": "function",
   },
-  consumes: ["atlas.files"],
+  consumes: ["runly.files"],
 });
 
 export const atlasCatalogManifest = createModuleManifest({
-  key: "atlas.catalog",
+  key: "runly.catalog",
   name: "Catalogo",
   description: "Gestiona productos, categorias, variantes e inventario",
   version: "2.1.0",
@@ -949,7 +949,7 @@ export const atlasCatalogManifest = createModuleManifest({
   category: "comercial",
   logoUrl: "/module-logos/atlas-catalog-128.svg",
   summary: "Productos, categorias, variantes e inventario unificados.",
-  dependencies: [{ key: "atlas.core" }],
+  dependencies: [{ key: "runly.core" }],
   lifecycle: {
     installable: true,
     uninstallable: false,
@@ -1017,21 +1017,21 @@ export const atlasCatalogManifest = createModuleManifest({
   navigation: [
     {
       label: "Productos",
-      path: "/app/m/atlas.catalog",
+      path: "/app/m/runly.catalog",
       icon: "ShoppingCart",
       layout: "main",
       permissionKey: "catalog.products.read",
     },
     {
       label: "Categorias",
-      path: "/app/m/atlas.catalog/categories",
+      path: "/app/m/runly.catalog/categories",
       icon: "Tag",
       layout: "main",
       permissionKey: "catalog.categories.read",
     },
     {
       label: "Inventario",
-      path: "/app/m/atlas.catalog/inventory",
+      path: "/app/m/runly.catalog/inventory",
       icon: "BarChart3",
       layout: "main",
       permissionKey: "catalog.products.read",
@@ -1081,7 +1081,7 @@ export const atlasCatalogManifest = createModuleManifest({
 });
 
 export const atlasPosManifest = createModuleManifest({
-  key: "atlas.pos",
+  key: "runly.pos",
   name: "POS",
   description: "Punto de venta para restaurante, tienda y operaciones hibridas.",
   version: "0.1.0",
@@ -1102,10 +1102,10 @@ export const atlasPosManifest = createModuleManifest({
     "/pos/stations",
   ],
   dependencies: [
-    { key: "atlas.core" },
-    { key: "atlas.company" },
-    { key: "atlas.identity" },
-    { key: "atlas.catalog" },
+    { key: "runly.core" },
+    { key: "runly.company" },
+    { key: "runly.identity" },
+    { key: "runly.catalog" },
   ],
   lifecycle: {
     installable: true,
@@ -1225,47 +1225,47 @@ export const atlasPosManifest = createModuleManifest({
   navigation: [
     {
       label: "Caja",
-      path: "/app/m/atlas.pos/pos/caja",
+      path: "/app/m/runly.pos/pos/caja",
       icon: "BadgeDollarSign",
       layout: "main",
       permissionKey: "pos.caja.read",
     },
     {
       label: "Comandero",
-      path: "/app/m/atlas.pos/pos/comandero",
+      path: "/app/m/runly.pos/pos/comandero",
       icon: "Armchair",
       layout: "main",
       permissionKey: "pos.comandas.read",
     },
     {
       label: "Cocina",
-      path: "/app/m/atlas.pos/pos/cocina",
+      path: "/app/m/runly.pos/pos/cocina",
       icon: "ChefHat",
       layout: "main",
       permissionKey: "pos.cocina.read",
     },
     {
       label: "Ordenes",
-      path: "/app/m/atlas.pos/pos/orders",
+      path: "/app/m/runly.pos/pos/orders",
       icon: "ReceiptText",
       layout: "main",
       permissionKey: "pos.orders.read",
     },
     {
       label: "Administracion",
-      path: "/app/m/atlas.pos/pos/admin",
+      path: "/app/m/runly.pos/pos/admin",
       icon: "Settings",
       layout: "main",
       permissionKey: "pos.admin.read",
     },
   ],
   blueprints: [],
-  consumes: ["atlas.files", "atlas.ledger", "atlas.notifications"],
+  consumes: ["runly.files", "runly.ledger", "runly.notifications"],
   exposes: [],
 });
 
 export const inventoryMap = createModuleManifest({
-  key: 'atlas.inventory',
+  key: 'runly.inventory',
   name: 'Inventario',
   description: 'Gestion de inventario y activos de la empresa',
   version: '1.0.0',
@@ -1277,7 +1277,7 @@ export const inventoryMap = createModuleManifest({
   pwa: { shortName: 'Inventario', startPath: '/inventory' },
   category: 'operaciones',
   summary: 'Gestion de inventario y activos de la empresa',
-  dependencies: [{ key: 'atlas.core' }, { key: 'atlas.hr' }],
+  dependencies: [{ key: 'runly.core' }, { key: 'runly.hr' }],
   navigation: [
     {
       label: 'Inventario',
@@ -1333,7 +1333,7 @@ export const inventoryMap = createModuleManifest({
 });
 
 export const notesMap = createModuleManifest({
-  key: 'atlas.notes',
+  key: 'runly.notes',
   name: 'Notas',
   version: '0.1.0',
   kind: MODULE_KINDS.CORE,
@@ -1381,7 +1381,7 @@ export const notesMap = createModuleManifest({
 });
 
 export const atlasPfmManifest = createModuleManifest({
-  key: "atlas.pfm",
+  key: "runly.pfm",
   name: "Finanzas personales",
   version: "0.5.0",
   kind: MODULE_KINDS.CORE,
@@ -1397,10 +1397,10 @@ export const atlasPfmManifest = createModuleManifest({
   initials: "FP",
   fullscreenPaths: ["/wallets/:id"],
   dependencies: [
-    { key: "atlas.core" },
-    { key: "atlas.identity" },
-    { key: "atlas.files", optional: true },
-    { key: "atlas.calendar", optional: true },
+    { key: "runly.core" },
+    { key: "runly.identity" },
+    { key: "runly.files", optional: true },
+    { key: "runly.calendar", optional: true },
   ],
   permissions: [
     { key: "pfm.wallets.read", name: "Ver carteras" },
@@ -1425,42 +1425,42 @@ export const atlasPfmManifest = createModuleManifest({
   navigation: [
     {
       label: "Resumen",
-      path: "/app/m/atlas.pfm/overview",
+      path: "/app/m/runly.pfm/overview",
       icon: "LayoutDashboard",
       layout: "main",
       permissionKey: "pfm.wallets.read",
     },
     {
       label: "Carteras",
-      path: "/app/m/atlas.pfm/wallets",
+      path: "/app/m/runly.pfm/wallets",
       icon: "Wallet",
       layout: "main",
       permissionKey: "pfm.wallets.read",
     },
     {
       label: "Recurrencias",
-      path: "/app/m/atlas.pfm/recurring",
+      path: "/app/m/runly.pfm/recurring",
       icon: "Repeat",
       layout: "main",
       permissionKey: "pfm.recurring.read",
     },
     {
       label: "Categorias",
-      path: "/app/m/atlas.pfm/categories",
+      path: "/app/m/runly.pfm/categories",
       icon: "Tag",
       layout: "main",
       permissionKey: "pfm.categories.read",
     },
     {
       label: "Presupuestos",
-      path: "/app/m/atlas.pfm/budgets",
+      path: "/app/m/runly.pfm/budgets",
       icon: "Target",
       layout: "main",
       permissionKey: "pfm.budgets.manage",
     },
     {
       label: "Tickets",
-      path: "/app/m/atlas.pfm/receipts",
+      path: "/app/m/runly.pfm/receipts",
       icon: "ReceiptText",
       layout: "main",
       permissionKey: "pfm.receipts.read",

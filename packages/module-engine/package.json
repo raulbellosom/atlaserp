@@ -1,11 +1,15 @@
 {
-  "name": "@atlas/module-engine",
+  "name": "@runly/module-engine",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js"
   },
-  "description": "Atlas Module Engine v3 — defineAtlasModule, defineModel, defineView, definePage, SQL generator, checksum",
-  "license": "UNLICENSED"
+  "description": "Atlas Module Engine v3 \u2014 defineAtlasModule, defineModel, defineView, definePage, SQL generator, checksum",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@runly/core": "workspace:*",
+    "@atlas/core": "workspace:@runly/core@*"
+  }
 }

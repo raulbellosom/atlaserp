@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_url="https://raw.githubusercontent.com/raulbellosom/atlaserp/main/infra/installer"
-if [[ "${ATLAS_BOOTSTRAP_REFRESHED:-}" != "local" ]]; then
+base_url="https://raw.githubusercontent.com/raulbellosom/runly-erp/main/infra/installer"
+if [[ "${RUNLY_BOOTSTRAP_REFRESHED-${ATLAS_BOOTSTRAP_REFRESHED:-}}" != "local" ]]; then
   bootstrap_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
   bootstrap_download="$(mktemp "${bootstrap_path}.XXXXXX")"
   trap 'rm -f "$bootstrap_download"' EXIT
@@ -13,7 +13,7 @@ if [[ "${ATLAS_BOOTSTRAP_REFRESHED:-}" != "local" ]]; then
     mv -f "$bootstrap_download" "$bootstrap_path"
     trap - EXIT
     echo "[atlas-bootstrap] Bootstrap actualizado; continuando con la lista vigente."
-    exec env ATLAS_BOOTSTRAP_REFRESHED=local bash "$bootstrap_path" "$@"
+    exec env RUNLY_BOOTSTRAP_REFRESHED=local ATLAS_BOOTSTRAP_REFRESHED=local bash "$bootstrap_path" "$@"
   fi
   rm -f "$bootstrap_download"
   trap - EXIT
@@ -22,6 +22,7 @@ files=(
   docker-compose.yml
   docker-compose.linux.yml
   lib/devkit-installer.mjs
+  lib/env-compat.mjs
   lib/office-config.mjs
   lib/firebase-config.mjs
   lib/livekit-config.mjs
@@ -46,9 +47,9 @@ mkdir -p -m 700 .secrets/firebase
 
 echo "[atlas-bootstrap] Archivos listos."
 if [[ "${1:-}" == "--skip-run" ]]; then
-  echo "[atlas-bootstrap] Ejecucion omitida. Usa: npm run atlas:local"
+  echo "[atlas-bootstrap] Ejecucion omitida. Usa: npm run runly:local"
   exit 0
 fi
 
 echo "[atlas-bootstrap] Iniciando instalacion local..."
-exec npm run atlas:local
+exec npm run runly:local

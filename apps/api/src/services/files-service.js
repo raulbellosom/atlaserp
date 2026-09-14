@@ -1,7 +1,7 @@
 ﻿import { createFileAccess } from "./files/access.js";
 import JSZip from "jszip";
 import { fileKindWhere } from "./files/query.js";
-import { toLocalIso, getOfficeFormat, OFFICE_FORMATS } from "@atlas/core";
+import { toLocalIso, getOfficeFormat, OFFICE_FORMATS } from "@runly/core";
 import { signedUrlWithVariant, publicUrlWithVariant } from "../lib/image-variants.js";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -225,7 +225,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     return {
       profileId: profile.id,
       companyId: membership.companyId,
-      admin: ["atlas.admin", "system.admin"].includes(membership.role.key),
+      admin: ["runly.admin", "atlas.admin", "system.admin"].includes(membership.role.key),
       permissions: new Set(membership.role.permissions.filter(p => p.permission.active).map(p => p.permission.key)),
     };
   }
@@ -343,7 +343,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       }
 
       const moduleKey =
-        String(fields.moduleKey ?? "atlas.files").trim() || "atlas.files";
+        String(fields.moduleKey ?? "runly.files").trim() || "runly.files";
       const entityType =
         String(fields.entityType ?? "AtlasFile").trim() || "AtlasFile";
       const entityId = context.companyId;
@@ -435,8 +435,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       };
 
       where.AND = [access.readWhere(context)];
-      if (query.workspace === "documents") where.AND.push({ entityType: "AtlasFile", moduleKey: "atlas.files" });
-      if (query.workspace === "attachments") where.AND.push({ NOT: { entityType: "AtlasFile", moduleKey: "atlas.files" } });
+      if (query.workspace === "documents") where.AND.push({ entityType: "AtlasFile", moduleKey: { in: ["runly.files", "atlas.files"] } });
+      if (query.workspace === "attachments") where.AND.push({ NOT: { entityType: "AtlasFile", moduleKey: { in: ["runly.files", "atlas.files"] } } });
       if (query.workspace === "shared") where.AND.push({ shares: { some: { userId: context.profileId, status: "ACCEPTED" } } });
       if (query.kind) where.AND.push(fileKindWhere(query.kind));
       if (enabled !== undefined) where.enabled = enabled;
@@ -738,7 +738,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       await prisma.fileAsset.delete({ where: { id: file.id } });
 
       // Audit log for HR employee file deletions
-      if (file.moduleKey === "atlas.hr" && file.entityType === "HrEmployee") {
+      if (["runly.hr", "atlas.hr"].includes(file.moduleKey) && file.entityType === "HrEmployee") {
         const sourceEntityId = file.metadata?.sourceEntityId ?? null;
         if (sourceEntityId) {
           const actor = await prisma.userProfile.findUnique({
@@ -749,7 +749,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
             await prisma.auditLog.create({
               data: {
                 actorId: actor.id,
-                moduleKey: "atlas.hr",
+                moduleKey: "runly.hr",
                 entityType: "HrEmployee",
                 entityId: String(sourceEntityId),
                 action: "hr.employee.file.delete",

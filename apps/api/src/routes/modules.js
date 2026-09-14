@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { resolvePersistedModuleKey } from '../services/module-key-alias.js';
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
@@ -12,7 +13,7 @@ import {
   moduleCleanupSchema,
   moduleUninstallSchema,
   moduleResetSchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 import {
   getPermissionPresentation,
   groupPermissionsForUi,
@@ -31,13 +32,13 @@ import {
   discoverModules,
   getDiscoveryRootInfo,
 } from "../services/module-discovery-service.js";
-import { listOfficialModuleManifests } from "../services/module-manifests-service.js";
+import { listOfficialFallbackManifests, isOfficialCoreModuleKey } from "../services/module-manifests-service.js";
 import {
   detectRequiredDependencyCycle,
   formatDependencyCycle,
-  normalizeManifestDependencies,
+  loadManifestDependencies,
 } from "../services/module-dependency-utils.js";
-import { validateManifest } from "@atlas/module-engine";
+import { validateManifest } from "@runly/module-engine";
 import { del as cacheDel } from "../lib/cache.js";
 import {
   resolveModulesDir,
@@ -46,25 +47,6 @@ import {
   purgeModuleFromDb,
 } from "../services/module-upload-service.js";
 
-const CORE_KEYS = new Set([
-  "atlas.core",
-  "atlas.identity",
-  "atlas.files",
-  "atlas.company",
-  "atlas.contacts",
-  "atlas.hr",
-  "atlas.fleet",
-  "atlas.ledger",
-  "atlas.calendar",
-  "atlas.catalog",
-  "atlas.pos",
-  "atlas.website",
-  "atlas.growth",
-  "atlas.activity",
-  "atlas.notifications",
-  "atlas.projects",
-  "atlas.inventory",
-]);
 const __routesDir = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLES_DIR_SERVE = path.resolve(__routesDir, "..", "..", "bundles");
 const SEMVER_PATCH_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
@@ -222,7 +204,7 @@ function classifyInstallStage(err) {
 }
 
 function handleLifecycleError(c, err, fallback) {
-  if (err instanceof ModuleLifecycleError) {
+  if (err instanceof ModuleLifecycleError || err?.code === "DEPENDENCY_ALIAS_VERSION_CONFLICT") {
     return c.json({ error: err.message }, err.status);
   }
   if (err?.code === "DEPENDENCY_NOT_FOUND") {
@@ -334,7 +316,7 @@ function mergeDiscoveryIntoManifest(record, options = {}) {
 
 function buildOfficialFallbackManifests({ discoveredKeys }) {
   const fallback = [];
-  const officialManifests = listOfficialModuleManifests();
+  const officialManifests = listOfficialFallbackManifests(discoveredKeys);
 
   for (const manifest of officialManifests) {
     const key = typeof manifest?.key === "string" ? manifest.key.trim() : "";
@@ -367,7 +349,7 @@ async function upsertDiscoveredModuleError({ prisma, record }) {
     record?.manifest && typeof record.manifest === "object"
       ? record.manifest
       : {};
-  const isCore = CORE_KEYS.has(key);
+  const isCore = isOfficialCoreModuleKey(key);
   const name =
     typeof manifest.name === "string" && manifest.name.trim()
       ? manifest.name.trim()
@@ -421,7 +403,7 @@ async function upsertDiscoveredModuleError({ prisma, record }) {
   });
 }
 
-async function syncDiscoveredModuleDependencies({
+export async function syncDiscoveredModuleDependencies({
   prisma,
   moduleKey,
   dependencies = [],
@@ -446,28 +428,9 @@ async function syncDiscoveredModuleDependencies({
     };
   }
 
-  const normalizedDependencies = normalizeManifestDependencies(dependencies);
-  const keys = normalizedDependencies.map((dep) => dep.key);
-  const dependencyRows =
-    keys.length > 0
-      ? await prisma.atlasModule.findMany({
-          where: { key: { in: keys } },
-          select: { id: true, key: true },
-        })
-      : [];
-
-  const dependencyByKey = new Map(
-    dependencyRows.map((row) => [row.key, row.id]),
-  );
-  const missingRequired = normalizedDependencies
-    .filter((dep) => !dep.optional && !dependencyByKey.has(dep.key))
-    .map((dep) => dep.key);
-  const missingOptional = normalizedDependencies
-    .filter((dep) => dep.optional && !dependencyByKey.has(dep.key))
-    .map((dep) => dep.key);
-  const resolvable = normalizedDependencies.filter((dep) =>
-    dependencyByKey.has(dep.key),
-  );
+  const { declared, resolved: resolvable, missingRequired, missingOptional } =
+    await loadManifestDependencies(prisma, dependencies);
+  const dependencyByKey = new Map(resolvable.map(dep => [dep.key, dep.dependencyId]));
   const requiredDependencyIds = resolvable
     .filter((dep) => !dep.optional)
     .map((dep) => dependencyByKey.get(dep.key))
@@ -493,7 +456,7 @@ async function syncDiscoveredModuleDependencies({
       const cyclePath = formatDependencyCycle({ cycle: cycleIds, idToKey });
       return {
         key: moduleRow.key,
-        declared: normalizedDependencies.length,
+        declared,
         synced: 0,
         removed: 0,
         missingRequired,
@@ -558,7 +521,7 @@ async function syncDiscoveredModuleDependencies({
 
   return {
     key: moduleRow.key,
-    declared: normalizedDependencies.length,
+    declared,
     synced: txResult.synced,
     removed: txResult.removed,
     missingRequired,
@@ -856,7 +819,7 @@ export function createModulesRouter({
           stack: err?.stack ?? null,
         });
 
-        if (err instanceof ModuleLifecycleError) {
+        if (err instanceof ModuleLifecycleError || err?.code === "DEPENDENCY_ALIAS_VERSION_CONFLICT") {
           return c.json(
             { error: err.message, code, moduleKey, stage, requestId },
             err.status,
@@ -1624,7 +1587,7 @@ export function createModulesRouter({
     requirePermission("core.modules.read"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const mod = await prisma.atlasModule.findUnique({
           where: { key },
           include: {
@@ -1703,7 +1666,7 @@ export function createModulesRouter({
     requirePermission("core.modules.read"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const mod = await prisma.atlasModule.findUnique({
           where: { key },
           select: { key: true },
@@ -1730,7 +1693,7 @@ export function createModulesRouter({
     requirePermission("core.modules.read"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const data = await svc.getModuleInstallError({ key });
         return c.json({ data });
       } catch (err) {
@@ -1750,7 +1713,7 @@ export function createModulesRouter({
     async (c) => {
       const requestId = generateRequestId();
       const isDev = process.env.NODE_ENV !== "production";
-      const key = c.req.param("key");
+      const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
       try {
         const actorId = c.get("userContext")?.profile?.id ?? null;
         const result = await svc.retryInstallModule({
@@ -1788,7 +1751,7 @@ export function createModulesRouter({
           stack: err?.stack ?? null,
         });
 
-        if (err instanceof ModuleLifecycleError) {
+        if (err instanceof ModuleLifecycleError || err?.code === "DEPENDENCY_ALIAS_VERSION_CONFLICT") {
           return c.json(
             { error: err.message, code, moduleKey: key, stage, requestId },
             err.status,
@@ -1820,7 +1783,7 @@ export function createModulesRouter({
     requirePermission("core.modules.update"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const body = await c.req.json().catch(() => ({}));
         const parsed = moduleClearErrorSchema.safeParse(body);
         if (!parsed.success) {
@@ -1852,7 +1815,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const body = await c.req.json().catch(() => ({}));
         const parsed = moduleCleanupDryRunSchema.safeParse(body);
         if (!parsed.success) {
@@ -1882,7 +1845,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const body = await c.req.json().catch(() => ({}));
         const parsed = moduleCleanupSchema.safeParse(body);
         if (!parsed.success) {
@@ -1919,7 +1882,7 @@ export function createModulesRouter({
     requirePermission("core.modules.update"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const actorId = c.get("userContext")?.profile?.id ?? null;
         const result = await svc.disableModule({ key, actorId });
         const rlUnloaded = safeRouteUnload(key);
@@ -1956,7 +1919,7 @@ export function createModulesRouter({
     requirePermission("core.modules.update"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const actorId = c.get("userContext")?.profile?.id ?? null;
         const result = await svc.enableModule({ key, actorId });
         const rlStatus = await safeRouteReload(key);
@@ -1986,7 +1949,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const actorId = c.get("userContext")?.profile?.id ?? null;
         // Tenant middleware's already-validated active company, not
         // re-derived from memberships[0]. See
@@ -2033,7 +1996,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const body = await c.req.json().catch(() => ({}));
         const parsed = moduleDryRunSchema.safeParse(body);
         const mode = parsed.success
@@ -2063,7 +2026,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const body = await c.req.json();
         const parsed = moduleUninstallSchema.safeParse(body);
         if (!parsed.success) {
@@ -2120,7 +2083,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         // Tenant middleware's already-validated active company, not
         // re-derived from memberships[0]. See
         // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
@@ -2145,7 +2108,7 @@ export function createModulesRouter({
     requirePermission("core.modules.delete"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const body = await c.req.json();
         const parsed = moduleResetSchema.safeParse(body);
         if (!parsed.success) {
@@ -2186,7 +2149,7 @@ export function createModulesRouter({
     requirePermission("core.modules.install"),
     async (c) => {
       try {
-        const key = c.req.param("key");
+        const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
         const mod = await prisma.atlasModule.findUnique({ where: { key } });
         if (!mod) return c.json({ error: "Modulo no encontrado." }, 404);
         if (mod.status !== "INSTALLED" || !mod.enabled) {
@@ -2210,7 +2173,7 @@ export function createModulesRouter({
   // those specifiers both in dev (/@id/ virtual modules) and in production
   // (/app/shims/ext-*.js shim chunks).  No server-side rewriting is needed.
   app.get("/:key/bundle.js", async (c) => {
-    const key = c.req.param("key");
+    const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
 
     if (!/^[\w.-]+$/.test(key)) {
       return c.json({ error: "Clave de modulo invalida." }, 400);
@@ -2264,7 +2227,7 @@ export function createModulesRouter({
     authMiddleware,
     requirePermission("core.modules.upload"),
     async (c) => {
-      const key = c.req.param("key");
+      const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
 
       const modulesDir = await resolveModulesDir();
       if (!modulesDir || !existsSync(modulesDir)) {
@@ -2313,7 +2276,7 @@ export function createModulesRouter({
     authMiddleware,
     requirePermission("core.modules.purge"),
     async (c) => {
-      const key = c.req.param("key");
+      const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
       const modulesDir = await resolveModulesDir();
 
       try {

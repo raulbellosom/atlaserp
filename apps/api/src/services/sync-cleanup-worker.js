@@ -1,5 +1,5 @@
 const SYNC_CLEANUP_INTERVAL_MS = Number(
-  process.env.ATLAS_SYNC_CLEANUP_INTERVAL_MS ?? 6 * 60 * 60 * 1000, // 6 hours
+  (process.env.RUNLY_SYNC_CLEANUP_INTERVAL_MS ?? process.env.ATLAS_SYNC_CLEANUP_INTERVAL_MS) ?? 6 * 60 * 60 * 1000, // 6 hours
 )
 
 export function createSyncLogCleanupWorker({ prisma }) {

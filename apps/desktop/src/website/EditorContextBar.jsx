@@ -285,7 +285,7 @@ export function EditorContextBar({
             onMouseLeave={(e) => { e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.background = 'none' }}
           >
             <ChevronLeft size={13} />
-            Atlas ERP
+            Runly ERP
           </button>
 
           {divider}

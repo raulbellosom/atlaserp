@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OFFICE_FORMATS } from '@atlas/core';
+import { OFFICE_FORMATS } from '@runly/core';
 import { createOfficeAccess } from '../office/access.js';
 
 const ids = {

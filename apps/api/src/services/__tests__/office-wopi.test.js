@@ -6,7 +6,7 @@ import { createOfficeService } from '../office/service.js';
 import { createCollaboraProvider, readBoundedBody } from '../office/discovery.js';
 import { readOfficeConfig } from '../office/config.js';
 import { validateOfficeDocument } from '../office/validate-document.js';
-import { OFFICE_FORMATS, getOfficeFormat } from '@atlas/core';
+import { OFFICE_FORMATS, getOfficeFormat } from '@runly/core';
 import { ids, officeBytes, officeEnv, officeFixture } from './office-fixture.js';
 
 const status = expected => error => error.status === expected;

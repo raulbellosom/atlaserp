@@ -20,11 +20,11 @@ const FEATURE_PATHS = [
   "/fleet/maintenance",
 ];
 
-const baseUrl = (process.env.ATLAS_API_URL || "http://localhost:4010").replace(
+const baseUrl = ((process.env.RUNLY_API_URL ?? process.env.ATLAS_API_URL) || "http://localhost:4010").replace(
   /\/+$/,
   "",
 );
-const token = (process.env.ATLAS_TOKEN || "").trim();
+const token = ((process.env.RUNLY_TOKEN ?? process.env.ATLAS_TOKEN) || "").trim();
 
 if (!token) {
   console.error(
@@ -115,7 +115,7 @@ async function main() {
     console.log("OK /fleet/vehicles relational fields");
   }
 
-  const tokenWithoutFleet = (process.env.ATLAS_TOKEN_NO_FLEET || "").trim();
+  const tokenWithoutFleet = ((process.env.RUNLY_TOKEN_NO_FLEET ?? process.env.ATLAS_TOKEN_NO_FLEET) || "").trim();
   if (tokenWithoutFleet) {
     await expectStatus("/fleet/vehicles", 403, tokenWithoutFleet);
     console.log("OK RBAC 403 /fleet/vehicles (sin permisos fleet)");
@@ -125,7 +125,7 @@ async function main() {
     );
   }
 
-  const tokenOtherCompany = (process.env.ATLAS_TOKEN_OTHER_COMPANY || "").trim();
+  const tokenOtherCompany = ((process.env.RUNLY_TOKEN_OTHER_COMPANY ?? process.env.ATLAS_TOKEN_OTHER_COMPANY) || "").trim();
   if (tokenOtherCompany) {
     const primary = await getJson("/fleet/vehicles");
     const secondaryResponse = await fetch(`${baseUrl}/fleet/vehicles`, {

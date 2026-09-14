@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { validateModulePwaIdentity } from '@atlas/module-engine'
+import { validateModulePwaIdentity } from '@runly/module-engine'
 import { coreModules, inventoryMap } from '../core-modules.js'
 import { projectsMap } from '../feature-modules.js'
 

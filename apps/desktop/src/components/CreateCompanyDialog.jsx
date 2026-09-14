@@ -8,7 +8,7 @@ import {
   DialogFooter,
   Button,
   TextField,
-} from "@atlas/ui";
+} from "@runly/ui";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";

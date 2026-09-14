@@ -34,7 +34,7 @@ Esta instancia es exclusiva de Atlas ERP. No se comparte con otros proyectos.
 ## Principios obligatorios
 
 1. No meter lógica de negocio crítica en React.
-2. React consume Atlas API mediante `@atlas/sdk`. Nunca accede a Supabase directamente para datos ERP.
+2. React consume Atlas API mediante `@runly/sdk`. Nunca accede a Supabase directamente para datos ERP.
 3. Prisma es la fuente para modelos persistentes de Atlas ERP.
 4. Supabase Auth maneja sesión y JWT, pero Atlas maneja perfiles, roles, permisos y compañías.
 5. Supabase Storage maneja archivos físicos, pero PostgreSQL (vía Prisma FileAsset) guarda metadata.

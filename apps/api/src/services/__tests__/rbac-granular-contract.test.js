@@ -116,7 +116,7 @@ test("core and identity manifests expose expected granular keys", async () => {
   );
 
   const requiredByModule = {
-    "atlas.core": [
+    "runly.core": [
       "core.access",
       "core.modules.read",
       "core.modules.create",
@@ -127,7 +127,7 @@ test("core and identity manifests expose expected granular keys", async () => {
       "core.instance.update",
       "core.instance.delete",
     ],
-    "atlas.identity": [
+    "runly.identity": [
       "identity.access",
       "identity.users.read",
       "identity.users.create",

@@ -1,5 +1,5 @@
 import { FilePenLine } from 'lucide-react';
-import { getOfficeFormat } from '@atlas/core';
+import { getOfficeFormat } from '@runly/core';
 import { Button } from './Button.jsx';
 import { useOfficeActions } from './office-actions-context.js';
 

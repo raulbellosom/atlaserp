@@ -1,6 +1,6 @@
 {
-  "name": "Atlas ERP",
-  "short_name": "Atlas",
+  "name": "Runly ERP",
+  "short_name": "Runly",
   "description": "CONNECT. MANAGE. GROW.",
   "id": "/app/",
   "scope": "/app/",
@@ -8,8 +8,8 @@
   "start_url": "/app/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0A1D44",
-  "theme_color": "#102A5E",
+  "background_color": "#0C172D",
+  "theme_color": "#132646",
   "prefer_related_applications": false,
   "categories": ["business", "productivity"],
   "icons": [

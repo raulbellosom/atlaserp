@@ -1,7 +1,7 @@
-import { createModuleManifest, MODULE_KINDS } from "@atlas/core";
+import { createModuleManifest, MODULE_KINDS } from "@runly/core";
 
 export const contactsMap = createModuleManifest({
-  key: "atlas.contacts",
+  key: "runly.contacts",
   name: "Contactos",
   description: "Clientes, proveedores, personas y empresas.",
   version: "0.1.0",
@@ -13,7 +13,7 @@ export const contactsMap = createModuleManifest({
   pwa: { shortName: "Contactos", startPath: "/contacts" },
   category: "operaciones",
   summary: "Clientes, proveedores, personas y empresas",
-  dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  dependencies: [{ key: "runly.core" }, { key: "runly.identity" }],
   lifecycle: {
     installable: true,
     uninstallable: false,
@@ -98,7 +98,7 @@ export const contactsMap = createModuleManifest({
 });
 
 export const hrMap = createModuleManifest({
-  key: "atlas.hr",
+  key: "runly.hr",
   name: "Recursos Humanos",
   description: "Colaboradores, notas internas y expedientes.",
   version: "0.1.0",
@@ -110,7 +110,7 @@ export const hrMap = createModuleManifest({
   pwa: { shortName: "RRHH", startPath: "/hr/employees" },
   category: "operaciones",
   summary: "Gestión de personal y expediente",
-  dependencies: [{ key: "atlas.core" }, { key: "atlas.files", optional: true }],
+  dependencies: [{ key: "runly.core" }, { key: "runly.files", optional: true }],
   lifecycle: {
     installable: true,
     uninstallable: false,
@@ -264,7 +264,7 @@ export const hrMap = createModuleManifest({
 });
 
 export const atlasWebsiteManifest = createModuleManifest({
-  key: "atlas.website",
+  key: "runly.website",
   name: "Sitio web",
   description:
     "Sitio web publico, editor visual de paginas y publicacion de contenido.",
@@ -276,7 +276,7 @@ export const atlasWebsiteManifest = createModuleManifest({
   color: "#6366f1",
   pwa: { shortName: "Sitio web", startPath: "/" },
   summary: "CMS, editor Puck y publicacion de paginas.",
-  dependencies: [{ key: "atlas.core" }],
+  dependencies: [{ key: "runly.core" }],
   lifecycle: {
     installable: true,
     uninstallable: true,
@@ -366,7 +366,7 @@ export const atlasWebsiteManifest = createModuleManifest({
 });
 
 export const atlasGrowthManifest = createModuleManifest({
-  key: "atlas.growth",
+  key: "runly.growth",
   name: "Growth",
   description: "Telemetria web, formularios y seguimiento de leads.",
   version: "0.1.0",
@@ -379,9 +379,9 @@ export const atlasGrowthManifest = createModuleManifest({
   category: "comercial",
   summary: "Analitica de storefront y captura de oportunidades.",
   dependencies: [
-    { key: "atlas.core" },
-    { key: "atlas.website" },
-    { key: "atlas.contacts" },
+    { key: "runly.core" },
+    { key: "runly.website" },
+    { key: "runly.contacts" },
   ],
   lifecycle: {
     installable: true,
@@ -472,7 +472,7 @@ export const atlasGrowthManifest = createModuleManifest({
 });
 
 export const atlasDocumentsManifest = createModuleManifest({
-  key: "atlas.documents",
+  key: "runly.documents",
   name: "Documentos",
   description: "Plantillas versionadas y documentos PDF generados.",
   version: "0.1.0",
@@ -485,9 +485,9 @@ export const atlasDocumentsManifest = createModuleManifest({
   category: "productividad",
   summary: "Plantillas seguras y generacion de documentos PDF.",
   dependencies: [
-    { key: "atlas.core" },
-    { key: "atlas.files" },
-    { key: "atlas.company" },
+    { key: "runly.core" },
+    { key: "runly.files" },
+    { key: "runly.company" },
   ],
   lifecycle: {
     installable: true,
@@ -573,9 +573,9 @@ export const atlasDocumentsManifest = createModuleManifest({
 export const featureModules = [];
 
 export const activityMap = createModuleManifest({
-  key: "atlas.activity",
+  key: "runly.activity",
   name: "Actividad",
-  description: "Bitácora legible de eventos y feed transversal de Atlas ERP.",
+  description: "Bitácora legible de eventos y feed transversal de Runly ERP.",
   version: "0.1.0",
   kind: MODULE_KINDS.CORE,
   core: true,
@@ -585,7 +585,7 @@ export const activityMap = createModuleManifest({
   pwa: { shortName: "Actividad", startPath: "/" },
   category: "plataforma",
   summary: "Feed de actividad de negocio en tiempo real",
-  dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  dependencies: [{ key: "runly.core" }, { key: "runly.identity" }],
   lifecycle: {
     installable: true,
     uninstallable: false,
@@ -637,7 +637,7 @@ export const activityMap = createModuleManifest({
 });
 
 export const notificationsMap = createModuleManifest({
-  key: "atlas.notifications",
+  key: "runly.notifications",
   name: "Notificaciones",
   description: "Alertas accionables para eventos importantes del sistema.",
   version: "0.1.0",
@@ -649,7 +649,7 @@ export const notificationsMap = createModuleManifest({
   pwa: { shortName: "Notificaciones", startPath: "/" },
   category: "plataforma",
   summary: "Inbox de notificaciones con prioridades y canales",
-  dependencies: [{ key: "atlas.core" }, { key: "atlas.identity" }],
+  dependencies: [{ key: "runly.core" }, { key: "runly.identity" }],
   lifecycle: {
     installable: true,
     uninstallable: false,
@@ -662,14 +662,14 @@ export const notificationsMap = createModuleManifest({
   navigation: [
     {
       label: "Notificaciones",
-      path: "/app/m/atlas.notifications",
+      path: "/app/m/runly.notifications",
       icon: "Bell",
       layout: "main",
       permissionKey: "notifications.read",
     },
     {
       label: "Configuracion",
-      path: "/app/m/atlas.notifications/settings",
+      path: "/app/m/runly.notifications/settings",
       icon: "Settings",
       layout: "main",
       permissionKey: "notifications.read",
@@ -726,7 +726,7 @@ export const notificationsMap = createModuleManifest({
 });
 
 export const projectsMap = createModuleManifest({
-  key: 'atlas.projects',
+  key: 'runly.projects',
   name: 'Proyectos',
   description: 'Gestion de proyectos y tareas con vistas Kanban, Lista y Timeline.',
   version: '1.0.0',
@@ -739,9 +739,9 @@ export const projectsMap = createModuleManifest({
   category: 'productividad',
   summary: 'Proyectos y tareas con Kanban, Lista y Timeline',
   dependencies: [
-    { key: 'atlas.identity' },
-    { key: 'atlas.company' },
-    { key: 'atlas.calendar', optional: true },
+    { key: 'runly.identity' },
+    { key: 'runly.company' },
+    { key: 'runly.calendar', optional: true },
   ],
   lifecycle: {
     installable: true,
@@ -790,7 +790,7 @@ export const projectsMap = createModuleManifest({
 });
 
 export const chatMap = createModuleManifest({
-  key: 'atlas.chat',
+  key: 'runly.chat',
   name: 'Chat',
   description: 'Mensajeria interna en tiempo real y chat de soporte para visitantes externos.',
   version: '0.2.0',
@@ -802,8 +802,8 @@ export const chatMap = createModuleManifest({
   pwa: { shortName: 'Chat', startPath: '/chat/inbox' },
   category: 'comunicacion',
   summary: 'Chat interno y soporte en vivo',
-  dependencies: [{ key: 'atlas.core' }, { key: 'atlas.identity' }],
-  consumes: ['atlas.notifications'],
+  dependencies: [{ key: 'runly.core' }, { key: 'runly.identity' }],
+  consumes: ['runly.notifications'],
   lifecycle: {
     installable: false,
     uninstallable: false,

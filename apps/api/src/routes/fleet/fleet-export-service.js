@@ -18,7 +18,7 @@ function applyHeaderStyle(row) {
   row.fill = {
     type: "pattern",
     pattern: "solid",
-    fgColor: { argb: "FFCCFBF1" }, // teal-100 — matches Atlas fleet accent
+    fgColor: { argb: "FFCCFBF1" }, // teal-100 — matches Runly fleet accent
   };
   row.alignment = { vertical: "middle", wrapText: false };
   row.height = 20;
@@ -40,11 +40,11 @@ function applyAutoFilter(sheet) {
 // Stamps the workbook's document metadata with the real company as author.
 // "Atlas ERP" only appears as a discreet description, never as the creator.
 function applyWorkbookIdentity(wb, companyName) {
-  const name = String(companyName ?? "").trim() || "Atlas ERP";
+  const name = String(companyName ?? "").trim() || "Runly ERP";
   wb.creator = name;
   wb.lastModifiedBy = name;
   wb.company = name;
-  wb.description = "Hecho con Atlas ERP";
+  wb.description = "Hecho con Runly ERP";
   wb.created = new Date();
 }
 

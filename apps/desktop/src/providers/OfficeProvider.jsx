@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { OfficeActionsContext } from '@atlas/ui';
+import { OfficeActionsContext } from '@runly/ui';
 import { useAuth } from '../auth/AuthProvider';
 import { atlas } from '../lib/atlas';
 

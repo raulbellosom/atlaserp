@@ -1,3 +1,5 @@
+import { findModuleByKey, getModuleKeyAliases } from '@runly/core'
+
 function toDependencyRecord(dep) {
   if (typeof dep === 'string') {
     const key = dep.trim()
@@ -42,6 +44,39 @@ export function normalizeManifestDependencies(dependencies = []) {
   }
 
   return [...records.values()].sort((a, b) => a.key.localeCompare(b.key))
+}
+
+// Resolve by persisted identity before deduplication. Two spellings can name
+// one UUID, but two exact records must remain separate dependencies.
+export async function loadManifestDependencies(db, dependencies = []) {
+  const normalized = normalizeManifestDependencies(dependencies)
+  const keys = [...new Set(normalized.flatMap(dep => getModuleKeyAliases(dep.key)))]
+  const rows = keys.length ? await db.atlasModule.findMany({
+    where: { key: { in: keys } }, select: { id: true, key: true },
+  }) : []
+  const byKey = new Map(rows.map(row => [row.key, row]))
+  const byId = new Map()
+  const missingRequired = []
+  const missingOptional = []
+  for (const dep of normalized) {
+    const row = findModuleByKey(byKey, dep.key)
+    if (!row) {
+      ;(dep.optional ? missingOptional : missingRequired).push(dep.key)
+      continue
+    }
+    const current = byId.get(row.id)
+    if (current?.versionRange && dep.versionRange && current.versionRange !== dep.versionRange) {
+      throw Object.assign(new Error(`Las declaraciones de ${row.key} tienen rangos de version distintos.`), {
+        code: 'DEPENDENCY_ALIAS_VERSION_CONFLICT', status: 409, statusCode: 409, moduleKey: row.key,
+      })
+    }
+    byId.set(row.id, {
+      key: row.key, dependencyId: row.id,
+      optional: current ? current.optional && dep.optional : dep.optional,
+      versionRange: dep.versionRange ?? current?.versionRange ?? null,
+    })
+  }
+  return { declared: normalized.length, resolved: [...byId.values()], missingRequired, missingOptional }
 }
 
 function findCycleFromNode(startNode, adjacency) {

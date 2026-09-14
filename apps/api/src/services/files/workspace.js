@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
-import { OFFICE_FORMATS } from "@atlas/core";
+import { OFFICE_FORMATS } from "@runly/core";
 import { signedUrlsWithVariant } from "../../lib/image-variants.js";
 import { createFileAccess, FileAccessError } from "./access.js";
 
@@ -50,7 +50,7 @@ export function createFilesWorkspace({
   }
   function shareUrl(fileId) {
     try {
-      const base = new URL(env.ATLAS_OFFICE_HOST_ORIGIN || env.ATLAS_APP_URL);
+      const base = new URL((env.RUNLY_OFFICE_HOST_ORIGIN ?? env.ATLAS_OFFICE_HOST_ORIGIN) || (env.RUNLY_APP_URL ?? env.ATLAS_APP_URL));
       if (
         !["http:", "https:"].includes(base.protocol) ||
         base.username ||
@@ -90,7 +90,7 @@ export function createFilesWorkspace({
     if (!file) throw new FileAccessError("Documento no encontrado.", 404);
     if (
       file.entityType !== "AtlasFile" ||
-      file.moduleKey !== "atlas.files" ||
+      !["runly.files", "atlas.files"].includes(file.moduleKey) ||
       file.bucket !== "atlas-files" ||
       file.visibility === "PUBLIC" ||
       file.invItemFiles.length ||
@@ -111,7 +111,7 @@ export function createFilesWorkspace({
     await db.auditLog.create({
       data: {
         actorId: context.profileId,
-        moduleKey: "atlas.files",
+        moduleKey: "runly.files",
         entityType: "FileAsset",
         entityId: fileId,
         action,
@@ -183,7 +183,7 @@ export function createFilesWorkspace({
             mimeType: OFFICE_FORMATS[format].mimeType,
             sizeBytes: bytes.length,
             checksum: createHash("sha256").update(bytes).digest("hex"),
-            moduleKey: "atlas.files",
+            moduleKey: "runly.files",
             entityType: "AtlasFile",
             entityId: context.companyId,
             uploadedById: context.profileId,
@@ -263,7 +263,7 @@ export function createFilesWorkspace({
         role: {
           enabled: true,
           OR: [
-            { key: { in: ["atlas.admin", "system.admin"] } },
+            { key: { in: ["runly.admin", "atlas.admin", "system.admin"] } },
             {
               permissions: {
                 some: {
@@ -342,7 +342,7 @@ export function createFilesWorkspace({
               .filter((p) => p.permission.active)
               .map((p) => p.permission.key),
           );
-          const admin = ["atlas.admin", "system.admin"].includes(
+          const admin = ["runly.admin", "atlas.admin", "system.admin"].includes(
             member?.role.key,
           );
           if (

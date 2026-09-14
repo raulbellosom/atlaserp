@@ -72,7 +72,7 @@ test("atlas.growth is an official core module with analytics and lead navigation
   const manifest = featureModules.atlasGrowthManifest;
 
   assert.ok(manifest);
-  assert.equal(manifest.key, "atlas.growth");
+  assert.equal(manifest.key, "runly.growth");
   assert.equal(manifest.core, true);
   assert.equal(manifest.icon, "TrendingUp");
   assert.equal(manifest.color, "#7C3AED");
@@ -92,7 +92,7 @@ test("atlas.growth is an official core module with analytics and lead navigation
       permissionKey: "growth.leads.read",
     },
   ]);
-  assert.ok(coreModules.some((moduleManifest) => moduleManifest.key === "atlas.growth"));
+  assert.ok(coreModules.some((moduleManifest) => moduleManifest.key === "runly.growth"));
 
   const permissionKeys = new Set(
     manifest.permissions.map((permission) => permission.key),

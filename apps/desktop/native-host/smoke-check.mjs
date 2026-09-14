@@ -66,7 +66,7 @@ try {
       const granted = await invoke('plugin:notification|is_permission_granted');
       if (granted) {
         await invoke('plugin:notification|create_channel', {id:'atlas-calls-v1',name:'Llamadas entrantes',importance:4,visibility:0,vibration:true,lights:true});
-        await invoke('host_notification_show', {options:{id:47002,title:'Atlas Native Smoke',body:'Notificación local de prueba',channelId:'atlas-calls-v1',extra:{target:{kind:'call',targetId:'fixture-call'}}}});
+        await invoke('host_notification_show', {options:{id:47002,title:'Runly Native Smoke',body:'Notificación local de prueba',channelId:'atlas-calls-v1',extra:{target:{kind:'call',targetId:'fixture-call'}}}});
       }
       return {granted};
     })()`)
@@ -96,7 +96,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 32_000))
     const result = await evaluate(`({url:location.href, text:document.body.innerText})`)
     assert.ok(result.url.startsWith('http://tauri.localhost/') && result.url.endsWith('#failed'))
-    assert.match(result.text, /No se pudo conectar con Atlas/)
+    assert.match(result.text, /No se pudo conectar con Runly/)
     console.log(JSON.stringify({ fallback: 'PASS', ...result }, null, 2))
   } else if (mode === 'policy') {
     const result = await evaluate(`({url:location.href,diagnostic:document.getElementById('diagnostics')?.textContent})`)

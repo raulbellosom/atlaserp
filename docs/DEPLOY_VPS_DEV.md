@@ -38,7 +38,7 @@ apt update && apt install -y docker.io docker-compose-plugin nginx certbot pytho
 
 ```bash
 cd /opt
-git clone https://github.com/raulbellosom/atlaserp.git atlaserp-dev
+git clone https://github.com/raulbellosom/runly-erp.git atlaserp-dev
 cd atlaserp-dev
 ```
 

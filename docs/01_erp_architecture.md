@@ -30,7 +30,7 @@ packages/
   ui/          Shared React components
   sdk/         Atlas API client (createAtlasClient factory)
   validators/  Zod schemas shared between API and frontend
-  module-engine/  @atlas/module-engine — defineAtlasModule, defineModel, defineView, definePage
+  module-engine/  @runly/module-engine — defineAtlasModule, defineModel, defineView, definePage
 modules/
   custom/      Community and partner modules
 prisma/
@@ -42,7 +42,7 @@ prisma/
 
 ## Layer responsibilities
 
-**apps/desktop** — UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@atlas/sdk`.
+**apps/desktop** — UI only. No business logic. No direct database access. Reads auth session from Supabase Auth client (anon key only). All ERP data goes through Atlas API via `@runly/sdk`.
 
 **packages/sdk** — Typed client factory `createAtlasClient({ baseUrl })`. Groups calls by domain. Attaches JWT bearer token from Supabase session to every API request.
 
@@ -58,7 +58,7 @@ prisma/
 
 ### ERP data
 ```
-React → @atlas/sdk (JWT attached) → Atlas API → Service → Prisma / Atlas ORM → Supabase PostgreSQL
+React → @runly/sdk (JWT attached) → Atlas API → Service → Prisma / Atlas ORM → Supabase PostgreSQL
 ```
 
 ### Authentication

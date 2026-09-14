@@ -1,8 +1,9 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { findModuleByKey, getLegacyModuleKey } from '@runly/core';
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useIsFetching, useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ModuleSidebar, BrandFooter } from "@atlas/ui";
-import { OfflineProvider } from "@atlas/offline";
+import { ModuleSidebar, BrandFooter } from "@runly/ui";
+import { OfflineProvider } from "@runly/offline";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
 import { Topbar } from "../components/Topbar";
@@ -17,7 +18,7 @@ import { usePwaManifest } from "../hooks/usePwaManifest.js";
 import { usePwaInstall } from "../hooks/usePwaInstall.js";
 import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
 import { atlas } from '../lib/atlas.js'
-import { FloatingChatHub } from '../modules/atlas.chat/components/FloatingChatHub.jsx'
+import { FloatingChatHub } from '../modules/runly.chat/components/FloatingChatHub.jsx'
 import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
 import { useServiceWorkerNotifications } from './useServiceWorkerNotifications.js'
 
@@ -98,7 +99,7 @@ export function AtlasApp() {
 
   useEffect(() => {
     const name = instanceConfigData?.data?.instanceName
-    document.title = name ? `${name} — Atlas ERP` : 'Atlas ERP'
+    document.title = name ? `${name} — Runly ERP` : 'Runly ERP'
   }, [instanceConfigData?.data?.instanceName])
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
   const apiBaseUrl = getApiUrl();
@@ -113,7 +114,7 @@ export function AtlasApp() {
   // Resolved module — null while moduleMap is still loading
   const activeModule = useMemo(
     () =>
-      moduleKeyFromPath ? (moduleMap.get(moduleKeyFromPath) ?? null) : null,
+      moduleKeyFromPath ? (findModuleByKey(moduleMap, moduleKeyFromPath) ?? null) : null,
     [moduleKeyFromPath, moduleMap],
   );
 
@@ -165,9 +166,10 @@ export function AtlasApp() {
     [activeModule, normalizedSubPath],
   );
 
-  usePwaManifest(moduleKeyFromPath, activeModule);
+  const pwaModuleKey = activeModule?.key ?? (modulesLoading ? null : moduleKeyFromPath);
+  usePwaManifest(pwaModuleKey, activeModule);
   const { canInstall, install, manualInstallReady } =
-    usePwaInstall(moduleKeyFromPath);
+    usePwaInstall(pwaModuleKey);
   usePushAutoSubscribe();
 
   const showSidebar =
@@ -182,7 +184,7 @@ export function AtlasApp() {
 
   const sidebarSlot = useMemo(() => {
     if (!activeModule) return null
-    const Slot = MODULE_SIDEBAR_SLOTS[activeModule.key]
+    const Slot = MODULE_SIDEBAR_SLOTS[activeModule.key] ?? MODULE_SIDEBAR_SLOTS[getLegacyModuleKey(activeModule.key)]
     return Slot ? <Slot /> : null
   }, [activeModule?.key])
 
@@ -209,7 +211,7 @@ export function AtlasApp() {
             : undefined
         }
         networkBusy={networkBusy}
-        activeModuleKey={moduleKeyFromPath}
+        activeModuleKey={activeModule?.key ?? moduleKeyFromPath}
         canInstall={canInstall}
         manualInstallReady={manualInstallReady}
         onInstall={install}
@@ -257,7 +259,7 @@ export function AtlasApp() {
             <main className="flex-1 min-h-0 overflow-y-auto overflow-x-clip scrollbar-gutter-stable">
               <Outlet />
             </main>
-            {!(moduleKeyFromPath === "atlas.chat" && isFullscreen) && (
+            {!(getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === "atlas.chat" && isFullscreen) && (
               <BrandFooter className="hidden lg:flex" />
             )}
           </div>

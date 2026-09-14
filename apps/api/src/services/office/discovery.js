@@ -1,5 +1,5 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
-import { getOfficeFormat } from '@atlas/core';
+import { getOfficeFormat } from '@runly/core';
 import { OfficeError } from './errors.js';
 
 export async function readBoundedBody(body, limit) {

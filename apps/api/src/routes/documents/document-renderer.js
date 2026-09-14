@@ -214,7 +214,7 @@ export async function renderDocumentPdf({
 
   const safeBranding = {
     ...branding,
-    companyName: toSafeText(branding?.companyName, "Atlas ERP"),
+    companyName: toSafeText(branding?.companyName, "Runly ERP"),
     primaryColor: normalizeHexColor(branding?.primaryColor, "#0F766E"),
     addressLines: Array.isArray(branding?.addressLines)
       ? branding.addressLines
@@ -229,7 +229,7 @@ export async function renderDocumentPdf({
     info: {
       Title: toSafeText(title, "Documento"),
       Author: safeBranding.companyName,
-      Subject: "Documento generado por Atlas ERP",
+      Subject: "Documento generado por Runly ERP",
       CreationDate: timestamp,
       ModDate: timestamp,
     },

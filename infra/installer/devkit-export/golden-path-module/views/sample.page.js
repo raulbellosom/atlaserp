@@ -1,4 +1,4 @@
-import { definePage } from '@atlas/module-engine'
+import { definePage } from '@runly/module-engine'
 
 export default definePage({
   key: 'goldenpath.sample.page',

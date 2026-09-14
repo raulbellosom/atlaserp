@@ -1,1 +1,1 @@
-export * from '@atlas/validators'
+export * from '@runly/validators'

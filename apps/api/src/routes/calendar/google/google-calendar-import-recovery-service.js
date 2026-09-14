@@ -8,11 +8,11 @@ const STALE_SYNC_STATUSES = ['SYNCING', 'PENDING_INITIAL_SYNC']
 // those and retries. upsertImportedEvent is upsert-by-googleEventId, so
 // redoing an import from scratch is safe.
 export const GOOGLE_IMPORT_RECOVERY_INTERVAL_MS = Number(
-  process.env.ATLAS_GOOGLE_IMPORT_RECOVERY_INTERVAL_MS ?? 60 * 1000,
+  (process.env.RUNLY_GOOGLE_IMPORT_RECOVERY_INTERVAL_MS ?? process.env.ATLAS_GOOGLE_IMPORT_RECOVERY_INTERVAL_MS) ?? 60 * 1000,
 )
 
 export const GOOGLE_IMPORT_STALE_AFTER_MS = Number(
-  process.env.ATLAS_GOOGLE_IMPORT_STALE_AFTER_MS ?? 3 * 60 * 1000,
+  (process.env.RUNLY_GOOGLE_IMPORT_STALE_AFTER_MS ?? process.env.ATLAS_GOOGLE_IMPORT_STALE_AFTER_MS) ?? 3 * 60 * 1000,
 )
 
 export function createGoogleCalendarImportRecoveryService({

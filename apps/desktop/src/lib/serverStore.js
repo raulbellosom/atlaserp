@@ -3,7 +3,7 @@ import {
   ATLAS_SERVER_URL_KEY,
 } from './appConfig.js'
 import { getConfiguredApiUrl, setApiUrl } from './runtimeConfig.js'
-import { isNativeDesktop } from '@atlas/core/native-runtime'
+import { isNativeDesktop } from '@runly/core/native-runtime'
 
 let storePromise = null
 

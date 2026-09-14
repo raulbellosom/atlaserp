@@ -1,12 +1,12 @@
 [package]
-name = "atlas_erp"
+name = "runly_erp"
 version = "0.2.0"
-description = "Atlas ERP Desktop"
+description = "Runly ERP Desktop"
 authors = ["Racoon Devs"]
 edition = "2021"
 
 [lib]
-name = "atlas_erp_lib"
+name = "runly_erp_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

@@ -19,7 +19,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Description:** Every screen must open inside `AppShell` and start with `PageHeader`. This ensures consistent navigation, breadcrumbs, and action slots across all modules.
 
-**Implementation:** Import `PageHeader` from `@atlas/ui`. Never render a bare `<div>` as a page root.
+**Implementation:** Import `PageHeader` from `@runly/ui`. Never render a bare `<div>` as a page root.
 
 | Core | Custom |
 |---|---|
@@ -33,7 +33,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 ### 2. UI components
 
-**Description:** All interactive elements must come from `@atlas/ui`. Native HTML form elements (`<select>`, `<input>`, `<textarea>`, `<dialog>`) are forbidden when a `@atlas/ui` equivalent exists.
+**Description:** All interactive elements must come from `@runly/ui`. Native HTML form elements (`<select>`, `<input>`, `<textarea>`, `<dialog>`) are forbidden when a `@runly/ui` equivalent exists.
 
 **Implementation:** Check `packages/ui/src/index.js` before writing any input, combobox, or dialog. See the UI-first policy table in `CLAUDE.md`.
 
@@ -43,13 +43,13 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Pass:** No native `<select>`, `<input type="text">`, `<textarea>`, or `<input type="checkbox">` in module screens. All form fields use `TextField`, `SelectField`, `CreatableComboboxField`, `CheckboxField`, `DateField`, or equivalents.
 
-**Fail:** Any native element where a `@atlas/ui` component exists.
+**Fail:** Any native element where a `@runly/ui` component exists.
 
 ---
 
 ### 3. Dialogs
 
-**Description:** Destructive actions (delete, purge, disable) must use `ConfirmDialog` from `@atlas/ui`. Non-destructive modals use `Dialog` or `Sheet`. `window.confirm`, `window.alert`, and `window.prompt` are strictly forbidden.
+**Description:** Destructive actions (delete, purge, disable) must use `ConfirmDialog` from `@runly/ui`. Non-destructive modals use `Dialog` or `Sheet`. `window.confirm`, `window.alert`, and `window.prompt` are strictly forbidden.
 
 **Implementation:** `ConfirmDialog` requires an `open` boolean state and an `onConfirm` handler. Never call `window.confirm(...)`.
 
@@ -183,7 +183,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 **Description:** Every data-fetching surface must show a loading indicator while the request is in flight. Never render empty content without first determining whether data is loading or genuinely absent.
 
-**Implementation:** `AtlasTable` shows a skeleton loader automatically when `isLoading={true}`. For non-table surfaces, use the `Skeleton` component or `Spinner` from `@atlas/ui`.
+**Implementation:** `AtlasTable` shows a skeleton loader automatically when `isLoading={true}`. For non-table surfaces, use the `Skeleton` component or `Spinner` from `@runly/ui`.
 
 | Core | Custom |
 |---|---|
@@ -197,7 +197,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 
 ### 12. Empty and error states
 
-**Description:** When a list or detail is genuinely empty, show `EmptyState` from `@atlas/ui`. When a request fails or the user lacks permission, show `ErrorState`. Plain text like "Sin registros" or "Error" is not acceptable.
+**Description:** When a list or detail is genuinely empty, show `EmptyState` from `@runly/ui`. When a request fails or the user lacks permission, show `ErrorState`. Plain text like "Sin registros" or "Error" is not acceptable.
 
 **Implementation:**
 - Empty list → `<EmptyState title="..." description="..." action={...} />`
@@ -224,7 +224,7 @@ A criterion marked **CONDITIONAL** applies only when the module's design include
 import { toast } from 'sonner'
 ```
 
-Do not import `toast` from `@atlas/ui`. Call the toast in the `onSuccess` / `onError` callbacks of the TanStack Query mutation.
+Do not import `toast` from `@runly/ui`. Call the toast in the `onSuccess` / `onError` callbacks of the TanStack Query mutation.
 
 | Core | Custom |
 |---|---|
@@ -258,9 +258,9 @@ Do not import `toast` from `@atlas/ui`. Call the toast in the `onSuccess` / `onE
 
 ### 15. Liquid Glass design
 
-**Description:** All module screens must use the Atlas Liquid Glass design language — frosted glass cards, consistent border-radius, backdrop blur, and design tokens. This is automatically satisfied when using `@atlas/ui` components.
+**Description:** All module screens must use the Atlas Liquid Glass design language — frosted glass cards, consistent border-radius, backdrop blur, and design tokens. This is automatically satisfied when using `@runly/ui` components.
 
-**Implementation:** This criterion passes automatically when criteria 1 and 2 are met (`PageHeader` + `@atlas/ui` components). Do not apply custom `backdrop-filter` or glass styles manually — use the `glass` Tailwind class from the design system or components that already apply it.
+**Implementation:** This criterion passes automatically when criteria 1 and 2 are met (`PageHeader` + `@runly/ui` components). Do not apply custom `backdrop-filter` or glass styles manually — use the `glass` Tailwind class from the design system or components that already apply it.
 
 | Core | Custom |
 |---|---|
@@ -276,7 +276,7 @@ Do not import `toast` from `@atlas/ui`. Call the toast in the `onSuccess` / `onE
 
 **Description:** Any entity that can have attachments (contracts, documents, images) must allow uploading directly from the entity's own screen using `AttachmentsPanel` or `FileUploader`. Users must never be sent to the atlas.files module to attach a document.
 
-**Implementation:** Use `AttachmentsPanel` from `@atlas/ui` inside the entity detail sheet or page. Pass the `entityType` and `entityId` props. The panel handles upload, list, rename, and delete internally.
+**Implementation:** Use `AttachmentsPanel` from `@runly/ui` inside the entity detail sheet or page. Pass the `entityType` and `entityId` props. The panel handles upload, list, rename, and delete internally.
 
 | Core | Custom |
 |---|---|
@@ -294,7 +294,7 @@ Do not import `toast` from `@atlas/ui`. Call the toast in the `onSuccess` / `onE
 
 **Description:** Entity detail screens for modules that emit audit/activity events must display an `ActivityTimeline` component showing the chronological history of changes and actions on that entity.
 
-**Implementation:** Use `ActivityTimeline` from `@atlas/ui`. Feed it from `GET /activity?entityType=<type>&entityId=<id>` (routed through `activity-bridge`). Register the module's entity types with `activity-bridge` so events are captured automatically.
+**Implementation:** Use `ActivityTimeline` from `@runly/ui`. Feed it from `GET /activity?entityType=<type>&entityId=<id>` (routed through `activity-bridge`). Register the module's entity types with `activity-bridge` so events are captured automatically.
 
 | Core | Custom |
 |---|---|

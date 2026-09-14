@@ -102,7 +102,7 @@ export const TOOL_DEFS = [
     type: "function",
     function: {
       name: "search_atlas",
-      description: "Busca registros del ERP por nombre, correo o telefono: contactos (clientes/proveedores), usuarios del sistema y empleados. Usalo cuando el usuario pregunta por una persona o empresa que podria estar en Atlas ('tienes el correo de Juan Perez', 'que datos hay de la empresa X'). Solo devuelve lo que el usuario ya tiene permiso de ver.",
+      description: "Busca registros del ERP por nombre, correo o telefono: contactos (clientes/proveedores), usuarios del sistema y empleados. Usalo cuando el usuario pregunta por una persona o empresa que podria estar en Runly ('tienes el correo de Juan Perez', 'que datos hay de la empresa X'). Solo devuelve lo que el usuario ya tiene permiso de ver.",
       parameters: {
         type: "object",
         properties: { query: { type: "string", description: "Nombre, correo, telefono o codigo a buscar." } },

@@ -5,7 +5,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import { createOfficeService } from '../office/service.js';
 import { officeFixture, officeBytes, officeEnv } from './office-fixture.js';
-import { OFFICE_FORMATS } from '@atlas/core';
+import { OFFICE_FORMATS } from '@runly/core';
 
 // Explicit opt-in: never use DATABASE_URL or the developer's configured Supabase.
 const connectionString = process.env.OFFICE_TEST_DATABASE_URL;

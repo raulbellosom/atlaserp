@@ -1,0 +1,646 @@
+// apps/desktop/src/modules/runly.ledger/screens/AccountScreen.jsx
+import { useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Button,
+  DatePickerField,
+  UserSearchModal,
+  ConfirmDialog,
+  EmptyState,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  TextField,
+  SelectField,
+} from "@runly/ui";
+import { toast } from "sonner";
+import {
+  FileText,
+  Table,
+  Download,
+  Upload,
+  ArrowLeft,
+  UserPlus,
+  Trash2,
+  FolderOpen,
+  Pencil,
+} from "lucide-react";
+import SpreadsheetRegister from "./SpreadsheetRegister.jsx";
+import AccountSummary from "./AccountSummary.jsx";
+import { useAuth } from "../../../auth/AuthProvider";
+import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
+import { getApiUrl } from "../../../lib/runtimeConfig.js";
+import {
+  useLedgerSQLite,
+  useAccount,
+  useLedgerTypes,
+  useLedgerCategories,
+} from "../hooks/use-ledger-queries.js";
+
+const API_BASE = getApiUrl();
+
+const TABS = [
+  { key: "registro", label: "Registro" },
+  { key: "resumen", label: "Resumen" },
+  { key: "acceso", label: "Acceso" },
+];
+
+function fmtCurrency(amount, currency = "MXN") {
+  return Number(amount ?? 0).toLocaleString("es-MX", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  });
+}
+
+export default function AccountScreen() {
+  const { "*": wildcard } = useParams();
+  const accountId = useMemo(() => wildcard?.split("/")[1] ?? null, [wildcard]);
+  const navigate = useNavigate();
+  const { session } = useAuth();
+  const token = session?.access_token ?? null;
+  const { activeCompanyId } = useActiveCompany();
+  const { isUsingLocalLedger } = useLedgerSQLite();
+
+  const [activeTab, setActiveTab] = useState("registro");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    bank: "",
+    account_number: "",
+    currency: "MXN",
+  });
+  const [editSaving, setEditSaving] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  const { data: accountData, isLoading: accountLoading } =
+    useAccount(accountId);
+  const { data: typesData } = useLedgerTypes();
+  const { data: categoriesData } = useLedgerCategories();
+
+  const { data: membersData, refetch: refetchMembers } = useQuery({
+    queryKey: ["ledger-account-members", accountId],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE}/ledger/accounts/${accountId}/members`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) return { data: [] };
+      return res.json();
+    },
+    enabled:
+      !!accountId && !!token && activeTab === "acceso" && !isUsingLocalLedger,
+  });
+
+  const members = membersData?.data ?? [];
+  const account = accountData?.data ?? null;
+  // Account settings + collaborator management are owner-only, and only for
+  // personal (non-group) accounts — group accounts are managed from the group.
+  const canEdit =
+    !isUsingLocalLedger &&
+    account != null &&
+    account.group_id == null &&
+    account.is_owner === true;
+  // Transaction register write access: owner OR editor member OR group editor/admin.
+  const canWriteRegister = account == null || account.can_write !== false;
+  const types = typesData?.data ?? [];
+  const categories = categoriesData?.data ?? [];
+
+  async function handleExport(format) {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+
+    const url = `${API_BASE}/ledger/accounts/${accountId}/export/${format}?${params}`;
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        toast.error("No se pudo exportar el archivo.");
+        return;
+      }
+      const blob = await res.blob();
+      const anchor = document.createElement("a");
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = `ledger-${Date.now()}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(anchor.href);
+    } catch {
+      toast.error("No se pudo exportar el archivo.");
+    }
+  }
+
+  async function handleInvite(userId, role) {
+    const res = await fetch(
+      `${API_BASE}/ledger/accounts/${accountId}/members`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_id: userId, role }),
+      },
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "No se pudo compartir la cuenta.");
+      return;
+    }
+    toast.success("Acceso concedido.");
+    refetchMembers();
+  }
+
+  async function handleRevoke(targetUserId) {
+    const res = await fetch(
+      `${API_BASE}/ledger/accounts/${accountId}/members/${targetUserId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    if (!res.ok) {
+      toast.error("No se pudo remover al colaborador.");
+      return;
+    }
+    toast.success("Acceso revocado.");
+    setRevokeTarget(null);
+    refetchMembers();
+  }
+
+  function openEdit() {
+    setEditForm({
+      name: account?.name ?? "",
+      bank: account?.bank ?? "",
+      account_number: account?.account_number ?? "",
+      currency: account?.currency ?? "MXN",
+    });
+    setEditOpen(true);
+  }
+
+  async function handleEditAccount(e) {
+    e.preventDefault();
+    if (!editForm.name.trim() || !editForm.bank.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          bank: editForm.bank.trim(),
+          account_number: editForm.account_number.trim() || null,
+          currency: editForm.currency,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error ?? "No se pudo actualizar la cuenta.");
+        return;
+      }
+      toast.success("Cuenta actualizada.");
+      setEditOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: ["ledger-account", accountId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["ledger-accounts"] });
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleMoveGroup(groupId) {
+    const res = await fetch(`${API_BASE}/ledger/accounts/${accountId}/group`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ group_id: groupId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? "No se pudo mover la cuenta.");
+      return;
+    }
+    toast.success(
+      groupId ? "Cuenta movida al grupo." : "Cuenta movida a personal.",
+    );
+    queryClient.invalidateQueries({ queryKey: ["ledger-account", accountId] });
+    refetchMembers();
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-[hsl(var(--border))] shrink-0">
+        {/* Title row */}
+        <div className="flex items-start gap-3 justify-between">
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => navigate("/app/m/atlas.ledger/accounts")}
+              className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] mb-1.5 transition-colors"
+            >
+              <ArrowLeft size={11} />
+              Cuentas bancarias
+            </button>
+
+            {accountLoading ? (
+              <div className="space-y-1.5">
+                <div className="h-7 w-44 rounded-lg bg-[hsl(var(--muted))] animate-pulse" />
+                <div className="h-4 w-56 rounded bg-[hsl(var(--muted))] animate-pulse opacity-70" />
+              </div>
+            ) : (
+              <>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[hsl(var(--foreground))] truncate">
+                  {account?.name ?? "Cuenta"}
+                </h1>
+                {account && (
+                  <p className="text-sm text-[hsl(var(--muted-foreground))] mt-0.5">
+                    {account.bank}
+                    <span className="mx-1.5 opacity-40">·</span>
+                    {account.currency}
+                    <span className="mx-1.5 opacity-40">·</span>
+                    <span
+                      className="font-semibold tabular-nums"
+                      style={{ color: "var(--module-accent, #16a34a)" }}
+                    >
+                      {fmtCurrency(account.current_balance, account.currency)}
+                    </span>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={openEdit} className="shrink-0 mt-5 sm:mt-6">
+              <Pencil size={12} /> Editar
+            </Button>
+          )}
+        </div>
+
+        {/* Export actions row — only on Registro tab */}
+        {activeTab === "registro" && (
+          <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("pdf")}
+              disabled={isUsingLocalLedger}
+            >
+              <FileText size={12} />
+              PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("xlsx")}
+              disabled={isUsingLocalLedger}
+            >
+              <Table size={12} />
+              Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("csv")}
+              disabled={isUsingLocalLedger}
+            >
+              <Download size={12} />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isUsingLocalLedger}
+              onClick={() =>
+                navigate(`/app/m/atlas.ledger/accounts/${accountId}/import`)
+              }
+            >
+              <Upload size={12} />
+              Importar
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="border-b border-[hsl(var(--border))] px-4 sm:px-6 shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "border-(--module-accent,#16a34a) text-[hsl(var(--foreground))]"
+                    : "border-transparent text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "registro" && (
+            <div className="hidden sm:flex items-center gap-2 py-2">
+              <DatePickerField
+                compact
+                placeholder="Desde"
+                aria-label="Filtrar desde"
+                value={dateFrom || undefined}
+                onChange={(val) => setDateFrom(val ?? "")}
+              />
+              <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                —
+              </span>
+              <DatePickerField
+                compact
+                placeholder="Hasta"
+                aria-label="Filtrar hasta"
+                value={dateTo || undefined}
+                onChange={(val) => setDateTo(val ?? "")}
+              />
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                  title="Limpiar filtro"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Date filters — mobile only, below tabs */}
+        {activeTab === "registro" && (
+          <div className="sm:hidden flex items-center gap-2 pb-2">
+            <DatePickerField
+              compact
+              placeholder="Desde"
+              aria-label="Filtrar desde"
+              value={dateFrom || undefined}
+              onChange={(val) => setDateFrom(val ?? "")}
+            />
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
+            <DatePickerField
+              compact
+              placeholder="Hasta"
+              aria-label="Filtrar hasta"
+              value={dateTo || undefined}
+              onChange={(val) => setDateTo(val ?? "")}
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
+                title="Limpiar filtro"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-hidden">
+        {activeTab === "registro" && (
+          <SpreadsheetRegister
+            accountId={accountId}
+            dateFrom={dateFrom || undefined}
+            dateTo={dateTo || undefined}
+            types={types}
+            categories={categories}
+            canWrite={canWriteRegister}
+          />
+        )}
+
+        {activeTab === "resumen" && (
+          <AccountSummary
+            accountId={accountId}
+            currency={account?.currency ?? "MXN"}
+            dateFrom={dateFrom || undefined}
+            dateTo={dateTo || undefined}
+          />
+        )}
+
+        {activeTab === "acceso" && account && (
+          <div className="px-6 pb-6 space-y-6 max-w-2xl mx-auto">
+            {isUsingLocalLedger ? (
+              <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.25)] p-4 text-sm text-[hsl(var(--muted-foreground))]">
+                Los accesos, invitaciones y movimientos entre grupos siguen
+                siendo online-only. Reconecta para administrarlos.
+              </div>
+            ) : account.group_id ? (
+              <div className="rounded-lg border border-[hsl(var(--border))] p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <FolderOpen size={14} /> Pertenece a un grupo
+                </div>
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  El acceso a esta cuenta está controlado por el grupo. Para
+                  gestionar miembros ve al grupo.
+                </p>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleMoveGroup(null)}
+                  >
+                    Mover a personal
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Colaboradores</h3>
+                  {canEdit && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setInviteOpen(true)}
+                    >
+                      <UserPlus size={14} className="mr-1" /> Compartir
+                    </Button>
+                  )}
+                </div>
+                {members.length === 0 ? (
+                  <EmptyState
+                    icon={UserPlus}
+                    title="Sin colaboradores"
+                    description="Comparte esta cuenta con otros usuarios para que puedan verla o editarla."
+                    action={
+                      canEdit
+                        ? {
+                            label: "Compartir cuenta",
+                            onClick: () => setInviteOpen(true),
+                          }
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between rounded-lg border border-[hsl(var(--border))] px-3 py-2"
+                      >
+                        <div>
+                          <div className="text-sm font-medium">
+                            {member.display_name}
+                          </div>
+                          <div className="text-xs text-[hsl(var(--muted-foreground))]">
+                            {member.email} · {member.role}
+                          </div>
+                        </div>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setRevokeTarget(member)}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!isUsingLocalLedger && (
+              <>
+                <UserSearchModal
+                  open={inviteOpen}
+                  onClose={() => setInviteOpen(false)}
+                  onConfirm={handleInvite}
+                  roles={[
+                    { value: "viewer", label: "Viewer — solo ver" },
+                    { value: "editor", label: "Editor — ver y editar" },
+                  ]}
+                  excludeIds={members.map((member) => member.user_id)}
+                  apiBase={API_BASE}
+                  token={token}
+                  companyId={activeCompanyId}
+                />
+
+                <ConfirmDialog
+                  open={!!revokeTarget}
+                  onOpenChange={(open) => {
+                    if (!open) setRevokeTarget(null);
+                  }}
+                  onConfirm={() => handleRevoke(revokeTarget?.user_id)}
+                  title="Revocar acceso"
+                  description={`¿Remover a ${revokeTarget?.display_name} de esta cuenta?`}
+                  confirmLabel="Revocar"
+                />
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <Sheet
+        open={editOpen}
+        onOpenChange={(open) => {
+          if (!open) setEditOpen(false);
+        }}
+      >
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Editar cuenta</SheetTitle>
+          </SheetHeader>
+          <form onSubmit={handleEditAccount} className="space-y-4 pt-4">
+            <TextField
+              label="Nombre"
+              id="edit-acc-name"
+              required
+              value={editForm.name}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, name: e.target.value }))
+              }
+              maxLength={255}
+            />
+            <TextField
+              label="Banco"
+              id="edit-acc-bank"
+              required
+              value={editForm.bank}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, bank: e.target.value }))
+              }
+              maxLength={255}
+            />
+            <TextField
+              label="Número de cuenta"
+              id="edit-acc-number"
+              value={editForm.account_number}
+              onChange={(e) =>
+                setEditForm((f) => ({ ...f, account_number: e.target.value }))
+              }
+              placeholder="Opcional"
+              maxLength={64}
+            />
+            <SelectField
+              label="Moneda"
+              id="edit-acc-currency"
+              options={[
+                { value: "MXN", label: "MXN — Peso mexicano" },
+                { value: "USD", label: "USD — Dólar estadounidense" },
+              ]}
+              value={editForm.currency}
+              onValueChange={(val) =>
+                setEditForm((f) => ({ ...f, currency: val }))
+              }
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={
+                  editSaving || !editForm.name.trim() || !editForm.bank.trim()
+                }
+              >
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}

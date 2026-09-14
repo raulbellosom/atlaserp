@@ -1,7 +1,7 @@
 // Shared header-building helper for every generic blueprint-driven renderer
 // (AtlasCrudView, AtlasTable, AtlasForm, AtlasDetail, atlas-detail-hero,
 // useAttachmentsController) that talks to the API via raw fetch() instead of
-// the @atlas/sdk client. Those all live in @atlas/ui, a host-agnostic package
+// the @runly/sdk client. Those all live in @runly/ui, a host-agnostic package
 // that cannot import the host app's own active-company context — so every
 // consumer must resolve the active company itself (e.g. via
 // useActiveCompany() in apps/desktop) and pass it down as an explicit

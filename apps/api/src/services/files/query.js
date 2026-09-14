@@ -1,4 +1,4 @@
-import { fileKindWhereClauses } from "@atlas/core";
+import { fileKindWhereClauses } from "@runly/core";
 
 const KINDS = fileKindWhereClauses();
 

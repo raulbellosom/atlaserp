@@ -16,6 +16,10 @@ export const BUNDLE_EXTERNALS = [
   'react/jsx-dev-runtime',
   '@tanstack/react-query',
   'zustand',
+  '@runly/ui',
+  '@runly/sdk',
+  '@runly/validators',
+  // Legacy bundles must use the same shared modules as new Runly bundles.
   '@atlas/ui',
   '@atlas/sdk',
   '@atlas/validators',

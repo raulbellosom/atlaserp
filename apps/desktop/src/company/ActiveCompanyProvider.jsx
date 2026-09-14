@@ -5,11 +5,25 @@ import { atlas, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/atlas
 import { pickActiveCompany } from './pickActiveCompany.js'
 import { AppLoader } from '../components/AppLoader'
 
-const STORAGE_KEY = 'atlas-active-company'
+const STORAGE_KEY = 'runly-active-company'
+// Pre-rebrand key. Users with an existing browser session already have their
+// selected active company persisted under this key; without a fallback they
+// would silently lose it (fall back to pickActiveCompany's default) the
+// moment this rename ships. readStoredCompanyId migrates it once, on read,
+// then stops touching it.
+const LEGACY_STORAGE_KEY = 'atlas-active-company'
 
 function readStoredCompanyId() {
   try {
-    return localStorage.getItem(STORAGE_KEY)
+    const current = localStorage.getItem(STORAGE_KEY)
+    if (current) return current
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY)
+    if (legacy) {
+      localStorage.setItem(STORAGE_KEY, legacy)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+      return legacy
+    }
+    return null
   } catch {
     return null
   }

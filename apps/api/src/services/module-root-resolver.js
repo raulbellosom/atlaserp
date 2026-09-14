@@ -85,7 +85,7 @@ export async function resolveProjectRootInfo(options = {}) {
     }
   }
 
-  const envRootRaw = typeof env.ATLAS_PROJECT_ROOT === 'string' ? env.ATLAS_PROJECT_ROOT.trim() : ''
+  const envRootRaw = typeof (env.RUNLY_PROJECT_ROOT ?? env.ATLAS_PROJECT_ROOT) === 'string' ? (env.RUNLY_PROJECT_ROOT ?? env.ATLAS_PROJECT_ROOT).trim() : ''
   if (envRootRaw) {
     const inspection = await inspectProjectRoot(envRootRaw)
     if (inspection.valid) {
@@ -134,7 +134,7 @@ export async function resolveModuleRoots(options = {}) {
   const projectRootInfo = await resolveProjectRootInfo(options)
   const projectRoot = projectRootInfo.projectRoot
   const officialModulesDir = path.join(projectRoot, DEFAULT_OFFICIAL_RELATIVE_DIR)
-  const envCustomRoot = typeof env.ATLAS_MODULES_DIR === 'string' ? env.ATLAS_MODULES_DIR.trim() : ''
+  const envCustomRoot = typeof (env.RUNLY_MODULES_DIR ?? env.ATLAS_MODULES_DIR) === 'string' ? (env.RUNLY_MODULES_DIR ?? env.ATLAS_MODULES_DIR).trim() : ''
   const customModulesDir = envCustomRoot
     ? path.resolve(envCustomRoot)
     : path.join(projectRoot, DEFAULT_CUSTOM_RELATIVE_DIR)

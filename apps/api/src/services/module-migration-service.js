@@ -3,7 +3,7 @@ import {
   assertSafeMigrationSql,
   createChecksum,
   generateCreateTableSql,
-} from '@atlas/module-engine'
+} from '@runly/module-engine'
 
 function toObject(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

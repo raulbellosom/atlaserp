@@ -9,4 +9,4 @@ export {
   growthLeadNoteSchema,
   growthLeadQuerySchema,
   growthLeadUpdateSchema,
-} from "@atlas/validators";
+} from "@runly/validators";

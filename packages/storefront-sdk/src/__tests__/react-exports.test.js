@@ -1,11 +1,15 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
-// Verify all expected exports exist without importing React
-// (React is a peer dep — not installed in this package)
-import * as reactExports from '../react/index.js'
+// Exercise the package entry that consumers load, including compiled JSX.
+// Run the SDK build before this packaging contract test.
+import * as reactExports from '@raulbellosom/runly-sdk/react'
 
-describe('@raulbellosom/atlas-sdk/react exports', () => {
+describe('@raulbellosom/runly-sdk/react exports', () => {
+  it('exports the compiled chat widget and hook', () => {
+    assert.equal(typeof reactExports.ChatWidget, 'function')
+    assert.equal(typeof reactExports.useGuestChat, 'function')
+  })
   it('exports StorefrontProvider', () => {
     assert.equal(typeof reactExports.StorefrontProvider, 'function')
   })

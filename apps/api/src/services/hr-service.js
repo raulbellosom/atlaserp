@@ -4,7 +4,7 @@ import {
   hrCatalogUpdateSchema,
   hrEmployeeCreateSchema,
   hrEmployeeUpdateSchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 import { createActivityService } from "./activity-service.js";
 import { createActivityBridge } from "./activity-bridge.js";
 
@@ -307,7 +307,7 @@ export function createHrService({ prisma, activityBridge }) {
     await bridge.logAndPublish({
       auditEntry: {
         actorId,
-        moduleKey: "atlas.hr",
+        moduleKey: "runly.hr",
         entityType: "HrEmployee",
         entityId,
         action,
@@ -600,7 +600,7 @@ export function createHrService({ prisma, activityBridge }) {
       const take = normalizeLimit(limit, 50, 200);
       return prisma.auditLog.findMany({
         where: {
-          moduleKey: "atlas.hr",
+          moduleKey: { in: ["runly.hr", "atlas.hr"] },
           entityType: "HrEmployee",
           entityId: id,
         },

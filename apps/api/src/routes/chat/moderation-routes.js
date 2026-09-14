@@ -9,7 +9,7 @@ import {
   chatMuteConversationSchema,
   chatCreateReportSchema,
   chatResolveReportSchema,
-} from "@atlas/validators";
+} from "@runly/validators";
 import { ChatServiceError } from "./chat-service-error.js";
 import { GuestChatServiceError } from "./guest-service.js";
 import { ChatPermissionsError } from "./chat-permissions-service.js";
