@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase'
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 // Given Excalidraw's files map after an onChange, upload any entry that still
-// has only a dataURL (freshly pasted/dropped) to the atlas-notes bucket and
+// has only a dataURL (freshly pasted/dropped) to the runly-notes bucket and
 // return a persistable manifest:
 //   { [fileId]: { mimeType, storageKey, url, created } }
 // The persisted scene never carries dataURLs — only this manifest.
@@ -26,7 +26,7 @@ export async function syncNewImages({ files, manifest, noteId, token }) {
       token,
     )
     const { error } = await supabase.storage
-      .from('atlas-notes')
+      .from('runly-notes')
       .uploadToSignedUrl(presign.objectKey, presign.uploadToken, blob, { contentType: mimeType })
     if (error) throw error
     next[fileId] = {

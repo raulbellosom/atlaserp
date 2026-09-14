@@ -2,7 +2,7 @@
 
 import { publicUrlWithVariant, signedUrlsWithVariant } from '../../lib/image-variants.js'
 
-const PUBLIC_BUCKET  = 'atlas-website'
+const PUBLIC_BUCKET  = 'runly-website'
 const SIGNED_URL_TTL = 3600
 const IMAGE_VARIANT  = 'product'
 

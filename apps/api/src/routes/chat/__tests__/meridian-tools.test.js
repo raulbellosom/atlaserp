@@ -164,7 +164,7 @@ test("get_conversation_messages surfaces a not-a-member error as tool data, not 
 
 test("describe_image rejects a non-image attachment without calling vision", async () => {
   let visionCalled = false;
-  const prisma = { $queryRaw: async () => [{ id: "att1", mime_type: "application/pdf", object_key: "k", bucket: "atlas-chat", conversation_id: "conv1" }] };
+  const prisma = { $queryRaw: async () => [{ id: "att1", mime_type: "application/pdf", object_key: "k", bucket: "runly-chat", conversation_id: "conv1" }] };
   const visionService = { describeImage: async () => { visionCalled = true; return { description: "x" }; } };
   const runners = buildToolRunners({ prisma, listMessages: async () => ({ data: [] }), chatSearchService: {}, visionService, signAttachmentUrl: async () => "http://x" });
   const out = await runners.describe_image({ attachmentId: "att1" }, ctx);

@@ -8,7 +8,7 @@ import {
   documentRenderSchema,
 } from "./document-validators.js";
 
-const STORAGE_BUCKET = "atlas-files";
+const STORAGE_BUCKET = "runly-files";
 const SIGNED_URL_SECONDS = 3600;
 
 export class DocumentGenerationServiceError extends Error {

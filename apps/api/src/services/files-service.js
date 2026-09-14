@@ -8,8 +8,8 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const SIGNED_URL_SECONDS = 3600;
 const BULK_DOWNLOAD_MAX_FILE_IDS = 50;
 const BULK_DOWNLOAD_MAX_TOTAL_BYTES = 250 * 1024 * 1024;
-const STORAGE_BUCKET_NAME = "atlas-files";
-const WEBSITE_BUCKET_NAME = "atlas-website";
+const STORAGE_BUCKET_NAME = "runly-files";
+const WEBSITE_BUCKET_NAME = "runly-website";
 const BULK_ZIP_FOLDER = "system/bulk-downloads";
 const ALLOWED_FILE_ENTITY_TYPES = [
   "AtlasFile",
@@ -76,7 +76,7 @@ function buildModuleObjectKey({
   fileName,
   mimeType,
 }) {
-  const moduleSegment = sanitizeSegment(moduleKey, "atlas-files");
+  const moduleSegment = sanitizeSegment(moduleKey, "runly-files");
   const entityTypeSegment = sanitizeSegment(entityType, "atlasfile");
   const entityIdSegment = sanitizeSegment(entityId, "company");
   const ext = getExtension(fileName, mimeType);

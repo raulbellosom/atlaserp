@@ -45,7 +45,7 @@ export const useChatFloatStore = create(
         })),
     }),
     {
-      name: "atlas-chat-float",
+      name: "runly-chat-float",
       partialize: (s) => ({ edge: s.edge, yPx: s.yPx, hidden: s.hidden, openChats: s.openChats }),
     },
   ),

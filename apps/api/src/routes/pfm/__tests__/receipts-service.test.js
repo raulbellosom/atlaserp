@@ -48,7 +48,7 @@ function baseDeps(over = {}) {
       fileAsset: {
         findUnique: async () => ({
           id: FILE,
-          bucket: "atlas-files",
+          bucket: "runly-files",
           objectKey: "k",
           mimeType: "image/jpeg",
         }),
@@ -110,7 +110,7 @@ describe("receipts-service", () => {
           update: async ({ data }) => ((updated = data), { id: RECEIPT, ...data }),
         },
         fileAsset: {
-          findUnique: async () => ({ id: FILE, bucket: "atlas-files", objectKey: "k", mimeType: "image/jpeg" }),
+          findUnique: async () => ({ id: FILE, bucket: "runly-files", objectKey: "k", mimeType: "image/jpeg" }),
         },
       },
     });
@@ -136,7 +136,7 @@ describe("receipts-service", () => {
           update: async ({ data }) => ((updated = data), { id: RECEIPT, ...data }),
         },
         fileAsset: {
-          findUnique: async () => ({ id: FILE, bucket: "atlas-files", objectKey: "k", mimeType: "image/jpeg" }),
+          findUnique: async () => ({ id: FILE, bucket: "runly-files", objectKey: "k", mimeType: "image/jpeg" }),
         },
       },
     });

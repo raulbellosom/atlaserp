@@ -147,7 +147,7 @@ export async function createCrossTenantFixture(prisma) {
   // entityId/companyId boundary specifically, not file-sharing rules.
   const fileA = await prisma.fileAsset.create({
     data: {
-      bucket: "atlas-files",
+      bucket: "runly-files",
       objectKey: `${PREFIX}/${stamp}/dummy.txt`,
       originalName: `${PREFIX}-file-a.txt`,
       mimeType: "text/plain",

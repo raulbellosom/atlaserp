@@ -31,7 +31,7 @@ function chatFixture({ locked = false } = {}) {
     broadcasts: [],
   };
   const attRow = () => ({
-    id: ids.att, conversation_id: ids.conv, bucket: 'atlas-chat', object_key: state.objectKey,
+    id: ids.att, conversation_id: ids.conv, bucket: 'runly-chat', object_key: state.objectKey,
     file_name: 'plan.xlsx', mime_type: OFFICE_FORMATS.xlsx.mimeType, size_bytes: 2048n,
     uploaded_by_guest_id: null, content_revision: state.revision, checksum: state.checksum,
     office_lock: state.lock, office_lock_expires_at: state.lockExp, updated_at: state.updatedAt,

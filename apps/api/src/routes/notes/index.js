@@ -169,9 +169,9 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const ext = fileName?.split('.')?.pop()?.toLowerCase() ?? 'jpg'
       const safeNoteId = noteId && noteId !== 'draft' ? noteId : 'draft'
       const key = `notes/${userId}/${safeNoteId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { data, error } = await supabaseAdmin.storage.from('atlas-notes').createSignedUploadUrl(key)
+      const { data, error } = await supabaseAdmin.storage.from('runly-notes').createSignedUploadUrl(key)
       if (error) return c.json({ error: error.message }, 500)
-      const { data: publicData } = supabaseAdmin.storage.from('atlas-notes').getPublicUrl(key)
+      const { data: publicData } = supabaseAdmin.storage.from('runly-notes').getPublicUrl(key)
       return c.json({ uploadUrl: data.signedUrl, objectKey: key, uploadToken: data.token, publicUrl: publicData.publicUrl }, 201)
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)

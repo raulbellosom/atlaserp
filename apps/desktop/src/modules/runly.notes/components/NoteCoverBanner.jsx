@@ -7,7 +7,7 @@ import { withImageVariant } from '../../../lib/imageVariants.js'
 
 const MAX_BANNER_BYTES = 20 * 1024 * 1024
 
-// Cover/banner image for a note — reuses the same presign-image + atlas-notes
+// Cover/banner image for a note — reuses the same presign-image + runly-notes
 // bucket flow as in-body images (NoteToolbar.jsx), but persists the result on
 // note.cover_url instead of inserting a TipTap node.
 export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, onRemove }) {
@@ -38,7 +38,7 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
         token,
       )
       const { error } = await supabase.storage
-        .from('atlas-notes')
+        .from('runly-notes')
         .uploadToSignedUrl(presign.objectKey, presign.uploadToken, file)
       if (error) throw error
       // Only persist after the upload is confirmed — never optimistically.

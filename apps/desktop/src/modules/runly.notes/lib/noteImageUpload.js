@@ -39,7 +39,7 @@ function getContentColumnWidthPx(editor) {
 // Shared upload+insert flow for in-body note images — used by both the
 // toolbar's "Insertar imagen" button and the slash command menu's "Imagen"
 // item, so there is a single place that talks to /notes/presign-image and
-// the atlas-notes bucket.
+// the runly-notes bucket.
 export async function uploadAndInsertNoteImage(file, { editor, noteId, token }) {
   if (!file || !token) return
   if (!file.type.startsWith('image/')) {
@@ -56,7 +56,7 @@ export async function uploadAndInsertNoteImage(file, { editor, noteId, token }) 
       getImageNaturalSize(file),
     ])
     const { error } = await supabase.storage
-      .from('atlas-notes')
+      .from('runly-notes')
       .uploadToSignedUrl(presign.objectKey, presign.uploadToken, file)
     if (error) throw error
     // Inserted at a scale computed from the image's own dimensions — a tall

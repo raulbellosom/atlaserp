@@ -46,7 +46,7 @@ describe("sweepOrphanChatAttachments", () => {
 
   it("only selects message_id IS NULL rows past the age threshold", async () => {
     const prisma = buildPrisma([
-      { id: "a1", bucket: "atlas-chat", object_key: "k1" },
+      { id: "a1", bucket: "runly-chat", object_key: "k1" },
     ]);
     const supabaseAdmin = buildStorage();
     await sweepOrphanChatAttachments({ prisma, supabaseAdmin, olderThanMinutes: 120 });
@@ -58,12 +58,12 @@ describe("sweepOrphanChatAttachments", () => {
 
   it("groups keys by bucket, removes them, then bulk-deletes the rows", async () => {
     const prisma = buildPrisma([
-      { id: "a1", bucket: "atlas-chat", object_key: "k1" },
-      { id: "a2", bucket: "atlas-chat", object_key: "k2" },
+      { id: "a1", bucket: "runly-chat", object_key: "k1" },
+      { id: "a2", bucket: "runly-chat", object_key: "k2" },
     ]);
     const supabaseAdmin = buildStorage();
     const result = await sweepOrphanChatAttachments({ prisma, supabaseAdmin });
-    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["k1", "k2"] }]);
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "runly-chat", keys: ["k1", "k2"] }]);
     assert.equal(prisma.calls.execute.length, 1);
     assert.match(prisma.calls.execute[0].sql, /DELETE FROM chat_attachments WHERE id = ANY/i);
     assert.deepEqual(prisma.calls.execute[0].values, [["a1", "a2"]]);
@@ -71,7 +71,7 @@ describe("sweepOrphanChatAttachments", () => {
   });
 
   it("still deletes the rows when a bucket removal errors", async () => {
-    const prisma = buildPrisma([{ id: "a1", bucket: "atlas-chat", object_key: "k1" }]);
+    const prisma = buildPrisma([{ id: "a1", bucket: "runly-chat", object_key: "k1" }]);
     const supabaseAdmin = {
       storage: { from: () => ({ remove: async () => ({ data: null, error: new Error("nope") }) }) },
     };

@@ -60,7 +60,7 @@ export function createOfficeAccess({ prisma }) {
     try { await fileAccess.assertAccess(file, { profileId: profile.id, admin }, mode === 'edit' ? 'write' : 'read', db); }
     catch (error) { if (error instanceof FileAccessError) throw new OfficeError(error.message, error.status, 'forbidden'); throw error; }
     const format = getOfficeFormat(file);
-    if (!format || file.bucket !== 'atlas-files' || file.visibility === 'PUBLIC') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
+    if (!format || file.bucket !== 'runly-files' || file.visibility === 'PUBLIC') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
     if (file.sizeBytes > 10 * 1024 * 1024) throw new OfficeError('El archivo supera 10 MB.', 413, 'file_too_large');
     return { source: 'file_asset', file, profile, companyId, format };
   }
@@ -119,7 +119,7 @@ export function createOfficeAccess({ prisma }) {
       conversationId: att.conversation_id,
     };
     const format = getOfficeFormat({ originalName: file.originalName, mimeType: file.mimeType });
-    if (!format || file.bucket !== 'atlas-chat') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
+    if (!format || file.bucket !== 'runly-chat') throw new OfficeError('Formato o almacenamiento no compatible con Office.', 415, 'unsupported_format');
     if (file.sizeBytes > 10 * 1024 * 1024) throw new OfficeError('El archivo supera 10 MB.', 413, 'file_too_large');
     return { source: 'chat_attachment', file, profile, companyId, format, conversationId: file.conversationId };
   }

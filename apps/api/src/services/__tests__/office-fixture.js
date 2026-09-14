@@ -18,7 +18,7 @@ export async function officeFixture() {
   let time = Date.now();
   const original = await officeBytes();
   const state = {
-    file: { id: ids.file, entityId: ids.company, entityType: 'AtlasFile', moduleKey: 'atlas.files', bucket: 'atlas-files', objectKey: 'original.docx', originalName: 'Prueba.docx', mimeType: OFFICE_FORMATS.docx.mimeType, visibility: 'PRIVATE', sizeBytes: original.length, contentRevision: 1, enabled: true, updatedAt: new Date(time), officeLock: null, officeLockExpiresAt: null, invItemFiles: [], calendarFiles: [] },
+    file: { id: ids.file, entityId: ids.company, entityType: 'AtlasFile', moduleKey: 'atlas.files', bucket: 'runly-files', objectKey: 'original.docx', originalName: 'Prueba.docx', mimeType: OFFICE_FORMATS.docx.mimeType, visibility: 'PRIVATE', sizeBytes: original.length, contentRevision: 1, enabled: true, updatedAt: new Date(time), officeLock: null, officeLockExpiresAt: null, invItemFiles: [], calendarFiles: [] },
     profile: { id: ids.profile, authUserId: ids.auth, displayName: 'Raúl', enabled: true },
     company: ids.company, role: { key: 'employee', enabled: true, permissions: ['files.assets.read', 'files.assets.update'].map(key => ({ permission: { key, active: true } })) },
     versions: [], audits: [], objects: new Map([['original.docx', original]]), uploadError: false, downloadError: false, uploadHook: null,

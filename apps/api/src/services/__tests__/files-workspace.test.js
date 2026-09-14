@@ -339,7 +339,7 @@ test(
         async () => {
           await prisma.fileAsset.createMany({
             data: Array.from({ length: 125 }, (_, i) => ({
-              bucket: "atlas-files",
+              bucket: "runly-files",
               objectKey: `page-${i}`,
               originalName: `Paged ${String(i).padStart(3, "0")}.txt`,
               mimeType: "text/plain",

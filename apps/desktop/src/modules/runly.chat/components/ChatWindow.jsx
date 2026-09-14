@@ -38,14 +38,14 @@ import { ChatHeader } from "./ChatHeader";
 
 function loadHidden(conversationId) {
   try {
-    const raw = localStorage.getItem(`atlas-chat-hidden-${conversationId}`);
+    const raw = localStorage.getItem(`runly-chat-hidden-${conversationId}`);
     return raw ? new Set(JSON.parse(raw)) : new Set();
   } catch { return new Set(); }
 }
 
 function saveHidden(conversationId, set) {
   try {
-    localStorage.setItem(`atlas-chat-hidden-${conversationId}`, JSON.stringify([...set]));
+    localStorage.setItem(`runly-chat-hidden-${conversationId}`, JSON.stringify([...set]));
   } catch {}
 }
 

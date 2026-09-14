@@ -61,11 +61,11 @@ export function createChatAttachmentsService({
     const objectKey = `conversations/${conversationId}/${crypto.randomUUID()}.${ext}`;
 
     const { data, error } = await supabaseAdmin.storage
-      .from("atlas-chat")
+      .from("runly-chat")
       .createSignedUploadUrl(objectKey, { expiresIn: 300 });
 
     if (error) {
-      console.error("[atlas.chat] createSignedUploadUrl failed", { bucket: "atlas-chat", key: objectKey, error });
+      console.error("[atlas.chat] createSignedUploadUrl failed", { bucket: "runly-chat", key: objectKey, error });
       throw new ChatServiceError("Error generando URL de subida.", 500);
     }
 
@@ -79,7 +79,7 @@ export function createChatAttachmentsService({
         (conversation_id, bucket, object_key, file_name, mime_type, size_bytes, duration_ms, uploaded_by_user_id)
       VALUES (
         ${conversationId},
-        'atlas-chat',
+        'runly-chat',
         ${objectKey},
         ${fileName},
         ${mimeType},

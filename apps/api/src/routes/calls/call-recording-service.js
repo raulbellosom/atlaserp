@@ -3,7 +3,7 @@ import { readLiveKitConfig } from "./call-service.js";
 
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000; // hard cap — spec §24 risk 3
 const RETENTION_MS = 90 * 24 * 60 * 60 * 1000; // spec §5 goal 4
-const RECORDING_BUCKET = "atlas-chat";
+const RECORDING_BUCKET = "runly-chat";
 const ACTIVE_STATUSES = ["STARTING", "ACTIVE", "PROCESSING"];
 const STORAGE_LIST_PAGE_SIZE = 1000;
 const LOG_PREFIX = "[atlas.calls/recording]";

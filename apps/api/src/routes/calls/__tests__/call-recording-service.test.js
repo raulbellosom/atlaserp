@@ -77,7 +77,7 @@ describe("createCallRecordingService.startRecording", () => {
     assert.equal(egress.started.length, 1);
     assert.equal(egress.started[0].roomName, liveCall.livekitRoomName);
     assert.equal(egress.started[0].output.segments.output.case, "s3");
-    assert.equal(egress.started[0].output.segments.output.value.bucket, "atlas-chat");
+    assert.equal(egress.started[0].output.segments.output.value.bucket, "runly-chat");
     // IDOR guard: startRecording must check the caller is a MEMBER of the
     // call's conversation before touching LiveKit — chat.calls.record (the
     // role-level permission, gated in calls/index.js) proves the caller's

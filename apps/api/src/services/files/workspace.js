@@ -91,7 +91,7 @@ export function createFilesWorkspace({
     if (
       file.entityType !== "AtlasFile" ||
       !["runly.files", "atlas.files"].includes(file.moduleKey) ||
-      file.bucket !== "atlas-files" ||
+      file.bucket !== "runly-files" ||
       file.visibility === "PUBLIC" ||
       file.invItemFiles.length ||
       file.calendarFiles.length ||
@@ -163,7 +163,7 @@ export function createFilesWorkspace({
     );
     const objectKey = `workspace/${context.companyId}/${randomBytes(24).toString("hex")}.${format}`;
     const { error } = await supabaseAdmin.storage
-      .from("atlas-files")
+      .from("runly-files")
       .upload(objectKey, bytes, {
         contentType: OFFICE_FORMATS[format].mimeType,
         upsert: false,
@@ -177,7 +177,7 @@ export function createFilesWorkspace({
       return await prisma.$transaction(async (db) => {
         const file = await db.fileAsset.create({
           data: {
-            bucket: "atlas-files",
+            bucket: "runly-files",
             objectKey,
             originalName,
             mimeType: OFFICE_FORMATS[format].mimeType,
@@ -199,7 +199,7 @@ export function createFilesWorkspace({
       if (error.code === "P2002") {
         // A definite uniqueness failure cannot have committed this candidate.
         await supabaseAdmin.storage
-          .from("atlas-files")
+          .from("runly-files")
           .remove([objectKey])
           .catch(() => {});
         const winner = await prisma.fileAsset.findUnique({

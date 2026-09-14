@@ -9,7 +9,7 @@ import { tenantActiveContext } from "../lib/active-context.js";
 export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
   const app = new Hono();
   app.route('/', createFilesWorkspaceRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
-  const WEBSITE_BUCKET_NAME = "atlas-website";
+  const WEBSITE_BUCKET_NAME = "runly-website";
 app.post(
   "/files/upload",
   authMiddleware,

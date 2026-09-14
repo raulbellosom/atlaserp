@@ -88,14 +88,14 @@ describe("chat-member-avatar-service — getMemberAvatarSignedUrl", () => {
         [{ "?column?": 1 }],
         [{ avatar_file_id: "file-9" }],
       ],
-      { bucket: "atlas-files", objectKey: "modules/atlas-identity/userprofile/x/a.png" },
+      { bucket: "runly-files", objectKey: "modules/atlas-identity/userprofile/x/a.png" },
     );
     const supabaseAdmin = buildSupabaseStub();
     const svc = createChatMemberAvatarService({ prisma, supabaseAdmin });
     const result = await svc.getMemberAvatarSignedUrl({
       conversationId: CONV, authUserId: "auth-1", targetUserId: TARGET, variant: "full",
     });
-    assert.equal(result.signedUrl, "https://signed.example/atlas-files/modules/atlas-identity/userprofile/x/a.png");
+    assert.equal(result.signedUrl, "https://signed.example/runly-files/modules/atlas-identity/userprofile/x/a.png");
     // `full` means "no transform" — createSignedUrl called without a transform option.
     assert.deepEqual(supabaseAdmin.calls[0].opts, {});
   });
@@ -107,7 +107,7 @@ describe("chat-member-avatar-service — getMemberAvatarSignedUrl", () => {
         [{ "?column?": 1 }],
         [{ avatar_file_id: "file-9" }],
       ],
-      { bucket: "atlas-files", objectKey: "a.png" },
+      { bucket: "runly-files", objectKey: "a.png" },
     );
     const supabaseAdmin = buildSupabaseStub();
     const svc = createChatMemberAvatarService({ prisma, supabaseAdmin });

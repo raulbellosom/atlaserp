@@ -92,7 +92,7 @@ test("getGuestAttachmentUrl returns a signed url for an attachment in the sessio
   const prisma = makePrismaStub({
     query: (sql) => {
       if (sql.includes("FROM chat_attachments") && sql.includes("object_key")) {
-        return [{ bucket: "atlas-chat", object_key: "conversations/conv-1/guest/abc.png" }];
+        return [{ bucket: "runly-chat", object_key: "conversations/conv-1/guest/abc.png" }];
       }
       return undefined;
     },
@@ -101,7 +101,7 @@ test("getGuestAttachmentUrl returns a signed url for an attachment in the sessio
     storage: {
       from: (bucket) => ({
         createSignedUrl: async (key) => {
-          assert.equal(bucket, "atlas-chat");
+          assert.equal(bucket, "runly-chat");
           assert.equal(key, "conversations/conv-1/guest/abc.png");
           return { data: { signedUrl: "https://x/signed" }, error: null };
         },

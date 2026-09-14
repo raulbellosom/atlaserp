@@ -1119,7 +1119,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const objectKey = `conversations/${conversationId}/guest/${crypto.randomUUID()}.${ext}`;
 
       const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-        .from("atlas-chat")
+        .from("runly-chat")
         .createSignedUploadUrl(objectKey, { expiresIn: 300 });
 
       if (uploadError) return c.json({ error: "Error generando URL de subida." }, 500);
@@ -1129,7 +1129,7 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
           (conversation_id, bucket, object_key, file_name, mime_type, size_bytes)
         VALUES (
           ${conversationId},
-          'atlas-chat',
+          'runly-chat',
           ${objectKey},
           ${fileName},
           ${mimeType},

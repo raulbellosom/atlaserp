@@ -181,9 +181,9 @@ const broadcaster = createRealtimeBroadcaster({
   supabaseUrl: process.env.SUPABASE_URL,
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
 });
-const STORAGE_BUCKET_NAME = "atlas-files";
-const STOREFRONT_BUCKET_NAME = "atlas-storefront";
-const WEBSITE_BUCKET_NAME = "atlas-website";
+const STORAGE_BUCKET_NAME = "runly-files";
+const STOREFRONT_BUCKET_NAME = "runly-storefront";
+const WEBSITE_BUCKET_NAME = "runly-website";
 const filesService = createFilesService({ prisma, supabaseAdmin });
 const officeService = createOfficeService({ prisma, supabaseAdmin, broadcaster });
 const companyService = createCompanyService({ prisma, supabaseAdmin });
@@ -932,7 +932,7 @@ async function ensureBuckets() {
     allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'],
   });
   await ensureBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: null });
-  await ensureBucket("atlas-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
+  await ensureBucket("runly-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {

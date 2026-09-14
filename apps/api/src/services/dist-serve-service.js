@@ -1,4 +1,4 @@
-const BUCKET = 'atlas-website'
+const BUCKET = 'runly-website'
 const ASSET_EXTENSIONS = new Set([
   'js', 'mjs', 'css', 'png', 'jpg', 'jpeg', 'webp', 'svg', 'ico',
   'woff', 'woff2', 'ttf', 'eot', 'map', 'json', 'txt', 'xml', 'pdf',

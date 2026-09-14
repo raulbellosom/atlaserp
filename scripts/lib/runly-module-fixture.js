@@ -35,7 +35,7 @@ export async function seedRunlyModuleFixture(client) {
     INSERT INTO user_permission_grant(user_id, company_id, permission_id)
       SELECT u.id, c.id, p.id FROM user_profile u CROSS JOIN company c CROSS JOIN permission p;
     INSERT INTO file_asset(module_key, bucket, object_key, entity_type, entity_id, uploaded_by_id, metadata)
-      SELECT m.key, 'atlas-files', 'atlas/' || m.key || '/document.pdf', m.key || '.record', m.id, u.id,
+      SELECT m.key, 'runly-files', 'atlas/' || m.key || '/document.pdf', m.key || '.record', m.id, u.id,
       '{"literal":"fixture-hidden-value", "moduleKey":"atlas.files"}' FROM atlas_module m CROSS JOIN user_profile u;
     INSERT INTO file_asset_share(file_id, user_id, role)
       SELECT f.id, u.id, 'VIEWER' FROM file_asset f CROSS JOIN user_profile u;

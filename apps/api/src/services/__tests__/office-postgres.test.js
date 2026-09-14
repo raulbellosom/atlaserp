@@ -23,7 +23,7 @@ test('Office migration and two independent services serialize correctly in Postg
     await prisma.$executeRaw`INSERT INTO role_permission (id, role_id, permission_id) SELECT uuidv7(), ${roleId}::uuid, id FROM permission WHERE key = ${key}`;
   }
   const original = await officeBytes();
-  const [{ id: fileId }] = await prisma.$queryRaw`INSERT INTO file_asset (id, bucket, object_key, original_name, mime_type, size_bytes, module_key, entity_type, entity_id, updated_at) VALUES (uuidv7(), 'atlas-files', 'original.docx', 'Prueba.docx', ${OFFICE_FORMATS.docx.mimeType}, ${original.length}, 'atlas.files', 'AtlasFile', ${companyId}::uuid, now()) RETURNING id`;
+  const [{ id: fileId }] = await prisma.$queryRaw`INSERT INTO file_asset (id, bucket, object_key, original_name, mime_type, size_bytes, module_key, entity_type, entity_id, updated_at) VALUES (uuidv7(), 'runly-files', 'original.docx', 'Prueba.docx', ${OFFICE_FORMATS.docx.mimeType}, ${original.length}, 'atlas.files', 'AtlasFile', ${companyId}::uuid, now()) RETURNING id`;
   const f = await officeFixture();
   const options = { prisma, supabaseAdmin: f.supabaseAdmin, env: officeEnv, fetchImpl: async () => new Response('<wopi-discovery><net-zone><app><action ext="docx" name="edit" urlsrc="http://collabora:9980/browser/hash/cool.html?"/></app></net-zone></wopi-discovery>') };
   const first = createOfficeService(options);

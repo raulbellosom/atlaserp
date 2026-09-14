@@ -1,5 +1,5 @@
-const STOREFRONT_BUCKET = 'atlas-storefront'
-const FILES_BUCKET = 'atlas-files'
+const STOREFRONT_BUCKET = 'runly-storefront'
+const FILES_BUCKET = 'runly-files'
 
 export function resolveFileLimits(roleKey) {
   if (roleKey === 'storefront_vendor') {
@@ -93,7 +93,7 @@ export function createStorefrontFilesService({ prisma, supabaseAdmin }) {
     // minted for an unauthenticated caller or for anyone but the uploader.
     // This branch previously had no check at all: any caller who knew (or
     // guessed) a fileId could fetch a 1-hour signed URL into the private
-    // atlas-files bucket via the unauthenticated GET /:id/url route.
+    // runly-files bucket via the unauthenticated GET /:id/url route.
     if (!requesterId || asset.uploadedById !== requesterId) {
       throw Object.assign(new Error('Sin permiso para acceder a este archivo'), { code: 'FORBIDDEN', status: 403 })
     }

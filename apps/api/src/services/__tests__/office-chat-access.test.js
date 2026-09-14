@@ -16,7 +16,7 @@ const status = (n) => (e) => e.status === n;
 // $queryRaw dispatches on the SQL text of the tagged template.
 function makeAccess({ attRow = {}, memberRow = { role: 'member' }, profile = { id: ids.profile, enabled: true } } = {}) {
   const baseAtt = {
-    id: ids.att, conversation_id: ids.conv, bucket: 'atlas-chat', object_key: 'conversations/x/y.xlsx',
+    id: ids.att, conversation_id: ids.conv, bucket: 'runly-chat', object_key: 'conversations/x/y.xlsx',
     file_name: 'plan.xlsx', mime_type: OFFICE_FORMATS.xlsx.mimeType, size_bytes: 2048n,
     uploaded_by_guest_id: null, content_revision: 1, checksum: null, office_lock: null,
     office_lock_expires_at: null, updated_at: new Date(), company_id: ids.company,

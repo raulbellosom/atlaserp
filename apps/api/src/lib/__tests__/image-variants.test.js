@@ -49,10 +49,10 @@ describe('IMAGE_VARIANTS', () => {
 describe('signedUrlWithVariant', () => {
   it('passes the transform option matching the requested variant', async () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    const url = await signedUrlWithVariant(supabaseAdmin, 'atlas-files', 'a/b.png', 'thumb')
+    const url = await signedUrlWithVariant(supabaseAdmin, 'runly-files', 'a/b.png', 'thumb')
     assert.equal(url, 'https://x/signed')
     assert.deepEqual(supabaseAdmin.calls.createSignedUrl[0], {
-      bucket: 'atlas-files',
+      bucket: 'runly-files',
       objectKey: 'a/b.png',
       expiresIn: 3600,
       options: { transform: IMAGE_VARIANTS.thumb },
@@ -61,19 +61,19 @@ describe('signedUrlWithVariant', () => {
 
   it('omits the transform option for the full variant', async () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    await signedUrlWithVariant(supabaseAdmin, 'atlas-files', 'a/b.png', 'full')
+    await signedUrlWithVariant(supabaseAdmin, 'runly-files', 'a/b.png', 'full')
     assert.deepEqual(supabaseAdmin.calls.createSignedUrl[0].options, {})
   })
 
   it('omits the transform option for an unrecognized variant', async () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    await signedUrlWithVariant(supabaseAdmin, 'atlas-files', 'a/b.png', 'nonsense')
+    await signedUrlWithVariant(supabaseAdmin, 'runly-files', 'a/b.png', 'nonsense')
     assert.deepEqual(supabaseAdmin.calls.createSignedUrl[0].options, {})
   })
 
   it('respects a custom expiresIn', async () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    await signedUrlWithVariant(supabaseAdmin, 'atlas-files', 'a/b.png', 'card', 1800)
+    await signedUrlWithVariant(supabaseAdmin, 'runly-files', 'a/b.png', 'card', 1800)
     assert.equal(supabaseAdmin.calls.createSignedUrl[0].expiresIn, 1800)
   })
 
@@ -86,10 +86,10 @@ describe('signedUrlWithVariant', () => {
 describe('signedUrlsWithVariant', () => {
   it('passes the transform option and returns signed URLs keyed by input order', async () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    const urls = await signedUrlsWithVariant(supabaseAdmin, 'atlas-files', ['a.png', 'b.png'], 'card')
+    const urls = await signedUrlsWithVariant(supabaseAdmin, 'runly-files', ['a.png', 'b.png'], 'card')
     assert.deepEqual(urls, ['https://x/signed/a.png', 'https://x/signed/b.png'])
     assert.deepEqual(supabaseAdmin.calls.createSignedUrls[0], {
-      bucket: 'atlas-files',
+      bucket: 'runly-files',
       objectKeys: ['a.png', 'b.png'],
       expiresIn: 3600,
       options: { transform: IMAGE_VARIANTS.card },
@@ -98,7 +98,7 @@ describe('signedUrlsWithVariant', () => {
 
   it('returns an empty array for an empty input', async () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    assert.deepEqual(await signedUrlsWithVariant(supabaseAdmin, 'atlas-files', [], 'card'), [])
+    assert.deepEqual(await signedUrlsWithVariant(supabaseAdmin, 'runly-files', [], 'card'), [])
     assert.equal(supabaseAdmin.calls.createSignedUrls.length, 0)
   })
 })
@@ -106,10 +106,10 @@ describe('signedUrlsWithVariant', () => {
 describe('publicUrlWithVariant', () => {
   it('passes the transform option matching the requested variant', () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    const url = publicUrlWithVariant(supabaseAdmin, 'atlas-website', 'a/b.png', 'product')
+    const url = publicUrlWithVariant(supabaseAdmin, 'runly-website', 'a/b.png', 'product')
     assert.equal(url, 'https://x/public/a/b.png')
     assert.deepEqual(supabaseAdmin.calls.getPublicUrl[0], {
-      bucket: 'atlas-website',
+      bucket: 'runly-website',
       objectKey: 'a/b.png',
       options: { transform: IMAGE_VARIANTS.product },
     })
@@ -117,7 +117,7 @@ describe('publicUrlWithVariant', () => {
 
   it('omits the transform option for the full variant', () => {
     const supabaseAdmin = fakeSupabaseAdmin()
-    publicUrlWithVariant(supabaseAdmin, 'atlas-website', 'a/b.png', 'full')
+    publicUrlWithVariant(supabaseAdmin, 'runly-website', 'a/b.png', 'full')
     assert.deepEqual(supabaseAdmin.calls.getPublicUrl[0].options, {})
   })
 })

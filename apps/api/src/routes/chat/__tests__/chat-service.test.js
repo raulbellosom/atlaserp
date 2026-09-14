@@ -1877,7 +1877,7 @@ describe("chat-service — listMessages separates message-level and attachment-l
           thread_last_reply_at: null,
           sender: { id: PROFILE_ID, displayName: "Ada", avatarFileId: null },
           attachments: [
-            { id: attId, fileName: "foto.jpg", mimeType: "image/jpeg", sizeBytes: 100, width: null, height: null, objectKey: "k", bucket: "atlas-chat", reactions: [{ emoji: "\u{1F602}", userIds: [OTHER_PROFILE_ID] }] },
+            { id: attId, fileName: "foto.jpg", mimeType: "image/jpeg", sizeBytes: 100, width: null, height: null, objectKey: "k", bucket: "runly-chat", reactions: [{ emoji: "\u{1F602}", userIds: [OTHER_PROFILE_ID] }] },
           ],
           reactions: [{ emoji: "\u{1F44D}", userIds: [PROFILE_ID] }],
         },
@@ -1927,7 +1927,7 @@ describe("chat-service — deleteAttachment", () => {
   it("pending: uploader deletes the row and the storage object", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: null, bucket: "atlas-chat", object_key: "conversations/c/x.jpg", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: null, bucket: "runly-chat", object_key: "conversations/c/x.jpg", uploaded_by_user_id: PROFILE_ID }],
     ], [
       { count: 1 }, // DELETE FROM chat_attachments
     ]);
@@ -1935,14 +1935,14 @@ describe("chat-service — deleteAttachment", () => {
     const service = createChatService({ prisma, supabaseAdmin });
     const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
     assert.deepEqual(result, { ok: true, pending: true });
-    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["conversations/c/x.jpg"] }]);
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "runly-chat", keys: ["conversations/c/x.jpg"] }]);
     assert.equal(prisma._executeRawCallCount, 1);
   });
 
   it("pending: a non-uploader gets 404 and nothing is deleted", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: null, bucket: "atlas-chat", object_key: "conversations/c/x.jpg", uploaded_by_user_id: OTHER_PROFILE_ID }],
+      [{ id: ATT_ID, message_id: null, bucket: "runly-chat", object_key: "conversations/c/x.jpg", uploaded_by_user_id: OTHER_PROFILE_ID }],
     ]);
     const supabaseAdmin = buildStorageStub();
     const service = createChatService({ prisma, supabaseAdmin });
@@ -1957,7 +1957,7 @@ describe("chat-service — deleteAttachment", () => {
   it("sent: throws 404 when the caller isn't the message sender", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "runly-chat", object_key: "k", uploaded_by_user_id: PROFILE_ID }],
       [], // message-context lookup: no row (not the sender / deleted)
     ]);
     const service = createChatService({ prisma, supabaseAdmin: buildStorageStub() });
@@ -1970,7 +1970,7 @@ describe("chat-service — deleteAttachment", () => {
   it("sent: removes just the attachment, decrements attachment_count, deletes the object", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k1", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "runly-chat", object_key: "k1", uploaded_by_user_id: PROFILE_ID }],
       [{ body: "mira esto", attachment_count: 3, metadata: {} }],
     ], [
       { count: 1 }, // DELETE FROM chat_attachments
@@ -1980,14 +1980,14 @@ describe("chat-service — deleteAttachment", () => {
     const service = createChatService({ prisma, supabaseAdmin });
     const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
     assert.deepEqual(result, { ok: true, messageDeleted: false });
-    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["k1"] }]);
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "runly-chat", keys: ["k1"] }]);
     assert.equal(prisma._executeRawCallCount, 2);
   });
 
   it("sent: soft-deletes the message when it's the last attachment with no body or entity refs, deletes the object", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k2", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "runly-chat", object_key: "k2", uploaded_by_user_id: PROFILE_ID }],
       [{ body: "", attachment_count: 1, metadata: {} }],
     ], [
       { count: 1 }, // UPDATE chat_messages SET deleted_at = NOW()
@@ -1997,13 +1997,13 @@ describe("chat-service — deleteAttachment", () => {
     const service = createChatService({ prisma, supabaseAdmin });
     const result = await service.deleteAttachment({ attachmentId: ATT_ID, authUserId: AUTH_USER_ID });
     assert.deepEqual(result, { ok: true, messageDeleted: true });
-    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "atlas-chat", keys: ["k2"] }]);
+    assert.deepEqual(supabaseAdmin.removed, [{ bucket: "runly-chat", keys: ["k2"] }]);
   });
 
   it("sent: keeps the message when the last attachment leaves body text behind", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k3", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "runly-chat", object_key: "k3", uploaded_by_user_id: PROFILE_ID }],
       [{ body: "no borres esto", attachment_count: 1, metadata: {} }],
     ], [
       { count: 1 },
@@ -2017,7 +2017,7 @@ describe("chat-service — deleteAttachment", () => {
   it("sent: keeps the message when the last attachment leaves an entity ref behind", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: MSG_ID, bucket: "atlas-chat", object_key: "k4", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: MSG_ID, bucket: "runly-chat", object_key: "k4", uploaded_by_user_id: PROFILE_ID }],
       [{ body: null, attachment_count: 1, metadata: { entityRefs: [{ entityType: "contact", recordId: "x" }] } }],
     ], [
       { count: 1 },
@@ -2031,7 +2031,7 @@ describe("chat-service — deleteAttachment", () => {
   it("swallows a storage-removal error and still deletes the row", async () => {
     const prisma = buildPrismaMock([
       [{ id: PROFILE_ID }],
-      [{ id: ATT_ID, message_id: null, bucket: "atlas-chat", object_key: "boom", uploaded_by_user_id: PROFILE_ID }],
+      [{ id: ATT_ID, message_id: null, bucket: "runly-chat", object_key: "boom", uploaded_by_user_id: PROFILE_ID }],
     ], [
       { count: 1 },
     ]);
