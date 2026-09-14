@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-echo "[Atlas] Running seed (idempotent)..."
+echo "[Runly] Running seed (idempotent)..."
 node prisma/seed.js
-echo "[Atlas] Starting API..."
+echo "[Runly] Starting API..."
 exec pnpm --filter @runly/api start

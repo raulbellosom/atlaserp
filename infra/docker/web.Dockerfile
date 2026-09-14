@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 
 # VITE_ args are only needed for local dev builds — the distributed image
 # leaves them empty. At runtime, web-entrypoint.sh injects real values via
-# SUPABASE_URL / SUPABASE_ANON_KEY / ATLAS_API_URL container env vars.
+# SUPABASE_URL / SUPABASE_ANON_KEY / RUNLY_API_URL container env vars.
 ARG VITE_ATLAS_API_URL=""
 ARG VITE_RUNLY_API_URL
 ARG VITE_SUPABASE_URL=""

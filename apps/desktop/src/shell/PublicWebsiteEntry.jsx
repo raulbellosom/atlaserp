@@ -684,7 +684,7 @@ export function PublicWebsiteEntry() {
   // If URL has ?edit=1, start in edit mode and remove the param from URL
   const startInEdit = searchParams.get('edit') === '1'
   const [editMode,  setEditMode]  = useState(startInEdit)
-  const [barPinned, setBarPinned] = useState(() => localStorage.getItem('atlas-editor-bar-pinned') === 'true')
+  const [barPinned, setBarPinned] = useState(() => localStorage.getItem('runly-editor-bar-pinned') === 'true')
 
   useEffect(() => {
     if (startInEdit) {

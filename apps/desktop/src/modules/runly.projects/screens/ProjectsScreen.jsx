@@ -52,12 +52,12 @@ export default function ProjectsScreen() {
     return new Map(users.map((u) => [u.id, u.avatarUrl ?? null]));
   }, [workspaceUsersData]);
   const [selectedId, _setSelectedId] = useState(
-    () => localStorage.getItem("atlas.projects.selectedId") ?? null
+    () => localStorage.getItem("runly.projects.selectedId") ?? null
   );
   function setSelectedId(id) {
     _setSelectedId(id);
-    if (id) localStorage.setItem("atlas.projects.selectedId", id);
-    else localStorage.removeItem("atlas.projects.selectedId");
+    if (id) localStorage.setItem("runly.projects.selectedId", id);
+    else localStorage.removeItem("runly.projects.selectedId");
   }
   const [activeView, setActiveView] = useState("kanban");
   const [taskPanelId, setTaskPanelId] = useState(null);

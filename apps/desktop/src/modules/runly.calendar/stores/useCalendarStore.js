@@ -71,7 +71,7 @@ export const useCalendarStore = create(
       navigateToday: () => set({ selectedDate: todayDateString(), selectedSlotHour: null }),
     }),
     {
-      name: 'atlas-calendar-prefs',
+      name: 'runly-calendar-prefs',
       partialize: (s) => ({
         activeView: s.activeView,
         leftSidebarOpen: s.leftSidebarOpen,

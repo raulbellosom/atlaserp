@@ -33,9 +33,9 @@ export class ErrorBoundary extends Component {
         message,
       );
     if (isChunkLoadError) {
-      const lastReload = Number(sessionStorage.getItem("atlas-chunk-reload") ?? 0);
+      const lastReload = Number(sessionStorage.getItem("runly-chunk-reload") ?? 0);
       if (Date.now() - lastReload > 10000) {
-        sessionStorage.setItem("atlas-chunk-reload", String(Date.now()));
+        sessionStorage.setItem("runly-chunk-reload", String(Date.now()));
         window.location.reload();
       }
     }

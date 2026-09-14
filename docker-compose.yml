@@ -1,4 +1,4 @@
-# Production-oriented compose for Atlas services.
+# Production-oriented compose for Runly services.
 # This expects Supabase self-hosted to already be running or reachable.
 # For a quick local start, use docker-compose.local-lite.yml.
 services:
@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/api.Dockerfile
-    container_name: atlas-api
+    container_name: runly-api
     env_file: .env
     ports:
       - "4010:4010"
@@ -16,7 +16,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/worker.Dockerfile
-    container_name: atlas-worker
+    container_name: runly-worker
     env_file: .env
     restart: unless-stopped
 
@@ -25,10 +25,10 @@ services:
       context: .
       dockerfile: infra/docker/web.Dockerfile
       args:
-        VITE_ATLAS_API_URL: ${VITE_ATLAS_API_URL:-http://localhost:4010}
+        VITE_RUNLY_API_URL: ${VITE_RUNLY_API_URL:-http://localhost:4010}
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-    container_name: atlas-web-preview
+    container_name: runly-web-preview
     ports:
       - "5173:80"
     restart: unless-stopped

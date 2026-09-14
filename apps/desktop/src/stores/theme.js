@@ -25,6 +25,6 @@ export const useThemeStore = create(
         document.documentElement.classList.toggle("dark", get().isDark);
       },
     }),
-    { name: "atlas-theme" },
+    { name: "runly-theme" },
   ),
 );
