@@ -13,7 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -419,14 +419,14 @@ export default function HrOrgChartScreen() {
 
   const employeesQuery = useQuery({
     queryKey: ["hr-employees-org-options"],
-    queryFn: () => atlas.hr.listEmployees(token, { limit: 500, enabled: true }),
+    queryFn: () => runly.hr.listEmployees(token, { limit: 500, enabled: true }),
     enabled: Boolean(token),
   });
 
   const orgQuery = useQuery({
     queryKey: ["hr-org-chart", rootEmployeeId],
     queryFn: () =>
-      atlas.hr.getOrgChart(token, {
+      runly.hr.getOrgChart(token, {
         enabled: true,
         rootEmployeeId:
           rootEmployeeId === "__all__" ? undefined : rootEmployeeId,

@@ -14,7 +14,7 @@ import {
 import { BellRing, Building2, Clock3, Coins, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { RUNLY_DESKTOP_DOWNLOAD_URL } from "../../../lib/appConfig.js";
 import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs";
 
@@ -50,7 +50,7 @@ export default function InstanceSettings() {
 
   const configQuery = useQuery({
     queryKey: ["instance-config"],
-    queryFn: () => atlas.instanceConfig.get(token),
+    queryFn: () => runly.instanceConfig.get(token),
     enabled: Boolean(token),
   });
 
@@ -73,7 +73,7 @@ export default function InstanceSettings() {
   }, [configQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: () => atlas.instanceConfig.update(form, token),
+    mutationFn: () => runly.instanceConfig.update(form, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["instance-config"] });
       if (form.instanceName) document.title = `${form.instanceName} — Runly ERP`

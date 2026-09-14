@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@runly/ui";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { TYPE_OPTIONS, CONTACTS_BLUEPRINT_FALLBACK } from "../constants";
 
 function withNotesField(blueprint) {
@@ -110,7 +110,7 @@ export function ContactFormSheet({
                 <h3 className="text-sm font-semibold">Actividad reciente</h3>
               </div>
               <ActivityTimeline
-                sdk={atlas}
+                sdk={runly}
                 token={token}
                 entityType="Contact"
                 entityId={contact.id}

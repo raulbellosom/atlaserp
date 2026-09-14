@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 
 export default function DocumentTemplatesScreen() {
   const navigate = useNavigate();
@@ -34,13 +34,13 @@ export default function DocumentTemplatesScreen() {
 
   const query = useQuery({
     queryKey: ["documents", "templates"],
-    queryFn: () => atlas.documents.listTemplates(token, { enabled: true, pageSize: 100 }),
+    queryFn: () => runly.documents.listTemplates(token, { enabled: true, pageSize: 100 }),
     enabled: Boolean(token && allowed("documents.templates.read")),
     staleTime: 30_000,
   });
   const createMutation = useMutation({
     mutationFn: () =>
-      atlas.documents.createTemplate(
+      runly.documents.createTemplate(
         { ...form, sourceType: "growth.lead" },
         token,
       ),
@@ -54,7 +54,7 @@ export default function DocumentTemplatesScreen() {
   });
   const toggleMutation = useMutation({
     mutationFn: (item) =>
-      atlas.documents.setTemplateEnabled(
+      runly.documents.setTemplateEnabled(
         item.id,
         { enabled: !item.enabled, updatedAt: item.updatedAt },
         token,

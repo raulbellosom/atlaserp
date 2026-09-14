@@ -15,7 +15,7 @@ import {
 import { ArrowLeft, KeyRound, Mail, Shield, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 const NO_ROLE_VALUE = "__none__";
 
@@ -32,7 +32,7 @@ export default function UserCreateScreen() {
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
-    queryFn: () => atlas.identity.listRoles(token),
+    queryFn: () => runly.identity.listRoles(token),
     enabled: Boolean(token) && canReadRoles,
   });
 
@@ -57,7 +57,7 @@ export default function UserCreateScreen() {
   );
 
   const createUserMutation = useMutation({
-    mutationFn: (payload) => atlas.identity.createUser(payload, token),
+    mutationFn: (payload) => runly.identity.createUser(payload, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       toast.success("Usuario creado correctamente");

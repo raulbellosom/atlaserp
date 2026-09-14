@@ -15,7 +15,7 @@
 // their own state wouldn't see each other's writes.
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 const STORAGE_KEY = "atlas_chat_prefs_v1";
@@ -109,7 +109,7 @@ export function ChatPreferencesProvider({ children }) {
   const { data: serverValue } = useQuery({
     queryKey: PREF_QUERY_KEY,
     queryFn: async () => {
-      const res = await atlas.profile.getPreference(PREF_KEY, token);
+      const res = await runly.profile.getPreference(PREF_KEY, token);
       return res?.value ?? null;
     },
     enabled: Boolean(token),
@@ -134,7 +134,7 @@ export function ChatPreferencesProvider({ children }) {
         const next = { ...prev, ...patch };
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
-          if (token) atlas.profile.setPreference(PREF_KEY, next, token).catch(() => {});
+          if (token) runly.profile.setPreference(PREF_KEY, next, token).catch(() => {});
         }, SAVE_DEBOUNCE_MS);
         return next;
       });

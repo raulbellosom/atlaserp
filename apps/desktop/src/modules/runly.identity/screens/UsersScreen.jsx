@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 
 const API_BASE_URL = getApiUrl();
@@ -138,7 +138,7 @@ export default function UsersScreen() {
   const bulkEnabledMutation = useMutation({
     mutationFn: async ({ ids, enabled }) => {
       await new Promise((resolve) => setTimeout(resolve, 350));
-      return atlas.identity.setUsersEnabled(ids, enabled, token);
+      return runly.identity.setUsersEnabled(ids, enabled, token);
     },
     onSuccess: () => {
       setRefreshSignal((value) => value + 1);
@@ -149,7 +149,7 @@ export default function UsersScreen() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (id) => atlas.identity.deleteUser(id, token),
+    mutationFn: (id) => runly.identity.deleteUser(id, token),
     onSuccess: () => {
       setRefreshSignal((value) => value + 1);
       setDeleteTarget(null);
@@ -161,7 +161,7 @@ export default function UsersScreen() {
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (ids) => atlas.identity.deleteUsersBulk(ids, token),
+    mutationFn: (ids) => runly.identity.deleteUsersBulk(ids, token),
     onSuccess: () => {
       setRefreshSignal((value) => value + 1);
       setBulkState(null);
@@ -182,7 +182,7 @@ export default function UsersScreen() {
         try {
           const ids = selectedRows.map((row) => row.id).filter(Boolean);
           if (!ids.length) return;
-          const blob = await atlas.identity.exportUsersExcel(ids, token);
+          const blob = await runly.identity.exportUsersExcel(ids, token);
           downloadBlob(blob, `usuarios-${toLocalIso()}.xlsx`);
           toast.success("Excel generado");
         } catch {
@@ -198,7 +198,7 @@ export default function UsersScreen() {
         try {
           const ids = selectedRows.map((row) => row.id).filter(Boolean);
           if (!ids.length) return;
-          const blob = await atlas.identity.exportUsersPdf(ids, token);
+          const blob = await runly.identity.exportUsersPdf(ids, token);
           downloadBlob(blob, `usuarios-${toLocalIso()}.pdf`);
           toast.success("PDF generado");
         } catch {

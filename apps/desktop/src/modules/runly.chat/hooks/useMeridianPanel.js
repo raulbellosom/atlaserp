@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.chat/hooks/useMeridianPanel.js
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 // The private per-conversation MeridIAn panel thread (Spec 2).
@@ -12,7 +12,7 @@ export function useMeridianPanelThread(conversationId, { enabled = true } = {}) 
     enabled: enabled && Boolean(token && conversationId),
     staleTime: 0,
     queryFn: async () => {
-      const res = await atlas.chat.meridian.panel(conversationId, token);
+      const res = await runly.chat.meridian.panel(conversationId, token);
       return res?.data ?? { threadId: null, messages: [] };
     },
   });
@@ -24,7 +24,7 @@ export function useSendMeridianPanel(conversationId) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ content, focusMessageId }) =>
-      atlas.chat.meridian.panelSend(
+      runly.chat.meridian.panelSend(
         conversationId,
         { content, focusMessageId: focusMessageId ?? undefined },
         token,
@@ -38,7 +38,7 @@ export function useClearMeridianPanel(conversationId) {
   const token = session?.access_token;
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => atlas.chat.meridian.panelClear(conversationId, token),
+    mutationFn: () => runly.chat.meridian.panelClear(conversationId, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["chat-meridian-panel", conversationId] }),
   });
 }

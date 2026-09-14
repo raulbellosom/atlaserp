@@ -1,4 +1,4 @@
-import { initAtlasClient } from './atlas.js'
+import { initRunlyClient } from './atlas.js'
 import { initSupabaseClient } from './supabase.js'
 import {
   getServerUrl,
@@ -38,7 +38,7 @@ export async function initializeRuntimeForServer(url) {
   }
 
   setApiUrl(normalizedUrl)
-  initAtlasClient(normalizedUrl)
+  initRunlyClient(normalizedUrl)
   await initSupabaseClient({ baseUrl: normalizedUrl, forceReload: true })
   return normalizedUrl
 }

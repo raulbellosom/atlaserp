@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -12,7 +12,7 @@ export function usePosReservations(query = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'reservations', query],
-    queryFn: () => atlas.pos.listReservations(query, token),
+    queryFn: () => runly.pos.listReservations(query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
@@ -23,7 +23,7 @@ export function useCreatePosReservation() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createReservation(data, token),
+    mutationFn: (data) => runly.pos.createReservation(data, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'reservations'] })
       qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
@@ -38,7 +38,7 @@ export function useUpdatePosReservation() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.updateReservation(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.updateReservation(id, data, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'reservations'] })
       qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
@@ -53,7 +53,7 @@ export function useSeatPosReservation() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, sessionId }) => atlas.pos.seatReservation(id, { sessionId }, token),
+    mutationFn: ({ id, sessionId }) => runly.pos.seatReservation(id, { sessionId }, token),
     onSuccess: () => {
       toast.success('Reservación iniciada')
       qc.invalidateQueries({ queryKey: ['pos', 'reservations'] })

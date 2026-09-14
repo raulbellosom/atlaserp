@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, PageHeader, Skeleton } from "@runly/ui";
 import { ArrowRight, KeyRound, Shield, UserCheck, Users } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
@@ -98,13 +98,13 @@ export default function IdentityOverview() {
 
   const usersQuery = useQuery({
     queryKey: ["identity-users"],
-    queryFn: () => atlas.identity.listUsers(token),
+    queryFn: () => runly.identity.listUsers(token),
     enabled: Boolean(token) && canReadUsers,
   });
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
-    queryFn: () => atlas.identity.listRoles(token),
+    queryFn: () => runly.identity.listRoles(token),
     enabled: Boolean(token) && canReadRoles,
   });
 

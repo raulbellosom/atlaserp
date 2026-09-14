@@ -19,7 +19,7 @@ import { X, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAddMembers } from "../hooks/useCreateConversation";
 import { UserAvatar, UserPickerItem, UserListSkeleton } from "./UserPicker";
 
@@ -33,7 +33,7 @@ export function AddChannelMembersDialog({ open, onClose, conversationId, existin
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["users-for-chat-picker"],
-    queryFn: () => atlas.identity.listUsers(token, { pageSize: 100 }),
+    queryFn: () => runly.identity.listUsers(token, { pageSize: 100 }),
     enabled: Boolean(token) && open,
     staleTime: 120_000,
   });

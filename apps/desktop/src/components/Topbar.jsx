@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ActivityBellTrigger, SyncStatusPopover } from "@runly/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import ActivityDetailSheet from "../modules/runly.activity/ActivityDetailSheet";
 import { useOfflineStore } from "@runly/offline";
 
@@ -165,7 +165,7 @@ export function Topbar({
           {token && canReadActivity && (
             <span className="hidden sm:contents">
               <ActivityBellTrigger
-                sdk={atlas}
+                sdk={runly}
                 token={token}
                 onSelect={setSelectedActivity}
                 onSeeAll={() => navigate("/app/m/atlas.activity")}

@@ -20,7 +20,7 @@ import { HomeScreen } from "./HomeScreen";
 import { ModuleOutlet } from "./ModuleOutlet";
 import { ProfileScreen } from "./ProfileScreen";
 import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { registerServiceWorker } from "../lib/webPush";
 import { AppLoader } from "../components/AppLoader";
@@ -83,7 +83,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
     const MIN_LOADER_MS = 900;
     const startedAt = Date.now();
     let mounted = true;
-    atlas.instance
+    runly.instance
       .status()
       .then((data) => {
         applyBrandTheme(data?.branding?.primaryColor);

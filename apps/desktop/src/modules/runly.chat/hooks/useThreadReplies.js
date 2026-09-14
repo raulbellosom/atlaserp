@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 
 export function useThreadReplies(rootMessageId) {
@@ -12,7 +12,7 @@ export function useThreadReplies(rootMessageId) {
 
   const query = useQuery({
     queryKey: ["chat-thread", rootMessageId],
-    queryFn: () => atlas.chat.getThread(rootMessageId, token),
+    queryFn: () => runly.chat.getThread(rootMessageId, token),
     enabled: Boolean(token && rootMessageId),
     staleTime: 5_000,
   });
@@ -38,7 +38,7 @@ export function useSendThreadReply(rootMessageId, conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => atlas.chat.sendMessage(conversationId, { ...data, threadRootId: rootMessageId }, token),
+    mutationFn: (data) => runly.chat.sendMessage(conversationId, { ...data, threadRootId: rootMessageId }, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-thread", rootMessageId] });
       // The root's thread_reply_count/thread_last_reply_at (rendered as the

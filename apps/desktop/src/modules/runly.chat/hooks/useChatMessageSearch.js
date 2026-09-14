@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // In-conversation search runs from the first non-space char (the server
 // tokenizer already handles 1-char queries — a `y`/`de` search should just
@@ -29,7 +29,7 @@ export function useChatMessageSearch({ q, conversationId = null, limit = 30, ena
   const query = useQuery({
     queryKey: ["chat-message-search", conversationId ?? "global", debounced, limit],
     queryFn: () =>
-      atlas.chat.searchMessages(
+      runly.chat.searchMessages(
         { q: debounced, conversationId: conversationId ?? undefined, limit },
         token,
       ),

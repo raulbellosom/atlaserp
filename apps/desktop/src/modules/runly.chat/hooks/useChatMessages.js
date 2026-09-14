@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { subscribeToMessages } from "../lib/supabaseRealtime";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 
@@ -20,7 +20,7 @@ export function useChatMessages(conversationId) {
 
   const query = useQuery({
     queryKey: ["chat-messages", conversationId],
-    queryFn: () => atlas.chat.listMessages(conversationId, { limit: 40 }, token),
+    queryFn: () => runly.chat.listMessages(conversationId, { limit: 40 }, token),
     enabled: Boolean(token && conversationId),
     staleTime: 5_000,
     refetchInterval: 30_000,
@@ -53,7 +53,7 @@ export function useChatMessages(conversationId) {
 
     setIsLoadingMore(true);
     try {
-      const result = await atlas.chat.listMessages(conversationId, {
+      const result = await runly.chat.listMessages(conversationId, {
         limit: 40,
         before: oldestMsg.created_at,
       }, token);
@@ -147,7 +147,7 @@ export function useChatMessages(conversationId) {
 
   useEffect(() => {
     if (!conversationId || !token) return;
-    atlas.notifications.markReadBySource(token, "chat_conversation", conversationId).catch(() => {});
+    runly.notifications.markReadBySource(token, "chat_conversation", conversationId).catch(() => {});
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   }, [conversationId, token, queryClient]);
 
@@ -174,7 +174,7 @@ export function useSendMessage(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => atlas.chat.sendMessage(conversationId, data, token),
+    mutationFn: (data) => runly.chat.sendMessage(conversationId, data, token),
 
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ["chat-messages", conversationId] });
@@ -270,7 +270,7 @@ export function useMarkRead(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => atlas.chat.markRead(conversationId, token),
+    mutationFn: () => runly.chat.markRead(conversationId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
@@ -283,7 +283,7 @@ export function useDeleteMessage(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (messageId) => atlas.chat.deleteMessage(messageId, token),
+    mutationFn: (messageId) => runly.chat.deleteMessage(messageId, token),
     onMutate: async (messageId) => {
       await queryClient.cancelQueries({ queryKey: ["chat-messages", conversationId] });
       const previous = queryClient.getQueryData(["chat-messages", conversationId]);
@@ -317,7 +317,7 @@ export function usePinMessage(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ messageId, pinned }) => atlas.chat.pinMessage(messageId, pinned, token),
+    mutationFn: ({ messageId, pinned }) => runly.chat.pinMessage(messageId, pinned, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["chat-pinned-messages", conversationId] });
@@ -333,7 +333,7 @@ export function useToggleReaction(conversationId) {
   return useMutation({
     // attachmentId omitted/null = message-level reaction (unchanged).
     mutationFn: ({ messageId, emoji, attachmentId = null }) =>
-      atlas.chat.toggleReaction(messageId, emoji, token, { attachmentId }),
+      runly.chat.toggleReaction(messageId, emoji, token, { attachmentId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
     },
@@ -346,7 +346,7 @@ export function useDeleteAttachment(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (attachmentId) => atlas.chat.deleteAttachment(attachmentId, token),
+    mutationFn: (attachmentId) => runly.chat.deleteAttachment(attachmentId, token),
     onSuccess: () => {
       // No optimistic update here (unlike useDeleteMessage): removing one
       // attachment out of a message's array in the cache correctly, without

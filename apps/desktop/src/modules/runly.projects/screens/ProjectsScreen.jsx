@@ -17,7 +17,7 @@ import {
 import { Button, Badge, EmptyState, ErrorState, LoadingState } from "@runly/ui";
 import { useProjects, useWorkspaceUsers } from "../hooks/useProjectsData";
 import { useProjectRealtime } from "../hooks/useProjectRealtime";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
 import { getProjectIcon } from "../lib/projectIcons.js";
@@ -121,7 +121,7 @@ export default function ProjectsScreen() {
   const linkedChannelQuery = useQuery({
     queryKey: ["project-linked-channel", effectiveId],
     queryFn: async () => {
-      const res = await atlas.chat.getLinkedChannel("atlas.projects", effectiveId, token);
+      const res = await runly.chat.getLinkedChannel("atlas.projects", effectiveId, token);
       return res?.data ?? null;
     },
     enabled: Boolean(effectiveId && token),
@@ -131,11 +131,11 @@ export default function ProjectsScreen() {
   const createChannelMutation = useMutation({
     mutationFn: async () => {
       // GET /projects/:id/members returns a raw array, not { data: [...] }.
-      const membersRes = await atlas.projects.listMembers(effectiveId, token);
+      const membersRes = await runly.projects.listMembers(effectiveId, token);
       const memberUserIds = (membersRes?.data ?? membersRes ?? [])
         .map((m) => m.userId)
         .filter(Boolean);
-      return atlas.chat.createChannel(
+      return runly.chat.createChannel(
         {
           title: selectedProject?.name ?? "Proyecto",
           linkedModule: "atlas.projects",
@@ -165,7 +165,7 @@ export default function ProjectsScreen() {
   async function handleExport() {
     if (!effectiveId) return;
     try {
-      const blob = await atlas.projects.exportProjectCsv(effectiveId, session?.access_token);
+      const blob = await runly.projects.exportProjectCsv(effectiveId, session?.access_token);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

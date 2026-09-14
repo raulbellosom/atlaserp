@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
-import { atlas } from "../../lib/atlas";
+import { runly } from "../../lib/atlas";
 
 const PAGE_SIZE = 25;
 
@@ -102,7 +102,7 @@ export default function NotificationsInboxScreen() {
   const query = useInfiniteQuery({
     queryKey: ["notifications-inbox", token, filters],
     queryFn: ({ pageParam }) =>
-      atlas.notifications.list(token, {
+      runly.notifications.list(token, {
         limit: PAGE_SIZE,
         cursor: pageParam ?? undefined,
         unreadOnly: filters.unreadOnly === "true",
@@ -123,7 +123,7 @@ export default function NotificationsInboxScreen() {
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   const markReadMutation = useMutation({
-    mutationFn: (id) => atlas.notifications.markRead(token, id),
+    mutationFn: (id) => runly.notifications.markRead(token, id),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ["notifications-inbox", token],
@@ -132,7 +132,7 @@ export default function NotificationsInboxScreen() {
   });
 
   const markAllReadMutation = useMutation({
-    mutationFn: () => atlas.notifications.markAllRead(token),
+    mutationFn: () => runly.notifications.markAllRead(token),
     onSuccess: async (response) => {
       const updated = response?.data?.updated ?? response?.updated ?? 0;
       await queryClient.invalidateQueries({

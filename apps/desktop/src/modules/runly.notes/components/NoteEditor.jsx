@@ -5,7 +5,7 @@ import * as Y from 'yjs'
 import { NotebookPen } from 'lucide-react'
 import { Popover, PopoverTrigger, PopoverContent } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
 import { SupabaseYjsProvider, bytesToBase64 } from '../lib/SupabaseYjsProvider.js'
 import { buildExtensions } from '../lib/editor-extensions.js'
@@ -73,7 +73,7 @@ export function NoteEditor({ note, readOnly = false, scrollable = true }) {
     const provider = new SupabaseYjsProvider(ydoc, {
       noteId: note.id,
       supabase,
-      atlas,
+      runly,
       token,
       onSynced: () => {
         if (disposed) return
@@ -174,7 +174,7 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
     pendingRef.current = null
     try {
       try {
-        await atlas.notes.update(note.id, snap, token)
+        await runly.notes.update(note.id, snap, token)
         queryClient.invalidateQueries({ queryKey: ['notes'] })
         queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
       } catch (err) {
@@ -189,7 +189,7 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
       if (ydoc) {
         try {
           const stateB64 = bytesToBase64(Y.encodeStateAsUpdate(ydoc))
-          await atlas.notes.saveYDoc(note.id, stateB64, token)
+          await runly.notes.saveYDoc(note.id, stateB64, token)
         } catch (err) {
           console.error(
             '[NoteEditor] Y.js state save FAILED — note will reload blank:',
@@ -235,7 +235,7 @@ function NoteEditorSurface({ note, readOnly, scrollable, token, session, userPro
     async (patch) => {
       if (readOnly || !note?.id || !token) return
       try {
-        await atlas.notes.update(note.id, patch, token)
+        await runly.notes.update(note.id, patch, token)
         queryClient.invalidateQueries({ queryKey: ['notes'] })
         queryClient.invalidateQueries({ queryKey: ['notes', note.id] })
       } catch (err) {

@@ -4,7 +4,7 @@ import { Button, Card, DistDropZone, ErrorState, FileViewer, PageHeader, Skeleto
 import { Palette, Upload, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { applyBrandTheme } from "../../../lib/brandTheme";
 import { useBrandingStore } from "../../../stores/branding.js";
 
@@ -351,7 +351,7 @@ export default function CompanyBranding() {
 
   const brandingQuery = useQuery({
     queryKey: ["company-branding"],
-    queryFn: () => atlas.company.getBranding(token),
+    queryFn: () => runly.company.getBranding(token),
     enabled: Boolean(token),
   });
 
@@ -404,10 +404,10 @@ export default function CompanyBranding() {
       formData.append("file", file);
       formData.append("moduleKey", "atlas.company");
       formData.append("entityType", "BrandingConfig");
-      const uploaded = await atlas.files.upload(formData, token);
+      const uploaded = await runly.files.upload(formData, token);
       const uploadedFile = uploaded?.data;
       const signed = uploadedFile?.id
-        ? await atlas.files.getSignedUrl(uploadedFile.id, token)
+        ? await runly.files.getSignedUrl(uploadedFile.id, token)
         : null;
       return { ...uploadedFile, signedUrl: signed?.data?.signedUrl ?? null };
     },
@@ -432,7 +432,7 @@ export default function CompanyBranding() {
         }
       }
 
-      return atlas.company.updateBranding(
+      return runly.company.updateBranding(
         { primaryColor: form.primaryColor, logoFileId: finalLogoFileId },
         token,
       );

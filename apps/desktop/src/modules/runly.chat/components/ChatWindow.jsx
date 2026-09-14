@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { ChatTemplatePopover } from "./ChatTemplatePopover";
 import { useConversationFiles } from "../hooks/useConversationFiles";
 import { ErrorState } from "@runly/ui";
@@ -62,7 +62,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
 
   const handleCloseExternal = useCallback(async () => {
     if (!conversationId) return;
-    await atlas.chat.closeExternal(conversationId, token);
+    await runly.chat.closeExternal(conversationId, token);
     queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"], exact: false });
   }, [conversationId, token, queryClient]);
 

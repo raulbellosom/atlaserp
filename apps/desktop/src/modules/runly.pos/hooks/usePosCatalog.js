@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -11,7 +11,7 @@ export function usePosCatalogCategories() {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'catalog', 'categories'],
-    queryFn: () => atlas.catalog.listCategories(token),
+    queryFn: () => runly.catalog.listCategories(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
@@ -23,7 +23,7 @@ export function usePosCatalogProducts(params = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'catalog', 'products', params],
-    queryFn: () => atlas.catalog.listProducts(token, params),
+    queryFn: () => runly.catalog.listProducts(token, params),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,

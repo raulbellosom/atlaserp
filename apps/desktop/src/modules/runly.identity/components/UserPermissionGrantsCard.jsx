@@ -17,7 +17,7 @@ import {
 } from "@runly/ui";
 import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import PermissionFeatureTree from "./PermissionFeatureTree";
 
 export default function UserPermissionGrantsCard({ userId, token, canManage }) {
@@ -26,13 +26,13 @@ export default function UserPermissionGrantsCard({ userId, token, canManage }) {
 
   const permissionsQuery = useQuery({
     queryKey: ["identity-permissions"],
-    queryFn: () => atlas.identity.listPermissions(token),
+    queryFn: () => runly.identity.listPermissions(token),
     enabled: Boolean(token),
   });
 
   const grantsQuery = useQuery({
     queryKey: ["identity-user-grants", userId],
-    queryFn: () => atlas.identity.getUserPermissionGrants(userId, token),
+    queryFn: () => runly.identity.getUserPermissionGrants(userId, token),
     enabled: Boolean(token && userId),
   });
 
@@ -60,7 +60,7 @@ export default function UserPermissionGrantsCard({ userId, token, canManage }) {
 
   const saveMutation = useMutation({
     mutationFn: (keys) =>
-      atlas.identity.setUserPermissionGrants(userId, { permissionKeys: keys }, token),
+      runly.identity.setUserPermissionGrants(userId, { permissionKeys: keys }, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-user-grants", userId] });
       queryClient.invalidateQueries({ queryKey: ["identity-users"] });

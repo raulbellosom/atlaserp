@@ -10,7 +10,7 @@
 import { useCallback, useRef } from "react";
 import { useOfficeActions } from "@runly/ui";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, onIndexChange, onOpenInOffice = null, canOpenInOffice = null }) {
@@ -26,7 +26,7 @@ export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, o
       const cached = fullUrlCacheRef.current.get(file.id);
       if (cached) return cached;
       try {
-        const res = await atlas.files.getSignedUrl(file.id, token, { variant: "full" });
+        const res = await runly.files.getSignedUrl(file.id, token, { variant: "full" });
         const url = res?.data?.signedUrl ?? null;
         if (url) fullUrlCacheRef.current.set(file.id, url);
         return url;

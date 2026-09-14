@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { LayoutTemplate, Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function applyVars(body, vars = {}) {
   return body.replace(/\{(\w+)\}/g, (match, key) => vars[key] ?? match);
@@ -17,7 +17,7 @@ export function ChatTemplatePopover({ onSelect, vars = {} }) {
 
   const { data } = useQuery({
     queryKey: ["chat-templates"],
-    queryFn: () => atlas.chat.listTemplates(token),
+    queryFn: () => runly.chat.listTemplates(token),
     enabled: open && Boolean(token),
     staleTime: 60_000,
   });
@@ -42,7 +42,7 @@ export function ChatTemplatePopover({ onSelect, vars = {} }) {
 
   function handleSelect(template) {
     onSelect(applyVars(template.body, vars));
-    atlas.chat.recordTemplateUse(template.id, token).catch(() => {});
+    runly.chat.recordTemplateUse(template.id, token).catch(() => {});
     setOpen(false);
     setSearch("");
   }

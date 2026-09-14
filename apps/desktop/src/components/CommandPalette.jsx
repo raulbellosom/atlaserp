@@ -8,7 +8,7 @@ import { useCommandStore } from "../stores/command";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { useOfflineStore, OFFLINE_MODULES } from "@runly/offline";
 import { useAuth } from "../auth/AuthProvider";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { ModuleIcon } from "./ModuleCard";
 import { buildCommandItems } from "../lib/commandPalette";
 
@@ -42,7 +42,7 @@ export function CommandPalette({ activeModule }) {
 
   const searchQuery = useQuery({
     queryKey: ["command-search", debouncedQuery],
-    queryFn: () => atlas.search.global(debouncedQuery, { limit: 5 }, token),
+    queryFn: () => runly.search.global(debouncedQuery, { limit: 5 }, token),
     enabled: searchEnabled,
     staleTime: 15000,
     retry: false,

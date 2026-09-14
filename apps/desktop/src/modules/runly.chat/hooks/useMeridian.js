@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.chat/hooks/useMeridian.js
 import { useQuery } from "@tanstack/react-query";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 // Is MeridIAn available in this environment (GROQ_API_KEY present) AND does the
@@ -14,7 +14,7 @@ export function useMeridianStatus() {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       try {
-        const res = await atlas.chat.meridian.status(token);
+        const res = await runly.chat.meridian.status(token);
         return { available: Boolean(res?.data?.available) };
       } catch (err) {
         if (err?.status === 403 || err?.status === 404) {
@@ -38,7 +38,7 @@ export function useEnsureMeridianConversation({ enabled = true } = {}) {
     retry: false,
     queryFn: async () => {
       try {
-        const res = await atlas.chat.meridian.ensure(token);
+        const res = await runly.chat.meridian.ensure(token);
         return { conversationId: res?.data?.conversationId ?? null };
       } catch (err) {
         if (err?.status === 403) return { conversationId: null };

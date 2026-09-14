@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CommentThread } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import {
   useInventoryComments,
   useCreateInventoryComment,
@@ -24,7 +24,7 @@ export function InventoryCommentThread({ itemId }) {
 
   const membersQuery = useQuery({
     queryKey: ['identity', 'users'],
-    queryFn: () => atlas.identity.listUsers(token),
+    queryFn: () => runly.identity.listUsers(token),
     enabled: Boolean(token),
     staleTime: 10 * 60 * 1000,
   })

@@ -1,6 +1,6 @@
 import { createCommentHooks } from '../../../lib/createCommentHooks'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 const {
   useComments: useGrowthLeadComments,
@@ -11,11 +11,11 @@ const {
 } = createCommentHooks({
   queryKey: (leadId) => ['growth', 'leads', leadId],
   sdk: {
-    list:           (leadId, token) => atlas.growth.listLeadComments(leadId, token),
-    create:         (leadId, body, token) => atlas.growth.createLeadComment(leadId, body, token),
-    update:         (leadId, commentId, body, token) => atlas.growth.updateLeadComment(leadId, commentId, body, token),
-    del:            (leadId, commentId, token) => atlas.growth.deleteLeadComment(leadId, commentId, token),
-    toggleReaction: (leadId, commentId, emoji, token) => atlas.growth.toggleLeadCommentReaction(leadId, commentId, emoji, token),
+    list:           (leadId, token) => runly.growth.listLeadComments(leadId, token),
+    create:         (leadId, body, token) => runly.growth.createLeadComment(leadId, body, token),
+    update:         (leadId, commentId, body, token) => runly.growth.updateLeadComment(leadId, commentId, body, token),
+    del:            (leadId, commentId, token) => runly.growth.deleteLeadComment(leadId, commentId, token),
+    toggleReaction: (leadId, commentId, emoji, token) => runly.growth.toggleLeadCommentReaction(leadId, commentId, emoji, token),
   },
   useAuth,
 })

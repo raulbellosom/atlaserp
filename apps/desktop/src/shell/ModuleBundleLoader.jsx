@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
-import { atlas } from '../lib/atlas'
+import { runly } from '../lib/atlas'
 import { useAuth } from '../auth/AuthProvider'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 
@@ -54,7 +54,7 @@ export function ModuleBundleLoader({ children }) {
 
   const { data: blueprintData } = useQuery({
     queryKey: ['blueprints', token],
-    queryFn: () => atlas.blueprints.list(token),
+    queryFn: () => runly.blueprints.list(token),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })

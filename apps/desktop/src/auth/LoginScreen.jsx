@@ -5,7 +5,7 @@ import { Server, Layers, Building2, Mail, Lock, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { TextField, PasswordField, Button, AuthAtmosphere } from '@runly/ui'
 import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
-import { atlas } from '../lib/atlas'
+import { runly } from '../lib/atlas'
 import { useAuth } from './AuthProvider'
 import { normalizeAuthReturnPath } from './authReturnPath.js'
 import { useThemeStore } from '../stores/theme'
@@ -34,7 +34,7 @@ export function LoginScreen({ returnTo = '/app' }) {
 
   useEffect(() => {
     let mounted = true
-    atlas.instance.status()
+    runly.instance.status()
       .then((data) => {
         if (!mounted) return
         if (!data?.initialized) {

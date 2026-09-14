@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -12,7 +12,7 @@ export function usePosOrders(query = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'orders', query],
-    queryFn: () => atlas.pos.listOrders(query, token),
+    queryFn: () => runly.pos.listOrders(query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
@@ -23,7 +23,7 @@ export function usePosOrder(id) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'orders', 'detail', id],
-    queryFn: () => atlas.pos.getOrder(id, token),
+    queryFn: () => runly.pos.getOrder(id, token),
     select: (res) => res?.data ?? null,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 10 * 1000,
@@ -35,7 +35,7 @@ export function useCreatePosOrder() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createOrder(data, token),
+    mutationFn: (data) => runly.pos.createOrder(data, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
@@ -49,7 +49,7 @@ export function useAddPosOrderLine() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ orderId, ...data }) => atlas.pos.addOrderLine(orderId, data, token),
+    mutationFn: ({ orderId, ...data }) => runly.pos.addOrderLine(orderId, data, token),
     onMutate: async ({ orderId, productId, productName, unitPrice, quantity = 1 }) => {
       await qc.cancelQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
       const prev = qc.getQueryData(['pos', 'orders', 'detail', orderId])
@@ -87,7 +87,7 @@ export function useUpdatePosOrderLine() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ orderId, lineId, ...data }) =>
-      atlas.pos.updateOrderLine(orderId, lineId, data, token),
+      runly.pos.updateOrderLine(orderId, lineId, data, token),
     onMutate: async ({ orderId, lineId, quantity, note }) => {
       await qc.cancelQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
       const prev = qc.getQueryData(['pos', 'orders', 'detail', orderId])
@@ -124,7 +124,7 @@ export function useDeletePosOrderLine() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ orderId, lineId }) => atlas.pos.deleteOrderLine(orderId, lineId, token),
+    mutationFn: ({ orderId, lineId }) => runly.pos.deleteOrderLine(orderId, lineId, token),
     onMutate: async ({ orderId, lineId }) => {
       await qc.cancelQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
       const prev = qc.getQueryData(['pos', 'orders', 'detail', orderId])
@@ -152,7 +152,7 @@ export function useAddPosGuest() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ orderId, ...data }) => atlas.pos.addGuest(orderId, data, token),
+    mutationFn: ({ orderId, ...data }) => runly.pos.addGuest(orderId, data, token),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
     },
@@ -164,7 +164,7 @@ export function useSendToKitchen() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (orderId) => atlas.pos.sendToKitchen(orderId, token),
+    mutationFn: (orderId) => runly.pos.sendToKitchen(orderId, token),
     onMutate: () => ({ toastId: toast.loading('Enviando a cocina...') }),
     onSuccess: (_, orderId, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -183,7 +183,7 @@ export function useAddPosPayment() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ orderId, ...data }) => atlas.pos.addPayment(orderId, data, token),
+    mutationFn: ({ orderId, ...data }) => runly.pos.addPayment(orderId, data, token),
     onMutate: () => ({ toastId: toast.loading('Registrando pago...') }),
     onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -205,7 +205,7 @@ export function useCancelPosOrder() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ orderId, reason }) => atlas.pos.cancelOrder(orderId, { reason }, token),
+    mutationFn: ({ orderId, reason }) => runly.pos.cancelOrder(orderId, { reason }, token),
     onMutate: () => ({ toastId: toast.loading('Cancelando orden...') }),
     onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -225,7 +225,7 @@ export function useCancelPosOrder() {
 export function useReprintPosReceipt() {
   const token = useToken()
   return useMutation({
-    mutationFn: (orderId) => atlas.pos.reprintReceipt(orderId, token),
+    mutationFn: (orderId) => runly.pos.reprintReceipt(orderId, token),
     onMutate: () => ({ toastId: toast.loading('Reimprimiendo recibo...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -243,7 +243,7 @@ export function useAssignOrderWaiter() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ orderId, waiterId }) =>
-      atlas.pos.assignOrderWaiter(orderId, { waiterId }, token),
+      runly.pos.assignOrderWaiter(orderId, { waiterId }, token),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', vars.orderId] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'seat-totals', vars.orderId] })
@@ -261,7 +261,7 @@ export function useClaimOrder() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (orderId) => atlas.pos.claimOrder(orderId, token),
+    mutationFn: (orderId) => runly.pos.claimOrder(orderId, token),
     onSuccess: (_, orderId) => {
       qc.invalidateQueries({ queryKey: ['pos', 'orders', 'detail', orderId] })
       qc.invalidateQueries({ queryKey: ['pos', 'orders'] })
@@ -278,7 +278,7 @@ export function useOrderSeatTotals(orderId) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'orders', 'seat-totals', orderId],
-    queryFn: () => atlas.pos.getOrderSeatTotals(orderId, token),
+    queryFn: () => runly.pos.getOrderSeatTotals(orderId, token),
     select: (res) => res?.data ?? null,
     enabled: Boolean(token) && Boolean(orderId),
     staleTime: 5 * 1000,

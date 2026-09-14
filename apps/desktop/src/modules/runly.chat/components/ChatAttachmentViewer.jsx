@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useOfficeActions } from "@runly/ui";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { isAudioAttachment } from "../lib/chatUtils";
 import { isSignedUrlUsable } from "../lib/signedUrl";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -49,8 +49,8 @@ export function ChatAttachmentViewer({
       // fetches it explicitly rather than reusing that URL.
       try {
         const url = file.isEntityRef
-          ? (await atlas.files.getSignedUrl(file.id, token, { variant: "full" }))?.data?.signedUrl ?? null
-          : (await atlas.chat.getAttachmentSignedUrl(file.id, token, { variant: "full" }))?.data?.url ?? null;
+          ? (await runly.files.getSignedUrl(file.id, token, { variant: "full" }))?.data?.signedUrl ?? null
+          : (await runly.chat.getAttachmentSignedUrl(file.id, token, { variant: "full" }))?.data?.url ?? null;
         if (url) fullUrlCacheRef.current.set(file.id, url);
         return url;
       } catch (err) {

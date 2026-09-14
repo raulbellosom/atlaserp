@@ -17,7 +17,7 @@ import {
 } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
 import { useNoteShares, useShareNote, useUpdateNoteShare, useRevokeNoteShare } from '../hooks/useNoteShares.js'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { useAuth } from '../../../auth/AuthProvider'
 
 const PERMISSION_OPTIONS = [
@@ -87,7 +87,7 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
   async function loadShareable(search) {
     if (!token) return
     try {
-      const res = await atlas.notes.listShareableUsers(search || null, token)
+      const res = await runly.notes.listShareableUsers(search || null, token)
       setUserList((res?.users ?? []).filter(u => !sharedIds.has(u.id)))
     } catch (_) {
       setUserList([])

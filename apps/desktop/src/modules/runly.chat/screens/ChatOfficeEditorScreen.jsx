@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { OfficeDocumentEditor } from '@runly/ui';
-import { atlas } from '../../../lib/atlas';
+import { runly } from '../../../lib/atlas';
 import { useAuth } from '../../../auth/AuthProvider';
 
 // Full-screen WOPI editor for a chat attachment. Twin of atlas.files'
@@ -18,7 +18,7 @@ export default function ChatOfficeEditorScreen() {
   const queryClient = useQueryClient();
   const attId = pathname.match(/\/chat\/attachment\/([^/]+)\/edit\/?$/)?.[1] ?? '';
   const createSession = useCallback(async (id, mode) => {
-    const { data } = await atlas.chat.createAttachmentOfficeSession(id, mode, authToken.current);
+    const { data } = await runly.chat.createAttachmentOfficeSession(id, mode, authToken.current);
     downloadName.current = data.fileName ?? 'documento';
     return data;
   }, []);

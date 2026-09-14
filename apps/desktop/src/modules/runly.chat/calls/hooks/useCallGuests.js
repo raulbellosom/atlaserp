@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../auth/AuthProvider";
-import { atlas } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/atlas";
 
 function unwrap(r) {
   return r?.data ?? r;
@@ -21,7 +21,7 @@ export function useCallGuests(callId, { enabled = true, intervalMs = 3000 } = {}
   const refresh = useCallback(async () => {
     if (!callId || !token || !enabled) return;
     try {
-      const res = unwrap(await atlas.calls.listGuests(callId, token));
+      const res = unwrap(await runly.calls.listGuests(callId, token));
       setGuests(res?.guests ?? []);
       setError(null);
     } catch (e) {
@@ -53,17 +53,17 @@ export function useCallGuests(callId, { enabled = true, intervalMs = 3000 } = {}
     admitted: guests.filter((g) => g.status === "ADMITTED"),
     error,
     refresh,
-    admit: (guestId) => act(() => atlas.calls.admitGuest(callId, guestId, token)),
-    deny: (guestId) => act(() => atlas.calls.denyGuest(callId, guestId, token)),
+    admit: (guestId) => act(() => runly.calls.admitGuest(callId, guestId, token)),
+    deny: (guestId) => act(() => runly.calls.denyGuest(callId, guestId, token)),
     // `liveActionOk` false means the DB was updated but LiveKit failed to drop
     // the guest's live connection (transient RPC error) — tell the host so
     // they don't assume the guest was actually removed from the call.
     kick: (guestId) => act(
-      () => atlas.calls.kickGuest(callId, guestId, token),
+      () => runly.calls.kickGuest(callId, guestId, token),
       (res) => { if (res?.liveActionOk === false) toast.error("Se marcó como expulsado, pero no se pudo desconectar su sesión en vivo. Inténtalo de nuevo."); },
     ),
     mute: (guestId, muted) => act(
-      () => atlas.calls.muteGuest(callId, guestId, muted, token),
+      () => runly.calls.muteGuest(callId, guestId, muted, token),
       (res) => { if (res?.liveActionOk === false) toast.error("No se pudo aplicar el silencio, inténtalo de nuevo."); },
     ),
   };

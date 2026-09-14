@@ -39,7 +39,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
 import HrEmployeeActivityPanel from "../components/HrEmployeeActivityPanel";
 import { InventoryEmployeeWidget } from "../../runly.inventory/components/InventoryEmployeeWidget.jsx";
@@ -466,7 +466,7 @@ function FilesPanel({ employeeId, token }) {
   const filesQuery = useQuery({
     queryKey: ["hr-employee-files", employeeId],
     queryFn: () =>
-      atlas.files.list(
+      runly.files.list(
         {
           moduleKey: "atlas.hr",
           entityType: "HrEmployee",
@@ -497,7 +497,7 @@ function FilesPanel({ employeeId, token }) {
         onIndexChange={setViewerIndex}
         onResolveSignedUrl={async (f) => {
           if (f.signedUrl) return f.signedUrl;
-          const res = await atlas.files.getSignedUrl(f.id, token);
+          const res = await runly.files.getSignedUrl(f.id, token);
           return res?.data?.signedUrl ?? null;
         }}
       />
@@ -567,7 +567,7 @@ function FilesPanel({ employeeId, token }) {
                   <button
                     type="button"
                     onClick={async () => {
-                      const res = await atlas.files.getSignedUrl(
+                      const res = await runly.files.getSignedUrl(
                         file.id,
                         token,
                       );
@@ -706,7 +706,7 @@ function AuditPanel({ employeeId, token }) {
 
   const auditQuery = useQuery({
     queryKey: ["hr-employee-audit", employeeId],
-    queryFn: () => atlas.hr.getEmployeeAudit(employeeId, token, { limit: 50 }),
+    queryFn: () => runly.hr.getEmployeeAudit(employeeId, token, { limit: 50 }),
     enabled: Boolean(token && employeeId),
   });
 
@@ -791,7 +791,7 @@ export default function HrEmployeeDetail({ employeeId }) {
 
   const employeeQuery = useQuery({
     queryKey: ["hr-employee", employeeId],
-    queryFn: () => atlas.hr.getEmployee(employeeId, token),
+    queryFn: () => runly.hr.getEmployee(employeeId, token),
     enabled: Boolean(token && employeeId),
   });
 
@@ -800,7 +800,7 @@ export default function HrEmployeeDetail({ employeeId }) {
   const profileImageQuery = useQuery({
     queryKey: ["hr-profile-image-url", employee?.profileImageFileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(
+      const res = await runly.files.getSignedUrl(
         employee.profileImageFileId,
         token,
       );
@@ -813,7 +813,7 @@ export default function HrEmployeeDetail({ employeeId }) {
   const userAvatarQuery = useQuery({
     queryKey: ["hr-user-avatar", employee?.userProfile?.id],
     queryFn: async () => {
-      const res = await atlas.identity.getUserAvatarSignedUrl(
+      const res = await runly.identity.getUserAvatarSignedUrl(
         employee.userProfile.id,
         token,
         { variant: "card" },
@@ -830,7 +830,7 @@ export default function HrEmployeeDetail({ employeeId }) {
 
   const toggleEnabledMutation = useMutation({
     mutationFn: (enabled) =>
-      atlas.hr.setEmployeeEnabled(employee.id, enabled, token),
+      runly.hr.setEmployeeEnabled(employee.id, enabled, token),
     onMutate: (enabled) =>
       toast.loading(
         enabled

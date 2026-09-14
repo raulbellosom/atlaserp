@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -12,7 +12,7 @@ export function usePosSettings() {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'settings'],
-    queryFn: () => atlas.pos.getSettings(token),
+    queryFn: () => runly.pos.getSettings(token),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })
@@ -22,7 +22,7 @@ export function useUpdatePosSettings() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.updateSettings(data, token),
+    mutationFn: (data) => runly.pos.updateSettings(data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando configuración...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -40,7 +40,7 @@ export function usePosOutlets() {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'outlets'],
-    queryFn: () => atlas.pos.listOutlets(token),
+    queryFn: () => runly.pos.listOutlets(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
@@ -51,7 +51,7 @@ export function useCreatePosOutlet() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createOutlet(data, token),
+    mutationFn: (data) => runly.pos.createOutlet(data, token),
     onMutate: () => ({ toastId: toast.loading('Creando sucursal...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -69,7 +69,7 @@ export function useUpdatePosOutlet() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.updateOutlet(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.updateOutlet(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando sucursal...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -87,7 +87,7 @@ export function usePosTerminals() {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'terminals'],
-    queryFn: () => atlas.pos.listTerminals(token),
+    queryFn: () => runly.pos.listTerminals(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
@@ -98,7 +98,7 @@ export function useCreatePosTerminal() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createTerminal(data, token),
+    mutationFn: (data) => runly.pos.createTerminal(data, token),
     onMutate: () => ({ toastId: toast.loading('Creando terminal...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -116,7 +116,7 @@ export function useUpdatePosTerminal() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.updateTerminal(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.updateTerminal(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando terminal...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -134,7 +134,7 @@ export function usePosPaymentMethods() {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'payment-methods'],
-    queryFn: () => atlas.pos.listPaymentMethods(token),
+    queryFn: () => runly.pos.listPaymentMethods(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 10 * 60 * 1000,
@@ -145,7 +145,7 @@ export function useCreatePosPaymentMethod() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createPaymentMethod(data, token),
+    mutationFn: (data) => runly.pos.createPaymentMethod(data, token),
     onMutate: () => ({ toastId: toast.loading('Creando método de pago...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -163,7 +163,7 @@ export function useUpdatePosPaymentMethod() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.updatePaymentMethod(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.updatePaymentMethod(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -181,7 +181,7 @@ export function usePosStations(query = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'stations', query],
-    queryFn: () => atlas.pos.listStations(query, token),
+    queryFn: () => runly.pos.listStations(query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
@@ -192,7 +192,7 @@ export function useCreatePosStation() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createStation(data, token),
+    mutationFn: (data) => runly.pos.createStation(data, token),
     onMutate: () => ({ toastId: toast.loading('Creando estación...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -210,7 +210,7 @@ export function useUpdatePosStation() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.updateStation(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.updateStation(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando estación...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)

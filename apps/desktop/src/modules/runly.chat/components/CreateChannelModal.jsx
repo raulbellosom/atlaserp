@@ -6,7 +6,7 @@ import {
 import { Hash } from "lucide-react";
 import { useCreateChannel } from "../hooks/useChannels";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useQuery } from "@tanstack/react-query";
 
 function slugify(text) {
@@ -35,7 +35,7 @@ export function CreateChannelModal({ open, onClose, onCreated }) {
     queryFn: async () => {
       // GET /projects returns a raw array (c.json(projects)), not { data: [...] }
       // — verified against apps/api/src/routes/projects/projects-routes.js.
-      const res = await atlas.projects.listProjects(token);
+      const res = await runly.projects.listProjects(token);
       return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
     },
     enabled: Boolean(open && token),

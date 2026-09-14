@@ -19,7 +19,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { useRuntimeModules } from "../app/useRuntimeModules";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { getApiUrl } from "../lib/runtimeConfig.js";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";
@@ -559,7 +559,7 @@ export function BlueprintCrudScreen() {
 
   const blueprintsQuery = useQuery({
     queryKey: ["blueprints", moduleKey, authUserId],
-    queryFn: () => atlas.blueprints.list(token),
+    queryFn: () => runly.blueprints.list(token),
     enabled: Boolean(token),
     staleTime: 30000,
   });
@@ -579,7 +579,7 @@ export function BlueprintCrudScreen() {
     try {
       // Best effort: this can rebuild module metadata/bundle if needed.
       try {
-        await atlas.modules.sync(token, { autoRepair: true, moduleKey });
+        await runly.modules.sync(token, { autoRepair: true, moduleKey });
       } catch (syncErr) {
         console.warn(
           `[BlueprintCrudScreen] modules.sync failed for ${moduleKey}:`,

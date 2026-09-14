@@ -17,7 +17,7 @@ import {
 import { GripVertical, Pencil, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 function slugify(s) {
@@ -90,7 +90,7 @@ export default function CatalogCategoriesScreen() {
 
   const flatQuery = useQuery({
     queryKey: ['catalog-categories-flat', token],
-    queryFn:  () => atlas.catalog.listCategories(token, { flat: 'true' }),
+    queryFn:  () => runly.catalog.listCategories(token, { flat: 'true' }),
     enabled:  Boolean(token),
     staleTime: 60_000,
   })
@@ -99,8 +99,8 @@ export default function CatalogCategoriesScreen() {
 
   const saveMutation = useMutation({
     mutationFn: data => editing
-      ? atlas.catalog.updateCategory(editing.id, data, token)
-      : atlas.catalog.createCategory(data, token),
+      ? runly.catalog.updateCategory(editing.id, data, token)
+      : runly.catalog.createCategory(data, token),
     onSuccess: () => {
       toast.success(editing ? 'Categoría actualizada' : 'Categoría creada')
       setLocalOrder(null)
@@ -111,7 +111,7 @@ export default function CatalogCategoriesScreen() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: id => atlas.catalog.deleteCategory(id, token),
+    mutationFn: id => runly.catalog.deleteCategory(id, token),
     onSuccess: () => {
       toast.success('Categoría eliminada')
       setLocalOrder(null)

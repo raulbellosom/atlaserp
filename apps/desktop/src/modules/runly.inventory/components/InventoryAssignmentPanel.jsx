@@ -17,7 +17,7 @@ import {
 import { UserCheck, RotateCcw, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import {
   useAssignInventoryItem,
   useReturnInventoryItem,
@@ -75,7 +75,7 @@ export function InventoryAssignmentPanel({ item }) {
 
   const employeesQuery = useQuery({
     queryKey: ['hr', 'employees', 'options'],
-    queryFn: () => atlas.hr.listEmployees(token),
+    queryFn: () => runly.hr.listEmployees(token),
     enabled: Boolean(token) && assignOpen,
     staleTime: 5 * 60 * 1000,
   })

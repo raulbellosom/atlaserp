@@ -19,7 +19,7 @@ import {
 } from "@runly/ui";
 import { formatFileSize, isImageMime, isAudioAttachment } from "../lib/chatUtils";
 import { isOfficeOpenable } from "../lib/officeFileActions";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { isSignedUrlUsable } from "../lib/signedUrl";
@@ -52,7 +52,7 @@ export function useAttachmentUrl(att) {
     queryFn: async () => {
       if (att?.url?.startsWith("blob:")) return att.url;
       try {
-        const res = await atlas.chat.getAttachmentSignedUrl(att.id, session?.access_token);
+        const res = await runly.chat.getAttachmentSignedUrl(att.id, session?.access_token);
         return res?.data?.url ?? null;
       } catch (err) {
         console.warn("[chat] getAttachmentSignedUrl failed", { id: att?.id, status: err?.status, msg: err?.message });

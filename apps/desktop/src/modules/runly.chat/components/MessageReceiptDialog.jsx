@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Skeleton, ErrorState } from "@runly/ui";
 import { Check, CheckCheck } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { AvatarCircle } from "./AvatarCircle";
 
 function formatFull(iso) {
@@ -55,7 +55,7 @@ export function MessageReceiptDialog({ open, onOpenChange, message }) {
 
   const { data, isError } = useQuery({
     queryKey: ["chat-message-receipt", messageId],
-    queryFn: () => atlas.chat.getMessageReceipt(messageId, token),
+    queryFn: () => runly.chat.getMessageReceipt(messageId, token),
     enabled: open && Boolean(token) && Boolean(messageId),
     staleTime: 10_000,
   });

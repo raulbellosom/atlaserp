@@ -16,7 +16,7 @@ import {
 import { Files } from "lucide-react";
 import { toast } from "sonner";
 
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 
 export function GenerateDocumentDialog({
   open,
@@ -33,7 +33,7 @@ export function GenerateDocumentDialog({
   } = useQuery({
     queryKey: ["documents", "compatible-templates", "growth.lead"],
     queryFn: () =>
-      atlas.documents.listTemplates(token, {
+      runly.documents.listTemplates(token, {
         sourceType: "growth.lead",
         enabled: true,
         pageSize: 100,
@@ -49,12 +49,12 @@ export function GenerateDocumentDialog({
   );
   const mutation = useMutation({
     mutationFn: async () => {
-      const generated = await atlas.documents.generate(
+      const generated = await runly.documents.generate(
         templateId,
         { sourceId: leadId },
         token,
       );
-      const download = await atlas.documents.getGeneratedDownload(
+      const download = await runly.documents.getGeneratedDownload(
         generated.id,
         token,
       );

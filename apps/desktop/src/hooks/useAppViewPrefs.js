@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { DEFAULTS } from "./appViewPrefsDefaults";
 
 export { DEFAULTS };
@@ -18,13 +18,13 @@ export function useAppViewPrefs() {
 
   const { data, isLoading } = useQuery({
     queryKey,
-    queryFn: () => atlas.profile.getPreference(PREF_KEY, token),
+    queryFn: () => runly.profile.getPreference(PREF_KEY, token),
     enabled: Boolean(token),
     staleTime: 300_000,
   });
 
   const mutation = useMutation({
-    mutationFn: (value) => atlas.profile.setPreference(PREF_KEY, value, token),
+    mutationFn: (value) => runly.profile.setPreference(PREF_KEY, value, token),
   });
 
   const prefs = data ? { ...DEFAULTS, ...data.value } : DEFAULTS;

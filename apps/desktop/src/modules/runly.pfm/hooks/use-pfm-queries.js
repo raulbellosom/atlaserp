@@ -6,7 +6,7 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function useToken() {
   const { session } = useAuth();
@@ -26,7 +26,7 @@ export function useWallets() {
   const token = useToken();
   return useQuery({
     queryKey: keys.wallets,
-    queryFn: () => atlas.pfm.listWallets(token),
+    queryFn: () => runly.pfm.listWallets(token),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
     select: (res) => res.data ?? [],
@@ -37,7 +37,7 @@ export function useWallet(walletId) {
   const token = useToken();
   return useQuery({
     queryKey: keys.wallet(walletId),
-    queryFn: () => atlas.pfm.getWallet(walletId, token),
+    queryFn: () => runly.pfm.getWallet(walletId, token),
     enabled: Boolean(token && walletId),
     select: (res) => res.data ?? null,
   });
@@ -47,7 +47,7 @@ export function useWalletMovements(walletId, query) {
   const token = useToken();
   return useQuery({
     queryKey: keys.movements(walletId, query),
-    queryFn: () => atlas.pfm.listWalletMovements(walletId, token, query),
+    queryFn: () => runly.pfm.listWalletMovements(walletId, token, query),
     enabled: Boolean(token && walletId),
     placeholderData: keepPreviousData,
     select: (res) => res.data ?? [],
@@ -58,7 +58,7 @@ export function usePfmCategories(kind) {
   const token = useToken();
   return useQuery({
     queryKey: keys.categories(kind),
-    queryFn: () => atlas.pfm.listCategories(token, kind ? { kind } : {}),
+    queryFn: () => runly.pfm.listCategories(token, kind ? { kind } : {}),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
     select: (res) => res.data ?? [],
@@ -69,7 +69,7 @@ export function usePfmSummary(month) {
   const token = useToken();
   return useQuery({
     queryKey: keys.summary(month),
-    queryFn: () => atlas.pfm.getSummary(token, { month }),
+    queryFn: () => runly.pfm.getSummary(token, { month }),
     enabled: Boolean(token && month),
     placeholderData: keepPreviousData,
     select: (res) => res.data ?? null,
@@ -80,7 +80,7 @@ export function useRecurringRules() {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "recurring"],
-    queryFn: () => atlas.pfm.listRecurringRules(token),
+    queryFn: () => runly.pfm.listRecurringRules(token),
     enabled: Boolean(token),
     select: (res) => res.data ?? [],
   });
@@ -90,7 +90,7 @@ export function useUpcoming(days = 14) {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "upcoming", days],
-    queryFn: () => atlas.pfm.listUpcoming(token, { days }),
+    queryFn: () => runly.pfm.listUpcoming(token, { days }),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
     select: (res) => res.data ?? [],
@@ -101,7 +101,7 @@ export function useReceipts() {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "receipts"],
-    queryFn: () => atlas.pfm.listReceipts(token),
+    queryFn: () => runly.pfm.listReceipts(token),
     enabled: Boolean(token),
     select: (res) => res.data ?? [],
     refetchInterval: (query) =>
@@ -113,7 +113,7 @@ export function useReceipt(receiptId, { poll = true } = {}) {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "receipt", receiptId],
-    queryFn: () => atlas.pfm.getReceipt(receiptId, token),
+    queryFn: () => runly.pfm.getReceipt(receiptId, token),
     enabled: Boolean(token && receiptId),
     select: (res) => res.data ?? null,
     refetchInterval: (query) =>
@@ -126,7 +126,7 @@ export function useReceiptImageUrl(fileId) {
   return useQuery({
     queryKey: ["pfm", "receipt-image", fileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(fileId, token);
+      const res = await runly.files.getSignedUrl(fileId, token);
       return res?.data?.signedUrl ?? res?.signedUrl ?? null;
     },
     enabled: Boolean(token && fileId),
@@ -138,7 +138,7 @@ export function useBudgets(month) {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "budgets", month ?? "current"],
-    queryFn: () => atlas.pfm.listBudgets(token, month ? { month } : {}),
+    queryFn: () => runly.pfm.listBudgets(token, month ? { month } : {}),
     enabled: Boolean(token),
     select: (res) => res.data ?? [],
   });
@@ -148,7 +148,7 @@ export function useGoals() {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "goals"],
-    queryFn: () => atlas.pfm.listGoals(token),
+    queryFn: () => runly.pfm.listGoals(token),
     enabled: Boolean(token),
     select: (res) => res.data ?? [],
   });
@@ -161,7 +161,7 @@ export function useLedgerAccounts() {
   const token = useToken();
   return useQuery({
     queryKey: ["pfm", "ledger-accounts"],
-    queryFn: () => atlas.ledger.listAccounts(token),
+    queryFn: () => runly.ledger.listAccounts(token),
     enabled: Boolean(token),
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -173,7 +173,7 @@ export function useWalletMembers(walletId, enabled = true) {
   const token = useToken();
   return useQuery({
     queryKey: keys.members(walletId),
-    queryFn: () => atlas.pfm.listWalletMembers(walletId, token),
+    queryFn: () => runly.pfm.listWalletMembers(walletId, token),
     enabled: Boolean(token && walletId && enabled),
     select: (res) => res.data ?? [],
   });
@@ -191,7 +191,7 @@ export function useCreateWallet() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: (data) => atlas.pfm.createWallet(data, token),
+    mutationFn: (data) => runly.pfm.createWallet(data, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -200,7 +200,7 @@ export function useUpdateWallet() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pfm.updateWallet(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pfm.updateWallet(id, data, token),
     onSuccess: (_r, v) => invalidate(v.id),
   });
 }
@@ -209,7 +209,7 @@ export function useSetWalletEnabled() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, enabled }) => atlas.pfm.setWalletEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.pfm.setWalletEnabled(id, enabled, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -218,7 +218,7 @@ export function useCreateMovement() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ walletId, ...data }) => atlas.pfm.createWalletMovement(walletId, data, token),
+    mutationFn: ({ walletId, ...data }) => runly.pfm.createWalletMovement(walletId, data, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -228,7 +228,7 @@ export function useUpdateMovement() {
   const invalidate = useInvalidatePfm();
   return useMutation({
     mutationFn: ({ movementId, walletId, ...data }) =>
-      atlas.pfm.updateMovement(movementId, data, token),
+      runly.pfm.updateMovement(movementId, data, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -238,7 +238,7 @@ export function useSetMovementEnabled() {
   const invalidate = useInvalidatePfm();
   return useMutation({
     mutationFn: ({ movementId, walletId, enabled }) =>
-      atlas.pfm.setMovementEnabled(movementId, enabled, token),
+      runly.pfm.setMovementEnabled(movementId, enabled, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -248,7 +248,7 @@ export function useConfirmMovement() {
   const invalidate = useInvalidatePfm();
   return useMutation({
     mutationFn: ({ movementId, walletId, amount }) =>
-      atlas.pfm.confirmMovement(movementId, amount, token),
+      runly.pfm.confirmMovement(movementId, amount, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -257,7 +257,7 @@ export function useSkipMovement() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ movementId, walletId }) => atlas.pfm.skipMovement(movementId, token),
+    mutationFn: ({ movementId, walletId }) => runly.pfm.skipMovement(movementId, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -267,7 +267,7 @@ export function useEnrichLedgerMovement() {
   const invalidate = useInvalidatePfm();
   return useMutation({
     mutationFn: ({ walletId, ltxId, ...data }) =>
-      atlas.pfm.enrichLedgerMovement(walletId, ltxId, data, token),
+      runly.pfm.enrichLedgerMovement(walletId, ltxId, data, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -276,7 +276,7 @@ export function useCreateRecurringRule() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: (data) => atlas.pfm.createRecurringRule(data, token),
+    mutationFn: (data) => runly.pfm.createRecurringRule(data, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -285,7 +285,7 @@ export function useUpdateRecurringRule() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pfm.updateRecurringRule(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pfm.updateRecurringRule(id, data, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -294,7 +294,7 @@ export function useSetRecurringRuleEnabled() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, enabled }) => atlas.pfm.setRecurringRuleEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.pfm.setRecurringRuleEnabled(id, enabled, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -306,7 +306,7 @@ export function useUploadReceipt() {
     mutationFn: (file) => {
       const fd = new FormData();
       fd.append("file", file);
-      return atlas.pfm.uploadReceipt(fd, token);
+      return runly.pfm.uploadReceipt(fd, token);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "receipts"] }),
   });
@@ -316,7 +316,7 @@ export function useConfirmReceipt() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pfm.confirmReceipt(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pfm.confirmReceipt(id, data, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -325,7 +325,7 @@ export function useRetryReceipt() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => atlas.pfm.retryReceipt(id, token),
+    mutationFn: (id) => runly.pfm.retryReceipt(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "receipts"] }),
   });
 }
@@ -333,13 +333,13 @@ export function useRetryReceipt() {
 export function useCreateBudget() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
-  return useMutation({ mutationFn: (d) => atlas.pfm.createBudget(d, token), onSuccess: () => invalidate() });
+  return useMutation({ mutationFn: (d) => runly.pfm.createBudget(d, token), onSuccess: () => invalidate() });
 }
 export function useUpdateBudget() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...d }) => atlas.pfm.updateBudget(id, d, token),
+    mutationFn: ({ id, ...d }) => runly.pfm.updateBudget(id, d, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -347,20 +347,20 @@ export function useSetBudgetEnabled() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, enabled }) => atlas.pfm.setBudgetEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.pfm.setBudgetEnabled(id, enabled, token),
     onSuccess: () => invalidate(),
   });
 }
 export function useCreateGoal() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
-  return useMutation({ mutationFn: (d) => atlas.pfm.createGoal(d, token), onSuccess: () => invalidate() });
+  return useMutation({ mutationFn: (d) => runly.pfm.createGoal(d, token), onSuccess: () => invalidate() });
 }
 export function useUpdateGoal() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...d }) => atlas.pfm.updateGoal(id, d, token),
+    mutationFn: ({ id, ...d }) => runly.pfm.updateGoal(id, d, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -368,7 +368,7 @@ export function useSetGoalEnabled() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, enabled }) => atlas.pfm.setGoalEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.pfm.setGoalEnabled(id, enabled, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -376,7 +376,7 @@ export function useContributeGoal() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, amount }) => atlas.pfm.contributeGoal(id, amount, token),
+    mutationFn: ({ id, amount }) => runly.pfm.contributeGoal(id, amount, token),
     onSuccess: () => invalidate(),
   });
 }
@@ -384,7 +384,7 @@ export function useAdjustWalletBalance() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pfm.adjustWalletBalance(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pfm.adjustWalletBalance(id, data, token),
     onSuccess: (_r, v) => invalidate(v.id),
   });
 }
@@ -393,7 +393,7 @@ export function useCreatePfmCategory() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => atlas.pfm.createCategory(data, token),
+    mutationFn: (data) => runly.pfm.createCategory(data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "categories"] }),
   });
 }
@@ -402,7 +402,7 @@ export function useUpdatePfmCategory() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pfm.updateCategory(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pfm.updateCategory(id, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "categories"] }),
   });
 }
@@ -411,7 +411,7 @@ export function useSetPfmCategoryEnabled() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, enabled }) => atlas.pfm.setCategoryEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.pfm.setCategoryEnabled(id, enabled, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pfm", "categories"] }),
   });
 }
@@ -420,7 +420,7 @@ export function useUpsertWalletMember() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ walletId, ...data }) => atlas.pfm.upsertWalletMember(walletId, data, token),
+    mutationFn: ({ walletId, ...data }) => runly.pfm.upsertWalletMember(walletId, data, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }
@@ -429,7 +429,7 @@ export function useRemoveWalletMember() {
   const token = useToken();
   const invalidate = useInvalidatePfm();
   return useMutation({
-    mutationFn: ({ walletId, userId }) => atlas.pfm.removeWalletMember(walletId, userId, token),
+    mutationFn: ({ walletId, userId }) => runly.pfm.removeWalletMember(walletId, userId, token),
     onSuccess: (_r, v) => invalidate(v.walletId),
   });
 }

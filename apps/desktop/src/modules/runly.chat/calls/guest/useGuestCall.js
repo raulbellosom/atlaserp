@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { atlas } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/atlas";
 import { guestPhase } from "./lib/guestCall";
 
 function unwrap(r) {
@@ -30,7 +30,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
       if (code) payload.code = code;
       if (inviteToken) payload.inviteToken = inviteToken;
       if (email) payload.email = email;
-      const res = unwrap(await atlas.calls.guest.join(payload));
+      const res = unwrap(await runly.calls.guest.join(payload));
       if (res?.branding) setBranding(res.branding);
       if (res?.status === "waiting") {
         setState({ joined: true, status: "waiting", callEnded: false, error: null });
@@ -52,7 +52,7 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
     if (!gtRef.current) return undefined;
     async function tick() {
       try {
-        const res = unwrap(await atlas.calls.guest.state(gtRef.current));
+        const res = unwrap(await runly.calls.guest.state(gtRef.current));
         setState((s) => ({ ...s, status: res.status, callEnded: !!res.callEnded, recording: res.recording ?? { active: false } }));
         setCall(res.call);
         setLivekitUrl(res.livekitUrl ?? null);
@@ -69,21 +69,21 @@ export function useGuestCall({ token = null, code = null, inviteToken = null }) 
   // Heartbeat while we hold a token.
   useEffect(() => {
     if (!gtRef.current) return undefined;
-    hbRef.current = setInterval(() => { atlas.calls.guest.heartbeat(gtRef.current).catch(() => {}); }, 20000);
+    hbRef.current = setInterval(() => { runly.calls.guest.heartbeat(gtRef.current).catch(() => {}); }, 20000);
     return () => { if (hbRef.current) clearInterval(hbRef.current); };
   }, [guestToken]);
 
-  const fetchLivekitToken = useCallback(async () => unwrap(await atlas.calls.guest.token(gtRef.current)), []);
+  const fetchLivekitToken = useCallback(async () => unwrap(await runly.calls.guest.token(gtRef.current)), []);
 
   const sendMessage = useCallback(async (body) => {
-    const res = unwrap(await atlas.calls.guest.sendMessage(gtRef.current, body));
+    const res = unwrap(await runly.calls.guest.sendMessage(gtRef.current, body));
     if (res?.message) {
       setMessages((prev) => (prev.some((m) => m.id === res.message.id) ? prev : [...prev, res.message]));
     }
   }, []);
 
   const leave = useCallback(async () => {
-    if (gtRef.current) await atlas.calls.guest.leave(gtRef.current).catch(() => {});
+    if (gtRef.current) await runly.calls.guest.leave(gtRef.current).catch(() => {});
     setState((s) => ({ ...s, status: "LEFT" }));
   }, []);
 

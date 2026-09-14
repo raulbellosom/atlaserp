@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { atlas } from '../lib/atlas'
+import { runly } from '../lib/atlas'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { RunlyOfflineDatabase, SessionVault } from '@runly/offline'
 import { isSessionFresh } from './sessionFreshness.js'
@@ -90,7 +90,7 @@ export function AuthProvider({ children }) {
             apiBaseUrl: getApiUrl(),
           }).catch(() => {})
 
-          atlas.auth.me(currentSession.access_token)
+          runly.auth.me(currentSession.access_token)
             .then(profile => {
               if (!mounted) return
               setUserProfile(profile)
@@ -139,7 +139,7 @@ export function AuthProvider({ children }) {
         if (eventName === 'TOKEN_REFRESHED' && authUserId && profileLoadedForAuthUserId === authUserId) {
           return
         }
-        atlas.auth.me(session.access_token)
+        runly.auth.me(session.access_token)
           .then(profile => {
             if (!mounted) return
             setUserProfile(profile)
@@ -181,7 +181,7 @@ export function AuthProvider({ children }) {
   async function refreshProfile(activeSession = session) {
     if (!activeSession?.access_token) return null
     try {
-      const profile = await atlas.auth.me(activeSession.access_token)
+      const profile = await runly.auth.me(activeSession.access_token)
       setUserProfile(profile)
       return profile
     } catch {

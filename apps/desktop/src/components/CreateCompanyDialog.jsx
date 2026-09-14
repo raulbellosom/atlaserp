@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 
 // System-admin only (enforced server-side too — see POST /companies).
 // Creates a brand-new tenant with the current user as its first admin, then
@@ -38,7 +38,7 @@ export function CreateCompanyDialog({ onClose }) {
   }, [companies, pendingSwitchId, setActiveCompany]);
 
   const createMutation = useMutation({
-    mutationFn: () => atlas.company.create({ name: name.trim() }, token),
+    mutationFn: () => runly.company.create({ name: name.trim() }, token),
     onSuccess: async (res) => {
       const newCompanyId = res?.data?.id;
       toast.success("Empresa creada");

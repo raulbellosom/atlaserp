@@ -4,14 +4,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Input, cn } from '@runly/ui'
 import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 
 export default function VariantOptionsEditor({ token, productId, options = [] }) {
   const queryClient = useQueryClient()
   const [newOptionName, setNewOptionName] = useState('')
 
   const addMutation = useMutation({
-    mutationFn: (data) => atlas.catalog.createOption(productId, data, token),
+    mutationFn: (data) => runly.catalog.createOption(productId, data, token),
     onSuccess: () => {
       toast.success('Opcion creada')
       setNewOptionName('')
@@ -21,7 +21,7 @@ export default function VariantOptionsEditor({ token, productId, options = [] })
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (optionId) => atlas.catalog.deleteOption(productId, optionId, token),
+    mutationFn: (optionId) => runly.catalog.deleteOption(productId, optionId, token),
     onSuccess: () => {
       toast.success('Opcion eliminada')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
@@ -30,7 +30,7 @@ export default function VariantOptionsEditor({ token, productId, options = [] })
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ optionId, values }) => atlas.catalog.updateOption(productId, optionId, { values }, token),
+    mutationFn: ({ optionId, values }) => runly.catalog.updateOption(productId, optionId, { values }, token),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] }),
     onError: err => toast.error(err?.message ?? 'Error'),
   })

@@ -11,7 +11,7 @@
 // each other would have compounded an already-flagged fragile cross-import
 // between ChatFilesGallery.jsx and FileReferenceAttachment.jsx.
 import { useQuery } from "@tanstack/react-query";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 export function useFileRefSignedUrl(recordId, variant, enabled) {
@@ -20,7 +20,7 @@ export function useFileRefSignedUrl(recordId, variant, enabled) {
   return useQuery({
     queryKey: ["chat-file-ref-signed-url", recordId, variant],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(recordId, token, { variant });
+      const res = await runly.files.getSignedUrl(recordId, token, { variant });
       return res?.data?.signedUrl ?? null;
     },
     enabled: Boolean(enabled && recordId && token),

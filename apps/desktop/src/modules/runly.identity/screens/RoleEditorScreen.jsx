@@ -20,7 +20,7 @@ import {
 import { ArrowLeft, KeyRound, Pencil, Power, PowerOff, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import PermissionFeatureTree from "../components/PermissionFeatureTree";
 
 function getRoleIdFromPath(pathname) {
@@ -84,13 +84,13 @@ export default function RoleEditorScreen() {
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
-    queryFn: () => atlas.identity.listRoles(token),
+    queryFn: () => runly.identity.listRoles(token),
     enabled: Boolean(token) && canReadRoles,
   });
 
   const permissionsQuery = useQuery({
     queryKey: ["identity-permissions"],
-    queryFn: () => atlas.identity.listPermissions(token),
+    queryFn: () => runly.identity.listPermissions(token),
     enabled: Boolean(token) && canReadPermissions,
   });
 
@@ -125,7 +125,7 @@ export default function RoleEditorScreen() {
 
   const toggleRoleMutation = useMutation({
     mutationFn: ({ id, enabled }) =>
-      atlas.identity.setRoleEnabled(id, enabled, token),
+      runly.identity.setRoleEnabled(id, enabled, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       toast.success("Estado actualizado");
@@ -134,7 +134,7 @@ export default function RoleEditorScreen() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: ({ id, data }) => atlas.identity.updateRole(id, data, token),
+    mutationFn: ({ id, data }) => runly.identity.updateRole(id, data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       setEditSheetOpen(false);
@@ -145,7 +145,7 @@ export default function RoleEditorScreen() {
 
   const savePermsMutation = useMutation({
     mutationFn: ({ id, keys }) =>
-      atlas.identity.setRolePermissions(id, [...keys], token),
+      runly.identity.setRolePermissions(id, [...keys], token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       toast.success("Permisos guardados");

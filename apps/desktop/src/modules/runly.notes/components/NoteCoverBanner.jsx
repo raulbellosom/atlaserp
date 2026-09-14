@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ImagePlus, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 
@@ -33,7 +33,7 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
     }
     setUploading(true)
     try {
-      const presign = await atlas.notes.presignImage(
+      const presign = await runly.notes.presignImage(
         { fileName: file.name, mimeType: file.type, noteId },
         token,
       )

@@ -1,4 +1,4 @@
-import { atlas } from "./atlas.js";
+import { runly } from "./atlas.js";
 import { isNative } from '@runly/core/native-runtime';
 
 const STORAGE_KEY = "atlas.notifications.webpush.subscriptionId";
@@ -71,7 +71,7 @@ export async function syncCurrentDeviceWebPushSubscription({
   if (!subscription) return { data: null };
 
   const json = subscription.toJSON();
-  const response = await atlas.notifications.subscribeWebPush(token, {
+  const response = await runly.notifications.subscribeWebPush(token, {
     endpoint: json.endpoint,
     keys: {
       p256dh: json.keys?.p256dh,
@@ -100,7 +100,7 @@ export async function subscribeCurrentDeviceToWebPush({
     throw new Error("Permiso de notificaciones denegado.");
   }
 
-  const keyResponse = await atlas.notifications.getWebPushPublicKey(token);
+  const keyResponse = await runly.notifications.getWebPushPublicKey(token);
   const publicKey = keyResponse?.data?.publicKey;
   if (!publicKey) {
     throw new Error("No hay clave pública VAPID configurada.");
@@ -132,7 +132,7 @@ export async function unsubscribeCurrentDeviceFromWebPush({ token }) {
 
   const subscriptionId = getStoredWebPushSubscriptionId();
   if (subscriptionId) {
-    await atlas.notifications.unsubscribeWebPush(token, subscriptionId).catch(() => {});
+    await runly.notifications.unsubscribeWebPush(token, subscriptionId).catch(() => {});
   }
   clearStoredWebPushSubscriptionId();
   return { deleted: true };

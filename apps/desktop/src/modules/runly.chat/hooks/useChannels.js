@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 export function useCreateChannel() {
   const { session } = useAuth();
@@ -8,7 +8,7 @@ export function useCreateChannel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => atlas.chat.createChannel(data, token),
+    mutationFn: (data) => runly.chat.createChannel(data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
@@ -21,7 +21,7 @@ export function useChannelDirectory(params = {}) {
 
   return useQuery({
     queryKey: ["chat-channel-directory", params],
-    queryFn: () => atlas.chat.listChannelDirectory(params, token),
+    queryFn: () => runly.chat.listChannelDirectory(params, token),
     enabled: Boolean(token),
     staleTime: 30_000,
   });
@@ -33,7 +33,7 @@ export function useJoinChannel() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.joinChannel(conversationId, token),
+    mutationFn: (conversationId) => runly.chat.joinChannel(conversationId, token),
     // Await the conversations refetch so the caller can navigate straight to the
     // freshly joined channel without the window flashing its empty state while
     // the list catches up.

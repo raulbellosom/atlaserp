@@ -16,7 +16,7 @@ import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, PhoneCall
 import { toast } from "sonner";
 import { getDefaultNotificationPreference } from '@runly/core';
 import { useAuth } from "../../auth/AuthProvider";
-import { atlas } from "../../lib/atlas";
+import { runly } from "../../lib/atlas";
 import {
   getCurrentWebPushSubscription,
   getStoredWebPushSubscriptionId,
@@ -174,7 +174,7 @@ export default function NotificationSettingsScreen() {
     refetch: refetchPreferences,
   } = useQuery({
     queryKey: ["notification-preferences", token],
-    queryFn: () => atlas.notifications.listPreferences(token),
+    queryFn: () => runly.notifications.listPreferences(token),
     enabled: Boolean(token) && canRead,
   });
 
@@ -188,7 +188,7 @@ export default function NotificationSettingsScreen() {
     isLoading: vapidLoading,
   } = useQuery({
     queryKey: ["notifications-webpush-public-key", token],
-    queryFn: () => atlas.notifications.getWebPushPublicKey(token),
+    queryFn: () => runly.notifications.getWebPushPublicKey(token),
     enabled: Boolean(token) && canRead,
     retry: false,
     staleTime: 10 * 60 * 1000,
@@ -198,7 +198,7 @@ export default function NotificationSettingsScreen() {
   const vapidConfigured = Boolean(vapidConfig?.data?.publicKey);
 
   const upsertMutation = useMutation({
-    mutationFn: (payload) => atlas.notifications.upsertPreference(token, payload),
+    mutationFn: (payload) => runly.notifications.upsertPreference(token, payload),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ["notification-preferences", token],

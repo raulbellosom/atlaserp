@@ -7,7 +7,7 @@ import {
 } from '@runly/ui'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 
 const REASON_NONE = '__none__'
 
@@ -32,7 +32,7 @@ export default function StockMovementModal({ open, onClose, token, productId, va
   const delta     = qty ? (isEntrada ? Number(qty) : -Number(qty)) : 0
 
   const mutation = useMutation({
-    mutationFn: () => atlas.catalog.recordStockMovement(productId, {
+    mutationFn: () => runly.catalog.recordStockMovement(productId, {
       variant_id:     variantId ?? undefined,
       quantity_delta: delta,
       reason:         reason === REASON_NONE ? undefined : reason,

@@ -7,7 +7,7 @@ import { Video, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useChatConversations } from "../hooks/useChatConversations";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useCalls } from "../calls/CallsProvider";
@@ -61,7 +61,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     if (conversationId !== NEW_ROOM) return conversationId;
     if (createdRoomRef.current) return createdRoomRef.current;
     const when = new Date().toLocaleDateString([], { day: "2-digit", month: "short" });
-    const room = unwrap(await atlas.chat.createChannel({ title: `Reunión ${when}`, isPublic: false }, token));
+    const room = unwrap(await runly.chat.createChannel({ title: `Reunión ${when}`, isPublic: false }, token));
     if (!room?.id) throw new Error("No se pudo crear la sala.");
     createdRoomRef.current = room.id;
     return room.id;
@@ -80,16 +80,16 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
           // requiring the caller to have permission to manage guest links.
           if (targetId !== createdRoomRef.current && memberIds.length >= 2) return;
           if (targetId !== createdRoomRef.current) {
-            const existing = unwrap(await atlas.calls.getLink(targetId, token));
+            const existing = unwrap(await runly.calls.getLink(targetId, token));
             if (existing?.link) return;
           }
-          const result = unwrap(await atlas.calls.createLink(targetId, token));
+          const result = unwrap(await runly.calls.createLink(targetId, token));
           if (!result?.link) throw new Error("No se pudo preparar el enlace de la reunión.");
         },
         startCall,
         discardNewRoom: async (targetId) => {
           if (createdRoomRef.current !== targetId) return;
-          await atlas.chat.deleteConversation(targetId, token);
+          await runly.chat.deleteConversation(targetId, token);
           createdRoomRef.current = null;
         },
       });
@@ -112,7 +112,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
     setBusy(true);
     try {
       const targetId = await resolveTargetId();
-      const created = unwrap(await atlas.calls.createLink(targetId, token));
+      const created = unwrap(await runly.calls.createLink(targetId, token));
       const link = created?.link ?? null;
       if (!link) throw new Error("No se pudo generar el enlace de invitados.");
       setScheduled({ targetId, link });
@@ -128,7 +128,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
   async function sendScheduledInvites(targetId) {
     if (!emails.length) return;
     try {
-      const res = unwrap(await atlas.calls.sendInvites(targetId, emails, token));
+      const res = unwrap(await runly.calls.sendInvites(targetId, emails, token));
       const { notice } = summarizeInviteResult(res);
       const outcome = describeInviteOutcome(res);
       if (outcome) toast.success(outcome);
@@ -153,7 +153,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
           if (createdRoomRef.current && createdRoomRef.current === scheduled.targetId) {
             const roomId = createdRoomRef.current;
             createdRoomRef.current = null;
-            await atlas.chat.deleteConversation(roomId, token).catch(() => {});
+            await runly.chat.deleteConversation(roomId, token).catch(() => {});
           }
           setScheduled(null);
           onOpenChange(false);

@@ -26,7 +26,7 @@ import {
 import { KeyRound, Pencil, Power, PowerOff, Shield, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 const FILTER_DEFS = [
   {
@@ -383,12 +383,12 @@ export default function RolesScreen() {
 
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
-    queryFn: () => atlas.identity.listRoles(token),
+    queryFn: () => runly.identity.listRoles(token),
     enabled: Boolean(token) && canReadRoles,
   });
 
   const createRoleMutation = useMutation({
-    mutationFn: (data) => atlas.identity.createRole(data, token),
+    mutationFn: (data) => runly.identity.createRole(data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       setSheetOpen(false);
@@ -398,7 +398,7 @@ export default function RolesScreen() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: ({ id, data }) => atlas.identity.updateRole(id, data, token),
+    mutationFn: ({ id, data }) => runly.identity.updateRole(id, data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       setEditTarget(null);
@@ -409,7 +409,7 @@ export default function RolesScreen() {
 
   const toggleRoleMutation = useMutation({
     mutationFn: ({ id, enabled }) =>
-      atlas.identity.setRoleEnabled(id, enabled, token),
+      runly.identity.setRoleEnabled(id, enabled, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       toast.success("Estado actualizado");
@@ -418,7 +418,7 @@ export default function RolesScreen() {
   });
 
   const deleteRoleMutation = useMutation({
-    mutationFn: (id) => atlas.identity.deleteRole(id, token),
+    mutationFn: (id) => runly.identity.deleteRole(id, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["identity-roles"] });
       setDeleteTarget(null);

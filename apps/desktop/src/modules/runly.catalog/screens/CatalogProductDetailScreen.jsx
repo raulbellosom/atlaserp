@@ -10,7 +10,7 @@ import {
 import { ArrowLeft, EyeOff, Globe, Package, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 import ProductImageManager  from '../components/ProductImageManager.jsx'
 import StockMovementModal   from '../components/StockMovementModal.jsx'
 import VariantOptionsEditor from '../components/VariantOptionsEditor.jsx'
@@ -57,27 +57,27 @@ export default function CatalogProductDetailScreen() {
 
   const { data: productData, isPending } = useQuery({
     queryKey: ['catalog-product', id, token],
-    queryFn: () => atlas.catalog.getProduct(id, token),
+    queryFn: () => runly.catalog.getProduct(id, token),
     enabled: Boolean(token && id),
     staleTime: 30_000,
   })
 
   const { data: categoriesData } = useQuery({
     queryKey: ['catalog-categories-flat', token],
-    queryFn: () => atlas.catalog.listCategories(token, { flat: 'true' }),
+    queryFn: () => runly.catalog.listCategories(token, { flat: 'true' }),
     enabled: Boolean(token),
     staleTime: 60_000,
   })
 
   const { data: movementsData } = useQuery({
     queryKey: ['catalog-stock-movements', id, token],
-    queryFn: () => atlas.catalog.listStockMovements(id, token, { limit: 50 }),
+    queryFn: () => runly.catalog.listStockMovements(id, token, { limit: 50 }),
     enabled: Boolean(token && id && tab === 'Inventario'),
     staleTime: 30_000,
   })
 
   const updateMutation = useMutation({
-    mutationFn: data => atlas.catalog.updateProduct(id, data, token),
+    mutationFn: data => runly.catalog.updateProduct(id, data, token),
     onSuccess: () => {
       toast.success('Producto guardado')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', id] })
@@ -87,8 +87,8 @@ export default function CatalogProductDetailScreen() {
 
   const publishMutation = useMutation({
     mutationFn: pub => pub
-      ? atlas.catalog.publishProduct(id, token)
-      : atlas.catalog.unpublishProduct(id, token),
+      ? runly.catalog.publishProduct(id, token)
+      : runly.catalog.unpublishProduct(id, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['catalog-product', id] })
     },

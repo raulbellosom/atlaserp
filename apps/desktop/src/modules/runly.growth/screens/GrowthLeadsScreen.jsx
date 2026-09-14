@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { componentRegistry } from "../../../lib/moduleComponentRegistry.js";
 import { CreateLeadDialog } from "../components/CreateLeadDialog.jsx";
@@ -87,12 +87,12 @@ export default function GrowthLeadsScreen() {
 
   const summaryQuery = useQuery({
     queryKey: ["growth", "leads", "summary"],
-    queryFn: () => atlas.growth.getLeadSummary(token),
+    queryFn: () => runly.growth.getLeadSummary(token),
     enabled: Boolean(token && canRead),
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload) => atlas.growth.createLead(payload, token),
+    mutationFn: (payload) => runly.growth.createLead(payload, token),
     onSuccess: async () => {
       setCreateOpen(false);
       setRefreshSignal((s) => s + 1);

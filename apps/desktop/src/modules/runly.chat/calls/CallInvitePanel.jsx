@@ -3,7 +3,7 @@ import { TagsField } from "@runly/ui";
 import { Copy, Check, Send, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
 
 function unwrap(r) {
@@ -27,7 +27,7 @@ export function CallInvitePanel({ conversationId, onClose }) {
   useEffect(() => {
     if (onceRef.current || !conversationId || !token) return;
     onceRef.current = true;
-    atlas.calls.createLink(conversationId, token)
+    runly.calls.createLink(conversationId, token)
       .then((r) => setLink(unwrap(r)?.link ?? null))
       .catch(() => { /* the "Compartir" dialog still works as a fallback */ });
   }, [conversationId, token]);
@@ -43,7 +43,7 @@ export function CallInvitePanel({ conversationId, onClose }) {
     if (!emails.length) return;
     setSending(true);
     try {
-      const res = unwrap(await atlas.calls.sendInvites(conversationId, emails, token));
+      const res = unwrap(await runly.calls.sendInvites(conversationId, emails, token));
       const { notice } = summarizeInviteResult(res);
       const outcome = describeInviteOutcome(res);
       if (outcome) toast.success(outcome);
@@ -64,7 +64,7 @@ export function CallInvitePanel({ conversationId, onClose }) {
     const prev = link;
     setLink({ ...link, requireLobby });
     try {
-      const r = await atlas.calls.updateLink(conversationId, { requireLobby }, token);
+      const r = await runly.calls.updateLink(conversationId, { requireLobby }, token);
       setLink(unwrap(r)?.link ?? { ...prev, requireLobby });
     } catch (e) {
       setLink(prev);

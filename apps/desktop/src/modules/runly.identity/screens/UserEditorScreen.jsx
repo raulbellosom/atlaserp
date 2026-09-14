@@ -43,7 +43,7 @@ import {
 import { Country, State, City } from "country-state-city";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 const NO_ROLE_VALUE = "__none__";
 
@@ -81,12 +81,12 @@ export default function UserEditorScreen() {
 
   const usersQuery = useQuery({
     queryKey: ["identity-users"],
-    queryFn: () => atlas.identity.listUsers(token),
+    queryFn: () => runly.identity.listUsers(token),
     enabled: Boolean(token) && canReadUsers,
   });
   const rolesQuery = useQuery({
     queryKey: ["identity-roles"],
-    queryFn: () => atlas.identity.listRoles(token),
+    queryFn: () => runly.identity.listRoles(token),
     enabled: Boolean(token) && canReadRoles,
   });
 
@@ -99,7 +99,7 @@ export default function UserEditorScreen() {
 
   const resolveUserAvatarSignedUrl = useCallback(
     async () => {
-      const res = await atlas.identity.getUserAvatarSignedUrl(user?.id, token, { variant: "full" });
+      const res = await runly.identity.getUserAvatarSignedUrl(user?.id, token, { variant: "full" });
       return res?.data?.signedUrl ?? null;
     },
     [user?.id, token],
@@ -108,7 +108,7 @@ export default function UserEditorScreen() {
   const [draft, setDraft] = useState(null);
 
   const updateUserMutation = useMutation({
-    mutationFn: (payload) => atlas.identity.updateUser(userId, payload, token),
+    mutationFn: (payload) => runly.identity.updateUser(userId, payload, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       setDraft(null);
@@ -116,7 +116,7 @@ export default function UserEditorScreen() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: () => atlas.identity.deleteUser(userId, token),
+    mutationFn: () => runly.identity.deleteUser(userId, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
       toast.success("Usuario eliminado");
@@ -133,7 +133,7 @@ export default function UserEditorScreen() {
   });
 
   const avatarMutation = useMutation({
-    mutationFn: (file) => atlas.identity.uploadUserAvatar(userId, file, token),
+    mutationFn: (file) => runly.identity.uploadUserAvatar(userId, file, token),
     onMutate: () => toast.loading("Subiendo foto de perfil..."),
     onSuccess: async (_data, _vars, toastId) => {
       await queryClient.invalidateQueries({ queryKey: ["identity-users"] });
@@ -666,7 +666,7 @@ export default function UserEditorScreen() {
           </CardHeader>
           <CardContent className="pt-0">
             <ActivityTimeline
-              sdk={atlas}
+              sdk={runly}
               token={token}
               entityType="UserProfile"
               entityId={user.id}

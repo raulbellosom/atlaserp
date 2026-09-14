@@ -11,7 +11,7 @@ import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { Skeleton, renderMentionText } from "@runly/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { useCreateConversation } from "../hooks/useCreateConversation";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { CreateChatModal } from "./CreateChatModal";
 import { getConversationDisplayName, getConversationTitleLabel } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -403,7 +403,7 @@ function FloatingChatHubInner() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["chat-conversations"],
-    queryFn: () => atlas.chat.listConversations({}, session?.access_token),
+    queryFn: () => runly.chat.listConversations({}, session?.access_token),
     enabled: Boolean(session?.access_token),
     staleTime: 30_000,
     refetchInterval: 30_000,
@@ -414,7 +414,7 @@ function FloatingChatHubInner() {
 
   const { data: externalData } = useQuery({
     queryKey: ["chat-external-inbox-bubble"],
-    queryFn: () => atlas.chat.listExternalInbox({ status: "open" }, session?.access_token),
+    queryFn: () => runly.chat.listExternalInbox({ status: "open" }, session?.access_token),
     enabled: Boolean(session?.access_token),
     staleTime: 30_000,
     refetchInterval: 30_000,

@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@runly/ui";
 import { Sparkles, X } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import {
   useAssistantStatus,
   useAssistantThread,
@@ -81,7 +81,7 @@ export function PfmAssistantSidebar() {
         id = res?.data?.id ?? res?.id ?? null;
         setThreadId(id);
       }
-      const res = await atlas.pfm.assistant.sendMessage(id, text, token);
+      const res = await runly.pfm.assistant.sendMessage(id, text, token);
       setProposal(res?.data?.proposedAction ?? null);
       qc.invalidateQueries({ queryKey: ["pfm", "assistant", "thread", id] });
       qc.invalidateQueries({ queryKey: ["pfm", "assistant", "threads"] });

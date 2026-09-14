@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { native } from '../../../native/index.js';
-import { atlas } from '../../../lib/atlas';
+import { runly } from '../../../lib/atlas';
 import { useAuth } from '../../../auth/AuthProvider';
 
 export function useNativeScreenShare(callId) {
@@ -34,7 +34,7 @@ export function useNativeScreenShare(callId) {
         await native.screenShare.stop();
         if (run === generation.current) setActive(false);
       } else {
-        const response = await atlas.calls.screenToken(callId, session?.access_token);
+        const response = await runly.calls.screenToken(callId, session?.access_token);
         if (run !== generation.current) return;
         const state = await native.screenShare.start(response.data ?? response);
         if (run === generation.current) setActive(Boolean(state.active));

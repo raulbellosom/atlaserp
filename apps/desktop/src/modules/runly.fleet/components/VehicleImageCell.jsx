@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileViewer } from "@runly/ui";
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function mapViewerFiles(items) {
   return items.map((item) => ({
@@ -37,7 +37,7 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
     async (fileAssetId) => {
       if (!fileAssetId) return null;
       if (signedUrlCache[fileAssetId]) return signedUrlCache[fileAssetId];
-      const payload = await atlas.files.getSignedUrl(fileAssetId, token).catch(() => null);
+      const payload = await runly.files.getSignedUrl(fileAssetId, token).catch(() => null);
       const url = payload?.data?.signedUrl ?? payload?.data?.url ?? null;
       if (!url) return null;
       setSignedUrlCache((prev) => ({ ...prev, [fileAssetId]: url }));
@@ -75,7 +75,7 @@ export default function VehicleImageCell({ value, row, token, apiBaseUrl }) {
     if (!vehicleId || !apiBaseUrl || !hasAnyImage) return;
     setViewerLoading(true);
     try {
-      const payload = await atlas.fleet.getVehicleDocuments(vehicleId, token).catch(() => null);
+      const payload = await runly.fleet.getVehicleDocuments(vehicleId, token).catch(() => null);
       if (!payload) return;
       const rows = Array.isArray(payload?.data) ? payload.data : [];
       const files = mapViewerFiles(rows);

@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ function FilesPanel({ employeeId, token }) {
   const filesQuery = useQuery({
     queryKey: ["hr-employee-files", employeeId],
     queryFn: () =>
-      atlas.files.list(
+      runly.files.list(
         {
           moduleKey: "atlas.hr",
           entityType: "HrEmployee",
@@ -221,7 +221,7 @@ function FilesPanel({ employeeId, token }) {
         fd.append("moduleKey", "atlas.hr");
         fd.append("entityType", "HrEmployee");
         fd.append("entityId", employeeId);
-        await atlas.files.upload(fd, token);
+        await runly.files.upload(fd, token);
       }
     },
     onMutate: () => toast.loading("Subiendo archivo(s)..."),
@@ -241,7 +241,7 @@ function FilesPanel({ employeeId, token }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (fileId) => atlas.files.delete(fileId, token),
+    mutationFn: (fileId) => runly.files.delete(fileId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["hr-employee-files", employeeId],
@@ -267,7 +267,7 @@ function FilesPanel({ employeeId, token }) {
       )
       .map((f) => f.id);
     if (uncached.length === 0) return;
-    atlas.files
+    runly.files
       .batchSignedUrls(uncached, token)
       .then((res) => {
         const urlMap = res?.data ?? {};
@@ -304,7 +304,7 @@ function FilesPanel({ employeeId, token }) {
         onIndexChange={setViewerIndex}
         onResolveSignedUrl={async (f) => {
           if (previewMap.has(f.id)) return previewMap.get(f.id);
-          const res = await atlas.files.getSignedUrl(f.id, token);
+          const res = await runly.files.getSignedUrl(f.id, token);
           return res?.data?.signedUrl ?? null;
         }}
       />
@@ -395,7 +395,7 @@ function FilesPanel({ employeeId, token }) {
                   <button
                     type="button"
                     onClick={async () => {
-                      const res = await atlas.files.getSignedUrl(
+                      const res = await runly.files.getSignedUrl(
                         file.id,
                         token,
                       );
@@ -522,7 +522,7 @@ export default function HrEmployeeForm({ employeeId }) {
 
   const employeeQuery = useQuery({
     queryKey: ["hr-employee", employeeId],
-    queryFn: () => atlas.hr.getEmployee(employeeId, token),
+    queryFn: () => runly.hr.getEmployee(employeeId, token),
     enabled: Boolean(token && employeeId),
   });
   const selected = employeeQuery.data?.data ?? null;
@@ -530,7 +530,7 @@ export default function HrEmployeeForm({ employeeId }) {
   const profileImageQuery = useQuery({
     queryKey: ["hr-profile-image-url", selected?.profileImageFileId],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(
+      const res = await runly.files.getSignedUrl(
         selected.profileImageFileId,
         token,
       );
@@ -542,26 +542,26 @@ export default function HrEmployeeForm({ employeeId }) {
 
   const userOptionsQuery = useQuery({
     queryKey: ["hr-user-options"],
-    queryFn: () => atlas.hr.listUserOptions(token, { limit: 100 }),
+    queryFn: () => runly.hr.listUserOptions(token, { limit: 100 }),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   });
   const employeesQuery = useQuery({
     queryKey: ["hr-employees-all"],
-    queryFn: () => atlas.hr.listEmployees(token, { limit: 500, enabled: true }),
+    queryFn: () => runly.hr.listEmployees(token, { limit: 500, enabled: true }),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   });
   const departmentsQuery = useQuery({
     queryKey: ["hr-departments"],
     queryFn: () =>
-      atlas.hr.listDepartments(token, { limit: 200, enabled: true }),
+      runly.hr.listDepartments(token, { limit: 200, enabled: true }),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   });
   const jobTitlesQuery = useQuery({
     queryKey: ["hr-job-titles"],
-    queryFn: () => atlas.hr.listJobTitles(token, { limit: 200, enabled: true }),
+    queryFn: () => runly.hr.listJobTitles(token, { limit: 200, enabled: true }),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   });
@@ -617,8 +617,8 @@ export default function HrEmployeeForm({ employeeId }) {
   const saveMutation = useMutation({
     mutationFn: () => {
       const payload = normalizeForApi(form);
-      if (isNew) return atlas.hr.createEmployee(payload, token);
-      return atlas.hr.updateEmployee(selected.id, payload, token);
+      if (isNew) return runly.hr.createEmployee(payload, token);
+      return runly.hr.updateEmployee(selected.id, payload, token);
     },
     onMutate: () =>
       toast.loading(isNew ? "Creando colaborador..." : "Guardando cambios..."),
@@ -647,10 +647,10 @@ export default function HrEmployeeForm({ employeeId }) {
       fd.append("moduleKey", "atlas.hr");
       fd.append("entityType", "HrEmployee");
       fd.append("entityId", selected.id);
-      const upload = await atlas.files.upload(fd, token);
+      const upload = await runly.files.upload(fd, token);
       const fileId = upload?.data?.id;
       if (!fileId) throw new Error("No se pudo procesar la foto.");
-      await atlas.hr.updateEmployee(
+      await runly.hr.updateEmployee(
         selected.id,
         normalizeForApi({
           ...fromEmployee(selected),
@@ -676,7 +676,7 @@ export default function HrEmployeeForm({ employeeId }) {
 
   const createDepartmentMutation = useMutation({
     mutationFn: (name) =>
-      atlas.hr.createDepartment({ name: name.trim() }, token),
+      runly.hr.createDepartment({ name: name.trim() }, token),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["hr-departments"] });
       const created = res?.data;
@@ -694,7 +694,7 @@ export default function HrEmployeeForm({ employeeId }) {
   });
 
   const createJobTitleMutation = useMutation({
-    mutationFn: (name) => atlas.hr.createJobTitle({ name: name.trim() }, token),
+    mutationFn: (name) => runly.hr.createJobTitle({ name: name.trim() }, token),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["hr-job-titles"] });
       const created = res?.data;

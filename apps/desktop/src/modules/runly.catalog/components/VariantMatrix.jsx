@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, ConfirmDialog, Input, cn } from '@runly/ui'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 
 export default function VariantMatrix({ token, productId, variants = [] }) {
   const queryClient  = useQueryClient()
@@ -12,7 +12,7 @@ export default function VariantMatrix({ token, productId, variants = [] }) {
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const updateMutation = useMutation({
-    mutationFn: ({ variantId, data }) => atlas.catalog.updateVariant(productId, variantId, data, token),
+    mutationFn: ({ variantId, data }) => runly.catalog.updateVariant(productId, variantId, data, token),
     onSuccess: (_, { variantId }) => {
       setEdits(prev => { const n = { ...prev }; delete n[variantId]; return n })
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
@@ -22,7 +22,7 @@ export default function VariantMatrix({ token, productId, variants = [] }) {
   })
 
   const createMutation = useMutation({
-    mutationFn: (data) => atlas.catalog.createVariant(productId, data, token),
+    mutationFn: (data) => runly.catalog.createVariant(productId, data, token),
     onSuccess: () => {
       toast.success('Variante creada')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })
@@ -31,7 +31,7 @@ export default function VariantMatrix({ token, productId, variants = [] }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (variantId) => atlas.catalog.deleteVariant(productId, variantId, token),
+    mutationFn: (variantId) => runly.catalog.deleteVariant(productId, variantId, token),
     onSuccess: () => {
       toast.success('Variante eliminada')
       queryClient.invalidateQueries({ queryKey: ['catalog-product', productId] })

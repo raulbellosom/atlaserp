@@ -1,4 +1,4 @@
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -21,7 +21,7 @@ export async function syncNewImages({ files, manifest, noteId, token }) {
     }
     const mimeType = file.mimeType ?? blob.type ?? 'image/png'
     const ext = (mimeType.split('/')[1] ?? 'png').replace('+xml', '')
-    const presign = await atlas.notes.presignImage(
+    const presign = await runly.notes.presignImage(
       { fileName: `canvas-${fileId}.${ext}`, mimeType, noteId },
       token,
     )

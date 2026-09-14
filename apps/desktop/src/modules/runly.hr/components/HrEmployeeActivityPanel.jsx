@@ -1,5 +1,5 @@
 import { ActivityTimeline } from "@runly/ui";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 /**
  * Embeddable activity panel for HR Employee detail.
@@ -12,7 +12,7 @@ export default function HrEmployeeActivityPanel({ employeeId, token }) {
         <h3 className="text-sm font-semibold">Actividad reciente</h3>
       </div>
       <ActivityTimeline
-        sdk={atlas}
+        sdk={runly}
         token={token}
         entityType="HrEmployee"
         entityId={employeeId}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../auth/AuthProvider";
-import { atlas } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/atlas";
 
 function unwrap(r) { return r?.data ?? r; }
 const ACTIVE = new Set(["STARTING", "ACTIVE"]);
@@ -18,7 +18,7 @@ export function useCallRecording({ callId, conversationId }) {
   const refresh = useCallback(async () => {
     if (!conversationId || !token) return;
     try {
-      const res = unwrap(await atlas.calls.listRecordings(conversationId, token));
+      const res = unwrap(await runly.calls.listRecordings(conversationId, token));
       setActiveRecording((res ?? []).find((r) => ACTIVE.has(r.status)) ?? null);
     } catch { /* transient — next poll retries */ }
   }, [conversationId, token]);
@@ -33,7 +33,7 @@ export function useCallRecording({ callId, conversationId }) {
   const start = useCallback(async () => {
     setBusy(true);
     try {
-      await atlas.calls.startRecording(callId, token);
+      await runly.calls.startRecording(callId, token);
       await refresh();
     } catch (e) {
       toast.error(e?.message || "No se pudo iniciar la grabación.");
@@ -45,7 +45,7 @@ export function useCallRecording({ callId, conversationId }) {
   const stop = useCallback(async () => {
     setBusy(true);
     try {
-      await atlas.calls.stopRecording(callId, token);
+      await runly.calls.stopRecording(callId, token);
       await refresh();
     } catch (e) {
       toast.error(e?.message || "No se pudo detener la grabación.");

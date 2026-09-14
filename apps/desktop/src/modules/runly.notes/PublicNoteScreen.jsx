@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { atlas } from '../../lib/atlas'
+import { runly } from '../../lib/atlas'
 import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteIcon } from './noteIcons.jsx'
 import { ErrorState } from '@runly/ui'
@@ -23,7 +23,7 @@ export default function PublicNoteScreen() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['public-note', slug],
-    queryFn: () => atlas.notes.getPublic(slug),
+    queryFn: () => runly.notes.getPublic(slug),
     enabled: !!slug,
     retry: false,
     // Public content must always be current — an edit in the authenticated

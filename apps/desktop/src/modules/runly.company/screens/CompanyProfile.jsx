@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -140,7 +140,7 @@ export default function CompanyProfile() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["company-profile"],
-    queryFn: () => atlas.company.getProfile(token),
+    queryFn: () => runly.company.getProfile(token),
     enabled: Boolean(token),
   });
 
@@ -191,7 +191,7 @@ export default function CompanyProfile() {
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: (payload) => atlas.company.updateProfile(payload, token),
+    mutationFn: (payload) => runly.company.updateProfile(payload, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-profile"] });
       toast.success("Perfil de empresa actualizado.");

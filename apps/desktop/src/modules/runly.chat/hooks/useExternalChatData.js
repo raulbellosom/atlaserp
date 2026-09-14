@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { subscribeToMultiBroadcast } from "../lib/supabaseRealtime";
 import { mergeExternalPages } from "../lib/mergeExternalPages";
 import { useToggleReaction } from "./useChatMessages";
@@ -28,7 +28,7 @@ export function useExternalChatData(conversationId, { enabled = true } = {}) {
 
   const query = useQuery({
     queryKey: ["chat-external-messages", conversationId],
-    queryFn: () => atlas.chat.listExternalMessages(conversationId, { limit: 40 }, token),
+    queryFn: () => runly.chat.listExternalMessages(conversationId, { limit: 40 }, token),
     enabled: on,
     staleTime: 10_000,
     refetchInterval: 45_000,
@@ -57,7 +57,7 @@ export function useExternalChatData(conversationId, { enabled = true } = {}) {
     if (!oldest?.created_at) return;
     setIsLoadingMore(true);
     try {
-      const res = await atlas.chat.listExternalMessages(
+      const res = await runly.chat.listExternalMessages(
         conversationId,
         { limit: 40, before: oldest.created_at },
         token,
@@ -97,11 +97,11 @@ export function useExternalChatData(conversationId, { enabled = true } = {}) {
   }, [on, conversationId, invalidate]);
 
   const sendMut = useMutation({
-    mutationFn: (data) => atlas.chat.sendExternalMessage(conversationId, data, token),
+    mutationFn: (data) => runly.chat.sendExternalMessage(conversationId, data, token),
     onSuccess: invalidate,
   });
   const deleteMut = useMutation({
-    mutationFn: (messageId) => atlas.chat.deleteExternalMessage(conversationId, messageId, token),
+    mutationFn: (messageId) => runly.chat.deleteExternalMessage(conversationId, messageId, token),
     onSuccess: invalidate,
   });
   const { mutate: toggleReactionMutate } = useToggleReaction(conversationId);
@@ -119,7 +119,7 @@ export function useExternalChatData(conversationId, { enabled = true } = {}) {
     isLoadingMore,
     loadMore,
     sendMessage: (data) => sendMut.mutateAsync(data),
-    markRead: () => atlas.chat.markExternalRead(conversationId, token).catch(() => {}),
+    markRead: () => runly.chat.markExternalRead(conversationId, token).catch(() => {}),
     deleteMessage: (id) => deleteMut.mutate(id),
     deleteAttachment: () => {},
     deletingAttachmentId: null,
@@ -127,6 +127,6 @@ export function useExternalChatData(conversationId, { enabled = true } = {}) {
       toggleReactionMutate({ messageId, emoji, attachmentId }),
     typingUsers: guestTyping ? [{ id: "guest", name: "El visitante" }] : [],
     guestLastReadAt,
-    sendTyping: () => atlas.chat.sendExternalTyping(conversationId, token).catch(() => {}),
+    sendTyping: () => runly.chat.sendExternalTyping(conversationId, token).catch(() => {}),
   };
 }

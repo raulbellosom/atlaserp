@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { supabase } from '../../../lib/supabase'
 import { computeInitialImageWidthPct } from './imageSize.js'
 
@@ -52,7 +52,7 @@ export async function uploadAndInsertNoteImage(file, { editor, noteId, token }) 
   }
   try {
     const [presign, naturalSize] = await Promise.all([
-      atlas.notes.presignImage({ fileName: file.name, mimeType: file.type, noteId }, token),
+      runly.notes.presignImage({ fileName: file.name, mimeType: file.type, noteId }, token),
       getImageNaturalSize(file),
     ])
     const { error } = await supabase.storage

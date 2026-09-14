@@ -5,7 +5,7 @@ import { FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../auth/AuthProvider";
 import { useActiveCompany } from "../../company/ActiveCompanyProvider";
-import { atlas } from "../../lib/atlas";
+import { runly } from "../../lib/atlas";
 import { getApiUrl } from "../../lib/runtimeConfig.js";
 import ActivityDetailSheet from "./ActivityDetailSheet";
 
@@ -99,7 +99,7 @@ export default function ActivityFeedScreen() {
           try {
             const ids = selectedRows.map((row) => row.id).filter(Boolean);
             if (!ids.length) return;
-            const blob = await atlas.activity.exportExcel({ ids }, token);
+            const blob = await runly.activity.exportExcel({ ids }, token);
             downloadBlob(
               blob,
               `actividad-${toLocalIso()}.xlsx`,

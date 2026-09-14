@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function loadingMutation(msg) {
   return {
@@ -22,7 +22,7 @@ export function useProjects() {
   const token = useToken()
   return useQuery({
     queryKey: ['projects'],
-    queryFn: () => atlas.projects.listProjects(token),
+    queryFn: () => runly.projects.listProjects(token),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
   })
@@ -32,7 +32,7 @@ export function useProject(projectId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId],
-    queryFn: () => atlas.projects.getProject(projectId, token),
+    queryFn: () => runly.projects.getProject(projectId, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 60 * 1000,
   })
@@ -42,7 +42,7 @@ export function useSyncProjectCalendar(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => atlas.projects.syncProjectCalendar(projectId, token),
+    mutationFn: () => runly.projects.syncProjectCalendar(projectId, token),
     ...loadingMutation('Sincronizando calendario...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -56,7 +56,7 @@ export function useCreateProject() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.createProject(data, token),
+    mutationFn: (data) => runly.projects.createProject(data, token),
     ...loadingMutation('Creando proyecto...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -69,7 +69,7 @@ export function useUpdateProject(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.updateProject(projectId, data, token),
+    mutationFn: (data) => runly.projects.updateProject(projectId, data, token),
     ...loadingMutation('Guardando proyecto...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -83,7 +83,7 @@ export function useArchiveProject() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => atlas.projects.archiveProject(id, token),
+    mutationFn: (id) => runly.projects.archiveProject(id, token),
     ...loadingMutation('Archivando proyecto...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -98,7 +98,7 @@ export function useProjectMembers(projectId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'members'],
-    queryFn: () => atlas.projects.listMembers(projectId, token),
+    queryFn: () => runly.projects.listMembers(projectId, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 60 * 1000,
   })
@@ -108,7 +108,7 @@ export function useAddMember(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.addMember(projectId, data, token),
+    mutationFn: (data) => runly.projects.addMember(projectId, data, token),
     ...loadingMutation('Agregando miembro...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -121,7 +121,7 @@ export function useRemoveMember(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (userId) => atlas.projects.removeMember(projectId, userId, token),
+    mutationFn: (userId) => runly.projects.removeMember(projectId, userId, token),
     ...loadingMutation('Eliminando miembro...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -136,7 +136,7 @@ export function useStatuses(projectId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'statuses'],
-    queryFn: () => atlas.projects.listStatuses(projectId, token),
+    queryFn: () => runly.projects.listStatuses(projectId, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 60 * 1000,
     refetchOnWindowFocus: false,
@@ -147,7 +147,7 @@ export function useCreateStatus(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.createStatus(projectId, data, token),
+    mutationFn: (data) => runly.projects.createStatus(projectId, data, token),
     ...loadingMutation('Creando estado...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -160,7 +160,7 @@ export function useUpdateStatus(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ statusId, ...data }) => atlas.projects.updateStatus(projectId, statusId, data, token),
+    mutationFn: ({ statusId, ...data }) => runly.projects.updateStatus(projectId, statusId, data, token),
     ...loadingMutation('Guardando estado...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -173,7 +173,7 @@ export function useDeleteStatus(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (statusId) => atlas.projects.deleteStatus(projectId, statusId, token),
+    mutationFn: (statusId) => runly.projects.deleteStatus(projectId, statusId, token),
     ...loadingMutation('Eliminando estado...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -189,7 +189,7 @@ export function useTasks(projectId, filters = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'tasks', filters],
-    queryFn: () => atlas.projects.listTasks(projectId, filters, token),
+    queryFn: () => runly.projects.listTasks(projectId, filters, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
@@ -200,7 +200,7 @@ export function useTask(projectId, taskId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'tasks', taskId],
-    queryFn: () => atlas.projects.getTask(projectId, taskId, token),
+    queryFn: () => runly.projects.getTask(projectId, taskId, token),
     enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
@@ -211,7 +211,7 @@ export function useCreateTask(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.createTask(projectId, data, token),
+    mutationFn: (data) => runly.projects.createTask(projectId, data, token),
     onMutate: async ({ title, statusId, parentTaskId }) => {
       // Subtasks skip the optimistic pre-write; their error handling
       // is handled by the call-site onError callback in TaskDetailPanel.
@@ -265,7 +265,7 @@ export function useUpdateTask(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ taskId, ...data }) => atlas.projects.updateTask(projectId, taskId, data, token),
+    mutationFn: ({ taskId, ...data }) => runly.projects.updateTask(projectId, taskId, data, token),
     onMutate: async ({ taskId, ...patch }) => {
       await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks'] })
       await qc.cancelQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
@@ -307,7 +307,7 @@ export function useMoveTask(projectId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ taskId, statusId, position }) =>
-      atlas.projects.moveTask(projectId, taskId, { statusId, position }, token),
+      runly.projects.moveTask(projectId, taskId, { statusId, position }, token),
     onMutate: async ({ taskId, statusId }) => {
       // Capture snapshot and apply optimistic update SYNCHRONOUSLY before any await,
       // so the UI reflects the new column immediately when drag ends (no snap-back flash).
@@ -340,7 +340,7 @@ export function useDeleteTask(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (taskId) => atlas.projects.deleteTask(projectId, taskId, token),
+    mutationFn: (taskId) => runly.projects.deleteTask(projectId, taskId, token),
     ...loadingMutation('Eliminando tarea...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -355,7 +355,7 @@ export function useWorkspaceUsers() {
   const token = useToken()
   return useQuery({
     queryKey: ['identity', 'users'],
-    queryFn: () => atlas.identity.listUsers(token),
+    queryFn: () => runly.identity.listUsers(token),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })
@@ -367,7 +367,7 @@ export function useAddAssignee(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ userId }) => atlas.projects.addTaskAssignee(projectId, taskId, { userId }, token),
+    mutationFn: ({ userId }) => runly.projects.addTaskAssignee(projectId, taskId, { userId }, token),
     ...loadingMutation('Asignando...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -381,7 +381,7 @@ export function useRemoveAssignee(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ userId }) => atlas.projects.removeTaskAssignee(projectId, taskId, userId, token),
+    mutationFn: ({ userId }) => runly.projects.removeTaskAssignee(projectId, taskId, userId, token),
     ...loadingMutation('Quitando asignado...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -401,7 +401,7 @@ export function useTaskComments(projectId, taskId) {
   const token = useToken()
   return useQuery({
     queryKey: commentsKey(projectId, taskId),
-    queryFn: () => atlas.projects.listTaskComments(projectId, taskId, {}, token),
+    queryFn: () => runly.projects.listTaskComments(projectId, taskId, {}, token),
     enabled: Boolean(projectId && taskId && token),
     select: (res) => res?.data ?? res ?? [],
   })
@@ -413,7 +413,7 @@ export function useCreateComment(projectId, taskId) {
   const qc = useQueryClient()
   const cKey = commentsKey(projectId, taskId)
   return useMutation({
-    mutationFn: ({ body }) => atlas.projects.createTaskComment(projectId, taskId, { body }, token),
+    mutationFn: ({ body }) => runly.projects.createTaskComment(projectId, taskId, { body }, token),
     onMutate: async ({ body }) => {
       await qc.cancelQueries({ queryKey: cKey })
       const snapshot = qc.getQueryData(cKey)
@@ -449,7 +449,7 @@ export function useUpdateComment(projectId, taskId) {
   const qc = useQueryClient()
   const cKey = commentsKey(projectId, taskId)
   return useMutation({
-    mutationFn: ({ commentId, body }) => atlas.projects.updateTaskComment(projectId, taskId, commentId, { body }, token),
+    mutationFn: ({ commentId, body }) => runly.projects.updateTaskComment(projectId, taskId, commentId, { body }, token),
     onMutate: async ({ commentId, body }) => {
       await qc.cancelQueries({ queryKey: cKey })
       const snapshot = qc.getQueryData(cKey)
@@ -471,7 +471,7 @@ export function useDeleteComment(projectId, taskId) {
   const qc = useQueryClient()
   const cKey = commentsKey(projectId, taskId)
   return useMutation({
-    mutationFn: ({ commentId }) => atlas.projects.deleteTaskComment(projectId, taskId, commentId, token),
+    mutationFn: ({ commentId }) => runly.projects.deleteTaskComment(projectId, taskId, commentId, token),
     onMutate: async ({ commentId }) => {
       await qc.cancelQueries({ queryKey: cKey })
       const snapshot = qc.getQueryData(cKey)
@@ -493,7 +493,7 @@ export function useToggleTaskReaction(projectId, taskId) {
   const cKey = commentsKey(projectId, taskId)
   return useMutation({
     mutationFn: ({ commentId, emoji }) =>
-      atlas.projects.toggleTaskCommentReaction(projectId, taskId, commentId, emoji, token),
+      runly.projects.toggleTaskCommentReaction(projectId, taskId, commentId, emoji, token),
     onMutate: async ({ commentId, emoji }) => {
       await qc.cancelQueries({ queryKey: cKey })
       const snapshot = qc.getQueryData(cKey)
@@ -524,7 +524,7 @@ export function useTaskDependencies(projectId, taskId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'],
-    queryFn: () => atlas.projects.listTaskDependencies(projectId, taskId, token),
+    queryFn: () => runly.projects.listTaskDependencies(projectId, taskId, token),
     enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
     staleTime: 15 * 1000,
   })
@@ -534,7 +534,7 @@ export function useAddDependency(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.addTaskDependency(projectId, taskId, data, token),
+    mutationFn: (data) => runly.projects.addTaskDependency(projectId, taskId, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'] }),
     onError: () => toast.error('No se pudo agregar la dependencia'),
   })
@@ -544,7 +544,7 @@ export function useRemoveDependency(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (depId) => atlas.projects.removeTaskDependency(projectId, taskId, depId, token),
+    mutationFn: (depId) => runly.projects.removeTaskDependency(projectId, taskId, depId, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'] }),
     onError: () => toast.error('No se pudo eliminar la dependencia'),
   })
@@ -556,7 +556,7 @@ export function useProjectFields(projectId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'fields'],
-    queryFn: () => atlas.projects.listProjectFields(projectId, token),
+    queryFn: () => runly.projects.listProjectFields(projectId, token),
     enabled: Boolean(token) && Boolean(projectId),
     staleTime: 60 * 1000,
   })
@@ -566,7 +566,7 @@ export function useCreateField(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.projects.createProjectField(projectId, data, token),
+    mutationFn: (data) => runly.projects.createProjectField(projectId, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'fields'] }),
     onError: () => toast.error('No se pudo crear el campo'),
   })
@@ -576,7 +576,7 @@ export function useUpdateField(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ fieldId, ...data }) => atlas.projects.updateProjectField(projectId, fieldId, data, token),
+    mutationFn: ({ fieldId, ...data }) => runly.projects.updateProjectField(projectId, fieldId, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'fields'] }),
     onError: () => toast.error('No se pudo actualizar el campo'),
   })
@@ -586,7 +586,7 @@ export function useDeleteField(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (fieldId) => atlas.projects.deleteProjectField(projectId, fieldId, token),
+    mutationFn: (fieldId) => runly.projects.deleteProjectField(projectId, fieldId, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'fields'] }),
     onError: () => toast.error('No se pudo eliminar el campo'),
   })
@@ -598,7 +598,7 @@ export function useTaskFieldValues(projectId, taskId) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'tasks', taskId, 'field-values'],
-    queryFn: () => atlas.projects.getTaskFieldValues(projectId, taskId, token),
+    queryFn: () => runly.projects.getTaskFieldValues(projectId, taskId, token),
     enabled: Boolean(token) && Boolean(projectId) && Boolean(taskId),
     staleTime: 15 * 1000,
   })
@@ -608,7 +608,7 @@ export function useUpsertFieldValues(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (entries) => atlas.projects.upsertTaskFieldValues(projectId, taskId, entries, token),
+    mutationFn: (entries) => runly.projects.upsertTaskFieldValues(projectId, taskId, entries, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'field-values'] }),
     onError: () => toast.error('No se pudo guardar el valor'),
   })
@@ -620,7 +620,7 @@ export function useTaskActivity(taskId, limit = 50) {
   const token = useToken()
   return useQuery({
     queryKey: ['activity', 'Task', taskId],
-    queryFn: () => atlas.activity.listForEntity('Task', taskId, token, limit),
+    queryFn: () => runly.activity.listForEntity('Task', taskId, token, limit),
     enabled: Boolean(token) && Boolean(taskId),
     staleTime: 15 * 1000,
   })
@@ -632,7 +632,7 @@ export function useBulkUpdateTasks(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ taskIds, patch }) => atlas.projects.bulkUpdateTasks(projectId, { taskIds, patch }, token),
+    mutationFn: ({ taskIds, patch }) => runly.projects.bulkUpdateTasks(projectId, { taskIds, patch }, token),
     ...loadingMutation('Actualizando tareas...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -645,7 +645,7 @@ export function useBulkDeleteTasks(projectId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ taskIds }) => atlas.projects.bulkDeleteTasks(projectId, { taskIds }, token),
+    mutationFn: ({ taskIds }) => runly.projects.bulkDeleteTasks(projectId, { taskIds }, token),
     ...loadingMutation('Eliminando tareas...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -658,7 +658,7 @@ export function useAllTasksForPicker(projectId, enabled = false) {
   const token = useToken()
   return useQuery({
     queryKey: ['projects', projectId, 'tasks', '__picker__'],
-    queryFn: () => atlas.projects.listTasks(projectId, {}, token),
+    queryFn: () => runly.projects.listTasks(projectId, {}, token),
     enabled: Boolean(token) && Boolean(projectId) && enabled,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,

@@ -10,7 +10,7 @@ import {
 } from "@runly/ui";
 import { Upload, FileArchive, X } from "lucide-react";
 import { toast } from "sonner";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 function guessKeyFromFilename(filename) {
@@ -162,7 +162,7 @@ export function UploadModuleSheet({ open, onOpenChange, onSuccess }) {
     const toastId = toast.loading(`Subiendo ${key}...`);
 
     try {
-      const result = await atlas.modules.uploadModuleZip(key, formData, token);
+      const result = await runly.modules.uploadModuleZip(key, formData, token);
       if (result?.error) {
         toast.error(result.error, {
           id: toastId,

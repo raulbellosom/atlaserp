@@ -7,7 +7,7 @@ import { FileSpreadsheet, FileText, Power, PowerOff, Trash2, UserPlus } from "lu
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
   ContactFormSheet,
@@ -116,7 +116,7 @@ export default function ContactsScreen() {
 
   const blueprintsQuery = useQuery({
     queryKey: ["blueprints", "contacts", authUserId],
-    queryFn: () => atlas.blueprints.list(token),
+    queryFn: () => runly.blueprints.list(token),
     enabled: Boolean(token),
   });
 
@@ -125,7 +125,7 @@ export default function ContactsScreen() {
   // already among the loaded rows.
   const urlContactQuery = useQuery({
     queryKey: ["contact", urlContactId, authUserId],
-    queryFn: () => atlas.contacts.getById(urlContactId, token),
+    queryFn: () => runly.contacts.getById(urlContactId, token),
     enabled: Boolean(urlContactId && token),
   });
 
@@ -169,7 +169,7 @@ export default function ContactsScreen() {
   }
 
   const createMutation = useMutation({
-    mutationFn: (data) => atlas.contacts.create(data, token),
+    mutationFn: (data) => runly.contacts.create(data, token),
     onSuccess: () => {
       closeSheet();
       setRefreshSignal((s) => s + 1);
@@ -179,7 +179,7 @@ export default function ContactsScreen() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => atlas.contacts.update(id, data, token),
+    mutationFn: ({ id, data }) => runly.contacts.update(id, data, token),
     onSuccess: () => {
       closeSheet();
       setRefreshSignal((s) => s + 1);
@@ -189,7 +189,7 @@ export default function ContactsScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => atlas.contacts.delete(id, token),
+    mutationFn: (id) => runly.contacts.delete(id, token),
     onSuccess: () => {
       setConfirmDelete(null);
       setRefreshSignal((s) => s + 1);
@@ -200,7 +200,7 @@ export default function ContactsScreen() {
 
   const bulkEnabledMutation = useMutation({
     mutationFn: ({ ids, enabled }) =>
-      atlas.contacts.setContactsEnabled(ids, enabled, token),
+      runly.contacts.setContactsEnabled(ids, enabled, token),
     onSuccess: () => {
       setRefreshSignal((s) => s + 1);
       setBulkState(null);
@@ -210,7 +210,7 @@ export default function ContactsScreen() {
   });
 
   const bulkDeleteMutation = useMutation({
-    mutationFn: (ids) => atlas.contacts.deleteContactsBulk(ids, token),
+    mutationFn: (ids) => runly.contacts.deleteContactsBulk(ids, token),
     onSuccess: () => {
       setRefreshSignal((s) => s + 1);
       setBulkState(null);
@@ -220,7 +220,7 @@ export default function ContactsScreen() {
   });
 
   const toggleEnabledMutation = useMutation({
-    mutationFn: ({ id, enabled }) => atlas.contacts.setEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.contacts.setEnabled(id, enabled, token),
     onSuccess: (_, { enabled }) => {
       setRefreshSignal((s) => s + 1);
       toast.success(enabled ? "Contacto activado" : "Contacto desactivado");
@@ -236,7 +236,7 @@ export default function ContactsScreen() {
         try {
           const ids = selectedRows.map((row) => row.id).filter(Boolean);
           if (!ids.length) return;
-          const blob = await atlas.contacts.exportContactsExcel(ids, token);
+          const blob = await runly.contacts.exportContactsExcel(ids, token);
           downloadBlob(blob, `contactos-${toLocalIso()}.xlsx`);
           toast.success("Excel generado");
         } catch {
@@ -251,7 +251,7 @@ export default function ContactsScreen() {
         try {
           const ids = selectedRows.map((row) => row.id).filter(Boolean);
           if (!ids.length) return;
-          const blob = await atlas.contacts.exportContactsPdf(ids, token);
+          const blob = await runly.contacts.exportContactsPdf(ids, token);
           downloadBlob(blob, `contactos-${toLocalIso()}.pdf`);
           toast.success("PDF generado");
         } catch {

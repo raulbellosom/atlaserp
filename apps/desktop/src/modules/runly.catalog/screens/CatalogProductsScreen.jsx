@@ -10,7 +10,7 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE_URL = getApiUrl()
@@ -91,7 +91,7 @@ export default function CatalogProductsScreen() {
   const [newName, setNewName] = useState('')
 
   const deleteMutation = useMutation({
-    mutationFn: id => atlas.catalog.deleteProduct(id, token),
+    mutationFn: id => runly.catalog.deleteProduct(id, token),
     onSuccess: () => {
       setConfirmDelete(null)
       setRefreshSignal(s => s + 1)
@@ -101,7 +101,7 @@ export default function CatalogProductsScreen() {
   })
 
   const createMutation = useMutation({
-    mutationFn: data => atlas.catalog.createProduct(data, token),
+    mutationFn: data => runly.catalog.createProduct(data, token),
     onSuccess: res => {
       toast.success('Producto creado')
       queryClient.invalidateQueries({ queryKey: ['catalog-products'] })

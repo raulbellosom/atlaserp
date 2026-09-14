@@ -31,7 +31,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { ConvertLeadDialog } from "../components/ConvertLeadDialog.jsx";
 import { GenerateDocumentDialog } from "../components/GenerateDocumentDialog.jsx";
@@ -114,12 +114,12 @@ export default function GrowthLeadDetailScreen() {
     refetch: refetchLead,
   } = useQuery({
     queryKey: ["growth", "leads", "detail", leadId],
-    queryFn: () => atlas.growth.getLead(leadId, token),
+    queryFn: () => runly.growth.getLead(leadId, token),
     enabled: Boolean(token && leadId && canRead),
   });
   const { data: assigneesResponse } = useQuery({
     queryKey: ["growth", "leads", "assignees"],
-    queryFn: () => atlas.growth.listLeadAssignees(token),
+    queryFn: () => runly.growth.listLeadAssignees(token),
     enabled: Boolean(token && canAssign),
     staleTime: 60_000,
   });
@@ -137,7 +137,7 @@ export default function GrowthLeadDetailScreen() {
   }, [leadId, queryClient]);
 
   const updateMutation = useMutation({
-    mutationFn: (payload) => atlas.growth.updateLead(leadId, payload, token),
+    mutationFn: (payload) => runly.growth.updateLead(leadId, payload, token),
     onSuccess: async () => {
       await refreshLead();
       toast.success("Lead actualizado");
@@ -146,7 +146,7 @@ export default function GrowthLeadDetailScreen() {
       toast.error(error?.message || "No se pudo actualizar el lead"),
   });
   const noteMutation = useMutation({
-    mutationFn: (payload) => atlas.growth.addLeadNote(leadId, payload, token),
+    mutationFn: (payload) => runly.growth.addLeadNote(leadId, payload, token),
     onSuccess: async () => {
       setNote("");
       await refreshLead();
@@ -156,7 +156,7 @@ export default function GrowthLeadDetailScreen() {
       toast.error(error?.message || "No se pudo agregar la nota"),
   });
   const convertMutation = useMutation({
-    mutationFn: (payload) => atlas.growth.convertLead(leadId, payload, token),
+    mutationFn: (payload) => runly.growth.convertLead(leadId, payload, token),
     onSuccess: async () => {
       setConvertOpen(false);
       await refreshLead();
@@ -167,7 +167,7 @@ export default function GrowthLeadDetailScreen() {
   });
   const enabledMutation = useMutation({
     mutationFn: ({ enabled, updatedAt }) =>
-      atlas.growth.setLeadEnabled(
+      runly.growth.setLeadEnabled(
         leadId,
         { enabled, updatedAt },
         token,
@@ -207,7 +207,7 @@ export default function GrowthLeadDetailScreen() {
 
   const membersQuery = useQuery({
     queryKey: ['identity', 'users'],
-    queryFn: () => atlas.identity.listUsers(token),
+    queryFn: () => runly.identity.listUsers(token),
     enabled: Boolean(token),
     staleTime: 10 * 60 * 1000,
   });

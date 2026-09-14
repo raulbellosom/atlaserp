@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function useGoogleCalendarQueryContext() {
   const { session } = useAuth();
@@ -33,7 +33,7 @@ export function useGoogleCalendarStatus() {
 
   return useQuery({
     queryKey: getGoogleCalendarStatusQueryKey(queryContext),
-    queryFn: () => atlas.calendar.getGoogleStatus(token),
+    queryFn: () => runly.calendar.getGoogleStatus(token),
     enabled: Boolean(token),
     staleTime: 30 * 1000,
   });
@@ -45,7 +45,7 @@ export function useStartGoogleCalendarConnect() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => atlas.calendar.startGoogleConnect(token),
+    mutationFn: () => runly.calendar.startGoogleConnect(token),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: getGoogleCalendarStatusQueryKey(queryContext),
@@ -66,7 +66,7 @@ export function useFinishGoogleCalendarConnect() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (query) => atlas.calendar.finishGoogleConnect(query, token),
+    mutationFn: (query) => runly.calendar.finishGoogleConnect(query, token),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: getGoogleCalendarStatusQueryKey(queryContext),
@@ -88,7 +88,7 @@ export function useGoogleCalendarList(enabled = true) {
 
   return useQuery({
     queryKey: getGoogleCalendarCalendarsQueryKey(queryContext),
-    queryFn: () => atlas.calendar.listGoogleCalendars(token),
+    queryFn: () => runly.calendar.listGoogleCalendars(token),
     enabled: Boolean(token && enabled),
     staleTime: 60 * 1000,
   });
@@ -100,7 +100,7 @@ export function useGoogleCalendarSources(enabled = true) {
 
   return useQuery({
     queryKey: getGoogleCalendarSourcesQueryKey(queryContext),
-    queryFn: () => atlas.calendar.listGoogleSources(token),
+    queryFn: () => runly.calendar.listGoogleSources(token),
     enabled: Boolean(token && enabled),
     staleTime: 5 * 1000,
     retry: false,
@@ -124,7 +124,7 @@ export function useSaveGoogleCalendarSources() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload) => atlas.calendar.saveGoogleSources(payload, token),
+    mutationFn: (payload) => runly.calendar.saveGoogleSources(payload, token),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: getGoogleCalendarStatusQueryKey(queryContext),
@@ -147,7 +147,7 @@ export function useDisconnectGoogleCalendar() {
 
   return useMutation({
     mutationFn: ({ deleteEvents = false } = {}) =>
-      atlas.calendar.disconnectGoogleCalendar(token, { deleteEvents }),
+      runly.calendar.disconnectGoogleCalendar(token, { deleteEvents }),
     onSuccess: () => {
       // Remove sources + calendars caches immediately so refetchInterval stops polling
       queryClient.removeQueries({

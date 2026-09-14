@@ -5,7 +5,7 @@ import { ChatWindow } from "../components/ChatWindow";
 import { useExternalInbox } from "../hooks/useExternalInbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ------------------------------------------------------------------
 // Utilities
@@ -130,13 +130,13 @@ function ReassignDropdown({ conversationId, currentUserId, onReassigned }) {
 
   const { data } = useQuery({
     queryKey: ["chat-available-operators"],
-    queryFn: () => atlas.chat.listAvailableOperators(token),
+    queryFn: () => runly.chat.listAvailableOperators(token),
     enabled: open && Boolean(token),
     staleTime: 30_000,
   });
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (userId) => atlas.chat.assignOperator(conversationId, userId, token),
+    mutationFn: (userId) => runly.chat.assignOperator(conversationId, userId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-external-inbox"] });
       setOpen(false);
@@ -352,7 +352,7 @@ export function ExternalInboxScreen() {
     setTogglingAvailability(true);
     try {
       const next = !isAvailable;
-      await atlas.chat.toggleAvailability(next, token);
+      await runly.chat.toggleAvailability(next, token);
       setIsAvailable(next);
     } catch { /* non-fatal */ }
     finally { setTogglingAvailability(false); }

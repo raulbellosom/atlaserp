@@ -13,7 +13,7 @@ import {
   TextField,
 } from "@runly/ui";
 
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 
 const CONTACT_TYPES = [
   { value: "customer", label: "Cliente" },
@@ -58,7 +58,7 @@ export function ConvertLeadDialog({
 
   const searchContacts = useCallback(
     async (query) => {
-      const response = await atlas.contacts.picker(token, {
+      const response = await runly.contacts.picker(token, {
         q: query,
         limit: 10,
       });

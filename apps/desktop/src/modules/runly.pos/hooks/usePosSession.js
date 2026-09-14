@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -12,7 +12,7 @@ export function usePosSessions(query = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'sessions', query],
-    queryFn: () => atlas.pos.listSessions(query, token),
+    queryFn: () => runly.pos.listSessions(query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 60 * 1000,
@@ -23,7 +23,7 @@ export function usePosCurrentSession(terminalId) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'sessions', 'current', terminalId],
-    queryFn: () => atlas.pos.getCurrentSession({ terminalId }, token),
+    queryFn: () => runly.pos.getCurrentSession({ terminalId }, token),
     select: (res) => res?.data ?? null,
     enabled: Boolean(token) && Boolean(terminalId),
     staleTime: 30 * 1000,
@@ -35,7 +35,7 @@ export function usePosSession(id) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'sessions', 'detail', id],
-    queryFn: () => atlas.pos.getSession(id, token),
+    queryFn: () => runly.pos.getSession(id, token),
     enabled: Boolean(token) && Boolean(id),
     staleTime: 30 * 1000,
   })
@@ -45,7 +45,7 @@ export function useExpectedCashAmount(sessionId, enabled = true) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'sessions', 'expected-cash', sessionId],
-    queryFn: () => atlas.pos.getExpectedCashAmount(sessionId, token),
+    queryFn: () => runly.pos.getExpectedCashAmount(sessionId, token),
     select: (res) => Number(res?.data?.expectedCashAmount ?? 0),
     enabled: Boolean(token) && Boolean(sessionId) && enabled,
     staleTime: 0,
@@ -56,7 +56,7 @@ export function useOpenPosSession() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.openSession(data, token),
+    mutationFn: (data) => runly.pos.openSession(data, token),
     onMutate: () => ({ toastId: toast.loading('Abriendo caja...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -74,7 +74,7 @@ export function useClosePosSession() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.closeSession(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.closeSession(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Cerrando caja...') }),
     onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -93,7 +93,7 @@ export function useAddCashMovement() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ sessionId, ...data }) => atlas.pos.addCashMovement(sessionId, data, token),
+    mutationFn: ({ sessionId, ...data }) => runly.pos.addCashMovement(sessionId, data, token),
     onMutate: () => ({ toastId: toast.loading('Registrando movimiento...') }),
     onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { Copy, Check, NotebookPen, X, FileDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
 import { useNoteTags, useCreateNoteTag, useSetNoteTags } from '../hooks/useNoteTags.js'
 import { NOTE_BACKGROUND_COLORS } from '../lib/noteColors.js'
@@ -71,7 +71,7 @@ export function NoteSettingsPanel({ note, onUpdate, onPublish, onUnpublish, onTr
       setExporting(true)
       try {
         const [{ scene }, exportMod, imgMod, layerMod] = await Promise.all([
-          atlas.notes.getCanvas(note.id, session?.access_token),
+          runly.notes.getCanvas(note.id, session?.access_token),
           import('../lib/canvasExport.js'),
           import('../lib/canvasImages.js'),
           import('../lib/canvasLayers.js'),

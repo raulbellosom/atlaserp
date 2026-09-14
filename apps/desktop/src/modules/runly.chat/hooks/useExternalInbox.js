@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { subscribeToMultiBroadcast } from "../lib/supabaseRealtime";
 
 export function useExternalInbox(status = "open", search = null) {
@@ -12,7 +12,7 @@ export function useExternalInbox(status = "open", search = null) {
 
   const query = useQuery({
     queryKey: ["chat-external-inbox", status, search],
-    queryFn: () => atlas.chat.listExternalInbox({ status, ...(search ? { search } : {}) }, token),
+    queryFn: () => runly.chat.listExternalInbox({ status, ...(search ? { search } : {}) }, token),
     enabled: Boolean(token),
     staleTime: 15_000,
     refetchInterval: 60_000,

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 export function useCreateConversation() {
   const { session } = useAuth();
@@ -9,7 +9,7 @@ export function useCreateConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => atlas.chat.createConversation(data, token),
+    mutationFn: (data) => runly.chat.createConversation(data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
     },
@@ -22,7 +22,7 @@ export function useAddMembers(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => atlas.chat.addMembers(conversationId, data, token),
+    mutationFn: (data) => runly.chat.addMembers(conversationId, data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
@@ -36,7 +36,7 @@ export function useRemoveMember(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (userId) => atlas.chat.removeMember(conversationId, userId, token),
+    mutationFn: (userId) => runly.chat.removeMember(conversationId, userId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
@@ -56,7 +56,7 @@ export function useDeleteConversation(conversationId) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => atlas.chat.deleteConversation(conversationId, token),
+    mutationFn: () => runly.chat.deleteConversation(conversationId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.removeQueries({ queryKey: ["chat-conversation", conversationId] });

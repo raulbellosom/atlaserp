@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useChannelRoles, useUpdateChannelRole } from "../hooks/useChannelRoles";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
@@ -66,7 +66,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
     queryFn: async () => {
       // GET /projects returns a raw array, not { data: [...] } — see the
       // same note in CreateChannelModal.jsx's equivalent query.
-      const res = await atlas.projects.listProjects(token);
+      const res = await runly.projects.listProjects(token);
       return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
     },
     enabled: Boolean(isChannel && token),
@@ -74,7 +74,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (updates) => atlas.chat.updateConversation(conversationId, updates, token),
+    mutationFn: (updates) => runly.chat.updateConversation(conversationId, updates, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
@@ -83,7 +83,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   });
 
   const linkMutation = useMutation({
-    mutationFn: (linkedProjectId) => atlas.chat.updateConversation(conversationId, {
+    mutationFn: (linkedProjectId) => runly.chat.updateConversation(conversationId, {
       linkedModule: linkedProjectId ? "atlas.projects" : null,
       linkedEntityId: linkedProjectId,
     }, token),
@@ -95,7 +95,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   });
 
   const descriptionMutation = useMutation({
-    mutationFn: (description) => atlas.chat.updateConversation(conversationId, { description }, token),
+    mutationFn: (description) => runly.chat.updateConversation(conversationId, { description }, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversation", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
@@ -110,7 +110,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
       formData.append("file", file);
       formData.append("moduleKey", "atlas.chat");
       formData.append("entityType", "ChatConversation");
-      const uploaded = await atlas.files.upload(formData, token);
+      const uploaded = await runly.files.upload(formData, token);
       return uploaded?.data?.id ?? null;
     },
     onSuccess: (fileId) => {
@@ -132,7 +132,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const callLinkQuery = useQuery({
     queryKey: ["chat-channel-call-link", conversationId],
     queryFn: async () => {
-      const res = await atlas.calls.getLink(conversationId, token);
+      const res = await runly.calls.getLink(conversationId, token);
       return res?.data?.link ?? res?.link ?? null;
     },
     enabled: Boolean(conversationId && token && canManage && conversation?.type !== "direct"),
@@ -147,9 +147,9 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const callAccessMutation = useMutation({
     mutationFn: async (nextOpen) => {
       if (!callLink) {
-        await atlas.calls.createLink(conversationId, token);
+        await runly.calls.createLink(conversationId, token);
       }
-      const res = await atlas.calls.updateLink(conversationId, { requireLobby: !nextOpen }, token);
+      const res = await runly.calls.updateLink(conversationId, { requireLobby: !nextOpen }, token);
       return res?.data?.link ?? res?.link ?? null;
     },
     onSuccess: (link) => {
@@ -164,7 +164,7 @@ export function ChannelGeneralTab({ conversationId, currentUserId }) {
   const { data: fullAvatarUrl } = useQuery({
     queryKey: ["chat-avatar-full-url", conversation?.avatar_file_id],
     queryFn: async () => {
-      const res = await atlas.files.getSignedUrl(conversation.avatar_file_id, token, { variant: "full" });
+      const res = await runly.files.getSignedUrl(conversation.avatar_file_id, token, { variant: "full" });
       return res?.data?.signedUrl ?? null;
     },
     enabled: Boolean(avatarViewerOpen && conversation?.avatar_file_id && token),

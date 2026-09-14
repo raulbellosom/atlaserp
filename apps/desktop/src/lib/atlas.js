@@ -1,7 +1,7 @@
 import { createAtlasClient } from '@runly/sdk'
 import { getApiUrl, setApiUrl } from './runtimeConfig.js'
 
-let currentAtlasClient = null
+let currentRunlyClient = null
 
 // Must match ActiveCompanyProvider.jsx's STORAGE_KEY — duplicated rather than
 // imported to avoid a circular import (that file already imports this one).
@@ -48,26 +48,34 @@ export function getActiveCompanyId() {
   return _activeCompanyId
 }
 
-export function initAtlasClient(url) {
+export function initRunlyClient(url) {
   if (url) {
     setApiUrl(url)
   }
-  currentAtlasClient = createAtlasClient({ baseUrl: getApiUrl(), getActiveCompanyId })
-  return currentAtlasClient
+  currentRunlyClient = createAtlasClient({ baseUrl: getApiUrl(), getActiveCompanyId })
+  return currentRunlyClient
 }
 
-export function getAtlasClient() {
-  if (!currentAtlasClient) {
-    currentAtlasClient = createAtlasClient({ baseUrl: getApiUrl(), getActiveCompanyId })
+export function getRunlyClient() {
+  if (!currentRunlyClient) {
+    currentRunlyClient = createAtlasClient({ baseUrl: getApiUrl(), getActiveCompanyId })
   }
-  return currentAtlasClient
+  return currentRunlyClient
 }
 
-export const atlas = new Proxy(
+// initAtlasClient/getAtlasClient kept as aliases for any caller not yet
+// migrated off the old names.
+export const initAtlasClient = initRunlyClient
+export const getAtlasClient = getRunlyClient
+
+export const runly = new Proxy(
   {},
   {
     get(_target, prop) {
-      return Reflect.get(getAtlasClient(), prop)
+      return Reflect.get(getRunlyClient(), prop)
     },
   },
 )
+
+// Alias for any caller not yet migrated off the old name.
+export const atlas = runly

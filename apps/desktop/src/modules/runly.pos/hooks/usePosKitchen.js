@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -12,7 +12,7 @@ export function usePosStationTickets(stationId, query = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'kitchen', 'tickets', stationId, query],
-    queryFn: () => atlas.pos.listStationTickets(stationId, query, token),
+    queryFn: () => runly.pos.listStationTickets(stationId, query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token) && Boolean(stationId),
     staleTime: 10 * 1000,
@@ -25,7 +25,7 @@ export function useUpdateTicketStatus() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ ticketId, status }) =>
-      atlas.pos.updateTicketStatus(ticketId, { status }, token),
+      runly.pos.updateTicketStatus(ticketId, { status }, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'kitchen'] })
     },
@@ -38,7 +38,7 @@ export function useUpdateTicketLineStatus() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ ticketId, lineId, status }) =>
-      atlas.pos.updateTicketLineStatus(ticketId, lineId, { status }, token),
+      runly.pos.updateTicketLineStatus(ticketId, lineId, { status }, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'kitchen'] })
     },

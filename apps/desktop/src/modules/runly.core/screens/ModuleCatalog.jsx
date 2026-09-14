@@ -57,7 +57,7 @@ import {
 } from "../../../components/ModuleCard";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { UploadModuleSheet } from "./UploadModuleSheet";
 import {
   CATEGORY_LABELS,
@@ -396,7 +396,7 @@ export default function ModuleCatalog() {
 
   const modulesQuery = useQuery({
     queryKey: ["modules", token],
-    queryFn: () => atlas.modules.list(token),
+    queryFn: () => runly.modules.list(token),
     enabled: Boolean(token) && canReadModules,
     staleTime: 60000,
   });
@@ -431,23 +431,23 @@ export default function ModuleCatalog() {
       if (action === "install") {
         const manifest = module.manifest;
         if (!manifest) throw new Error("Manifiesto no disponible.");
-        return atlas.modules.install(manifest, token);
+        return runly.modules.install(manifest, token);
       }
       if (action === "retry-install")
-        return atlas.modules.retryInstall(key, token);
+        return runly.modules.retryInstall(key, token);
       if (action === "clear-error")
-        return atlas.modules.clearError(key, mode ?? "preserve-data", token);
+        return runly.modules.clearError(key, mode ?? "preserve-data", token);
       if (action === "cleanup")
-        return atlas.modules.cleanup(
+        return runly.modules.cleanup(
           key,
           "purge-empty-tables",
           cleanupConfirmation,
           token,
         );
-      if (action === "disable") return atlas.modules.disable(key, token);
-      if (action === "enable") return atlas.modules.enable(key, token);
+      if (action === "disable") return runly.modules.disable(key, token);
+      if (action === "enable") return runly.modules.enable(key, token);
       if (action === "sync-module") {
-        return atlas.modules.sync(token, { autoRepair: true, moduleKey: key });
+        return runly.modules.sync(token, { autoRepair: true, moduleKey: key });
       }
       if (action === "uninstall") {
         if (purge) {
@@ -456,24 +456,24 @@ export default function ModuleCatalog() {
             policy === "purge-owned-tables"
               ? "purge-owned-tables"
               : "purge-data";
-          return atlas.modules.uninstallExplicit(
+          return runly.modules.uninstallExplicit(
             key,
             uninstallMode,
             "ACEPTO",
             token,
           );
         }
-        return atlas.modules.uninstall(key, token);
+        return runly.modules.uninstall(key, token);
       }
       if (action === "purge-orphaned-tables") {
-        return atlas.modules.uninstallExplicit(
+        return runly.modules.uninstallExplicit(
           key,
           "purge-owned-tables",
           "ACEPTO",
           token,
         );
       }
-      if (action === "seed") return atlas.modules.seed(key, token);
+      if (action === "seed") return runly.modules.seed(key, token);
     },
     onMutate: ({ action }) => {
       const loadingLabels = {
@@ -534,7 +534,7 @@ export default function ModuleCatalog() {
 
   const syncCatalogMutation = useMutation({
     mutationFn: (vars) =>
-      atlas.modules.sync(token, { autoRepair: true, ...(vars ?? {}) }),
+      runly.modules.sync(token, { autoRepair: true, ...(vars ?? {}) }),
     onMutate: (vars) => {
       const toastId = toast.loading(
         vars?.moduleKey
@@ -632,7 +632,7 @@ export default function ModuleCatalog() {
       detail: null,
     });
     try {
-      const response = await atlas.modules.getError(module.key, token);
+      const response = await runly.modules.getError(module.key, token);
       const err = response?.data?.lastError;
       const fallback =
         module?.lastError ?? module?.lifecycleConfig?.lastError ?? null;
@@ -787,7 +787,7 @@ export default function ModuleCatalog() {
       setIsPurging(true);
       const toastId = toast.loading(`Purgando ${module.name}...`);
       try {
-        const result = await atlas.modules.purgeModule(module.key, token);
+        const result = await runly.modules.purgeModule(module.key, token);
         if (result?.error) {
           toast.error(result.error, { id: toastId });
           return;
@@ -820,7 +820,7 @@ export default function ModuleCatalog() {
     const orphanQuery = useQuery({
       queryKey: ["module-orphan-tables", module.key],
       queryFn: () =>
-        atlas.modules.uninstallDryRun(module.key, token, "purge-owned-tables"),
+        runly.modules.uninstallDryRun(module.key, token, "purge-owned-tables"),
       enabled: Boolean(couldHaveOrphanedTables && token),
       staleTime: 60000,
       retry: false,

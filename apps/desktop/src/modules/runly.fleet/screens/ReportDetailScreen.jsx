@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()
@@ -153,7 +153,7 @@ export default function ReportDetailScreen() {
 
   const { data: reportData } = useQuery({
     queryKey: ['fleet-report-type', recordId, token],
-    queryFn: () => atlas.fleet.getReport(recordId, token).catch(() => null),
+    queryFn: () => runly.fleet.getReport(recordId, token).catch(() => null),
     enabled: Boolean(recordId && token),
   })
 

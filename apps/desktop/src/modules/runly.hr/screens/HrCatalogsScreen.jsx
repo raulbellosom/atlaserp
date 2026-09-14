@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ── Row skeleton ──────────────────────────────────────────────────────────────
 
@@ -329,11 +329,11 @@ const TABS = [
     label: "Departamentos",
     icon: Building2,
     queryKey: "hr-departments",
-    fetcher: (token) => atlas.hr.listDepartments(token, { limit: 300 }),
-    creator: (data, token) => atlas.hr.createDepartment(data, token),
-    updater: (id, data, token) => atlas.hr.updateDepartment(id, data, token),
+    fetcher: (token) => runly.hr.listDepartments(token, { limit: 300 }),
+    creator: (data, token) => runly.hr.createDepartment(data, token),
+    updater: (id, data, token) => runly.hr.updateDepartment(id, data, token),
     toggler: (id, enabled, token) =>
-      atlas.hr.setDepartmentEnabled(id, enabled, token),
+      runly.hr.setDepartmentEnabled(id, enabled, token),
     createPermission: "hr.department.create",
     updatePermission: "hr.department.update",
     readPermission: "hr.department.read",
@@ -343,11 +343,11 @@ const TABS = [
     label: "Puestos",
     icon: Briefcase,
     queryKey: "hr-job-titles",
-    fetcher: (token) => atlas.hr.listJobTitles(token, { limit: 300 }),
-    creator: (data, token) => atlas.hr.createJobTitle(data, token),
-    updater: (id, data, token) => atlas.hr.updateJobTitle(id, data, token),
+    fetcher: (token) => runly.hr.listJobTitles(token, { limit: 300 }),
+    creator: (data, token) => runly.hr.createJobTitle(data, token),
+    updater: (id, data, token) => runly.hr.updateJobTitle(id, data, token),
     toggler: (id, enabled, token) =>
-      atlas.hr.setJobTitleEnabled(id, enabled, token),
+      runly.hr.setJobTitleEnabled(id, enabled, token),
     createPermission: "hr.job_title.create",
     updatePermission: "hr.job_title.update",
     readPermission: "hr.job_title.read",

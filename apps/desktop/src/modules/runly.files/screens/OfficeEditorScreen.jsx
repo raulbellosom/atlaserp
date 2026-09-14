@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { OfficeDocumentEditor } from '@runly/ui';
 import { toast } from 'sonner';
-import { atlas } from '../../../lib/atlas';
+import { runly } from '../../../lib/atlas';
 import { useAuth } from '../../../auth/AuthProvider';
 
 export default function OfficeEditorScreen() {
@@ -16,7 +16,7 @@ export default function OfficeEditorScreen() {
   const queryClient = useQueryClient();
   const fileId = pathname.match(/\/files\/([^/]+)\/edit\/?$/)?.[1] ?? '';
   const createSession = useCallback(async (id, mode) => {
-    const { data } = await atlas.files.createOfficeSession(id, mode, authToken.current);
+    const { data } = await runly.files.createOfficeSession(id, mode, authToken.current);
     downloadName.current = data.fileName;
     return data;
   }, []);
@@ -28,7 +28,7 @@ export default function OfficeEditorScreen() {
   }, [navigate, saved, state]);
   const download = useCallback(async () => {
     try {
-      const result = await atlas.files.downloadOfficeFile(fileId, authToken.current);
+      const result = await runly.files.downloadOfficeFile(fileId, authToken.current);
       const url = URL.createObjectURL(result);
       const link = document.createElement('a');
       link.href = url;

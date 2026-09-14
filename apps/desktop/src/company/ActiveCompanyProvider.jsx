@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
-import { atlas, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/atlas'
+import { runly, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/atlas'
 import { pickActiveCompany } from './pickActiveCompany.js'
 import { AppLoader } from '../components/AppLoader'
 
@@ -52,7 +52,7 @@ export function ActiveCompanyProvider({ children }) {
 
   const { data, isLoading: membershipsLoading } = useQuery({
     queryKey: ['memberships-me', token],
-    queryFn: () => atlas.memberships.me(token),
+    queryFn: () => runly.memberships.me(token),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })

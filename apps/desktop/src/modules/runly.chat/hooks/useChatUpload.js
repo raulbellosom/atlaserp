@@ -1,5 +1,5 @@
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // iOS Safari sometimes reports empty file.type for QuickTime videos (.MOV) and other formats.
 // Fall back to extension-based detection so the bucket MIME check passes.
@@ -34,7 +34,7 @@ export function useChatUpload(conversationId) {
       ? Math.round(file.voiceDurationMs)
       : undefined;
 
-    const res = await atlas.chat.presignAttachment(
+    const res = await runly.chat.presignAttachment(
       {
         conversationId,
         fileName: file.name,
@@ -62,7 +62,7 @@ export function useChatUpload(conversationId) {
   // Best-effort: the worker's orphan sweep is the backstop.
   async function deleteUpload(attachmentId) {
     if (!attachmentId) return;
-    await atlas.chat.deleteAttachment(attachmentId, session?.access_token);
+    await runly.chat.deleteAttachment(attachmentId, session?.access_token);
   }
 
   return { uploadFile, deleteUpload };

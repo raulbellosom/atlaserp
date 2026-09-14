@@ -15,7 +15,7 @@ import {
   FileSpreadsheet,
   Presentation,
 } from "lucide-react";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { filesError } from "../lib/files-error";
 
 const TYPES = {
@@ -38,7 +38,7 @@ export function CreateDocumentDialog({ format, token, onClose, onCreated }) {
             b.toString(16).padStart(2, "0"),
           ).join(""),
         };
-      return atlas.files.createDocument(
+      return runly.files.createDocument(
         { format, name, requestKey: request.current.key },
         token,
       );

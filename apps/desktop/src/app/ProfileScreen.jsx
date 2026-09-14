@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 
 function toDateInputValue(value) {
   if (!value) return "";
@@ -66,13 +66,13 @@ export function ProfileScreen() {
 
   const profileQuery = useQuery({
     queryKey: ["profile-me"],
-    queryFn: () => atlas.profile.me(token),
+    queryFn: () => runly.profile.me(token),
     enabled: Boolean(token),
   });
 
   const resolveAvatarSignedUrl = useCallback(
     async () => {
-      const res = await atlas.profile.getAvatarSignedUrl(token, { variant: "full" });
+      const res = await runly.profile.getAvatarSignedUrl(token, { variant: "full" });
       return res?.data?.signedUrl ?? null;
     },
     [token],
@@ -141,7 +141,7 @@ export function ProfileScreen() {
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialFormRef.current);
 
   const saveMutation = useMutation({
-    mutationFn: () => atlas.profile.updateMe(form, token),
+    mutationFn: () => runly.profile.updateMe(form, token),
     onSuccess: () => {
       profileQuery.refetch();
       refreshProfile(session);
@@ -157,7 +157,7 @@ export function ProfileScreen() {
   });
 
   const avatarMutation = useMutation({
-    mutationFn: (file) => atlas.profile.uploadAvatar(file, token),
+    mutationFn: (file) => runly.profile.uploadAvatar(file, token),
     onSuccess: () => {
       profileQuery.refetch();
       refreshProfile(session);
@@ -182,7 +182,7 @@ export function ProfileScreen() {
   }
 
   const passwordMutation = useMutation({
-    mutationFn: () => atlas.profile.changePassword(passwordForm, token),
+    mutationFn: () => runly.profile.changePassword(passwordForm, token),
     onSuccess: () => {
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       toast.success("Contraseña actualizada", {

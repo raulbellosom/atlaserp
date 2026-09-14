@@ -30,7 +30,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useFilesExplorer } from "../hooks/useFilesExplorer";
 import { FilesToolbar } from "../components/FilesToolbar";
@@ -48,7 +48,7 @@ import { getFileKind } from "../lib/file-kind";
 
 function useFileIdFromPath(pathname) {
   return useMemo(() => {
-    const match = pathname.match(/\/app\/m\/atlas\.files\/files\/([^/?#]+)/i);
+    const match = pathname.match(/\/app\/m\/runly\.files\/files\/([^/?#]+)/i);
     if (!match?.[1]) return null;
     try {
       return decodeURIComponent(match[1]);
@@ -144,7 +144,7 @@ export default function FilesScreen() {
 
   const filesQuery = useQuery({
     queryKey: ["files-list", session?.user?.id, queryParams],
-    queryFn: () => atlas.files.list(queryParams, token),
+    queryFn: () => runly.files.list(queryParams, token),
     enabled: Boolean(token) && canReadFiles && workspace !== "invitations",
   });
   const files = useMemo(() => filesQuery.data?.data ?? [], [filesQuery.data]);
@@ -216,13 +216,13 @@ export default function FilesScreen() {
   }, [queryIdentity, resetSelection]);
   const routeQuery = useQuery({
     queryKey: ["file-detail", session?.user?.id, routeFileId],
-    queryFn: () => atlas.files.get(routeFileId, token),
+    queryFn: () => runly.files.get(routeFileId, token),
     enabled: Boolean(routeFileId && token && canReadFiles),
     staleTime: 0,
     gcTime: 0,
   });
   const setEnabledMutation = useMutation({
-    mutationFn: ({ id, enabled }) => atlas.files.setEnabled(id, enabled, token),
+    mutationFn: ({ id, enabled }) => runly.files.setEnabled(id, enabled, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["files-list"] });
       setToggleTarget(null);
@@ -230,7 +230,7 @@ export default function FilesScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => atlas.files.delete(id, token),
+    mutationFn: (id) => runly.files.delete(id, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["files-list"] });
       setDeleteTarget(null);
@@ -261,7 +261,7 @@ export default function FilesScreen() {
           formData.append("file", item._file);
           formData.append("moduleKey", "atlas.files");
           formData.append("entityType", "AtlasFile");
-          await atlas.files.upload(formData, token);
+          await runly.files.upload(formData, token);
           setUploadQueue((prev) =>
             prev.map((q) => (q.id === item.id ? { ...q, status: "done" } : q)),
           );
@@ -323,7 +323,7 @@ export default function FilesScreen() {
 
   const renameMutation = useMutation({
     mutationFn: ({ id, originalName }) =>
-      atlas.files.rename(id, { originalName }, token),
+      runly.files.rename(id, { originalName }, token),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["files-list"] });
       setRenameTarget(null);
@@ -333,7 +333,7 @@ export default function FilesScreen() {
 
   const bulkDownloadMutation = useMutation({
     mutationFn: ({ mode }) =>
-      atlas.files.bulkDownload(
+      runly.files.bulkDownload(
         {
           fileIds: explorer.selectedIds,
           mode,
@@ -347,7 +347,7 @@ export default function FilesScreen() {
       if (!file?.id || !token) return null;
       const cached = signedUrlCacheRef.current.get(file.id);
       if (cached) return cached;
-      const response = await atlas.files.getSignedUrl(file.id, token);
+      const response = await runly.files.getSignedUrl(file.id, token);
       const url = response?.data?.signedUrl;
       if (url) {
         signedUrlCacheRef.current.set(file.id, url);
@@ -391,7 +391,7 @@ export default function FilesScreen() {
 
     for (const id of uncachedIds) previewFetchPendingRef.current.add(id);
 
-    atlas.files
+    runly.files
       .batchSignedUrls(uncachedIds, token)
       .then((response) => {
         const urlMap = response?.data ?? {};
@@ -455,7 +455,7 @@ export default function FilesScreen() {
         window.location.protocol === "tauri:" ||
         window.location.hostname === "tauri.localhost";
       const url = native
-        ? (await atlas.files.getAccess(file.id, token))?.data?.shareUrl
+        ? (await runly.files.getAccess(file.id, token))?.data?.shareUrl
         : new URL(
             `/app/m/atlas.files/files/${encodeURIComponent(file.id)}`,
             window.location.origin,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../../auth/AuthProvider";
-import { atlas } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/atlas";
 import { mergeRoomMessages } from "../lib/roomChat";
 
 function unwrap(r) {
@@ -20,7 +20,7 @@ export function useCallRoomMessages(callId, { enabled, liveIncoming = [], publis
   const poll = useCallback(async () => {
     if (!callId || !token || !enabled) return;
     try {
-      const res = unwrap(await atlas.calls.listMessages(callId, sinceRef.current, token));
+      const res = unwrap(await runly.calls.listMessages(callId, sinceRef.current, token));
       const incoming = res?.messages ?? [];
       if (incoming.length) {
         setDbMessages((prev) => {
@@ -58,7 +58,7 @@ export function useCallRoomMessages(callId, { enabled, liveIncoming = [], publis
     };
     publishData?.({ type: "chat", ...echo });
     try {
-      const res = unwrap(await atlas.calls.sendMessage(callId, text, token));
+      const res = unwrap(await runly.calls.sendMessage(callId, text, token));
       if (res?.message) {
         setDbMessages((prev) => (prev.some((m) => m.id === res.message.id) ? prev : [...prev, res.message]));
       }

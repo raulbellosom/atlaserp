@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { getLegacyModuleKey } from '@runly/core';
 import { useQuery } from "@tanstack/react-query";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { getAvailableModules, mergeRuntimeModules } from "../lib/runtimeModules";
 import { useAuth } from "../auth/AuthProvider";
 import { useBrandingStore } from "../stores/branding.js";
@@ -14,7 +14,7 @@ export function useRuntimeModules() {
 
   const modulesQuery = useQuery({
     queryKey: ["runtime-modules", authUserId],
-    queryFn: () => atlas.runtime.modules(token),
+    queryFn: () => runly.runtime.modules(token),
     enabled: Boolean(token),
     staleTime: 60000,
   });

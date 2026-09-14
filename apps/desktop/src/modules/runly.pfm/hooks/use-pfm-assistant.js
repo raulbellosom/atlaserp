@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.pfm/hooks/use-pfm-assistant.js
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function useToken() {
   const { session } = useAuth();
@@ -18,7 +18,7 @@ export function useAssistantStatus() {
   const token = useToken();
   return useQuery({
     queryKey: K.status,
-    queryFn: () => atlas.pfm.assistant.status(token),
+    queryFn: () => runly.pfm.assistant.status(token),
     enabled: Boolean(token),
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -31,7 +31,7 @@ export function useAssistantThreads(enabled = true) {
   const token = useToken();
   return useQuery({
     queryKey: K.threads,
-    queryFn: () => atlas.pfm.assistant.listThreads(token),
+    queryFn: () => runly.pfm.assistant.listThreads(token),
     enabled: Boolean(token && enabled),
     select: (res) => res?.data ?? [],
   });
@@ -41,7 +41,7 @@ export function useAssistantThread(threadId) {
   const token = useToken();
   return useQuery({
     queryKey: K.thread(threadId),
-    queryFn: () => atlas.pfm.assistant.getThread(threadId, token),
+    queryFn: () => runly.pfm.assistant.getThread(threadId, token),
     enabled: Boolean(token && threadId),
     select: (res) => res?.data ?? null,
   });
@@ -51,7 +51,7 @@ export function useSendAssistantMessage(threadId) {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (content) => atlas.pfm.assistant.sendMessage(threadId, content, token),
+    mutationFn: (content) => runly.pfm.assistant.sendMessage(threadId, content, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: K.thread(threadId) });
       qc.invalidateQueries({ queryKey: K.threads });
@@ -63,7 +63,7 @@ export function useCreateAssistantThread() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => atlas.pfm.assistant.createThread(token),
+    mutationFn: () => runly.pfm.assistant.createThread(token),
     onSuccess: () => qc.invalidateQueries({ queryKey: K.threads }),
   });
 }
@@ -72,7 +72,7 @@ export function useDeleteAssistantThread() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => atlas.pfm.assistant.deleteThread(id, token),
+    mutationFn: (id) => runly.pfm.assistant.deleteThread(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: K.threads }),
   });
 }

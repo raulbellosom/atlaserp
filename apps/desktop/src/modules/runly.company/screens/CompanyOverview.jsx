@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 const COMPANY_TYPE_LABELS = {
   sa_de_cv: "SA de CV",
@@ -161,17 +161,17 @@ export default function CompanyOverview() {
 
   const profileQuery = useQuery({
     queryKey: ["company-profile"],
-    queryFn: () => atlas.company.getProfile(token),
+    queryFn: () => runly.company.getProfile(token),
     enabled: Boolean(token),
   });
   const addressQuery = useQuery({
     queryKey: ["company-address"],
-    queryFn: () => atlas.company.getAddress(token),
+    queryFn: () => runly.company.getAddress(token),
     enabled: Boolean(token),
   });
   const brandingQuery = useQuery({
     queryKey: ["company-branding"],
-    queryFn: () => atlas.company.getBranding(token),
+    queryFn: () => runly.company.getBranding(token),
     enabled: Boolean(token),
   });
 

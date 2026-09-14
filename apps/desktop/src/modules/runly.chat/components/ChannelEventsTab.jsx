@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { EmptyState, ErrorState, Skeleton } from "@runly/ui";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // Same source-filter idea as EntityReferencePicker's calendar_event case:
 // listEvents requires start/end, so this uses a fixed 90-days-back /
@@ -40,7 +40,7 @@ export function ChannelEventsTab({ conversationId }) {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["channel-events", conversationId],
-    queryFn: () => atlas.calendar.listEvents(token, {
+    queryFn: () => runly.calendar.listEvents(token, {
       start, end, source_module: "atlas.chat", source_entity_id: conversationId,
     }),
     enabled: Boolean(token && conversationId),

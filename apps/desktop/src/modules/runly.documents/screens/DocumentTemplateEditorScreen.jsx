@@ -20,7 +20,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 import {
   getLeadStatusLabel,
   getLeadStatusVariant,
@@ -61,7 +61,7 @@ function LeadPickerDialog({ token, selectedId, onSelect }) {
 
   const leadsQuery = useQuery({
     queryKey: ["growth", "leads", "picker"],
-    queryFn: () => atlas.growth.listLeads(token, { page: 1, pageSize: 100, enabled: true }),
+    queryFn: () => runly.growth.listLeads(token, { page: 1, pageSize: 100, enabled: true }),
     enabled: Boolean(token),
     staleTime: 60_000,
   });
@@ -221,7 +221,7 @@ function EditorWorkspace({ template, version, variables, token, canPublish }) {
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      atlas.documents.updateVersion(
+      runly.documents.updateVersion(
         template.id,
         version.id,
         { blocks, updatedAt: version.updatedAt },
@@ -236,7 +236,7 @@ function EditorWorkspace({ template, version, variables, token, canPublish }) {
 
   const previewMutation = useMutation({
     mutationFn: () =>
-      atlas.documents.preview(
+      runly.documents.preview(
         template.id,
         { sourceId, versionId: version.id },
         token,
@@ -253,7 +253,7 @@ function EditorWorkspace({ template, version, variables, token, canPublish }) {
 
   const publishMutation = useMutation({
     mutationFn: () =>
-      atlas.documents.publishVersion(
+      runly.documents.publishVersion(
         template.id,
         version.id,
         { updatedAt: version.updatedAt },
@@ -378,19 +378,19 @@ export default function DocumentTemplateEditorScreen() {
 
   const templateQuery = useQuery({
     queryKey: ["documents", "template", id],
-    queryFn: () => atlas.documents.getTemplate(id, token),
+    queryFn: () => runly.documents.getTemplate(id, token),
     enabled: Boolean(token && id),
     staleTime: 30_000,
   });
   const versionsQuery = useQuery({
     queryKey: ["documents", "versions", id],
-    queryFn: () => atlas.documents.listVersions(id, token),
+    queryFn: () => runly.documents.listVersions(id, token),
     enabled: Boolean(token && id),
     staleTime: 15_000,
   });
   const schemaQuery = useQuery({
     queryKey: ["documents", "provider", templateQuery.data?.sourceType],
-    queryFn: () => atlas.documents.getProviderSchema(templateQuery.data.sourceType, token),
+    queryFn: () => runly.documents.getProviderSchema(templateQuery.data.sourceType, token),
     enabled: Boolean(token && templateQuery.data?.sourceType),
     staleTime: 5 * 60_000,
   });
@@ -399,7 +399,7 @@ export default function DocumentTemplateEditorScreen() {
       const published = versionsQuery.data?.find(
         (version) => version.id === templateQuery.data?.publishedVersionId,
       );
-      return atlas.documents.createVersion(
+      return runly.documents.createVersion(
         id,
         { blocks: published?.blocks ?? STARTER_BLOCKS },
         token,

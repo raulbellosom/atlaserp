@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
 } from "@runly/ui";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 
 function timeAgo(date) {
   const diff = Date.now() - new Date(date).getTime();
@@ -49,7 +49,7 @@ export function NotificationBell({
 
   const { data } = useQuery({
     queryKey: ["notifications"],
-    queryFn: () => atlas.notifications.list(token, { unreadOnly: false, limit: 20 }),
+    queryFn: () => runly.notifications.list(token, { unreadOnly: false, limit: 20 }),
     enabled: Boolean(token),
     refetchInterval: 30_000,
     staleTime: 10_000,
@@ -58,7 +58,7 @@ export function NotificationBell({
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'bell-unread'],
-    queryFn: () => atlas.notifications.list(token, { unreadOnly: true, limit: 10 }),
+    queryFn: () => runly.notifications.list(token, { unreadOnly: true, limit: 10 }),
     enabled: Boolean(token),
     refetchInterval: 30_000,
     staleTime: 10_000,
@@ -72,13 +72,13 @@ export function NotificationBell({
   const recent = [...unread, ...notifications.filter((n) => !unreadIds.has(n.id))].slice(0, 10);
 
   const markAllRead = useMutation({
-    mutationFn: () => atlas.notifications.markAllRead(token),
+    mutationFn: () => runly.notifications.markAllRead(token),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
   const markOneRead = useMutation({
-    mutationFn: (id) => atlas.notifications.markRead(token, id),
+    mutationFn: (id) => runly.notifications.markRead(token, id),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });

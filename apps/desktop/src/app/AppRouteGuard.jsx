@@ -4,13 +4,13 @@ import { useAuth } from "../auth/AuthProvider";
 import { LoginScreen } from "../auth/LoginScreen";
 import { ApiErrorScreen } from "../components/ApiErrorScreen";
 import { AppLoader } from "../components/AppLoader";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { SetupWizard } from "../setup/SetupWizard";
 
 function useInstanceStatus() {
   return useQuery({
     queryKey: ["instance-status"],
-    queryFn: atlas.instance.status,
+    queryFn: runly.instance.status,
     retry: 1,
     staleTime: 30_000,
     gcTime: 60_000,

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, renderMention
 import { Search, Forward, Check, FileText, Image as ImageIcon, Video as VideoIcon, Music } from "lucide-react";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function getConvAvatar(conv, currentUserId) {
   if (conv.avatarUrl) return conv.avatarUrl;
@@ -183,7 +183,7 @@ export function ForwardMessageModal({ open, onClose, messageIds = [], sourceMess
 
     setIsSending(true);
     try {
-      await atlas.chat.forwardMessages({ messageIds, targetConversationIds }, token);
+      await runly.chat.forwardMessages({ messageIds, targetConversationIds }, token);
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       for (const id of targetConversationIds) {
         queryClient.invalidateQueries({ queryKey: ["chat-messages", id] });

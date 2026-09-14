@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function useToken() {
   const { session } = useAuth()
@@ -12,7 +12,7 @@ export function usePosActiveMap(outletId) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'tables', 'active-map', outletId],
-    queryFn: () => atlas.pos.getActiveMap(outletId ? { outletId } : {}, token),
+    queryFn: () => runly.pos.getActiveMap(outletId ? { outletId } : {}, token),
     select: (res) => res?.data ?? null,
     enabled: Boolean(token),
     staleTime: 15 * 1000,
@@ -24,7 +24,7 @@ export function usePosFloors(query = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'floors', query],
-    queryFn: () => atlas.pos.listFloors(query, token),
+    queryFn: () => runly.pos.listFloors(query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
@@ -36,7 +36,7 @@ export function useUpdateTableStatus() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ tableId, status }) =>
-      atlas.pos.updateTableStatus(tableId, { status }, token),
+      runly.pos.updateTableStatus(tableId, { status }, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
       qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
@@ -50,7 +50,7 @@ export function useUpdateTableWaiter() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ tableId, waiterId }) =>
-      atlas.pos.assignTableWaiter(tableId, { waiterId }, token),
+      runly.pos.assignTableWaiter(tableId, { waiterId }, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'tables'] })
       qc.invalidateQueries({ queryKey: ['pos', 'floors', 'detail'] })
@@ -63,7 +63,7 @@ export function usePosFloorDetail(id, { refetch = false, myTablesOnly = false } 
   const token = useToken()
   return useQuery({
     queryKey: ['pos', 'floors', 'detail', id, myTablesOnly],
-    queryFn: () => atlas.pos.getFloor(id, myTablesOnly ? { myTablesOnly: true } : {}, token),
+    queryFn: () => runly.pos.getFloor(id, myTablesOnly ? { myTablesOnly: true } : {}, token),
     select: (res) => res?.data ?? res,
     enabled: Boolean(token) && Boolean(id),
     staleTime: 15 * 1000,
@@ -75,7 +75,7 @@ export function useUpdatePosFloor() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.pos.updateFloor(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.pos.updateFloor(id, data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando plano...') }),
     onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -94,7 +94,7 @@ export function useCreatePosFloor() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.pos.createFloor(data, token),
+    mutationFn: (data) => runly.pos.createFloor(data, token),
     onMutate: () => ({ toastId: toast.loading('Creando plano...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -112,7 +112,7 @@ export function useSaveFloorLayout() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, elements }) => atlas.pos.saveFloorLayout(id, { elements }, token),
+    mutationFn: ({ id, elements }) => runly.pos.saveFloorLayout(id, { elements }, token),
     onMutate: () => ({ toastId: toast.loading('Guardando plano...') }),
     onSuccess: (_, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -131,7 +131,7 @@ export function usePublishFloor() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => atlas.pos.publishFloor(id, token),
+    mutationFn: (id) => runly.pos.publishFloor(id, token),
     onMutate: () => ({ toastId: toast.loading('Publicando plano...') }),
     onSuccess: (_, __, ctx) => {
       toast.dismiss(ctx?.toastId)

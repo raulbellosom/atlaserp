@@ -7,7 +7,7 @@ import {
 import { Plus, Pencil, Trash2, Hash, LayoutTemplate } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ------------------------------------------------------------------
 // Template form dialog (create + edit)
@@ -35,8 +35,8 @@ function TemplateFormDialog({ open, onClose, initial }) {
   const { mutate, isPending } = useMutation({
     mutationFn: (data) =>
       isEdit
-        ? atlas.chat.updateTemplate(initial.id, data, token)
-        : atlas.chat.createTemplate(data, token),
+        ? runly.chat.updateTemplate(initial.id, data, token)
+        : runly.chat.createTemplate(data, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-templates"] });
       onClose();
@@ -175,13 +175,13 @@ export function ChatTemplatesScreen() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["chat-templates"],
-    queryFn: () => atlas.chat.listTemplates(token),
+    queryFn: () => runly.chat.listTemplates(token),
     enabled: Boolean(token),
     staleTime: 30_000,
   });
 
   const { mutate: deleteTemplate, isPending: isDeleting } = useMutation({
-    mutationFn: (id) => atlas.chat.deleteTemplate(id, token),
+    mutationFn: (id) => runly.chat.deleteTemplate(id, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-templates"] });
       setDeleteTarget(null);

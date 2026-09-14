@@ -17,7 +17,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { usePwaManifest } from "../hooks/usePwaManifest.js";
 import { usePwaInstall } from "../hooks/usePwaInstall.js";
 import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
-import { atlas } from '../lib/atlas.js'
+import { runly } from '../lib/atlas.js'
 import { FloatingChatHub } from '../modules/runly.chat/components/FloatingChatHub.jsx'
 import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
 import { useServiceWorkerNotifications } from './useServiceWorkerNotifications.js'
@@ -92,7 +92,7 @@ export function AtlasApp() {
 
   const { data: instanceConfigData } = useQuery({
     queryKey: ['instance-config'],
-    queryFn: () => atlas.instanceConfig.get(session?.access_token),
+    queryFn: () => runly.instanceConfig.get(session?.access_token),
     enabled: Boolean(session?.access_token),
     staleTime: 10 * 60 * 1000,
   })
@@ -103,7 +103,7 @@ export function AtlasApp() {
   }, [instanceConfigData?.data?.instanceName])
   const { moduleMap, isPending: modulesLoading } = useRuntimeModules();
   const apiBaseUrl = getApiUrl();
-  const handleTransportReady = useCallback((t) => atlas.setOfflineTransport(t), [])
+  const handleTransportReady = useCallback((t) => runly.setOfflineTransport(t), [])
 
   // Module key derived directly from URL — available even before moduleMap loads
   const moduleKeyFromPath = useMemo(() => {

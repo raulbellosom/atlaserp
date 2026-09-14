@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function unwrap(r) { return r?.data ?? r; }
 
@@ -19,6 +19,6 @@ export function useConversationRecordings(conversationId, enabled = true) {
       const rows = unwrap(query.state.data) ?? [];
       return rows.some((r) => ["STARTING", "ACTIVE", "PROCESSING"].includes(r.status)) ? 8000 : false;
     },
-    queryFn: () => atlas.calls.listRecordings(conversationId, session.access_token),
+    queryFn: () => runly.calls.listRecordings(conversationId, session.access_token),
   });
 }

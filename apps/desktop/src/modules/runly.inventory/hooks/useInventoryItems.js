@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { atlas } from '../../../lib/atlas'
+import { runly } from '../../../lib/atlas'
 
 function loadingMutation(msg) {
   return {
@@ -22,7 +22,7 @@ export function useInventoryItems(params = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'items', params],
-    queryFn: () => atlas.inventory.listItems(params, token),
+    queryFn: () => runly.inventory.listItems(params, token),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -35,7 +35,7 @@ export function useInventoryItem(id) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'items', id],
-    queryFn: () => atlas.inventory.getItem(id, token),
+    queryFn: () => runly.inventory.getItem(id, token),
     enabled: Boolean(token) && Boolean(id),
     staleTime: 5 * 60 * 1000,
   })
@@ -47,7 +47,7 @@ export function useCreateInventoryItem() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => atlas.inventory.createItem(data, token),
+    mutationFn: (data) => runly.inventory.createItem(data, token),
     ...loadingMutation('Creando activo...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -62,7 +62,7 @@ export function useUpdateInventoryItem() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...data }) => atlas.inventory.updateItem(id, data, token),
+    mutationFn: ({ id, ...data }) => runly.inventory.updateItem(id, data, token),
     ...loadingMutation('Guardando activo...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -80,7 +80,7 @@ export function useDeleteInventoryItem() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id) => atlas.inventory.deleteItem(id, token),
+    mutationFn: (id) => runly.inventory.deleteItem(id, token),
     ...loadingMutation('Eliminando activo...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -95,7 +95,7 @@ export function useAssignInventoryItem() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ itemId, ...assignData }) => atlas.inventory.assignItem(itemId, assignData, token),
+    mutationFn: ({ itemId, ...assignData }) => runly.inventory.assignItem(itemId, assignData, token),
     ...loadingMutation('Asignando activo...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -113,7 +113,7 @@ export function useReturnInventoryItem() {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ itemId, ...returnData }) => atlas.inventory.returnItem(itemId, returnData, token),
+    mutationFn: ({ itemId, ...returnData }) => runly.inventory.returnItem(itemId, returnData, token),
     ...loadingMutation('Registrando devolucion...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -131,7 +131,7 @@ export function useInventoryItemAssignments(itemId) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'items', itemId, 'assignments'],
-    queryFn: () => atlas.inventory.getItemAssignments(itemId, token),
+    queryFn: () => runly.inventory.getItemAssignments(itemId, token),
     enabled: Boolean(token) && Boolean(itemId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -144,7 +144,7 @@ export function useInventoryItemsByEmployee(employeeId) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'items', 'by-employee', employeeId],
-    queryFn: () => atlas.inventory.getItemsByEmployee(employeeId, token),
+    queryFn: () => runly.inventory.getItemsByEmployee(employeeId, token),
     enabled: Boolean(token) && Boolean(employeeId),
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -157,7 +157,7 @@ export function useInventoryAssignments(params = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'assignments', params],
-    queryFn: () => atlas.inventory.listAssignments(params, token),
+    queryFn: () => runly.inventory.listAssignments(params, token),
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,

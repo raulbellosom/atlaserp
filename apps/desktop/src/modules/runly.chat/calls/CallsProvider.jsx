@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { native } from '../../../native/index.js';
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import {
   requestDesktopAttention,
   showSystemNotification,
@@ -180,7 +180,7 @@ export function CallsProvider({ children }) {
   }, [incomingCall?.id]);
 
   const fetchCall = useCallback(async (callId) => {
-    const response = await atlas.calls.get(callId, token);
+    const response = await runly.calls.get(callId, token);
     return unwrap(response);
   }, [token]);
 
@@ -216,7 +216,7 @@ export function CallsProvider({ children }) {
     if (busyNoticeRef.current.size > 100) busyNoticeRef.current.clear();
     busyNoticeRef.current.add(callId);
     toast.info("Otra persona intento llamarte mientras estabas ocupado.");
-    atlas.calls.decline(callId, token).catch(() => {});
+    runly.calls.decline(callId, token).catch(() => {});
     return true;
   }, [token]);
 
@@ -252,7 +252,7 @@ export function CallsProvider({ children }) {
 
   const syncCurrentCall = useCallback(async () => {
     if (!token || !userProfile?.id) return null;
-    const current = unwrap(await atlas.calls.getCurrent(token));
+    const current = unwrap(await runly.calls.getCurrent(token));
     if (!current?.call) {
       if (incomingRef.current) {
         dismissSystemCallNotification(incomingRef.current.id).catch(() => {});
@@ -278,7 +278,7 @@ export function CallsProvider({ children }) {
       if (joiningCallRef.current === current.call.id) return current;
       joiningCallRef.current = current.call.id;
       try {
-        connectWithResponse(await atlas.calls.join(current.call.id, token));
+        connectWithResponse(await runly.calls.join(current.call.id, token));
       } finally {
         joiningCallRef.current = null;
       }
@@ -293,7 +293,7 @@ export function CallsProvider({ children }) {
 
     async function bootstrap(attempt = 0) {
       try {
-        const status = unwrap(await atlas.calls.getConfig(token));
+        const status = unwrap(await runly.calls.getConfig(token));
         if (cancelled) return;
         setConfig({ ...status, loading: false });
         if (status?.enabled) await syncCurrentCall();
@@ -368,7 +368,7 @@ export function CallsProvider({ children }) {
     startingCallRef.current = true;
     setIsStarting(true);
     try {
-      const response = await atlas.calls.create({ conversationId, kind, calendarEventId }, token);
+      const response = await runly.calls.create({ conversationId, kind, calendarEventId }, token);
       if (!connectWithResponse(response)) throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
       return true;
     } catch (error) {
@@ -376,7 +376,7 @@ export function CallsProvider({ children }) {
       const existingCallId = details?.callId;
       if (error?.status === 409 && existingCallId && details?.code !== "caller_busy") {
         try {
-          if (!connectWithResponse(await atlas.calls.join(existingCallId, token))) {
+          if (!connectWithResponse(await runly.calls.join(existingCallId, token))) {
             throw new Error("El servidor no devolvió los datos para entrar a la llamada.");
           }
           toast.info("Te uniste a la llamada que ya estaba en curso.");
@@ -405,7 +405,7 @@ export function CallsProvider({ children }) {
     joiningCallRef.current = callId;
     setIsStarting(true);
     try {
-      connectWithResponse(await atlas.calls.join(callId, token));
+      connectWithResponse(await runly.calls.join(callId, token));
     } catch (error) {
       releaseCallForDevice(callId);
       toast.error(error?.message || "No se pudo contestar la llamada.");
@@ -425,7 +425,7 @@ export function CallsProvider({ children }) {
     releaseCallForDevice(callId);
     dismissSystemCallNotification(callId).catch(() => {});
     try {
-      await atlas.calls.decline(callId, token);
+      await runly.calls.decline(callId, token);
     } catch (error) {
       toast.error(error?.message || "No se pudo rechazar la llamada.");
     }
@@ -440,8 +440,8 @@ export function CallsProvider({ children }) {
     releaseCallForDevice(callId);
     if (!callId) return;
     try {
-      if (isInitiator) await atlas.calls.end(callId, token);
-      else await atlas.calls.leave(callId, token);
+      if (isInitiator) await runly.calls.end(callId, token);
+      else await runly.calls.leave(callId, token);
       if (unanswered) toast.info("Nadie respondio la llamada.");
     } catch (error) {
       toast.error(error?.message || "No se pudo actualizar el estado de la llamada.");

@@ -19,7 +19,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 import { GrowthAnalyticsReport } from "../components/GrowthAnalyticsReports.jsx";
 import {
   ANALYTICS_RANGE_OPTIONS,
@@ -29,14 +29,14 @@ import {
 } from "../lib/growth-analytics.js";
 
 const REPORT_LOADERS = {
-  overview: (token, query) => atlas.growth.getAnalyticsOverview(token, query),
+  overview: (token, query) => runly.growth.getAnalyticsOverview(token, query),
   acquisition: (token, query) =>
-    atlas.growth.getAnalyticsAcquisition(token, query),
-  content: (token, query) => atlas.growth.getAnalyticsContent(token, query),
+    runly.growth.getAnalyticsAcquisition(token, query),
+  content: (token, query) => runly.growth.getAnalyticsContent(token, query),
   conversions: (token, query) =>
-    atlas.growth.getAnalyticsConversions(token, query),
+    runly.growth.getAnalyticsConversions(token, query),
   retention: (token, query) =>
-    atlas.growth.getAnalyticsRetention(token, query),
+    runly.growth.getAnalyticsRetention(token, query),
 };
 
 function downloadBlob(blob, filename) {
@@ -70,7 +70,7 @@ export default function GrowthAnalyticsScreen() {
     isLoading: sitesLoading,
   } = useQuery({
     queryKey: ["growth", "analytics", "sites"],
-    queryFn: () => atlas.growth.listAnalyticsSites(token),
+    queryFn: () => runly.growth.listAnalyticsSites(token),
     enabled: Boolean(token && canRead),
     staleTime: 5 * 60_000,
   });
@@ -113,7 +113,7 @@ export default function GrowthAnalyticsScreen() {
 
   async function handleExport() {
     try {
-      const blob = await atlas.growth.exportAnalyticsCsv(token, {
+      const blob = await runly.growth.exportAnalyticsCsv(token, {
         ...query,
         report: filters.tab,
       });

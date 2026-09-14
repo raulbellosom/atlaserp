@@ -6,7 +6,7 @@ import {
 import { Copy, Check, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
 
 function unwrap(r) {
@@ -31,7 +31,7 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
   useEffect(() => {
     if (!open || !conversationId || !token) return;
     setLoading(true);
-    atlas.calls.createLink(conversationId, token)
+    runly.calls.createLink(conversationId, token)
       .then((r) => setLink(unwrap(r)?.link ?? null))
       .catch((e) => toast.error(e?.message || "No se pudo generar el enlace."))
       .finally(() => setLoading(false));
@@ -53,7 +53,7 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
 
   async function patch(next) {
     try {
-      const r = await atlas.calls.updateLink(conversationId, next, token);
+      const r = await runly.calls.updateLink(conversationId, next, token);
       setLink(unwrap(r)?.link ?? link);
     } catch (e) { toast.error(e?.message || "No se pudo actualizar."); }
   }
@@ -73,8 +73,8 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
   async function regenerate() {
     setLoading(true);
     try {
-      await atlas.calls.revokeLink(conversationId, token);
-      const r = await atlas.calls.createLink(conversationId, token);
+      await runly.calls.revokeLink(conversationId, token);
+      const r = await runly.calls.createLink(conversationId, token);
       setLink(unwrap(r)?.link ?? null);
       toast.success("Enlace regenerado.");
     } catch (e) {
@@ -86,7 +86,7 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
 
   async function revoke() {
     try {
-      await atlas.calls.revokeLink(conversationId, token);
+      await runly.calls.revokeLink(conversationId, token);
       setLink(null);
       setConfirmRevoke(false);
       toast.success("Enlace revocado.");
@@ -96,7 +96,7 @@ export function CallShareDialog({ open, onOpenChange, conversationId }) {
   async function sendInvites() {
     if (!emails.length) return;
     try {
-      const r = unwrap(await atlas.calls.sendInvites(conversationId, emails, token));
+      const r = unwrap(await runly.calls.sendInvites(conversationId, emails, token));
       setInviteResult(r);
       setEmails([]);
       const { notice } = summarizeInviteResult(r);

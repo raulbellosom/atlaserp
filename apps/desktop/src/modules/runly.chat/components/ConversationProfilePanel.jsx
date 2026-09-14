@@ -20,7 +20,7 @@ import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useAuth } from "../../../auth/AuthProvider";
 
 function SectionHeader({ icon: Icon, label }) {
@@ -167,7 +167,7 @@ export function ConversationProfilePanel({
       if (!token) return null;
       if (type === "direct") {
         if (!conversationId || !otherMemberForHero?.userId) return null;
-        const res = await atlas.chat.getMemberAvatarSignedUrl(
+        const res = await runly.chat.getMemberAvatarSignedUrl(
           conversationId,
           otherMemberForHero.userId,
           token,
@@ -176,7 +176,7 @@ export function ConversationProfilePanel({
         return res?.data?.signedUrl ?? null;
       }
       if (!heroAvatarFileId) return null;
-      const res = await atlas.files.getSignedUrl(heroAvatarFileId, token, { variant });
+      const res = await runly.files.getSignedUrl(heroAvatarFileId, token, { variant });
       return res?.data?.signedUrl ?? null;
     },
     [type, conversationId, otherMemberForHero?.userId, heroAvatarFileId, session?.access_token],

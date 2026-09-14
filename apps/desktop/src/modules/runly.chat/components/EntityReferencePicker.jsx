@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Maximize2 } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, SelectField, ComboboxField, SearchInput } from "@runly/ui";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { isImageMime } from "../lib/chatUtils";
 import { FileTypeIcon } from "./ChatFilesGallery";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
@@ -31,7 +31,7 @@ const ENTITY_TYPES = [
 async function fetchOptions(entityType, token) {
   if (entityType === "contact") {
     // Dedicated lightweight picker endpoint (server clamps limit to 30).
-    const res = await atlas.contacts.picker(token, { limit: 100 });
+    const res = await runly.contacts.picker(token, { limit: 100 });
     return (res?.data ?? []).map((c) => ({ label: c.name, value: c.id }));
   }
   if (entityType === "file") {
@@ -40,7 +40,7 @@ async function fetchOptions(entityType, token) {
     // FilePickerTile below) rather than reusing the full-resolution signedUrl
     // this listing embeds — that URL is meant for direct downloads/link-outs,
     // not for rendering a grid of dozens of preview tiles at once.
-    const res = await atlas.files.list({ pageSize: 100 }, token);
+    const res = await runly.files.list({ pageSize: 100 }, token);
     return (res?.data ?? []).map((f) => ({
       label: f.originalName,
       value: f.id,
@@ -52,14 +52,14 @@ async function fetchOptions(entityType, token) {
     // The SDK's listEmployees only forwards q/status/enabled/limit — NOT
     // pageSize (silently dropped) — so `limit` is used explicitly here
     // rather than relying on the server's own default `limit` fallback.
-    const res = await atlas.hr.listEmployees(token, { limit: 100 });
+    const res = await runly.hr.listEmployees(token, { limit: 100 });
     return (res?.data ?? []).map((e) => ({ label: `${e.firstName} ${e.lastName}`.trim(), value: e.id }));
   }
   if (entityType === "ledger_account") {
     // No server-side search/filter param exists on this endpoint — fetch the
     // full list once (typically small per company) and let ComboboxField's
     // own client-side filter narrow it.
-    const res = await atlas.ledger.listAccounts(token, {});
+    const res = await runly.ledger.listAccounts(token, {});
     return (res?.data ?? []).map((a) => ({ label: a.bank ? `${a.name} · ${a.bank}` : a.name, value: a.id }));
   }
   if (entityType === "project") {
@@ -67,7 +67,7 @@ async function fetchOptions(entityType, token) {
     // `c.json(projects)`, not `{ data: [...] }` — unlike contact/hr_employee/
     // ledger_account above. `res?.data ?? res ?? []` covers both shapes, same
     // defensive pattern ProjectsScreen.jsx already uses for this same call.
-    const res = await atlas.projects.listProjects(token);
+    const res = await runly.projects.listProjects(token);
     return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
   }
   if (entityType === "calendar_event") {
@@ -78,7 +78,7 @@ async function fetchOptions(entityType, token) {
     const now = Date.now();
     const start = new Date(now - 90 * 86400000).toISOString();
     const end = new Date(now + 365 * 86400000).toISOString();
-    const res = await atlas.calendar.listEvents(token, { start, end });
+    const res = await runly.calendar.listEvents(token, { start, end });
     return (res ?? []).map((e) => ({ label: e.title, value: e.id }));
   }
   return [];
@@ -260,7 +260,7 @@ function TaskPickerCascade({ token, onPick }) {
     queryFn: async () => {
       // Same unwrapped-array response as the `project` fetchOptions case
       // above — see the comment there.
-      const res = await atlas.projects.listProjects(token);
+      const res = await runly.projects.listProjects(token);
       return (res?.data ?? res ?? []).map((p) => ({ label: p.name, value: p.id }));
     },
     enabled: Boolean(token),
@@ -270,7 +270,7 @@ function TaskPickerCascade({ token, onPick }) {
   const tasksQuery = useQuery({
     queryKey: ["chat-entity-ref-task-tasks", projectId, token],
     queryFn: async () => {
-      const res = await atlas.projects.listTasks(projectId, {}, token);
+      const res = await runly.projects.listTasks(projectId, {}, token);
       return (res?.data ?? res ?? []).map((t) => ({ label: t.title, value: t.id }));
     },
     enabled: Boolean(projectId && token),

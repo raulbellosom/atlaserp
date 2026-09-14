@@ -13,7 +13,7 @@ import {
 import { X, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { UserAvatar, UserPickerItem, UserListSkeleton } from "./UserPicker";
 
 export function CreateChatModal({ open, onClose, onCreated }) {
@@ -27,7 +27,7 @@ export function CreateChatModal({ open, onClose, onCreated }) {
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ["users-for-chat-picker"],
-    queryFn: () => atlas.identity.listUsers(token, { pageSize: 100 }),
+    queryFn: () => runly.identity.listUsers(token, { pageSize: 100 }),
     enabled: Boolean(token),
     staleTime: 120_000,
   });
@@ -53,7 +53,7 @@ export function CreateChatModal({ open, onClose, onCreated }) {
     setIsCreating(true);
     setError(null);
     try {
-      const result = await atlas.chat.createConversation(
+      const result = await runly.chat.createConversation(
         {
           type: isGroup ? "group" : "direct",
           title: isGroup && groupTitle.trim() ? groupTitle.trim() : undefined,

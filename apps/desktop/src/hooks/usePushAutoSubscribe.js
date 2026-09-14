@@ -7,7 +7,7 @@ import {
   subscribeCurrentDeviceToWebPush,
   syncCurrentDeviceWebPushSubscription,
 } from "../lib/webPush";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import {
   getSystemNotificationPermission,
   isTauriRuntime,
@@ -75,7 +75,7 @@ async function prepareNotifications(token) {
   if (!isWebPushSupported()) return;
   if (typeof Notification !== "undefined" && Notification.permission === "denied") return;
 
-  const keyResponse = await atlas.notifications.getWebPushPublicKey(token).catch(() => null);
+  const keyResponse = await runly.notifications.getWebPushPublicKey(token).catch(() => null);
   if (!keyResponse?.data?.publicKey) return;
 
   const deviceLabel = getPwaLabel();

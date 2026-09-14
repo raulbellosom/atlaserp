@@ -12,7 +12,7 @@ import { Download, Files } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { atlas } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/atlas.js";
 
 function formatDate(value) {
   if (!value) return "Pendiente";
@@ -32,11 +32,11 @@ export default function GeneratedDocumentsScreen() {
   const [viewerFile, setViewerFile] = useState(null);
   const query = useQuery({
     queryKey: ["documents", "generated"],
-    queryFn: () => atlas.documents.listGenerated(token, { enabled: true, pageSize: 100 }),
+    queryFn: () => runly.documents.listGenerated(token, { enabled: true, pageSize: 100 }),
     enabled: Boolean(token && allowed("documents.generated.read")),
   });
   const disableMutation = useMutation({
-    mutationFn: (item) => atlas.documents.setGeneratedEnabled(item.id, false, token),
+    mutationFn: (item) => runly.documents.setGeneratedEnabled(item.id, false, token),
     onSuccess: async () => {
       setToggleTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["documents", "generated"] });
@@ -46,7 +46,7 @@ export default function GeneratedDocumentsScreen() {
 
   async function openDocument(item) {
     try {
-      const download = await atlas.documents.getGeneratedDownload(item.id, token);
+      const download = await runly.documents.getGeneratedDownload(item.id, token);
       setViewerFile({
         id: item.fileAsset?.id ?? item.id,
         originalName: item.fileAsset?.originalName ?? `${item.template?.name ?? "documento"}.pdf`,

@@ -21,7 +21,7 @@ import {
   UserPickerItem,
   UserListSkeleton,
 } from "../../runly.chat/components/UserPicker";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { filesError } from "../lib/files-error";
 
 const ROLES = [
@@ -46,14 +46,14 @@ export function FileSharingDialog({
   const [revoke, setRevoke] = useState(null);
   const access = useQuery({
     queryKey: ["file-access", file.id, userId],
-    queryFn: () => atlas.files.getAccess(file.id, token),
+    queryFn: () => runly.files.getAccess(file.id, token),
     staleTime: 0,
     gcTime: 0,
   });
   const data = access.data?.data;
   const members = useQuery({
     queryKey: ["file-members", file.id, userId, search],
-    queryFn: () => atlas.files.accessMembers(file.id, search, token),
+    queryFn: () => runly.files.accessMembers(file.id, search, token),
     enabled: Boolean(data?.canManage),
     staleTime: 0,
     gcTime: 0,
@@ -66,7 +66,7 @@ export function FileSharingDialog({
   };
 
   const update = useMutation({
-    mutationFn: (body) => atlas.files.updateAccess(file.id, body, token),
+    mutationFn: (body) => runly.files.updateAccess(file.id, body, token),
     onSuccess: () => {
       invalidateAccess();
       setRevoke(null);
@@ -81,7 +81,7 @@ export function FileSharingDialog({
       const failures = [];
       for (const uid of userIds) {
         try {
-          await atlas.files.updateAccess(file.id, { userId: uid, role: r }, token);
+          await runly.files.updateAccess(file.id, { userId: uid, role: r }, token);
         } catch (e) {
           failures.push(e);
         }

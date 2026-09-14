@@ -13,7 +13,7 @@ import { MapPin, Hash, Globe, Navigation, Home } from "lucide-react";
 import { Country, State, City } from "country-state-city";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export default function CompanyAddress() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["company-address"],
-    queryFn: () => atlas.company.getAddress(token),
+    queryFn: () => runly.company.getAddress(token),
     enabled: Boolean(token),
   });
 
@@ -102,7 +102,7 @@ export default function CompanyAddress() {
   }
 
   const saveMutation = useMutation({
-    mutationFn: (payload) => atlas.company.updateAddress(payload, token),
+    mutationFn: (payload) => runly.company.updateAddress(payload, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-address"] });
       toast.success("Direccion de empresa actualizada.");

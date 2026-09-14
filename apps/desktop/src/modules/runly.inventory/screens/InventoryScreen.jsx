@@ -7,7 +7,7 @@ import { RunlyTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 import { useInventoryCategories, useInventoryBrands, useInventoryLocations } from '../hooks/useInventoryCatalogs.js'
 import { ITEM_STATUSES } from '../lib/inventory-constants.js'
 
@@ -75,7 +75,7 @@ export default function InventoryScreen() {
   }), [categoryOptions, brandOptions, locationOptions])
 
   const deleteMutation = useMutation({
-    mutationFn: id => atlas.inventory.deleteItem(id, token),
+    mutationFn: id => runly.inventory.deleteItem(id, token),
     onSuccess: () => {
       setConfirmDelete(null)
       setRefreshSignal(s => s + 1)
@@ -107,7 +107,7 @@ export default function InventoryScreen() {
         onView={row => {
           queryClient.prefetchQuery({
             queryKey: ['inventory', 'items', row.id],
-            queryFn: () => atlas.inventory.getItem(row.id, token),
+            queryFn: () => runly.inventory.getItem(row.id, token),
             staleTime: 5 * 60 * 1000,
           })
           navigate(`/app/m/atlas.inventory/inventory/${row.id}`)

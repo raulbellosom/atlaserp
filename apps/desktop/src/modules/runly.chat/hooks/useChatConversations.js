@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { useMuteConversation } from "./useChatModeration";
 
@@ -14,7 +14,7 @@ export function useChatConversations() {
 
   const query = useQuery({
     queryKey: ["chat-conversations"],
-    queryFn: () => atlas.chat.listConversations({}, token),
+    queryFn: () => runly.chat.listConversations({}, token),
     enabled: Boolean(token),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -46,7 +46,7 @@ export function useArchivedConversations({ enabled = true } = {}) {
 
   return useQuery({
     queryKey: ["chat-conversations-archived"],
-    queryFn: () => atlas.chat.listConversations({ archived: true }, token),
+    queryFn: () => runly.chat.listConversations({ archived: true }, token),
     enabled: Boolean(token && enabled),
     staleTime: 60_000,
   });
@@ -58,7 +58,7 @@ export function useArchiveConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.archiveConversation(conversationId, token),
+    mutationFn: (conversationId) => runly.chat.archiveConversation(conversationId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations-archived"] });
@@ -72,7 +72,7 @@ export function useUnarchiveConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.unarchiveConversation(conversationId, token),
+    mutationFn: (conversationId) => runly.chat.unarchiveConversation(conversationId, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations-archived"] });
@@ -109,7 +109,7 @@ export function usePinConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ conversationId, pinned }) => atlas.chat.pinConversation(conversationId, pinned, token),
+    mutationFn: ({ conversationId, pinned }) => runly.chat.pinConversation(conversationId, pinned, token),
     onMutate: async ({ conversationId, pinned }) => {
       await queryClient.cancelQueries({ queryKey: ACTIVE_KEY });
       return { snapshots: patchConversationInCaches(queryClient, conversationId, { is_pinned: pinned }) };
@@ -128,7 +128,7 @@ export function useHideConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.hideConversation(conversationId, token),
+    mutationFn: (conversationId) => runly.chat.hideConversation(conversationId, token),
     onMutate: async (conversationId) => {
       await queryClient.cancelQueries({ queryKey: ACTIVE_KEY });
       return { snapshots: patchConversationInCaches(queryClient, conversationId, null) };
@@ -144,7 +144,7 @@ export function useLeaveConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.removeMember(conversationId, userProfile?.id, token),
+    mutationFn: (conversationId) => runly.chat.removeMember(conversationId, userProfile?.id, token),
     onMutate: async (conversationId) => {
       await queryClient.cancelQueries({ queryKey: ACTIVE_KEY });
       return { snapshots: patchConversationInCaches(queryClient, conversationId, null) };
@@ -166,7 +166,7 @@ export function useDeleteConversationById() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.deleteConversation(conversationId, token),
+    mutationFn: (conversationId) => runly.chat.deleteConversation(conversationId, token),
     onMutate: async (conversationId) => {
       await queryClient.cancelQueries({ queryKey: ACTIVE_KEY });
       return { snapshots: patchConversationInCaches(queryClient, conversationId, null) };
@@ -187,7 +187,7 @@ export function useMarkConversationRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (conversationId) => atlas.chat.markRead(conversationId, token),
+    mutationFn: (conversationId) => runly.chat.markRead(conversationId, token),
     onMutate: async (conversationId) => {
       await queryClient.cancelQueries({ queryKey: ACTIVE_KEY });
       return {

@@ -6,7 +6,7 @@ import { FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { buildHrEmployeesTableProps } from "../lib/hr-employees-table-props.js";
 import { resolveHrScreenAccess } from "../lib/hr-screen-access.js";
 
@@ -115,7 +115,7 @@ export default function HrScreen() {
       onClick: async (selectedRows) => {
         try {
           const ids = selectedRows.map((r) => r.id).filter(Boolean);
-          const blob = await atlas.hr.exportEmployeesExcel(ids, token);
+          const blob = await runly.hr.exportEmployeesExcel(ids, token);
           downloadBlob(blob, `colaboradores-${toLocalIso()}.xlsx`);
           toast.success("Excel generado");
         } catch {
@@ -129,7 +129,7 @@ export default function HrScreen() {
       onClick: async (selectedRows) => {
         try {
           const ids = selectedRows.map((r) => r.id).filter(Boolean);
-          const blob = await atlas.hr.exportEmployeesPdf(ids, token);
+          const blob = await runly.hr.exportEmployeesPdf(ids, token);
           downloadBlob(blob, `colaboradores-${toLocalIso()}.pdf`);
           toast.success("PDF generado");
         } catch {

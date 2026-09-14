@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 export function useMuteConversation() {
   const { session } = useAuth();
@@ -8,7 +8,7 @@ export function useMuteConversation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ conversationId, muted }) => atlas.chat.muteConversation(conversationId, muted, token),
+    mutationFn: ({ conversationId, muted }) => runly.chat.muteConversation(conversationId, muted, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
       queryClient.invalidateQueries({ queryKey: ["chat-conversations-archived"] });
@@ -22,7 +22,7 @@ export function useBlockStatus(targetUserId, { enabled = true } = {}) {
 
   return useQuery({
     queryKey: ["chat-block-status", targetUserId],
-    queryFn: () => atlas.chat.getBlockStatus(targetUserId, token),
+    queryFn: () => runly.chat.getBlockStatus(targetUserId, token),
     enabled: Boolean(token && targetUserId && enabled),
     staleTime: 30_000,
   });
@@ -34,7 +34,7 @@ export function useBlockUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (targetUserId) => atlas.chat.blockUser(targetUserId, token),
+    mutationFn: (targetUserId) => runly.chat.blockUser(targetUserId, token),
     onSuccess: (_data, targetUserId) => {
       queryClient.invalidateQueries({ queryKey: ["chat-block-status", targetUserId] });
     },
@@ -47,7 +47,7 @@ export function useUnblockUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (targetUserId) => atlas.chat.unblockUser(targetUserId, token),
+    mutationFn: (targetUserId) => runly.chat.unblockUser(targetUserId, token),
     onSuccess: (_data, targetUserId) => {
       queryClient.invalidateQueries({ queryKey: ["chat-block-status", targetUserId] });
     },
@@ -60,7 +60,7 @@ export function useGroupsInCommon(targetUserId, { enabled = true } = {}) {
 
   return useQuery({
     queryKey: ["chat-groups-in-common", targetUserId],
-    queryFn: () => atlas.chat.getGroupsInCommon(targetUserId, token),
+    queryFn: () => runly.chat.getGroupsInCommon(targetUserId, token),
     enabled: Boolean(token && targetUserId && enabled),
     staleTime: 60_000,
   });
@@ -71,7 +71,7 @@ export function useCreateReport() {
   const token = session?.access_token;
 
   return useMutation({
-    mutationFn: (payload) => atlas.chat.createReport(payload, token),
+    mutationFn: (payload) => runly.chat.createReport(payload, token),
   });
 }
 
@@ -81,7 +81,7 @@ export function useChatReports(status) {
 
   return useQuery({
     queryKey: ["chat-reports", status ?? "all"],
-    queryFn: () => atlas.chat.listReports(status ? { status } : {}, token),
+    queryFn: () => runly.chat.listReports(status ? { status } : {}, token),
     enabled: Boolean(token),
     staleTime: 15_000,
   });
@@ -93,7 +93,7 @@ export function useResolveReport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ reportId, action }) => atlas.chat.resolveReport(reportId, action, token),
+    mutationFn: ({ reportId, action }) => runly.chat.resolveReport(reportId, action, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-reports"] });
     },

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AuthAtmosphere, Button } from "@runly/ui";
-import { atlas } from "../lib/atlas";
+import { runly } from "../lib/atlas";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { useBrandingStore } from "../stores/branding";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -127,12 +127,12 @@ export function SetupWizard() {
       fd.append("postalCode", formData.postalCode);
       fd.append("primaryColor", formData.primaryColor);
       if (formData.logo) fd.append("logo", formData.logo);
-      return atlas.setup.initialize(fd);
+      return runly.setup.initialize(fd);
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["instance-status"] });
       try {
-        const status = await atlas.instance.status();
+        const status = await runly.instance.status();
         applyBrandTheme(status?.branding?.primaryColor);
         setBranding(status?.branding ?? null);
       } catch {}

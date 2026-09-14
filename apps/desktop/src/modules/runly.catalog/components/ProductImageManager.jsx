@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { DistDropZone } from '@runly/ui'
 import { Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { atlas } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/atlas.js'
 
 /**
  * Props:
@@ -20,7 +20,7 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
 
   useEffect(() => {
     if (!allIds.length || !token) return
-    atlas.files.batchSignedUrls(allIds, token)
+    runly.files.batchSignedUrls(allIds, token)
       .then(res => {
         const map = {}
         const items = res?.data ?? res?.urls ?? []
@@ -38,7 +38,7 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
     mutationFn: async (file) => {
       const form = new FormData()
       form.append('file', file)
-      const res = await atlas.files.upload(form, token)
+      const res = await runly.files.upload(form, token)
       return res?.data ?? res
     },
   })

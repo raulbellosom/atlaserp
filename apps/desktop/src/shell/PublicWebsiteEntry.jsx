@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-route
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
-import { atlas } from '../lib/atlas.js'
+import { runly } from '../lib/atlas.js'
 import { PublicPageLoader, storePublicSiteHint } from '../components/PublicPageLoader.jsx'
 import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'
@@ -713,7 +713,7 @@ export function PublicWebsiteEntry() {
   // does not always return initialized:false for fresh installs.
   const instanceQuery = useQuery({
     queryKey: ['instance-status-public'],
-    queryFn:  atlas.instance.status,
+    queryFn:  runly.instance.status,
     staleTime: 30_000,
     retry: 1,
   })

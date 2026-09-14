@@ -9,7 +9,7 @@ import {
   PageFooter,
 } from "@runly/ui";
 import { Mail, Check, X } from "lucide-react";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 import { filesError } from "../lib/files-error";
 
 export function FileInvitations({ token, userId, onOpen }) {
@@ -17,7 +17,7 @@ export function FileInvitations({ token, userId, onOpen }) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["file-invitations", userId, page],
-    queryFn: () => atlas.files.invitations(page, token),
+    queryFn: () => runly.files.invitations(page, token),
     staleTime: 0,
     gcTime: 0,
     enabled: Boolean(token),
@@ -29,7 +29,7 @@ export function FileInvitations({ token, userId, onOpen }) {
   }, [query.data, page]);
   const respond = useMutation({
     mutationFn: ({ id, accept }) =>
-      atlas.files.respondInvitation(id, accept, token),
+      runly.files.respondInvitation(id, accept, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["file-invitations"] });
       queryClient.invalidateQueries({ queryKey: ["files-list"] });

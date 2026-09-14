@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useOfflineContext, useOfflineStore } from "@runly/offline";
-import { atlas } from "../../../lib/atlas";
+import { runly } from "../../../lib/atlas";
 
 function useToken() {
   const { session } = useAuth();
@@ -33,7 +33,7 @@ export function useCalendars() {
         // Shared calendars are not cached in Tier 2; only owned calendars are pulled
         return { owned: records.map((r) => r.data), shared: [] };
       }
-      return atlas.calendar.listCalendars(token);
+      return runly.calendar.listCalendars(token);
     },
     enabled: Boolean(token),
     staleTime: 2 * 60 * 1000,
@@ -44,7 +44,7 @@ export function useCreateCalendar() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => atlas.calendar.createCalendar(data, token),
+    mutationFn: (data) => runly.calendar.createCalendar(data, token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "calendars"] }),
   });
@@ -55,7 +55,7 @@ export function useUpdateCalendar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) =>
-      atlas.calendar.updateCalendar(id, data, token),
+      runly.calendar.updateCalendar(id, data, token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "calendars"] }),
   });
@@ -65,7 +65,7 @@ export function useDeleteCalendar() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => atlas.calendar.deleteCalendar(id, token),
+    mutationFn: (id) => runly.calendar.deleteCalendar(id, token),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["calendar", "calendars"] });
       qc.invalidateQueries({ queryKey: ["calendar", "events"] });
@@ -78,7 +78,7 @@ export function useShareCalendar() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ calendarId, ...data }) =>
-      atlas.calendar.shareCalendar(calendarId, data, token),
+      runly.calendar.shareCalendar(calendarId, data, token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "calendars"] }),
   });
@@ -89,7 +89,7 @@ export function useUpdateShare() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ calendarId, shareId, ...data }) =>
-      atlas.calendar.updateShare(calendarId, shareId, data, token),
+      runly.calendar.updateShare(calendarId, shareId, data, token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "calendars"] }),
   });
@@ -100,7 +100,7 @@ export function useDeleteShare() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ calendarId, shareId }) =>
-      atlas.calendar.deleteShare(calendarId, shareId, token),
+      runly.calendar.deleteShare(calendarId, shareId, token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "calendars"] }),
   });
@@ -136,7 +136,7 @@ export function useCalendarEvents({ start, end, calendarIds = [] }) {
             return true;
           });
       }
-      return atlas.calendar.listEvents(token, {
+      return runly.calendar.listEvents(token, {
         start,
         end,
         calendar_ids: calendarIds,
@@ -176,7 +176,7 @@ export function useYearEvents(year, calendarIds = [], enabled = true) {
             return evMs >= startMs && evMs <= endMs;
           });
       }
-      return atlas.calendar.listEvents(token, {
+      return runly.calendar.listEvents(token, {
         start: yearStart.toISOString(),
         end: yearEnd.toISOString(),
         calendar_ids: calendarIds,
@@ -195,7 +195,7 @@ export function useUserSearch(query) {
   return useQuery({
     queryKey: ["identity", "users", "search", q],
     queryFn: () =>
-      atlas.identity.listUsers(token, {
+      runly.identity.listUsers(token, {
         search: q,
         pageSize: 10,
         enabled: true,
@@ -209,7 +209,7 @@ export function useCreateEvent() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => atlas.calendar.createEvent(data, token),
+    mutationFn: (data) => runly.calendar.createEvent(data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar", "events"] }),
   });
 }
@@ -218,7 +218,7 @@ export function useCalendarEvent(eventId, enabled = true) {
   const token = useToken();
   return useQuery({
     queryKey: ["calendar", "event", eventId],
-    queryFn: () => atlas.calendar.getEvent(eventId, token),
+    queryFn: () => runly.calendar.getEvent(eventId, token),
     enabled: Boolean(token && eventId && enabled),
     staleTime: 30 * 1000,
   });
@@ -229,7 +229,7 @@ export function useUpdateEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...data }) =>
-      atlas.calendar.updateEvent(id, data, token),
+      runly.calendar.updateEvent(id, data, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar", "events"] }),
   });
 }
@@ -238,7 +238,7 @@ export function useDeleteEvent() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => atlas.calendar.deleteEvent(id, token),
+    mutationFn: (id) => runly.calendar.deleteEvent(id, token),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar", "events"] }),
   });
 }
@@ -248,7 +248,7 @@ export function useAddEventReminder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ eventId, minutesBefore }) =>
-      atlas.calendar.createReminder(
+      runly.calendar.createReminder(
         eventId,
         { minutes_before: minutesBefore },
         token,
@@ -265,7 +265,7 @@ export function useDeleteEventReminder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ eventId, reminderId }) =>
-      atlas.calendar.deleteReminder(eventId, reminderId, token),
+      runly.calendar.deleteReminder(eventId, reminderId, token),
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["calendar", "events"] });
       qc.invalidateQueries({ queryKey: ["calendar", "event", vars?.eventId] });
@@ -280,7 +280,7 @@ export function useCalendarNotifications() {
   return useQuery({
     queryKey: ["calendar", "notifications"],
     queryFn: () =>
-      atlas.calendar.listNotifications(token, { unread_only: true }),
+      runly.calendar.listNotifications(token, { unread_only: true }),
     enabled: Boolean(token),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 30 * 1000,
@@ -291,7 +291,7 @@ export function useMarkNotificationRead() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id) => atlas.calendar.markNotificationRead(id, token),
+    mutationFn: (id) => runly.calendar.markNotificationRead(id, token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "notifications"] }),
   });
@@ -301,7 +301,7 @@ export function useMarkAllNotificationsRead() {
   const token = useToken();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => atlas.calendar.markAllNotificationsRead(token),
+    mutationFn: () => runly.calendar.markAllNotificationsRead(token),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["calendar", "notifications"] }),
   });
