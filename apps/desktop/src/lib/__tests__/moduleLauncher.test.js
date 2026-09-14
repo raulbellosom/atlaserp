@@ -10,10 +10,16 @@ import {
 } from '../moduleLauncher.js';
 
 test('isModuleOfflineBlocked: blocked only when offline and not an offline module', () => {
-  const offline = ['atlas.ledger'];
-  assert.equal(isModuleOfflineBlocked(false, { key: 'atlas.hr' }, offline), true);
+  const offline = ['runly.ledger'];
+  assert.equal(isModuleOfflineBlocked(false, { key: 'runly.hr' }, offline), true);
+  assert.equal(isModuleOfflineBlocked(false, { key: 'runly.ledger' }, offline), false);
+  assert.equal(isModuleOfflineBlocked(true, { key: 'runly.hr' }, offline), false);
+});
+
+test('isModuleOfflineBlocked: normalizes a legacy atlas.*-keyed module (pre-cutover install)', () => {
+  const offline = ['runly.ledger'];
   assert.equal(isModuleOfflineBlocked(false, { key: 'atlas.ledger' }, offline), false);
-  assert.equal(isModuleOfflineBlocked(true, { key: 'atlas.hr' }, offline), false);
+  assert.equal(isModuleOfflineBlocked(false, { key: 'atlas.hr' }, offline), true);
 });
 
 test('resolveMenuAnchor: reads a mouse event and calls preventDefault', () => {

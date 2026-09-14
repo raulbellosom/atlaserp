@@ -1,12 +1,12 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 
 let db
 
 before(async () => {
-  db = new AtlasOfflineDatabase('test-atlas-offline')
+  db = new RunlyOfflineDatabase('test-runly-offline')
   await db.open()
 })
 
@@ -44,7 +44,7 @@ test('db - has _query_cache table', () => {
 
 test('offline_records - can put and get a record', async () => {
   await db.offline_records.put({
-    moduleKey: 'atlas.contacts',
+    moduleKey: 'runly.contacts',
     entityType: 'contact',
     id: 'test-id-1',
     data: { name: 'Raul' },
@@ -53,7 +53,7 @@ test('offline_records - can put and get a record', async () => {
     companyId: 'company-1',
     dirty: false,
   })
-  const row = await db.offline_records.get(['atlas.contacts', 'contact', 'test-id-1'])
+  const row = await db.offline_records.get(['runly.contacts', 'contact', 'test-id-1'])
   assert.equal(row.data.name, 'Raul')
 })
 
@@ -61,7 +61,7 @@ test('mutation_queue - can put and get a mutation', async () => {
   await db.mutation_queue.put({
     id: 'mut-1',
     idempotencyKey: 'idem-1',
-    moduleKey: 'atlas.contacts',
+    moduleKey: 'runly.contacts',
     entityType: 'contact',
     recordId: null,
     operation: 'CREATE',
@@ -80,13 +80,13 @@ test('mutation_queue - can put and get a mutation', async () => {
 
 test('sync_state - can put and get cursor', async () => {
   await db.sync_state.put({
-    moduleKey: 'atlas.contacts',
+    moduleKey: 'runly.contacts',
     entityType: 'contact',
     lastPullAt: new Date().toISOString(),
     serverCursor: '2026-06-06T00:00:00Z',
     schemaVersion: '0.1.0',
   })
-  const row = await db.sync_state.get(['atlas.contacts', 'contact'])
+  const row = await db.sync_state.get(['runly.contacts', 'contact'])
   assert.equal(row.schemaVersion, '0.1.0')
 })
 
@@ -109,7 +109,7 @@ test('conflicts - can put and get a conflict', async () => {
   await db.conflicts.put({
     id: 'conflict-1',
     status: 'PENDING',
-    moduleKey: 'atlas.contacts',
+    moduleKey: 'runly.contacts',
     entityType: 'contact',
     recordId: 'rec-1',
     localData: { name: 'Local' },
@@ -118,7 +118,7 @@ test('conflicts - can put and get a conflict', async () => {
   })
   const row = await db.conflicts.get('conflict-1')
   assert.equal(row.status, 'PENDING')
-  assert.equal(row.moduleKey, 'atlas.contacts')
+  assert.equal(row.moduleKey, 'runly.contacts')
 })
 
 test('_query_cache - can put and get cached client', async () => {

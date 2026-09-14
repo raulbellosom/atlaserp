@@ -2,10 +2,10 @@ import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { atlas } from '../lib/atlas'
 import { getApiUrl } from '../lib/runtimeConfig.js'
-import { AtlasOfflineDatabase, SessionVault } from '@runly/offline'
+import { RunlyOfflineDatabase, SessionVault } from '@runly/offline'
 import { isSessionFresh } from './sessionFreshness.js'
 
-const _vaultDb = new AtlasOfflineDatabase()
+const _vaultDb = new RunlyOfflineDatabase()
 const _sessionVault = new SessionVault(_vaultDb)
 
 const AuthContext = createContext(null)

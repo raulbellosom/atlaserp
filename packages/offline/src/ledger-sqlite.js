@@ -223,7 +223,7 @@ export class LedgerSQLiteStore {
     }
     if (!this.#openPromise) {
       this.#openPromise = (async () => {
-        const path = normalizePath(`sqlite:atlas-erp/ledger-${this.companyId}.db`)
+        const path = normalizePath(`sqlite:runly-erp/ledger-${this.companyId}.db`)
         const database = await this.#dbLoader(path)
         this.db = database
         await this._migrate()

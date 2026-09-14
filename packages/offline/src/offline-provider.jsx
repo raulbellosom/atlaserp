@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef } from 'react'
 import { onlineManager } from '@tanstack/react-query'
-import { AtlasOfflineDatabase } from './db.js'
+import { RunlyOfflineDatabase } from './db.js'
 import { OnlineDetector } from './online-detector.js'
 import { SessionVault } from './session-vault.js'
 import { SyncEngine } from './sync-engine.js'
@@ -11,7 +11,7 @@ import { LedgerSQLiteStore, isTauriAvailable } from './ledger-sqlite.js'
 import { LedgerSyncAdapter } from './ledger-sync-adapter.js'
 
 const PULL_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
-const LEDGER_MODULE_KEY = 'atlas.ledger'
+const LEDGER_MODULE_KEY = 'runly.ledger'
 
 const OfflineContext = createContext(null)
 
@@ -29,10 +29,10 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady }) {
   const setPendingCount = useOfflineStore((s) => s.setPendingCount)
 
   useEffect(() => {
-    const database = new AtlasOfflineDatabase()
+    const database = new RunlyOfflineDatabase()
     dbRef.current = database
     database.open().catch((err) => {
-      console.warn('[atlas/offline] IndexedDB failed to open - offline features unavailable', err)
+      console.warn('[runly/offline] IndexedDB failed to open - offline features unavailable', err)
     })
 
     const vault = new SessionVault(database)
@@ -57,7 +57,7 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady }) {
         const count = await transport.mutationQueue.getPendingCount()
         setPendingCount(count)
       } catch (err) {
-        console.warn('[atlas/offline] getPendingCount failed', err?.message ?? err)
+        console.warn('[runly/offline] getPendingCount failed', err?.message ?? err)
       }
     }
 
@@ -111,23 +111,23 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady }) {
           try {
             ledgerSyncAdapter = await ensureLedgerRuntime()
           } catch (err) {
-            console.warn('[atlas/offline] Ledger SQLite unavailable - atlas.ledger stays online-only', err?.message ?? err)
+            console.warn('[runly/offline] Ledger SQLite unavailable - runly.ledger stays online-only', err?.message ?? err)
           }
         }
 
         // Push first, then pull so the server sees our changes before we refresh.
         await engine.push().catch((err) => {
-          console.warn('[atlas/offline] Push failed', err?.message ?? err)
+          console.warn('[runly/offline] Push failed', err?.message ?? err)
         })
         await engine.pull({ modules: OFFLINE_MODULES.filter((moduleKey) => moduleKey !== LEDGER_MODULE_KEY) })
         if (ledgerSyncAdapter) {
           await ledgerSyncAdapter.pull().catch((err) => {
-            console.warn('[atlas/offline] Ledger pull failed', err?.message ?? err)
+            console.warn('[runly/offline] Ledger pull failed', err?.message ?? err)
           })
         }
         setLastSyncAt(new Date().toISOString())
       } catch (err) {
-        console.warn('[atlas/offline] Pull failed', err?.message ?? err)
+        console.warn('[runly/offline] Pull failed', err?.message ?? err)
       } finally {
         setSyncing(false)
         await updatePendingCount()

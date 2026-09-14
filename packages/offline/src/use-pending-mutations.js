@@ -21,7 +21,7 @@ export function usePendingMutations() {
           .sortBy('queuedAt')
         if (mounted) setMutations(items)
       } catch (err) {
-        console.warn('[atlas/offline] load pending mutations failed', err?.message ?? err)
+        console.warn('[runly/offline] load pending mutations failed', err?.message ?? err)
       }
     }
 

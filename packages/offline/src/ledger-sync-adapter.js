@@ -1,4 +1,4 @@
-const LEDGER_MODULE_KEY = 'atlas.ledger'
+const LEDGER_MODULE_KEY = 'runly.ledger'
 
 export class LedgerSyncAdapter {
   #db

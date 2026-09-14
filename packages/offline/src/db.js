@@ -1,7 +1,7 @@
 import Dexie from 'dexie'
 
-export class AtlasOfflineDatabase extends Dexie {
-  constructor(name = 'atlas-offline') {
+export class RunlyOfflineDatabase extends Dexie {
+  constructor(name = 'runly-offline') {
     super(name)
 
     this.version(1).stores({
@@ -24,7 +24,7 @@ let _db = null
 
 export function db() {
   if (!_db) {
-    _db = new AtlasOfflineDatabase()
+    _db = new RunlyOfflineDatabase()
   }
   return _db
 }

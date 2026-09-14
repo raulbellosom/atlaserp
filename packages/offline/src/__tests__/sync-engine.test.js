@@ -1,14 +1,14 @@
 import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 import { SyncEngine } from '../sync-engine.js'
 
 const COMPANY_ID = '01900000-0000-7000-8000-000000000001'
 let dbCounter = 0
 
 function makeDb() {
-  return new AtlasOfflineDatabase(`test-sync-engine-${++dbCounter}`)
+  return new RunlyOfflineDatabase(`test-sync-engine-${++dbCounter}`)
 }
 
 function makeResponse(records, nextCursor = '2026-06-06T10:00:00Z') {
@@ -36,7 +36,7 @@ describe('SyncEngine', () => {
 
   it('stores pulled records in offline_records', async () => {
     const record = {
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: 'c1',
       data: { id: 'c1', name: 'Ana', companyId: COMPANY_ID },
@@ -50,10 +50,10 @@ describe('SyncEngine', () => {
       fetchImpl: makeFetch(makeResponse([record])),
     })
 
-    const { pulled } = await engine.pull({ modules: ['atlas.contacts'] })
+    const { pulled } = await engine.pull({ modules: ['runly.contacts'] })
     assert.equal(pulled, 1)
 
-    const stored = await db.offline_records.get(['atlas.contacts', 'contact', 'c1'])
+    const stored = await db.offline_records.get(['runly.contacts', 'contact', 'c1'])
     assert.ok(stored)
     assert.equal(stored.data.name, 'Ana')
     assert.equal(stored.dirty, false)
@@ -61,7 +61,7 @@ describe('SyncEngine', () => {
 
   it('updates sync_state with nextCursor after pull', async () => {
     const record = {
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: 'c1',
       data: { id: 'c1', companyId: COMPANY_ID },
@@ -75,9 +75,9 @@ describe('SyncEngine', () => {
       fetchImpl: makeFetch(makeResponse([record], '2026-06-06T10:00:00Z')),
     })
 
-    await engine.pull({ modules: ['atlas.contacts'] })
+    await engine.pull({ modules: ['runly.contacts'] })
 
-    const state = await db.sync_state.get(['atlas.contacts', 'contact'])
+    const state = await db.sync_state.get(['runly.contacts', 'contact'])
     assert.ok(state)
     assert.equal(state.serverCursor, '2026-06-06T10:00:00Z')
     assert.ok(state.lastPullAt)
@@ -85,7 +85,7 @@ describe('SyncEngine', () => {
 
   it('removes deleted records from offline_records', async () => {
     await db.offline_records.put({
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: 'c1',
       data: {},
@@ -96,7 +96,7 @@ describe('SyncEngine', () => {
     })
 
     const tombstone = {
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: 'c1',
       deleted: true,
@@ -110,16 +110,16 @@ describe('SyncEngine', () => {
       fetchImpl: makeFetch(makeResponse([tombstone])),
     })
 
-    await engine.pull({ modules: ['atlas.contacts'] })
+    await engine.pull({ modules: ['runly.contacts'] })
 
-    const stored = await db.offline_records.get(['atlas.contacts', 'contact', 'c1'])
+    const stored = await db.offline_records.get(['runly.contacts', 'contact', 'c1'])
     assert.equal(stored, undefined)
   })
 
   it('sends stored cursor in the pull request URL', async () => {
     const cursor = '2026-06-05T00:00:00Z'
     await db.sync_state.put({
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       lastPullAt: cursor,
       serverCursor: cursor,
@@ -137,7 +137,7 @@ describe('SyncEngine', () => {
       },
     })
 
-    await engine.pull({ modules: ['atlas.contacts'] })
+    await engine.pull({ modules: ['runly.contacts'] })
     assert.ok(capturedUrl.includes(`cursor=${encodeURIComponent(cursor)}`))
   })
 
@@ -150,7 +150,7 @@ describe('SyncEngine', () => {
       fetchImpl: async () => { fetchCalled = true; return { ok: true, json: async () => ({}) } },
     })
 
-    const result = await engine.pull({ modules: ['atlas.contacts'] })
+    const result = await engine.pull({ modules: ['runly.contacts'] })
     assert.equal(result.pulled, 0)
     assert.equal(fetchCalled, false)
   })
@@ -163,7 +163,7 @@ describe('SyncEngine', () => {
       fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({}) }),
     })
 
-    await assert.rejects(() => engine.pull({ modules: ['atlas.contacts'] }), /Pull failed/)
+    await assert.rejects(() => engine.pull({ modules: ['runly.contacts'] }), /Pull failed/)
   })
 
   it('getLocalCount returns 0 on empty table', async () => {
@@ -173,7 +173,7 @@ describe('SyncEngine', () => {
       getToken: async () => 'tok',
       fetchImpl: makeFetch(makeResponse([])),
     })
-    const count = await engine.getLocalCount({ moduleKey: 'atlas.contacts', entityType: 'contact' })
+    const count = await engine.getLocalCount({ moduleKey: 'runly.contacts', entityType: 'contact' })
     assert.equal(count, 0)
   })
 
@@ -189,9 +189,9 @@ describe('SyncEngine', () => {
     const engine = new SyncEngine({ db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok', fetchImpl })
 
     // Start first pull — #pulling becomes true synchronously before any await
-    const first = engine.pull({ modules: ['atlas.contacts'] })
+    const first = engine.pull({ modules: ['runly.contacts'] })
     // Second call should return immediately (guard kicks in)
-    const second = await engine.pull({ modules: ['atlas.contacts'] })
+    const second = await engine.pull({ modules: ['runly.contacts'] })
     assert.deepEqual(second, { pulled: 0, nextCursor: null })
 
     // Poll until the first pull has reached fetchImpl (resolveFetch is assigned)
@@ -223,7 +223,7 @@ describe('SyncEngine', () => {
 
   it('push returns { pushed: 0, failed: 0 } when getToken returns null', async () => {
     await db.mutation_queue.put({
-      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: null, operation: 'CREATE',
       payload: { name: 'X' }, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -240,7 +240,7 @@ describe('SyncEngine', () => {
 
   it('concurrent push calls are coalesced — second returns immediately', async () => {
     await db.mutation_queue.put({
-      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: null, operation: 'CREATE',
       payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -266,7 +266,7 @@ describe('SyncEngine', () => {
 
   it('successful OK result marks mutation DONE and updates offline_records', async () => {
     await db.mutation_queue.put({
-      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: null, operation: 'CREATE',
       payload: { name: 'Ana' }, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -289,7 +289,7 @@ describe('SyncEngine', () => {
     const mut = await db.mutation_queue.get('mut-1')
     assert.equal(mut.status, 'DONE')
 
-    const stored = await db.offline_records.get(['atlas.contacts', 'contact', 'srv-c1'])
+    const stored = await db.offline_records.get(['runly.contacts', 'contact', 'srv-c1'])
     assert.ok(stored)
     assert.equal(stored.dirty, false)
     assert.equal(stored.data.name, 'Ana')
@@ -297,7 +297,7 @@ describe('SyncEngine', () => {
 
   it('CONFLICT result marks mutation CONFLICT', async () => {
     await db.mutation_queue.put({
-      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: 'c1', operation: 'UPDATE',
       payload: { name: 'New' }, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -322,7 +322,7 @@ describe('SyncEngine', () => {
 
   it('non-OK HTTP response marks all pending as failed', async () => {
     await db.mutation_queue.put({
-      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: null, operation: 'CREATE',
       payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -342,7 +342,7 @@ describe('SyncEngine', () => {
 
   it('NOT_FOUND result increments attempts via markFailed', async () => {
     await db.mutation_queue.put({
-      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'atlas.contacts',
+      id: 'mut-1', idempotencyKey: 'ik-1', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: 'ghost', operation: 'UPDATE',
       payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -366,13 +366,13 @@ describe('SyncEngine', () => {
 
   it('batch with OK + CONFLICT returns correct pushed/failed counts', async () => {
     await db.mutation_queue.put({
-      id: 'mut-a', idempotencyKey: 'ik-a', moduleKey: 'atlas.contacts',
+      id: 'mut-a', idempotencyKey: 'ik-a', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: null, operation: 'CREATE',
       payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:00:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
     })
     await db.mutation_queue.put({
-      id: 'mut-b', idempotencyKey: 'ik-b', moduleKey: 'atlas.contacts',
+      id: 'mut-b', idempotencyKey: 'ik-b', moduleKey: 'runly.contacts',
       entityType: 'contact', recordId: 'c2', operation: 'UPDATE',
       payload: {}, status: 'PENDING', queuedAt: '2026-06-06T10:01:00Z',
       attempts: 0, lastError: null, companyId: COMPANY_ID, userId: 'u1',
@@ -399,7 +399,7 @@ describe('SyncEngine', () => {
 
   it('CONFLICT result writes entry to conflicts table with localData and serverData', async () => {
     await db.offline_records.put({
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: 'c1',
       data: { id: 'c1', name: 'Local Name', companyId: COMPANY_ID, updatedAt: '2026-06-06T09:00:00.000Z' },
@@ -411,7 +411,7 @@ describe('SyncEngine', () => {
     await db.mutation_queue.put({
       id: 'mut-conflict-1',
       idempotencyKey: 'ik-conflict-1',
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       recordId: 'c1',
       operation: 'UPDATE',
@@ -449,7 +449,7 @@ describe('SyncEngine', () => {
     assert.equal(conflicts.length, 1)
     assert.equal(conflicts[0].mutationId, 'mut-conflict-1')
     assert.equal(conflicts[0].recordId, 'c1')
-    assert.equal(conflicts[0].moduleKey, 'atlas.contacts')
+    assert.equal(conflicts[0].moduleKey, 'runly.contacts')
     assert.ok(conflicts[0].localData, 'localData must be present')
     assert.equal(conflicts[0].localData.name, 'Local Name')
     assert.ok(conflicts[0].serverData, 'serverData must be present')

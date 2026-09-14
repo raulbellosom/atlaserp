@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { AtlasOfflineDatabase, createDexiePersister } from "@runly/offline";
+import { RunlyOfflineDatabase, createDexiePersister } from "@runly/offline";
 import { Toaster, TooltipProvider } from "@runly/ui";
 import { AuthProvider } from "../auth/AuthProvider";
 import { ActiveCompanyProvider, ActiveCompanyGate } from "../company/ActiveCompanyProvider";
@@ -54,7 +54,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const _offlineDb = new AtlasOfflineDatabase()
+const _offlineDb = new RunlyOfflineDatabase()
 const _persister = createDexiePersister(_offlineDb)
 
 function isAtlasInternalPath(pathname) {

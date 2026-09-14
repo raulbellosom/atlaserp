@@ -1,12 +1,12 @@
 import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 import { createOfflineTransport, parseMutationRoute } from '../offline-transport.js'
 
 let dbCounter = 0
 function makeDb() {
-  return new AtlasOfflineDatabase(`test-transport-${++dbCounter}`)
+  return new RunlyOfflineDatabase(`test-transport-${++dbCounter}`)
 }
 
 const SESSION = {
@@ -16,14 +16,14 @@ const SESSION = {
 }
 
 describe('parseMutationRoute', () => {
-  it('maps POST /contacts to atlas.contacts CREATE', () => {
+  it('maps POST /contacts to runly.contacts CREATE', () => {
     const result = parseMutationRoute('/contacts', 'POST')
-    assert.deepEqual(result, { moduleKey: 'atlas.contacts', entityType: 'contact', operation: 'CREATE', recordId: null })
+    assert.deepEqual(result, { moduleKey: 'runly.contacts', entityType: 'contact', operation: 'CREATE', recordId: null })
   })
 
-  it('maps PUT /contacts/:id to atlas.contacts UPDATE', () => {
+  it('maps PUT /contacts/:id to runly.contacts UPDATE', () => {
     const result = parseMutationRoute('/contacts/abc-123', 'PUT')
-    assert.deepEqual(result, { moduleKey: 'atlas.contacts', entityType: 'contact', operation: 'UPDATE', recordId: 'abc-123' })
+    assert.deepEqual(result, { moduleKey: 'runly.contacts', entityType: 'contact', operation: 'UPDATE', recordId: 'abc-123' })
   })
 
   it('maps POST /fleet/vehicles to custom.fleet vehicle CREATE', () => {
@@ -36,24 +36,24 @@ describe('parseMutationRoute', () => {
     assert.equal(result, null)
   })
 
-  it('maps POST /catalog/products to atlas.catalog product CREATE', () => {
+  it('maps POST /catalog/products to runly.catalog product CREATE', () => {
     const result = parseMutationRoute('/catalog/products', 'POST')
-    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'product', operation: 'CREATE', recordId: null })
+    assert.deepEqual(result, { moduleKey: 'runly.catalog', entityType: 'product', operation: 'CREATE', recordId: null })
   })
 
-  it('maps PATCH /catalog/products/:id to atlas.catalog product UPDATE', () => {
+  it('maps PATCH /catalog/products/:id to runly.catalog product UPDATE', () => {
     const result = parseMutationRoute('/catalog/products/prod-abc-123', 'PATCH')
-    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'product', operation: 'UPDATE', recordId: 'prod-abc-123' })
+    assert.deepEqual(result, { moduleKey: 'runly.catalog', entityType: 'product', operation: 'UPDATE', recordId: 'prod-abc-123' })
   })
 
-  it('maps POST /catalog/categories to atlas.catalog category CREATE', () => {
+  it('maps POST /catalog/categories to runly.catalog category CREATE', () => {
     const result = parseMutationRoute('/catalog/categories', 'POST')
-    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'category', operation: 'CREATE', recordId: null })
+    assert.deepEqual(result, { moduleKey: 'runly.catalog', entityType: 'category', operation: 'CREATE', recordId: null })
   })
 
-  it('maps PATCH /catalog/categories/:id to atlas.catalog category UPDATE', () => {
+  it('maps PATCH /catalog/categories/:id to runly.catalog category UPDATE', () => {
     const result = parseMutationRoute('/catalog/categories/cat-xyz-456', 'PATCH')
-    assert.deepEqual(result, { moduleKey: 'atlas.catalog', entityType: 'category', operation: 'UPDATE', recordId: 'cat-xyz-456' })
+    assert.deepEqual(result, { moduleKey: 'runly.catalog', entityType: 'category', operation: 'UPDATE', recordId: 'cat-xyz-456' })
   })
 })
 
@@ -80,7 +80,7 @@ describe('createOfflineTransport.queue', () => {
     const items = await db.mutation_queue.toArray()
     assert.equal(items.length, 1)
     assert.equal(items[0].status, 'PENDING')
-    assert.equal(items[0].moduleKey, 'atlas.contacts')
+    assert.equal(items[0].moduleKey, 'runly.contacts')
     assert.equal(items[0].operation, 'CREATE')
   })
 
@@ -99,7 +99,7 @@ describe('createOfflineTransport.queue', () => {
     const items = await db.mutation_queue.toArray()
     assert.equal(items.length, 1)
     const queuedId = items[0].id
-    const localRecord = await db.offline_records.where('[moduleKey+entityType+id]').equals(['atlas.contacts', 'contact', queuedId]).first()
+    const localRecord = await db.offline_records.where('[moduleKey+entityType+id]').equals(['runly.contacts', 'contact', queuedId]).first()
     assert.ok(localRecord)
     assert.equal(localRecord.dirty, true)
     assert.equal(localRecord.data.name, 'Bob')
@@ -108,7 +108,7 @@ describe('createOfflineTransport.queue', () => {
   it('UPDATE patches existing offline_record with dirty: true', async () => {
     const existingId = 'existing-c1'
     await db.offline_records.put({
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: existingId,
       data: { id: existingId, name: 'Old Name', companyId: 'co-1' },
@@ -121,7 +121,7 @@ describe('createOfflineTransport.queue', () => {
       method: 'PUT',
       body: JSON.stringify({ name: 'New Name' }),
     })
-    const updated = await db.offline_records.where('[moduleKey+entityType+id]').equals(['atlas.contacts', 'contact', existingId]).first()
+    const updated = await db.offline_records.where('[moduleKey+entityType+id]').equals(['runly.contacts', 'contact', existingId]).first()
     assert.ok(updated)
     assert.equal(updated.dirty, true)
     assert.equal(updated.data.name, 'New Name')
@@ -130,7 +130,7 @@ describe('createOfflineTransport.queue', () => {
   it('UPDATE mutation stores clientUpdatedAt from existing offline record', async () => {
     const existingUpdatedAt = '2026-06-06T09:00:00.000Z'
     await db.offline_records.put({
-      moduleKey: 'atlas.contacts',
+      moduleKey: 'runly.contacts',
       entityType: 'contact',
       id: 'c-existing',
       data: { id: 'c-existing', name: 'Old Name', companyId: 'co-1', updatedAt: existingUpdatedAt },

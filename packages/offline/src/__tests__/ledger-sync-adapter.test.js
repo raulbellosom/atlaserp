@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 import { LedgerSyncAdapter } from '../ledger-sync-adapter.js'
 
 let dbCounter = 0
 
 function makeDb() {
-  return new AtlasOfflineDatabase(`test-ledger-sync-${++dbCounter}`)
+  return new RunlyOfflineDatabase(`test-ledger-sync-${++dbCounter}`)
 }
 
 describe('LedgerSyncAdapter', () => {
@@ -24,7 +24,7 @@ describe('LedgerSyncAdapter', () => {
     await db.delete().catch(() => {})
   })
 
-  it('pulls atlas.ledger records and groups them by entity type', async () => {
+  it('pulls runly.ledger records and groups them by entity type', async () => {
     const adapter = new LedgerSyncAdapter({
       db,
       apiBaseUrl: 'http://localhost:4010',
@@ -39,7 +39,7 @@ describe('LedgerSyncAdapter', () => {
         json: async () => ({
           records: [
             {
-              moduleKey: 'atlas.ledger',
+              moduleKey: 'runly.ledger',
               entityType: 'account',
               id: 'acc-1',
               data: {
@@ -57,7 +57,7 @@ describe('LedgerSyncAdapter', () => {
               deleted: false,
             },
             {
-              moduleKey: 'atlas.ledger',
+              moduleKey: 'runly.ledger',
               entityType: 'transaction',
               id: 'tx-1',
               data: {
@@ -103,8 +103,8 @@ describe('LedgerSyncAdapter', () => {
         ok: true,
         json: async () => ({
           records: [
-            { moduleKey: 'atlas.ledger', entityType: 'account', id: 'acc-1', data: { id: 'acc-1' }, version: 'v1', deleted: false },
-            { moduleKey: 'atlas.ledger', entityType: 'transaction', id: 'tx-1', data: { id: 'tx-1' }, version: 'v1', deleted: false },
+            { moduleKey: 'runly.ledger', entityType: 'account', id: 'acc-1', data: { id: 'acc-1' }, version: 'v1', deleted: false },
+            { moduleKey: 'runly.ledger', entityType: 'transaction', id: 'tx-1', data: { id: 'tx-1' }, version: 'v1', deleted: false },
           ],
           nextCursor: '2026-06-07T01:00:00Z',
         }),
@@ -113,8 +113,8 @@ describe('LedgerSyncAdapter', () => {
 
     await adapter.pull()
 
-    const accountState = await db.sync_state.get(['atlas.ledger', 'account'])
-    const txState = await db.sync_state.get(['atlas.ledger', 'transaction'])
+    const accountState = await db.sync_state.get(['runly.ledger', 'account'])
+    const txState = await db.sync_state.get(['runly.ledger', 'transaction'])
 
     assert.equal(accountState.serverCursor, '2026-06-07T01:00:00Z')
     assert.equal(txState.serverCursor, '2026-06-07T01:00:00Z')
@@ -122,7 +122,7 @@ describe('LedgerSyncAdapter', () => {
 
   it('reuses the oldest stored ledger cursor in the request URL', async () => {
     await db.sync_state.put({
-      moduleKey: 'atlas.ledger',
+      moduleKey: 'runly.ledger',
       entityType: 'account',
       lastPullAt: '2026-06-06T00:00:00Z',
       serverCursor: '2026-06-06T00:00:00Z',
@@ -143,7 +143,7 @@ describe('LedgerSyncAdapter', () => {
 
     await adapter.pull()
 
-    assert.ok(capturedUrl.includes('modules=atlas.ledger'))
+    assert.ok(capturedUrl.includes('modules=runly.ledger'))
     assert.ok(capturedUrl.includes('cursor=2026-06-06T00%3A00%3A00Z'))
   })
 
@@ -181,7 +181,7 @@ describe('LedgerSyncAdapter', () => {
         json: async () => ({
           records: [
             {
-              moduleKey: 'atlas.ledger',
+              moduleKey: 'runly.ledger',
               entityType: 'transaction',
               id: 'tx-1',
               data: null,

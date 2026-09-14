@@ -1,18 +1,18 @@
 import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 import { MutationQueue } from '../mutation-queue.js'
 
 let dbCounter = 0
 function makeDb() {
-  return new AtlasOfflineDatabase(`test-mq-${++dbCounter}`)
+  return new RunlyOfflineDatabase(`test-mq-${++dbCounter}`)
 }
 
 const ITEM = {
   id: 'mut-1',
   idempotencyKey: 'ik-1',
-  moduleKey: 'atlas.contacts',
+  moduleKey: 'runly.contacts',
   entityType: 'contact',
   recordId: null,
   operation: 'CREATE',

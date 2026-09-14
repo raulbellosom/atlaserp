@@ -5,30 +5,30 @@ const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH'])
 // Maps API path patterns to module metadata.
 // Patterns with ID must come before patterns without ID (more specific first).
 const ROUTE_MAP = [
-  // atlas.contacts
-  { pattern: /^\/contacts\/([^/?#]+)$/, moduleKey: 'atlas.contacts', entityType: 'contact', hasId: true },
-  { pattern: /^\/contacts$/, moduleKey: 'atlas.contacts', entityType: 'contact', hasId: false },
-  // atlas.hr — departments
-  { pattern: /^\/hr\/departments\/([^/?#]+)$/, moduleKey: 'atlas.hr', entityType: 'department', hasId: true },
-  { pattern: /^\/hr\/departments$/, moduleKey: 'atlas.hr', entityType: 'department', hasId: false },
-  // atlas.hr — job-titles
-  { pattern: /^\/hr\/job-titles\/([^/?#]+)$/, moduleKey: 'atlas.hr', entityType: 'job_title', hasId: true },
-  { pattern: /^\/hr\/job-titles$/, moduleKey: 'atlas.hr', entityType: 'job_title', hasId: false },
-  // atlas.hr — employees
-  { pattern: /^\/hr\/employees\/([^/?#]+)$/, moduleKey: 'atlas.hr', entityType: 'employee', hasId: true },
-  { pattern: /^\/hr\/employees$/, moduleKey: 'atlas.hr', entityType: 'employee', hasId: false },
+  // runly.contacts
+  { pattern: /^\/contacts\/([^/?#]+)$/, moduleKey: 'runly.contacts', entityType: 'contact', hasId: true },
+  { pattern: /^\/contacts$/, moduleKey: 'runly.contacts', entityType: 'contact', hasId: false },
+  // runly.hr — departments
+  { pattern: /^\/hr\/departments\/([^/?#]+)$/, moduleKey: 'runly.hr', entityType: 'department', hasId: true },
+  { pattern: /^\/hr\/departments$/, moduleKey: 'runly.hr', entityType: 'department', hasId: false },
+  // runly.hr — job-titles
+  { pattern: /^\/hr\/job-titles\/([^/?#]+)$/, moduleKey: 'runly.hr', entityType: 'job_title', hasId: true },
+  { pattern: /^\/hr\/job-titles$/, moduleKey: 'runly.hr', entityType: 'job_title', hasId: false },
+  // runly.hr — employees
+  { pattern: /^\/hr\/employees\/([^/?#]+)$/, moduleKey: 'runly.hr', entityType: 'employee', hasId: true },
+  { pattern: /^\/hr\/employees$/, moduleKey: 'runly.hr', entityType: 'employee', hasId: false },
   // custom.fleet — vehicles
   { pattern: /^\/fleet\/vehicles\/([^/?#]+)$/, moduleKey: 'custom.fleet', entityType: 'vehicle', hasId: true },
   { pattern: /^\/fleet\/vehicles$/, moduleKey: 'custom.fleet', entityType: 'vehicle', hasId: false },
   // custom.fleet — drivers
   { pattern: /^\/fleet\/drivers\/([^/?#]+)$/, moduleKey: 'custom.fleet', entityType: 'driver', hasId: true },
   { pattern: /^\/fleet\/drivers$/, moduleKey: 'custom.fleet', entityType: 'driver', hasId: false },
-  // atlas.catalog — products
-  { pattern: /^\/catalog\/products\/([^/?#]+)$/, moduleKey: 'atlas.catalog', entityType: 'product', hasId: true },
-  { pattern: /^\/catalog\/products$/, moduleKey: 'atlas.catalog', entityType: 'product', hasId: false },
-  // atlas.catalog — categories
-  { pattern: /^\/catalog\/categories\/([^/?#]+)$/, moduleKey: 'atlas.catalog', entityType: 'category', hasId: true },
-  { pattern: /^\/catalog\/categories$/, moduleKey: 'atlas.catalog', entityType: 'category', hasId: false },
+  // runly.catalog — products
+  { pattern: /^\/catalog\/products\/([^/?#]+)$/, moduleKey: 'runly.catalog', entityType: 'product', hasId: true },
+  { pattern: /^\/catalog\/products$/, moduleKey: 'runly.catalog', entityType: 'product', hasId: false },
+  // runly.catalog — categories
+  { pattern: /^\/catalog\/categories\/([^/?#]+)$/, moduleKey: 'runly.catalog', entityType: 'category', hasId: true },
+  { pattern: /^\/catalog\/categories$/, moduleKey: 'runly.catalog', entityType: 'category', hasId: false },
 ]
 
 export function parseMutationRoute(path, method) {

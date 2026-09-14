@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 import { createDexiePersister } from '../dexie-persister.js'
 
 let database
@@ -14,7 +14,7 @@ const MOCK_CLIENT = {
 }
 
 before(async () => {
-  database = new AtlasOfflineDatabase('test-dexie-persister')
+  database = new RunlyOfflineDatabase('test-dexie-persister')
   await database.open()
   persister = createDexiePersister(database)
 })

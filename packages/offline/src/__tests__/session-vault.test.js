@@ -1,14 +1,14 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import 'fake-indexeddb/auto'
-import { AtlasOfflineDatabase } from '../db.js'
+import { RunlyOfflineDatabase } from '../db.js'
 import { SessionVault } from '../session-vault.js'
 
 let database
 let vault
 
 before(async () => {
-  database = new AtlasOfflineDatabase('test-session-vault')
+  database = new RunlyOfflineDatabase('test-session-vault')
   await database.open()
   vault = new SessionVault(database)
 })
@@ -38,7 +38,7 @@ test('SessionVault - load() returns stored session', async () => {
 })
 
 test('SessionVault - load() returns null when vault is empty', async () => {
-  const emptyDb = new AtlasOfflineDatabase('test-session-vault-empty')
+  const emptyDb = new RunlyOfflineDatabase('test-session-vault-empty')
   await emptyDb.open()
   const emptyVault = new SessionVault(emptyDb)
   const result = await emptyVault.load()
@@ -84,7 +84,7 @@ test('SessionVault - isExpired() returns false when within validity window', asy
 })
 
 test('SessionVault - update() on empty vault does nothing', async () => {
-  const freshDb = new AtlasOfflineDatabase('test-sv-update-empty')
+  const freshDb = new RunlyOfflineDatabase('test-sv-update-empty')
   await freshDb.open()
   const freshVault = new SessionVault(freshDb)
   await assert.doesNotReject(() => freshVault.update({ accessToken: 'x' }))
@@ -93,7 +93,7 @@ test('SessionVault - update() on empty vault does nothing', async () => {
 })
 
 test('SessionVault - isExpired() returns true when vault is empty', async () => {
-  const freshDb = new AtlasOfflineDatabase('test-sv-expired-empty')
+  const freshDb = new RunlyOfflineDatabase('test-sv-expired-empty')
   await freshDb.open()
   const freshVault = new SessionVault(freshDb)
   assert.equal(await freshVault.isExpired(), true)

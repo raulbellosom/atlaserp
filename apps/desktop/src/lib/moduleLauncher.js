@@ -3,8 +3,12 @@
 
 const MENU_MARGIN = 8;
 
+// offlineModules (OFFLINE_MODULES) lists canonical runly.* keys only; a
+// pre-cutover install can still report an atlas.*-keyed module here, so
+// normalize before comparing rather than duplicating every entry.
 export function isModuleOfflineBlocked(isOnline, module, offlineModules) {
-  return !isOnline && !offlineModules.includes(module.key);
+  const normalizedKey = module.key?.replace(/^atlas\./, 'runly.');
+  return !isOnline && !offlineModules.includes(normalizedKey);
 }
 
 // Accepts a mouse/pointer event ({clientX,clientY}) or a plain {x,y} object.

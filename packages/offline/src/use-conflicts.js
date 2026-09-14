@@ -17,7 +17,7 @@ export function useConflicts() {
         const items = await db.conflicts.where('status').equals('PENDING').sortBy('detectedAt')
         if (mounted) setConflicts(items)
       } catch (err) {
-        console.warn('[atlas/offline] load conflicts failed', err?.message ?? err)
+        console.warn('[runly/offline] load conflicts failed', err?.message ?? err)
       }
     }
 
