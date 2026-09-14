@@ -1,5 +1,5 @@
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // iOS Safari sometimes reports empty file.type for QuickTime videos (.MOV) and other formats.
 // Fall back to extension-based detection so the bucket MIME check passes.

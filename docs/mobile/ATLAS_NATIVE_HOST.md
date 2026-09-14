@@ -82,12 +82,12 @@ Tauri permite dar IPC a páginas remotas mediante capabilities. Android no disti
 
 Controles implementados:
 
-1. Manifest de confianza de build en `native-host/environments.json`. Producción y staging son orígenes HTTPS exactos, sin comodines. La URL no se toma de formularios, deep links ni localStorage.
+1. Manifest de confianza de build en `native-host/environments.json`. Producción y staging son orígenes HTTPS exactos, sin comodines. La URL no se toma de formularios, deep links ni localStorage. Este archivo se distribuye con dominios de ejemplo (`app.example.com` / `staging.example.com`) a propósito — cada instalación real debe reemplazarlos por su propio dominio antes de compilar las apps nativas; nunca debe apuntar a una instancia de desarrollo de terceros.
 2. El wrapper acepta entornos enumerados. Development admite un origen explícito del desarrollador; Rust rechaza development en perfil release.
 3. Capability remota: `local: false`, ventana `main`, URL `${origin}/app/*`. No hay Store, SQL, shell genérico, filesystem ni creación de ventanas desde remoto.
 4. Comandos de la aplicación enumerados con `AppManifest` y permisos TOML. `host_connect` es exclusivo del shell local. Los handlers vuelven a comprobar ventana y URL.
 5. Navegación principal sólo al shell local o al origen/ruta oficiales. Links HTTP(S) externos se abren mediante opener nativo. Credenciales en URL y otros esquemas se rechazan.
-6. La respuesta web Mobile envía `frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`. Nginx y Vite reconocen el sufijo `AtlasNativeHost/`; este sufijo selecciona CSP, **no concede IPC**.
+6. La respuesta web Mobile envía `frame-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`. Nginx y Vite reconocen el sufijo `RunlyNativeHost/` (y `AtlasNativeHost/` como compatibilidad con apps nativas ya instaladas antes del rebrand); este sufijo selecciona CSP, **no concede IPC**.
 7. Antes de navegar, el host exige CSP restrictiva en la respuesta de `/app/`, con deadline de 15 segundos y sin seguir redirects. Rechaza configuración ausente con `MISSING_NATIVE_FRAME_POLICY`.
 8. Android conserva el user-agent Chromium real, añade el sufijo y desactiva ventanas múltiples. Los popups de la SPA se canalizan por el bridge.
 9. Actualización del motor: 2.11.0 estaba afectado por confusión entre orígenes locales/remotos; el mínimo corregido es 2.11.1. [Advisory de Tauri](https://github.com/tauri-apps/tauri/security/advisories/GHSA-7gmj-67g7-phm9).
@@ -145,7 +145,7 @@ import { native } from './native/index.js'
 
 const info = await native.getHostInfo()
 // { platform: 'android', nativeHostVersion: '1.0.0', osVersion: '…',
-//   bridgeVersion: 1, frontendUrl: 'https://atlas.racoondevs.com/app/',
+//   bridgeVersion: 1, frontendUrl: 'https://app.example.com/app/',
 //   capabilities: ['host-info', 'haptics', 'local-notifications', 'deep-links', 'external-links'] }
 
 if (native.supports('haptics', '1.0.0')) await native.haptics.impact('light')
@@ -198,7 +198,7 @@ No recargar automáticamente durante llamadas, formularios o transacciones. Nuev
 Antes de instalar un host remoto de producción:
 
 ```bash
-curl -I -A 'AtlasNativeHost/1.0' https://atlas.racoondevs.com/app/
+curl -I -A 'RunlyNativeHost/1.0' https://app.example.com/app/
 # Exigir HTTP 200 y CSP con frame-src 'none'; object-src 'none'
 ```
 

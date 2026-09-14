@@ -17,7 +17,7 @@ import {
 import { GripVertical, Pencil, Trash2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 function slugify(s) {

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE = getApiUrl()

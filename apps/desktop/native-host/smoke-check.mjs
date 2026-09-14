@@ -46,7 +46,7 @@ try {
     assert.equal(result.info.platform, 'android')
     assert.equal(result.info.nativeHostVersion, '1.1.0')
     assert.ok(Object.values(result.denied).every(Boolean))
-    assert.ok(result.ua.includes('Android') && result.ua.includes('Chrome') && result.ua.includes('AtlasNativeHost/'))
+    assert.ok(result.ua.includes('Android') && result.ua.includes('Chrome') && result.ua.includes('RunlyNativeHost/'))
     assert.equal(result.blockedDirective, 'frame-src')
     console.log(JSON.stringify({ bridge: 'PASS', ...result }, null, 2))
   } else if (mode === 'queue') {

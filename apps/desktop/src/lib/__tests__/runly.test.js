@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { getRunlyClient, initRunlyClient, setActiveCompanyId, getActiveCompanyId } from '../atlas.js'
+import { getRunlyClient, initRunlyClient, setActiveCompanyId, getActiveCompanyId } from '../runly.js'
 
 test('initAtlasClient binds SDK requests to the runtime URL', async () => {
   const originalFetch = globalThis.fetch

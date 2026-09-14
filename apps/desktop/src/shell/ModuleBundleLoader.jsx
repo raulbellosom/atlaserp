@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { componentRegistry } from '../lib/moduleComponentRegistry'
-import { runly } from '../lib/atlas'
+import { runly } from '../lib/runly'
 import { useAuth } from '../auth/AuthProvider'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 

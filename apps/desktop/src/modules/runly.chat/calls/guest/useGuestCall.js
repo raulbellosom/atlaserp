@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { runly } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/runly";
 import { guestPhase } from "./lib/guestCall";
 
 function unwrap(r) {

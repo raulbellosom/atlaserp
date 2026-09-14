@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { LayoutTemplate, Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 function applyVars(body, vars = {}) {
   return body.replace(/\{(\w+)\}/g, (match, key) => vars[key] ?? match);

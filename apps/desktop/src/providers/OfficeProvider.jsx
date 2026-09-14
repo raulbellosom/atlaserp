@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OfficeActionsContext } from '@runly/ui';
 import { useAuth } from '../auth/AuthProvider';
-import { runly } from '../lib/atlas';
+import { runly } from '../lib/runly';
 
 export function OfficeProvider({ children }) {
   const { session, userProfile } = useAuth();

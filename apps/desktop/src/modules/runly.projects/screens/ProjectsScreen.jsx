@@ -17,7 +17,7 @@ import {
 import { Button, Badge, EmptyState, ErrorState, LoadingState } from "@runly/ui";
 import { useProjects, useWorkspaceUsers } from "../hooks/useProjectsData";
 import { useProjectRealtime } from "../hooks/useProjectRealtime";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
 import { getProjectIcon } from "../lib/projectIcons.js";

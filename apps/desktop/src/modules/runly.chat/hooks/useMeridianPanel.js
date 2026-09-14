@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.chat/hooks/useMeridianPanel.js
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 // The private per-conversation MeridIAn panel thread (Spec 2).

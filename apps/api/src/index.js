@@ -1034,12 +1034,12 @@ app.get("/health", (c) => {
 
 const BRAND_DIR = path.resolve(currentDir, "../../../apps/desktop/public/brand");
 const ALLOWED_BRAND_FILES = new Set([
-  "atlas-logo-horizontal.png",
-  "atlas-logo-primary.png",
-  "atlas-logo-isotype.png",
-  "atlas-logo-vertical.png",
-  "atlas-logo-monochrome-light.png",
-  "atlas-logo-monochrome-dark.png",
+  "runly-logo-horizontal.png",
+  "runly-logo-primary.png",
+  "runly-logo-isotype.png",
+  "runly-logo-vertical.png",
+  "runly-logo-monochrome-light.png",
+  "runly-logo-monochrome-dark.png",
 ]);
 app.get("/brand/:filename", async (c) => {
   const filename = c.req.param("filename");

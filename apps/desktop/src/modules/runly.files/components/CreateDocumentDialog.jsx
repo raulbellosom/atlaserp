@@ -15,7 +15,7 @@ import {
   FileSpreadsheet,
   Presentation,
 } from "lucide-react";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { filesError } from "../lib/files-error";
 
 const TYPES = {

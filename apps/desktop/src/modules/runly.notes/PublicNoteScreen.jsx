@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { runly } from '../../lib/atlas'
+import { runly } from '../../lib/runly'
 import { NoteEditor } from './components/NoteEditor.jsx'
 import { NoteIcon } from './noteIcons.jsx'
 import { ErrorState } from '@runly/ui'

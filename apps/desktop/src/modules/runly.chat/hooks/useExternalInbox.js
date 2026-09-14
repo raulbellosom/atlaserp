@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { subscribeToMultiBroadcast } from "../lib/supabaseRealtime";
 
 export function useExternalInbox(status = "open", search = null) {

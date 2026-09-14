@@ -4,13 +4,13 @@ This directory is the source of truth for Atlas ERP brand resources.
 
 ## Canonical sources
 
-- `atlas-erp_app_icon.png`: master icon source used to generate Tauri and web icons.
-- `atlas-erp_primary_logo.png`: main square logo variant.
-- `atlas-erp_horizontal_logo.png`: horizontal logo for metadata/share cards.
-- `atlas-erp_vertical_logo.png`: vertical logo variant.
-- `atlas-erp_isotype_only.png`: symbol-only variant.
-- `atlas-erp_monochrome_light.png`: monochrome for dark backgrounds.
-- `atlas-erp_monochrome_dark.png`: monochrome for light backgrounds.
+- `runly-erp_app_icon.png`: master icon source used to generate Tauri and web icons.
+- `runly-erp_primary_logo.png`: main square logo variant.
+- `runly-erp_horizontal_logo.png`: horizontal logo for metadata/share cards.
+- `runly-erp_vertical_logo.png`: vertical logo variant.
+- `runly-erp_isotype_only.png`: symbol-only variant.
+- `runly-erp_monochrome_light.png`: monochrome for dark backgrounds.
+- `runly-erp_monochrome_dark.png`: monochrome for light backgrounds.
 
 ## Official color palette
 

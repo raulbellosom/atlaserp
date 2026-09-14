@@ -1,4 +1,4 @@
-import { runly } from "./atlas.js";
+import { runly } from "./runly.js";
 import { isNative } from '@runly/core/native-runtime';
 
 const STORAGE_KEY = "atlas.notifications.webpush.subscriptionId";

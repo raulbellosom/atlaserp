@@ -14,13 +14,13 @@ const identityDir = path.join(root, 'identity')
 const tauriIconsDir = path.join(desktopDir, 'src-tauri', 'icons')
 
 const requiredSources = {
-  appIcon: path.join(identityDir, 'atlas-erp_app_icon.png'),
-  primary: path.join(identityDir, 'atlas-erp_primary_logo.png'),
-  horizontal: path.join(identityDir, 'atlas-erp_horizontal_logo.png'),
-  vertical: path.join(identityDir, 'atlas-erp_vertical_logo.png'),
-  isotype: path.join(identityDir, 'atlas-erp_isotype_only.png'),
-  monoLight: path.join(identityDir, 'atlas-erp_monochrome_light.png'),
-  monoDark: path.join(identityDir, 'atlas-erp_monochrome_dark.png'),
+  appIcon: path.join(identityDir, 'runly-erp_app_icon.png'),
+  primary: path.join(identityDir, 'runly-erp_primary_logo.png'),
+  horizontal: path.join(identityDir, 'runly-erp_horizontal_logo.png'),
+  vertical: path.join(identityDir, 'runly-erp_vertical_logo.png'),
+  isotype: path.join(identityDir, 'runly-erp_isotype_only.png'),
+  monoLight: path.join(identityDir, 'runly-erp_monochrome_light.png'),
+  monoDark: path.join(identityDir, 'runly-erp_monochrome_dark.png'),
 }
 
 for (const [name, filePath] of Object.entries(requiredSources)) {

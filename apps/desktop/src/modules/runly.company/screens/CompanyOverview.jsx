@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 const COMPANY_TYPE_LABELS = {
   sa_de_cv: "SA de CV",

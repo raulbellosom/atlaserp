@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 
 export function useCanvasScene(noteId) {
   const { session } = useAuth()

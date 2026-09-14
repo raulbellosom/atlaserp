@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { getLegacyModuleKey } from '@runly/core';
 import { useQuery } from "@tanstack/react-query";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { getAvailableModules, mergeRuntimeModules } from "../lib/runtimeModules";
 import { useAuth } from "../auth/AuthProvider";
 import { useBrandingStore } from "../stores/branding.js";

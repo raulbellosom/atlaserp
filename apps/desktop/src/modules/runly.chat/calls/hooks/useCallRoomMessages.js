@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../../auth/AuthProvider";
-import { runly } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/runly";
 import { mergeRoomMessages } from "../lib/roomChat";
 
 function unwrap(r) {

@@ -3,7 +3,7 @@ import { TagsField } from "@runly/ui";
 import { Copy, Check, Send, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { summarizeInviteResult, describeInviteOutcome } from "./lib/inviteResult";
 
 function unwrap(r) {

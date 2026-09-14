@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
 } from "@runly/ui";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 
 function timeAgo(date) {
   const diff = Date.now() - new Date(date).getTime();

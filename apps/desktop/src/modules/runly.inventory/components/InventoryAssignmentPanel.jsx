@@ -17,7 +17,7 @@ import {
 import { UserCheck, RotateCcw, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import {
   useAssignInventoryItem,
   useReturnInventoryItem,

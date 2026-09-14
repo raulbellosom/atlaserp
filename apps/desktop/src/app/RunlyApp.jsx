@@ -17,7 +17,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { usePwaManifest } from "../hooks/usePwaManifest.js";
 import { usePwaInstall } from "../hooks/usePwaInstall.js";
 import { usePushAutoSubscribe } from "../hooks/usePushAutoSubscribe.js";
-import { runly } from '../lib/atlas.js'
+import { runly } from '../lib/runly.js'
 import { FloatingChatHub } from '../modules/runly.chat/components/FloatingChatHub.jsx'
 import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
 import { useServiceWorkerNotifications } from './useServiceWorkerNotifications.js'
@@ -83,7 +83,7 @@ function SidebarSkeleton({ collapsed }) {
   );
 }
 
-export function AtlasApp() {
+export function RunlyApp() {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

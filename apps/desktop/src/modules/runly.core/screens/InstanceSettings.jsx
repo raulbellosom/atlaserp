@@ -14,7 +14,7 @@ import {
 import { BellRing, Building2, Clock3, Coins, Mail, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { RUNLY_DESKTOP_DOWNLOAD_URL } from "../../../lib/appConfig.js";
 import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs";
 

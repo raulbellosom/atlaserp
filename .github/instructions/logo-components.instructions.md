@@ -15,10 +15,10 @@ Clip-paths on `<img>` tags and manually estimated polygon coordinates are always
 
 | Asset | Location |
 |---|---|
-| Traced SVG (isotype) | `identity/atlas-erp_isotype_only.svg` (create if missing) |
-| PNG fallback | `identity/atlas-erp_isotype_only.png` |
-| Runtime SVG | `apps/desktop/public/brand/atlas-logo-isotype.svg` |
-| Runtime PNG | `apps/desktop/public/brand/atlas-logo-isotype.png` |
+| Traced SVG (isotype) | `identity/runly-erp_isotype_only.svg` (create if missing) |
+| PNG fallback | `identity/runly-erp_isotype_only.png` |
+| Runtime SVG | `apps/desktop/public/brand/runly-logo-isotype.svg` |
+| Runtime PNG | `apps/desktop/public/brand/runly-logo-isotype.png` |
 
 Always prefer the SVG over the PNG for animated components.
 

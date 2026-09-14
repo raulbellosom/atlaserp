@@ -2,7 +2,7 @@
 name: "SVG Logo Animator"
 description: "Converts an Atlas ERP brand logo (PNG or SVG) into a pixel-perfect animated React component. Handles the full pipeline: vectorization guidance, SVG path extraction, viewBox normalization, and Framer Motion assembly animation. Use when building logo loaders, splash screens, brand animations, or any component that must be visually faithful to the real logo. Triggers: animate logo, logo loader, brand animation, loading screen with logo, recreate isotype as component, assembly animation."
 tools: [read, edit, search, browser, execute]
-argument-hint: "Logo file path + animation style — e.g. 'identity/atlas-erp_isotype_only.png, assembly' or 'identity/atlas-erp_isotype_only.svg'"
+argument-hint: "Logo file path + animation style — e.g. 'identity/runly-erp_isotype_only.png, assembly' or 'identity/runly-erp_isotype_only.svg'"
 ---
 
 # SVG Logo Animator Agent — Atlas ERP
@@ -21,7 +21,7 @@ I start by checking what's available:
 find identity/ apps/desktop/public/brand -name "*.svg" -o -name "*.png" | sort
 ```
 
-**If an SVG source exists** (`identity/atlas-erp_isotype_only.svg`):
+**If an SVG source exists** (`identity/runly-erp_isotype_only.svg`):
 - Read it immediately, extract all `<path>` elements, `fill` colors, and `viewBox`
 - Skip to Step 3
 
@@ -81,8 +81,8 @@ I open a browser tool or ask the user to:
 ## Step 6 — Save the SVG
 
 ```bash
-cp <vectorized-svg> identity/atlas-erp_isotype_only.svg
-cp identity/atlas-erp_isotype_only.svg apps/desktop/public/brand/atlas-logo-isotype.svg
+cp <vectorized-svg> identity/runly-erp_isotype_only.svg
+cp identity/runly-erp_isotype_only.svg apps/desktop/public/brand/runly-logo-isotype.svg
 ```
 
 ## What I Will NOT Do

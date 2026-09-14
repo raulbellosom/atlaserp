@@ -19,7 +19,7 @@ import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { runly } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/runly.js";
 import { GrowthAnalyticsReport } from "../components/GrowthAnalyticsReports.jsx";
 import {
   ANALYTICS_RANGE_OPTIONS,

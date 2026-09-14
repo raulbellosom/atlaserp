@@ -15,7 +15,7 @@
 // their own state wouldn't see each other's writes.
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 const STORAGE_KEY = "atlas_chat_prefs_v1";

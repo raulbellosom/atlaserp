@@ -19,7 +19,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { runly } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/runly.js";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { componentRegistry } from "../../../lib/moduleComponentRegistry.js";
 import { CreateLeadDialog } from "../components/CreateLeadDialog.jsx";

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MessageSquare } from "lucide-react";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { ChatTemplatePopover } from "./ChatTemplatePopover";
 import { useConversationFiles } from "../hooks/useConversationFiles";
 import { ErrorState } from "@runly/ui";

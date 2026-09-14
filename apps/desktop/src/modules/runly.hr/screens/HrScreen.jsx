@@ -6,7 +6,7 @@ import { FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { buildHrEmployeesTableProps } from "../lib/hr-employees-table-props.js";
 import { resolveHrScreenAccess } from "../lib/hr-screen-access.js";
 

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { AuthAtmosphere, Button } from "@runly/ui";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { useBrandingStore } from "../stores/branding";
 import { ThemeToggle } from "../components/ThemeToggle";

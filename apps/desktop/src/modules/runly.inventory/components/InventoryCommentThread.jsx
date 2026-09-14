@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CommentThread } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import {
   useInventoryComments,
   useCreateInventoryComment,

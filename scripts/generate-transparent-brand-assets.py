@@ -8,12 +8,12 @@ OUT_DIR = ROOT / 'apps' / 'desktop' / 'public' / 'brand'
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 MAPPING = {
-    'atlas-erp_primary_logo.png': 'atlas-logo-primary.png',
-    'atlas-erp_horizontal_logo.png': 'atlas-logo-horizontal.png',
-    'atlas-erp_vertical_logo.png': 'atlas-logo-vertical.png',
-    'atlas-erp_isotype_only.png': 'atlas-logo-isotype.png',
-    'atlas-erp_monochrome_light.png': 'atlas-logo-monochrome-light.png',
-    'atlas-erp_monochrome_dark.png': 'atlas-logo-monochrome-dark.png',
+    'runly-erp_primary_logo.png': 'runly-logo-primary.png',
+    'runly-erp_horizontal_logo.png': 'runly-logo-horizontal.png',
+    'runly-erp_vertical_logo.png': 'runly-logo-vertical.png',
+    'runly-erp_isotype_only.png': 'runly-logo-isotype.png',
+    'runly-erp_monochrome_light.png': 'runly-logo-monochrome-light.png',
+    'runly-erp_monochrome_dark.png': 'runly-logo-monochrome-dark.png',
 }
 
 
@@ -117,7 +117,7 @@ def main():
             raise FileNotFoundError(f'Missing source: {src}')
 
         original = Image.open(src)
-        if src_name == 'atlas-erp_monochrome_light.png':
+        if src_name == 'runly-erp_monochrome_light.png':
             out = remove_bg_by_border_chroma(original, threshold=38)
         else:
             out = remove_bg_by_region_grow(original, step_threshold=30)

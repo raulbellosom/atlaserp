@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Input, cn } from '@runly/ui'
 import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 
 export default function VariantOptionsEditor({ token, productId, options = [] }) {
   const queryClient = useQueryClient()

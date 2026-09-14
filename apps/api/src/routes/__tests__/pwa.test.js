@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import { createPwaRouter } from '../pwa.js'
 
 const calendarLogoUrl = new URL(
-  '../../../../desktop/public/module-logos/atlas-calendar-128.svg',
+  '../../../../desktop/public/module-logos/runly-calendar-128.svg',
   import.meta.url,
 )
 
@@ -62,7 +62,7 @@ const modules = new Map([
         description: 'Calendarios y eventos',
         icon: 'Calendar',
         color: '#7C3AED',
-        logoUrl: '/module-logos/atlas-calendar-128.svg',
+        logoUrl: '/module-logos/runly-calendar-128.svg',
         pwa: {
           shortName: 'Calendario',
           startPath: '/calendar',

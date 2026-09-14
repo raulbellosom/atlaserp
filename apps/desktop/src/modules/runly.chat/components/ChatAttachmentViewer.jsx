@@ -1,7 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useOfficeActions } from "@runly/ui";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { isAudioAttachment } from "../lib/chatUtils";
 import { isSignedUrlUsable } from "../lib/signedUrl";
 import { useAuth } from "../../../auth/AuthProvider";

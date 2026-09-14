@@ -11,7 +11,7 @@ import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 import { Skeleton, renderMentionText } from "@runly/ui";
 import { useChatFloatStore } from "../store/chatFloatStore";
 import { useCreateConversation } from "../hooks/useCreateConversation";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { CreateChatModal } from "./CreateChatModal";
 import { getConversationDisplayName, getConversationTitleLabel } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";

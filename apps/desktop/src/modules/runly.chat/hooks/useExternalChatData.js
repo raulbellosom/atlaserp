@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { subscribeToMultiBroadcast } from "../lib/supabaseRealtime";
 import { mergeExternalPages } from "../lib/mergeExternalPages";
 import { useToggleReaction } from "./useChatMessages";

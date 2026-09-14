@@ -19,7 +19,7 @@ import {
 } from "@runly/ui";
 import { formatFileSize, isImageMime, isAudioAttachment } from "../lib/chatUtils";
 import { isOfficeOpenable } from "../lib/officeFileActions";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 import { MessageReactionPicker } from "./MessageReactionPicker";
 import { isSignedUrlUsable } from "../lib/signedUrl";

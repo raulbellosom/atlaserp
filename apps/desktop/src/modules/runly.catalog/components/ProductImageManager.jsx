@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { DistDropZone } from '@runly/ui'
 import { Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 
 /**
  * Props:

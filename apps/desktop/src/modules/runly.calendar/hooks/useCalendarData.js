@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useOfflineContext, useOfflineStore } from "@runly/offline";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 function useToken() {
   const { session } = useAuth();

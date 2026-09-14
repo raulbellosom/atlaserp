@@ -16,7 +16,7 @@ import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, PhoneCall
 import { toast } from "sonner";
 import { getDefaultNotificationPreference } from '@runly/core';
 import { useAuth } from "../../auth/AuthProvider";
-import { runly } from "../../lib/atlas";
+import { runly } from "../../lib/runly";
 import {
   getCurrentWebPushSubscription,
   getStoredWebPushSubscriptionId,

@@ -50,7 +50,7 @@ export function resolveApiBaseUrl(env = process.env) {
 // own interpolations (use escapeHtml). `cta` is `{ label, url }` or null.
 export function renderAtlasEmailLayout({ kicker, heading, bodyHtml = "", cta = null, footnote, env = process.env }) {
   const apiBaseUrl = resolveApiBaseUrl(env);
-  const logoUrl = apiBaseUrl ? `${apiBaseUrl}/brand/atlas-logo-horizontal.png` : null;
+  const logoUrl = apiBaseUrl ? `${apiBaseUrl}/brand/runly-logo-horizontal.png` : null;
   const foot = footnote ?? "Este correo fue generado automaticamente por Runly ERP.";
 
   return `

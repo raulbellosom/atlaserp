@@ -38,7 +38,7 @@ describe("renderAtlasEmailLayout", () => {
   });
   it("omits the logo img when no api base url resolves", () => {
     const html = renderAtlasEmailLayout({ heading: "x", env: { NODE_ENV: "production" } });
-    assert.doesNotMatch(html, /atlas-logo-horizontal/);
+    assert.doesNotMatch(html, /runly-logo-horizontal/);
   });
 });
 

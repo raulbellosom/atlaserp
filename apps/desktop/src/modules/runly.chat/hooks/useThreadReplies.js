@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 
 export function useThreadReplies(rootMessageId) {

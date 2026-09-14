@@ -2,10 +2,11 @@ export const NATIVE_CSP = "frame-src 'none'; object-src 'none'; base-uri 'self';
 
 export function nativeHostHeaders() {
   return {
-    name: 'atlas-native-host-headers',
+    name: 'runly-native-host-headers',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (String(req.headers['user-agent']).includes('AtlasNativeHost/')) {
+        const ua = String(req.headers['user-agent'])
+        if (ua.includes('RunlyNativeHost/') || ua.includes('AtlasNativeHost/')) {
           res.setHeader('Content-Security-Policy', NATIVE_CSP)
           res.setHeader('Cache-Control', 'no-store')
         }

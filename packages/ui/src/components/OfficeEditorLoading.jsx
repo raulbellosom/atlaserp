@@ -23,7 +23,7 @@ export function OfficeEditorLoading({ fileName, sessionReady = false }) {
             <div className="office-loading-preview"><i /><i /><i /><i /><i /><i /></div>
             <span className="office-loading-sheet-scan" />
           </div>
-          <div className="office-loading-brand"><img src="/brand/atlas-logo-isotype.png" width="48" height="48" alt="" /></div>
+          <div className="office-loading-brand"><img src="/brand/runly-logo-isotype.png" width="48" height="48" alt="" /></div>
           <span className="office-loading-spark office-loading-spark-one" />
           <span className="office-loading-spark office-loading-spark-two" />
         </div>

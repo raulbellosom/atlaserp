@@ -1,4 +1,4 @@
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024

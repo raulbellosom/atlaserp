@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, PageHeader, Skeleton } from "@runly/ui";
 import { ArrowRight, KeyRound, Shield, UserCheck, Users } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 

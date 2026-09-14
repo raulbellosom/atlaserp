@@ -10,7 +10,7 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 
 const API_BASE_URL = getApiUrl()

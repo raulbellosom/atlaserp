@@ -17,7 +17,7 @@ import {
 } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
 import { useNoteShares, useShareNote, useUpdateNoteShare, useRevokeNoteShare } from '../hooks/useNoteShares.js'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import { useAuth } from '../../../auth/AuthProvider'
 
 const PERMISSION_OPTIONS = [

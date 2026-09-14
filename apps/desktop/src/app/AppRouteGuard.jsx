@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { LoginScreen } from "../auth/LoginScreen";
 import { ApiErrorScreen } from "../components/ApiErrorScreen";
 import { AppLoader } from "../components/AppLoader";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { SetupWizard } from "../setup/SetupWizard";
 
 function useInstanceStatus() {

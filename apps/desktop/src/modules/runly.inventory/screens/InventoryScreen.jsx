@@ -7,7 +7,7 @@ import { RunlyTable, Button, ConfirmDialog, PageHeader } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 import { useInventoryCategories, useInventoryBrands, useInventoryLocations } from '../hooks/useInventoryCatalogs.js'
 import { ITEM_STATUSES } from '../lib/inventory-constants.js'
 

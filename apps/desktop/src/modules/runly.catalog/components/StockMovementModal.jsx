@@ -7,7 +7,7 @@ import {
 } from '@runly/ui'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 
 const REASON_NONE = '__none__'
 

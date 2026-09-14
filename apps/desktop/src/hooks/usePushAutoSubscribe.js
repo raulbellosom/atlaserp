@@ -7,7 +7,7 @@ import {
   subscribeCurrentDeviceToWebPush,
   syncCurrentDeviceWebPushSubscription,
 } from "../lib/webPush";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import {
   getSystemNotificationPermission,
   isTauriRuntime,

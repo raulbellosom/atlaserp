@@ -10,7 +10,7 @@ import {
 } from "@runly/ui";
 import { Upload, FileArchive, X } from "lucide-react";
 import { toast } from "sonner";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 function guessKeyFromFilename(filename) {

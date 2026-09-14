@@ -1,4 +1,4 @@
-import { initRunlyClient } from './atlas.js'
+import { initRunlyClient } from './runly.js'
 import { initSupabaseClient } from './supabase.js'
 import {
   getServerUrl,

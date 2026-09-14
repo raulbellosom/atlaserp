@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { PERMISSION_CATALOG } from "../../../permission-catalog.js";
 import { coreModules } from "../core-modules.js";
-import { atlasDocumentsManifest } from "../feature-modules.js";
+import { runlyDocumentsManifest } from "../feature-modules.js";
 
 const repoRoot = new URL("../../../../../../", import.meta.url);
 
@@ -55,24 +55,24 @@ test("forward migration creates document tables, constraints, and indexes", asyn
   assert.match(migration, /CHECK \("status" IN \('pending', 'ready', 'failed'\)\)/);
 });
 
-test("atlas.documents is an official core module with granular permissions", () => {
-  assert.equal(atlasDocumentsManifest.key, "runly.documents");
-  assert.equal(atlasDocumentsManifest.core, true);
-  assert.equal(atlasDocumentsManifest.icon, "Files");
-  assert.equal(atlasDocumentsManifest.color, "#0F766E");
-  assert.deepEqual(atlasDocumentsManifest.pwa, {
+test("runly.documents is an official core module with granular permissions", () => {
+  assert.equal(runlyDocumentsManifest.key, "runly.documents");
+  assert.equal(runlyDocumentsManifest.core, true);
+  assert.equal(runlyDocumentsManifest.icon, "Files");
+  assert.equal(runlyDocumentsManifest.color, "#0F766E");
+  assert.deepEqual(runlyDocumentsManifest.pwa, {
     shortName: "Documentos",
     startPath: "/templates",
   });
   assert.deepEqual(
-    atlasDocumentsManifest.dependencies.map((item) => item.key),
+    runlyDocumentsManifest.dependencies.map((item) => item.key),
     ["runly.core", "runly.files", "runly.company"],
   );
   assert.ok(
     coreModules.some((manifest) => manifest.key === "runly.documents"),
   );
 
-  const permissionKeys = atlasDocumentsManifest.permissions.map(
+  const permissionKeys = runlyDocumentsManifest.permissions.map(
     (permission) => permission.key,
   );
   for (const permissionKey of [

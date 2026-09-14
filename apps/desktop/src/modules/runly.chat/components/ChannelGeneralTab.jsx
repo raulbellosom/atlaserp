@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { useChannelRoles, useUpdateChannelRole } from "../hooks/useChannelRoles";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";

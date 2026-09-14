@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ActivityBellTrigger, SyncStatusPopover } from "@runly/ui";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenu } from "./UserMenu";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import ActivityDetailSheet from "../modules/runly.activity/ActivityDetailSheet";
 import { useOfflineStore } from "@runly/offline";
 

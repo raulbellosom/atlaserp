@@ -19,7 +19,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
 import { useRuntimeModules } from "../app/useRuntimeModules";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { getApiUrl } from "../lib/runtimeConfig.js";
 import { isModuleAvailable } from "../lib/runtimeModules";
 import { componentRegistry } from "../lib/moduleComponentRegistry";

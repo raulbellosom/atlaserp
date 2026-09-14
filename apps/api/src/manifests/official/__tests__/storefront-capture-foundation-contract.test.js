@@ -69,7 +69,7 @@ test("forward migration creates capture tables and idempotency constraints", asy
 });
 
 test("atlas.growth is an official core module with analytics and lead navigation", () => {
-  const manifest = featureModules.atlasGrowthManifest;
+  const manifest = featureModules.runlyGrowthManifest;
 
   assert.ok(manifest);
   assert.equal(manifest.key, "runly.growth");

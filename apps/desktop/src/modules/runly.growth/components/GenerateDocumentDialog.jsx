@@ -16,7 +16,7 @@ import {
 import { Files } from "lucide-react";
 import { toast } from "sonner";
 
-import { runly } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/runly.js";
 
 export function GenerateDocumentDialog({
   open,

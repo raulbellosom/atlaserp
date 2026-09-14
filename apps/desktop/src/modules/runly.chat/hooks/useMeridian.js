@@ -1,6 +1,6 @@
 // apps/desktop/src/modules/runly.chat/hooks/useMeridian.js
 import { useQuery } from "@tanstack/react-query";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 // Is MeridIAn available in this environment (GROQ_API_KEY present) AND does the

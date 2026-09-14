@@ -1,5 +1,5 @@
 import { ActivityTimeline } from "@runly/ui";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 /**
  * Embeddable activity panel for HR Employee detail.

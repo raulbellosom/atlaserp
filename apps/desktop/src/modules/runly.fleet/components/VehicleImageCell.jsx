@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileViewer } from "@runly/ui";
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 
 function mapViewerFiles(items) {
   return items.map((item) => ({

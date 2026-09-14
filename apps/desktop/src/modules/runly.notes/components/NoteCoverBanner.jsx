@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ImagePlus, Image as ImageIcon, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
 import { withImageVariant } from '../../../lib/imageVariants.js'
 

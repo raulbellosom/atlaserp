@@ -13,7 +13,7 @@ import {
   TextField,
 } from "@runly/ui";
 
-import { runly } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/runly.js";
 
 const CONTACT_TYPES = [
   { value: "customer", label: "Cliente" },

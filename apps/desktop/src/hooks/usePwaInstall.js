@@ -85,7 +85,7 @@ export function usePwaInstall(moduleKey) {
   const bootstrap =
     typeof window === "undefined"
       ? null
-      : (window.__ATLAS_PWA_BOOTSTRAP__ ?? null);
+      : (window.__RUNLY_PWA_BOOTSTRAP__ ?? null);
   const [manualInstallReady, setManualInstallReady] = useState(
     () =>
       Boolean(

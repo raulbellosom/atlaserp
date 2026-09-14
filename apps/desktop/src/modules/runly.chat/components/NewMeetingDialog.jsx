@@ -7,7 +7,7 @@ import { Video, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import EventFormModal from "../../runly.calendar/components/EventFormModal";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useChatConversations } from "../hooks/useChatConversations";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useCalls } from "../calls/CallsProvider";

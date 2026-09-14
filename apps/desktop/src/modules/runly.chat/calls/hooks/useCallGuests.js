@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../auth/AuthProvider";
-import { runly } from "../../../../lib/atlas";
+import { runly } from "../../../../lib/runly";
 
 function unwrap(r) {
   return r?.data ?? r;

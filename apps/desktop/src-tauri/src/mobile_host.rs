@@ -20,7 +20,7 @@ const VERSION: &str = match option_env!("ATLAS_NATIVE_VERSION") {
     Some(value) => value,
     None => "1.0.0",
 };
-const USER_AGENT: &str = "Mozilla/5.0 AtlasNativeHost/1.0";
+const USER_AGENT: &str = "Mozilla/5.0 RunlyNativeHost/1.0";
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -276,7 +276,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     let handle = app.handle().clone();
     let metadata = serde_json::json!({ "platform": std::env::consts::OS, "bridgeVersion": 1 });
-    let init = format!("Object.defineProperty(window, '__ATLAS_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});");
+    let init = format!("Object.defineProperty(window, '__RUNLY_NATIVE_HOST__', {{value: Object.freeze({metadata}), writable:false}});");
     WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("Runly ERP")
         .user_agent(USER_AGENT)

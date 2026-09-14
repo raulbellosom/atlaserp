@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 import { supabase } from '../../../lib/supabase'
 import { computeInitialImageWidthPct } from './imageSize.js'
 

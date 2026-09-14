@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { OfficeDocumentEditor } from '@runly/ui';
 import { toast } from 'sonner';
-import { runly } from '../../../lib/atlas';
+import { runly } from '../../../lib/runly';
 import { useAuth } from '../../../auth/AuthProvider';
 
 export default function OfficeEditorScreen() {

@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

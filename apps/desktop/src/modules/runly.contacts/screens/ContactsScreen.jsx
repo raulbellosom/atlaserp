@@ -7,7 +7,7 @@ import { FileSpreadsheet, FileText, Power, PowerOff, Trash2, UserPlus } from "lu
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import {
   ContactFormSheet,

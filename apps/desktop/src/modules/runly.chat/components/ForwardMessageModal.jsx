@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, renderMention
 import { Search, Forward, Check, FileText, Image as ImageIcon, Video as VideoIcon, Music } from "lucide-react";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 function getConvAvatar(conv, currentUserId) {
   if (conv.avatarUrl) return conv.avatarUrl;

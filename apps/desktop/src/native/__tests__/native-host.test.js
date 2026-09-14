@@ -11,18 +11,24 @@ test('runtime distinguishes browser, PWA, Desktop, Android, iOS and missing brid
   assert.equal(detectRuntime({}), 'web')
   assert.equal(detectRuntime({ navigator: { standalone: true } }), 'pwa')
   assert.equal(detectRuntime({ matchMedia: () => ({ matches: true }) }), 'pwa')
-  assert.equal(detectRuntime({ __ATLAS_NATIVE_HOST__: { platform: 'android' } }), 'web')
+  assert.equal(detectRuntime({ __RUNLY_NATIVE_HOST__: { platform: 'android' } }), 'web')
   const bridge = { __TAURI_INTERNALS__: { invoke() {} } }
   assert.equal(detectRuntime(bridge), 'tauri-desktop')
   for (const platform of ['android', 'ios']) {
-    const scope = { ...bridge, __ATLAS_NATIVE_HOST__: { platform } }
+    const scope = { ...bridge, __RUNLY_NATIVE_HOST__: { platform } }
     assert.equal(detectRuntime(scope), `tauri-${platform}`)
     assert.equal(isNativeMobile(scope), true)
   }
 })
 
+test('runtime still resolves platform from a pre-rebrand native host (__ATLAS_NATIVE_HOST__)', () => {
+  const bridge = { __TAURI_INTERNALS__: { invoke() {} } }
+  const scope = { ...bridge, __ATLAS_NATIVE_HOST__: { platform: 'android' } }
+  assert.equal(detectRuntime(scope), 'tauri-android')
+})
+
 test('release environment cannot be replaced by a user URL or development origin', () => {
-  assert.equal(resolveEnvironment('production', 'https://evil.test', 'build'), 'https://atlas.racoondevs.com')
+  assert.equal(resolveEnvironment('production', 'https://evil.test', 'build'), 'https://app.example.com')
   assert.throws(() => resolveEnvironment('https://evil.test', null, 'build'))
   assert.throws(() => resolveEnvironment('development', 'http://10.0.2.2:5173', 'build'))
   for (const bad of ['https://evil.example', 'http://8.8.8.8', 'javascript:alert(1)', 'http://user:pass@localhost:5173', 'http://localhost:5173/app', 'http://localhost:5173/?url=evil']) {
@@ -32,13 +38,13 @@ test('release environment cannot be replaced by a user URL or development origin
 })
 
 test('remote capability is restricted to main, selected origin/app path, and minimal commands', () => {
-  const config = makeConfig('https://atlas.racoondevs.com')
+  const config = makeConfig('https://app.example.com')
   const [shell, remote] = config.app.security.capabilities
   assert.equal(config.build.frontendDist, '../native-host/shell')
   assert.equal(config.build.devUrl, null)
   assert.equal(remote.local, false)
   assert.deepEqual(remote.windows, ['main'])
-  assert.deepEqual(remote.remote.urls, ['https://atlas.racoondevs.com/app/*'])
+  assert.deepEqual(remote.remote.urls, ['https://app.example.com/app/*'])
   assert.ok(!remote.permissions.some((p) => /sql|store|shell|window|allow-host-connect/.test(p)))
   assert.deepEqual(shell.permissions, ['allow-host-info', 'allow-host-connect'])
   const desktop = JSON.parse(readFileSync(new URL('../../../src-tauri/tauri.conf.json', import.meta.url)))
@@ -63,7 +69,7 @@ test('semantic versions and capability negotiation fail closed', () => {
 
 test('deep links accept only bounded chat/call IDs without tokens or redirects', () => {
   assert.deepEqual(parseDeepLink('runly://chat/abc-123'), { kind: 'chat', targetId: 'abc-123' })
-  for (const value of ['https://atlas.racoondevs.com/app/', 'runly://call/a?token=secret', 'runly://evil/a', 'runly://call/a%2fb', 'runly://call/a/b', 'runly://user@chat/a', 'runly://chat/']) {
+  for (const value of ['https://app.example.com/app/', 'runly://call/a?token=secret', 'runly://evil/a', 'runly://call/a%2fb', 'runly://call/a/b', 'runly://user@chat/a', 'runly://chat/']) {
     assert.equal(parseDeepLink(value), null, value)
   }
 })
@@ -94,7 +100,7 @@ test('event pump serializes concurrent ticks', async () => {
 test('Vite applies frame restriction only to native host requests', () => {
   let middleware
   nativeHostHeaders().configureServer({ middlewares: { use: (value) => { middleware = value } } })
-  for (const [agent, expected] of [['Browser', undefined], ['Mozilla AtlasNativeHost/1.0', NATIVE_CSP]]) {
+  for (const [agent, expected] of [['Browser', undefined], ['Mozilla RunlyNativeHost/1.0', NATIVE_CSP], ['Mozilla AtlasNativeHost/1.0', NATIVE_CSP]]) {
     const headers = {}
     middleware({ headers: { 'user-agent': agent } }, { setHeader: (k, v) => { headers[k] = v } }, () => {})
     assert.equal(headers['Content-Security-Policy'], expected)
@@ -107,7 +113,7 @@ test('fallback stops auto retries after failed navigation and retries on explici
   const context = {
     document: { getElementById: (id) => nodes[id] }, location: { hash: '#failed' }, navigator: { onLine: false },
     window: { __TAURI_INTERNALS__: { invoke: async (command) => {
-      if (command === 'host_info') return { nativeHostVersion: '1.0.0', platform: 'android', osVersion: '14', frontendUrl: 'https://atlas.racoondevs.com/app/' }
+      if (command === 'host_info') return { nativeHostVersion: '1.0.0', platform: 'android', osVersion: '14', frontendUrl: 'https://app.example.com/app/' }
       attempts++; throw 'NETWORK_TLS_OR_TIMEOUT'
     } } },
   }

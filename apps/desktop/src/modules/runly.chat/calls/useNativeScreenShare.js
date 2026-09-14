@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { native } from '../../../native/index.js';
-import { runly } from '../../../lib/atlas';
+import { runly } from '../../../lib/runly';
 import { useAuth } from '../../../auth/AuthProvider';
 
 export function useNativeScreenShare(callId) {

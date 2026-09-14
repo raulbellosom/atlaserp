@@ -57,7 +57,7 @@ import {
 } from "../../../components/ModuleCard";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { UploadModuleSheet } from "./UploadModuleSheet";
 import {
   CATEGORY_LABELS,

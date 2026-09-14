@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarDays } from "lucide-react";
 import { EmptyState, ErrorState, Skeleton } from "@runly/ui";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // Same source-filter idea as EntityReferencePicker's calendar_event case:
 // listEvents requires start/end, so this uses a fixed 90-days-back /

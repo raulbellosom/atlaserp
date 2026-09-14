@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { runly } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/runly.js";
 
 export default function DocumentTemplatesScreen() {
   const navigate = useNavigate();

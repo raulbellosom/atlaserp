@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, ConfirmDialog, Input, cn } from '@runly/ui'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 
 export default function VariantMatrix({ token, productId, variants = [] }) {
   const queryClient  = useQueryClient()

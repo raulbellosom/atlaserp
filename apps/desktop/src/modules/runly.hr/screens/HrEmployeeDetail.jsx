@@ -39,7 +39,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
 import HrEmployeeActivityPanel from "../components/HrEmployeeActivityPanel";
 import { InventoryEmployeeWidget } from "../../runly.inventory/components/InventoryEmployeeWidget.jsx";

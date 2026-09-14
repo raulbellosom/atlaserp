@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, Maximize2 } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, SelectField, ComboboxField, SearchInput } from "@runly/ui";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { isImageMime } from "../lib/chatUtils";
 import { FileTypeIcon } from "./ChatFilesGallery";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";

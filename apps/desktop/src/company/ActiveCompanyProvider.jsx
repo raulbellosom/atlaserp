@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
-import { runly, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/atlas'
+import { runly, setActiveCompanyId as setSdkActiveCompanyId } from '../lib/runly'
 import { pickActiveCompany } from './pickActiveCompany.js'
 import { AppLoader } from '../components/AppLoader'
 
@@ -45,7 +45,7 @@ export function ActiveCompanyProvider({ children }) {
 
   const [activeCompanyId, setActiveCompanyIdState] = useState(null)
   // Ref, not just state: getActiveCompanyId (passed to the SDK, see
-  // apps/desktop/src/lib/atlas.js) must read the CURRENT value even from
+  // apps/desktop/src/lib/runly.js) must read the CURRENT value even from
   // code paths that fire between renders — state alone would risk a stale
   // closure. Kept in sync with activeCompanyId on every change below.
   const activeCompanyIdRef = useRef(null)

@@ -10,7 +10,7 @@ import {
 import { ArrowLeft, EyeOff, Globe, Package, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { runly } from '../../../lib/atlas.js'
+import { runly } from '../../../lib/runly.js'
 import ProductImageManager  from '../components/ProductImageManager.jsx'
 import StockMovementModal   from '../components/StockMovementModal.jsx'
 import VariantOptionsEditor from '../components/VariantOptionsEditor.jsx'

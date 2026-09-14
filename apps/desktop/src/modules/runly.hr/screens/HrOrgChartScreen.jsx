@@ -13,7 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

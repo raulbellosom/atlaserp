@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { OfficeDocumentEditor } from '@runly/ui';
-import { runly } from '../../../lib/atlas';
+import { runly } from '../../../lib/runly';
 import { useAuth } from '../../../auth/AuthProvider';
 
 // Full-screen WOPI editor for a chat attachment. Twin of atlas.files'

@@ -263,7 +263,7 @@ export const hrMap = createModuleManifest({
   ],
 });
 
-export const atlasWebsiteManifest = createModuleManifest({
+export const runlyWebsiteManifest = createModuleManifest({
   key: "runly.website",
   name: "Sitio web",
   description:
@@ -365,7 +365,7 @@ export const atlasWebsiteManifest = createModuleManifest({
   ],
 });
 
-export const atlasGrowthManifest = createModuleManifest({
+export const runlyGrowthManifest = createModuleManifest({
   key: "runly.growth",
   name: "Growth",
   description: "Telemetria web, formularios y seguimiento de leads.",
@@ -471,7 +471,7 @@ export const atlasGrowthManifest = createModuleManifest({
   blueprints: [],
 });
 
-export const atlasDocumentsManifest = createModuleManifest({
+export const runlyDocumentsManifest = createModuleManifest({
   key: "runly.documents",
   name: "Documentos",
   description: "Plantillas versionadas y documentos PDF generados.",

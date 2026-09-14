@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateModulePwaIdentity } from "@runly/module-engine";
-import { atlasPosManifest, coreModules } from "../core-modules.js";
+import { runlyPosManifest, coreModules } from "../core-modules.js";
 import { PERMISSION_CATALOG } from "../../../permission-catalog.js";
 
 const REQUIRED_PERMISSION_KEYS = [
@@ -23,24 +23,24 @@ const REQUIRED_PERMISSION_KEYS = [
   "pos.external.manage",
 ];
 
-test("atlas.pos is an official core module with PWA identity", () => {
-  assert.equal(atlasPosManifest.key, "runly.pos");
-  assert.equal(atlasPosManifest.core, true);
-  assert.equal(atlasPosManifest.uninstallable, false);
+test("runly.pos is an official core module with PWA identity", () => {
+  assert.equal(runlyPosManifest.key, "runly.pos");
+  assert.equal(runlyPosManifest.core, true);
+  assert.equal(runlyPosManifest.uninstallable, false);
   assert.ok(coreModules.some((manifest) => manifest.key === "runly.pos"));
 
-  const pwaResult = validateModulePwaIdentity(atlasPosManifest);
+  const pwaResult = validateModulePwaIdentity(runlyPosManifest);
   assert.equal(pwaResult.valid, true, pwaResult.errors.join("; "));
 });
 
-test("atlas.pos declares restaurant-first POS permissions and navigation", () => {
-  const permissionKeys = atlasPosManifest.permissions.map((permission) => permission.key);
+test("runly.pos declares restaurant-first POS permissions and navigation", () => {
+  const permissionKeys = runlyPosManifest.permissions.map((permission) => permission.key);
   for (const key of REQUIRED_PERMISSION_KEYS) {
     assert.ok(permissionKeys.includes(key), `Permiso faltante: ${key}`);
     assert.ok(PERMISSION_CATALOG[key], `Permiso faltante en catalogo: ${key}`);
   }
 
-  const navPaths = atlasPosManifest.navigation.map((item) => item.path);
+  const navPaths = runlyPosManifest.navigation.map((item) => item.path);
   assert.ok(navPaths.includes("/app/m/runly.pos/pos/caja"));
   assert.ok(navPaths.includes("/app/m/runly.pos/pos/comandero"));
   assert.ok(navPaths.includes("/app/m/runly.pos/pos/cocina"));
@@ -48,8 +48,8 @@ test("atlas.pos declares restaurant-first POS permissions and navigation", () =>
   assert.ok(navPaths.includes("/app/m/runly.pos/pos/admin"));
 });
 
-test("atlas.pos declares lifecycle ownership for POS tables", () => {
-  const lifecycle = atlasPosManifest.lifecycle;
+test("runly.pos declares lifecycle ownership for POS tables", () => {
+  const lifecycle = runlyPosManifest.lifecycle;
   assert.equal(lifecycle.installable, true);
   assert.equal(lifecycle.uninstallable, false);
   assert.equal(lifecycle.supportsDataPurge, false);

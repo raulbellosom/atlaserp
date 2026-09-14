@@ -15,12 +15,12 @@ import { ActiveCompanyProvider, ActiveCompanyGate } from "../company/ActiveCompa
 import { RealtimeProvider } from "../providers/RealtimeProvider";
 import { OfficeProvider } from "../providers/OfficeProvider";
 import { CallsProvider } from "../modules/runly.chat/calls/CallsProvider";
-import { AtlasApp } from "./AtlasApp";
+import { RunlyApp } from "./RunlyApp";
 import { HomeScreen } from "./HomeScreen";
 import { ModuleOutlet } from "./ModuleOutlet";
 import { ProfileScreen } from "./ProfileScreen";
 import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { registerServiceWorker } from "../lib/webPush";
 import { AppLoader } from "../components/AppLoader";
@@ -156,7 +156,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                       <ActiveCompanyGate>
                         <RealtimeProvider>
                           <CallsProvider>
-                            <AtlasApp />
+                            <RunlyApp />
                           </CallsProvider>
                         </RealtimeProvider>
                       </ActiveCompanyGate>

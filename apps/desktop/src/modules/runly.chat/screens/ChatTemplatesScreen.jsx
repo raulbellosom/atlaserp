@@ -7,7 +7,7 @@ import {
 import { Plus, Pencil, Trash2, Hash, LayoutTemplate } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // ------------------------------------------------------------------
 // Template form dialog (create + edit)

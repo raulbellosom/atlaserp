@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // ── Row skeleton ──────────────────────────────────────────────────────────────
 

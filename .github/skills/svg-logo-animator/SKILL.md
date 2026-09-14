@@ -1,7 +1,7 @@
 ---
 name: svg-logo-animator
 description: "Convert a PNG/SVG logo into a pixel-perfect animated React component. Use when building logo loaders, splash screens, brand animations, or any component that must be faithful to a real logo. Triggers: animate logo, logo loader, brand animation, convert logo to SVG, recreate logo as component, isotype animation, loading screen with logo."
-argument-hint: "Path to the logo file (PNG or SVG) + desired animation style — e.g. 'identity/atlas-erp_isotype_only.png, assembly animation'"
+argument-hint: "Path to the logo file (PNG or SVG) + desired animation style — e.g. 'identity/runly-erp_isotype_only.png, assembly animation'"
 ---
 
 # SVG Logo Animator — Atlas ERP
@@ -29,7 +29,7 @@ If an SVG exists, skip directly to Phase 2.
 2. Upload the PNG from `identity/` (use the `_isotype_only.png` variant for the symbol)
 3. Settings: Mode = "Logo", Colors = exact count (count manually from the PNG), Output = SVG
 4. Download the SVG
-5. Save it alongside the PNG in `identity/` with the same base name (e.g., `atlas-erp_isotype_only.svg`)
+5. Save it alongside the PNG in `identity/` with the same base name (e.g., `runly-erp_isotype_only.svg`)
 6. Also copy it to `apps/desktop/public/brand/` for runtime use
 
 **Alternative: Inkscape (local)**
@@ -44,8 +44,8 @@ File → Save As → Plain SVG
 **Alternative: Potrace (CLI)**
 ```bash
 # Convert to BMP first (potrace requires BMP or PBM)
-magick identity/atlas-erp_isotype_only.png identity/atlas-erp_isotype_only.bmp
-potrace --svg --color "#0A1D44" -o identity/atlas-erp_isotype_only.svg identity/atlas-erp_isotype_only.bmp
+magick identity/runly-erp_isotype_only.png identity/runly-erp_isotype_only.bmp
+potrace --svg --color "#0A1D44" -o identity/runly-erp_isotype_only.svg identity/runly-erp_isotype_only.bmp
 ```
 
 ---
@@ -55,7 +55,7 @@ potrace --svg --color "#0A1D44" -o identity/atlas-erp_isotype_only.svg identity/
 Open the SVG file and identify the logical "faces" or "pieces" of the logo. Read the file:
 
 ```bash
-cat identity/atlas-erp_isotype_only.svg
+cat identity/runly-erp_isotype_only.svg
 ```
 
 Look for:
@@ -276,10 +276,10 @@ Once paths are validated:
 
 ```bash
 # Save traced SVG in identity/ (source of truth)
-# identity/atlas-erp_isotype_only.svg
+# identity/runly-erp_isotype_only.svg
 
 # Copy to public for runtime use
-cp identity/atlas-erp_isotype_only.svg apps/desktop/public/brand/atlas-logo-isotype.svg
+cp identity/runly-erp_isotype_only.svg apps/desktop/public/brand/runly-logo-isotype.svg
 ```
 
 Update `identity/README.md` to list the SVG file under canonical sources.

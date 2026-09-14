@@ -30,7 +30,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useFilesExplorer } from "../hooks/useFilesExplorer";
 import { FilesToolbar } from "../components/FilesToolbar";

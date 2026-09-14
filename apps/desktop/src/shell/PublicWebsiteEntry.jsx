@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams, Navigate } from 'react-route
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
-import { runly } from '../lib/atlas.js'
+import { runly } from '../lib/runly.js'
 import { PublicPageLoader, storePublicSiteHint } from '../components/PublicPageLoader.jsx'
 import { PublicWebsite404 } from './PublicWebsite404.jsx'
 import { WebsitePageRenderer } from '../website/WebsitePageRenderer.jsx'

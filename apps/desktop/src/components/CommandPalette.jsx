@@ -8,7 +8,7 @@ import { useCommandStore } from "../stores/command";
 import { useRuntimeModules } from "../app/useRuntimeModules";
 import { useOfflineStore, OFFLINE_MODULES } from "@runly/offline";
 import { useAuth } from "../auth/AuthProvider";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { ModuleIcon } from "./ModuleCard";
 import { buildCommandItems } from "../lib/commandPalette";
 

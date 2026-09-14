@@ -57,8 +57,8 @@ test('exposes the immutable module identity selected before React', async () => 
     '?view=month&pwa-install=1',
   )
 
-  assert.equal(window.__ATLAS_PWA_BOOTSTRAP__.moduleKey, 'atlas.calendar')
-  assert.equal(window.__ATLAS_PWA_BOOTSTRAP__.installRequested, true)
+  assert.equal(window.__RUNLY_PWA_BOOTSTRAP__.moduleKey, 'atlas.calendar')
+  assert.equal(window.__RUNLY_PWA_BOOTSTRAP__.installRequested, true)
 })
 
 test('loads the manifest bootstrap before the React entry point', async () => {

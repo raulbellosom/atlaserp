@@ -20,7 +20,7 @@ import { useChatConversationDetail } from "../hooks/useChatConversationDetail";
 import { roleHasPermission, findOwnMember, CHAT_PERMISSIONS } from "../lib/chatPermissions";
 import { getConversationDisplayName } from "../lib/chatUtils";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 function SectionHeader({ icon: Icon, label }) {

@@ -9,11 +9,11 @@ const desktop = resolve(root, 'apps/desktop')
 export function buildNativeBrandAssets() {
   const output = resolve(root, '.tmp/native-brand')
   mkdirSync(output, { recursive: true })
-  const original = readFileSync(resolve(root, 'identity/atlas-erp_isotype.svg'), 'utf8')
+  const original = readFileSync(resolve(root, 'identity/runly-erp_isotype.svg'), 'utf8')
   // This master contains a gray background group. Keep all logo paths and colors,
   // but separate the background for Android's adaptive icon mask.
   const background = /<g fill="#ebebeb">[\s\S]*?<\/g>/
-  if (!background.test(original)) throw new Error('Review the updated Atlas SVG background before generating icons')
+  if (!background.test(original)) throw new Error('Review the updated Runly SVG background before generating icons')
   const foreground = original.replace(background, '').replace(/<!DOCTYPE[^>]*>/, '').replace(/[ \t]+(?=\r?$)/gm, '')
   const surface = '<rect width="1254" height="1254" fill="#E6EAF0"/>'
   const icon = foreground.replace(/(<svg[^>]*>)/, `$1${surface}`)
@@ -33,8 +33,8 @@ export function buildNativeBrandAssets() {
   const android = resolve(desktop, 'src-tauri/gen/android/app/src/main/res')
   if (existsSync(android) && existsSync(resolve(output, 'icons/android'))) cpSync(resolve(output, 'icons/android'), android, { recursive: true })
   if (existsSync(resolve(android, 'mipmap-anydpi-v26/ic_launcher.xml'))) cpSync(resolve(android, 'mipmap-anydpi-v26/ic_launcher.xml'), resolve(android, 'mipmap-anydpi-v26/ic_launcher_round.xml'))
-  writeFileSync(resolve(desktop, 'native-host/shell/atlas-mark.svg'), icon)
-  console.log('Atlas native branding generated from identity/atlas-erp_isotype.svg')
+  writeFileSync(resolve(desktop, 'native-host/shell/runly-mark.svg'), icon)
+  console.log('Runly native branding generated from identity/runly-erp_isotype.svg')
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) buildNativeBrandAssets()

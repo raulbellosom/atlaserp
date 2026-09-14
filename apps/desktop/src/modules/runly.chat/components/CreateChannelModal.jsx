@@ -6,7 +6,7 @@ import {
 import { Hash } from "lucide-react";
 import { useCreateChannel } from "../hooks/useChannels";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useQuery } from "@tanstack/react-query";
 
 function slugify(text) {

@@ -2,16 +2,16 @@ import { createModuleManifest, MODULE_KINDS } from "@runly/core";
 import {
   contactsMap,
   hrMap,
-  atlasWebsiteManifest,
-  atlasGrowthManifest,
-  atlasDocumentsManifest,
+  runlyWebsiteManifest,
+  runlyGrowthManifest,
+  runlyDocumentsManifest,
   activityMap,
   notificationsMap,
   projectsMap,
   chatMap,
 } from "./feature-modules.js";
 
-export const atlasCoreMap = createModuleManifest({
+export const runlyCoreMap = createModuleManifest({
   key: "runly.core",
   name: "Runly Core",
   description:
@@ -446,7 +446,7 @@ export const companyMap = createModuleManifest({
   ],
 });
 
-export const atlasLedgerManifest = createModuleManifest({
+export const runlyLedgerManifest = createModuleManifest({
   key: "runly.ledger",
   name: "Libro de cuentas",
   version: "0.1.3",
@@ -582,7 +582,7 @@ export const atlasLedgerManifest = createModuleManifest({
   ],
 });
 
-export const atlasFleetManifest = createModuleManifest({
+export const runlyFleetManifest = createModuleManifest({
   key: "runly.fleet",
   name: "Flota",
   version: "0.5.1",
@@ -872,7 +872,7 @@ export const atlasFleetManifest = createModuleManifest({
   ],
 });
 
-export const atlasCalendarManifest = createModuleManifest({
+export const runlyCalendarManifest = createModuleManifest({
   key: "runly.calendar",
   name: "Calendario",
   description:
@@ -886,7 +886,7 @@ export const atlasCalendarManifest = createModuleManifest({
   pwa: { shortName: "Calendario", startPath: "/calendar" },
   accentColor: "#6D28D9",
   initials: "CA",
-  logoUrl: "/module-logos/atlas-calendar-128.svg",
+  logoUrl: "/module-logos/runly-calendar-128.svg",
   category: "sistema",
   summary: "Calendarios personales, eventos y recordatorios",
   fullscreenPaths: ["/calendar"],
@@ -933,7 +933,7 @@ export const atlasCalendarManifest = createModuleManifest({
   consumes: ["runly.files"],
 });
 
-export const atlasCatalogManifest = createModuleManifest({
+export const runlyCatalogManifest = createModuleManifest({
   key: "runly.catalog",
   name: "Catalogo",
   description: "Gestiona productos, categorias, variantes e inventario",
@@ -947,7 +947,7 @@ export const atlasCatalogManifest = createModuleManifest({
   accentColor: "#EA580C",
   initials: "CT",
   category: "comercial",
-  logoUrl: "/module-logos/atlas-catalog-128.svg",
+  logoUrl: "/module-logos/runly-catalog-128.svg",
   summary: "Productos, categorias, variantes e inventario unificados.",
   dependencies: [{ key: "runly.core" }],
   lifecycle: {
@@ -1080,7 +1080,7 @@ export const atlasCatalogManifest = createModuleManifest({
   ],
 });
 
-export const atlasPosManifest = createModuleManifest({
+export const runlyPosManifest = createModuleManifest({
   key: "runly.pos",
   name: "POS",
   description: "Punto de venta para restaurante, tienda y operaciones hibridas.",
@@ -1380,7 +1380,7 @@ export const notesMap = createModuleManifest({
   ],
 });
 
-export const atlasPfmManifest = createModuleManifest({
+export const runlyPfmManifest = createModuleManifest({
   key: "runly.pfm",
   name: "Finanzas personales",
   version: "0.5.0",
@@ -1495,23 +1495,23 @@ export const atlasPfmManifest = createModuleManifest({
 });
 
 export const coreModules = [
-  atlasCoreMap,
+  runlyCoreMap,
   identityMap,
   filesMap,
   companyMap,
   contactsMap,
   hrMap,
-  atlasFleetManifest,
-  atlasLedgerManifest,
-  atlasPfmManifest,
-  atlasWebsiteManifest,
-  atlasGrowthManifest,
-  atlasDocumentsManifest,
-  atlasCalendarManifest,
+  runlyFleetManifest,
+  runlyLedgerManifest,
+  runlyPfmManifest,
+  runlyWebsiteManifest,
+  runlyGrowthManifest,
+  runlyDocumentsManifest,
+  runlyCalendarManifest,
   activityMap,
   notificationsMap,
-  atlasCatalogManifest,
-  atlasPosManifest,
+  runlyCatalogManifest,
+  runlyPosManifest,
   projectsMap,
   inventoryMap,
   chatMap,

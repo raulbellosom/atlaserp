@@ -1,7 +1,7 @@
 import { loadConversationFiles } from "../lib/conversationFiles";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 
 // Independent history query: opening files must not change chat scroll or realtime subscriptions.
 export function useConversationFiles(conversationId, enabled = true) {

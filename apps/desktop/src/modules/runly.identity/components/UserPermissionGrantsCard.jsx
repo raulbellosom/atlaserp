@@ -17,7 +17,7 @@ import {
 } from "@runly/ui";
 import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import PermissionFeatureTree from "./PermissionFeatureTree";
 
 export default function UserPermissionGrantsCard({ userId, token, canManage }) {

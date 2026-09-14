@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from "react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { subscribeToMessages } from "../lib/supabaseRealtime";
 import { useRealtimeContext } from "../../../providers/RealtimeProvider";
 

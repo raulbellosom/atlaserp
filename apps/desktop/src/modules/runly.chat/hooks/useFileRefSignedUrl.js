@@ -11,7 +11,7 @@
 // each other would have compounded an already-flagged fragile cross-import
 // between ChatFilesGallery.jsx and FileReferenceAttachment.jsx.
 import { useQuery } from "@tanstack/react-query";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 export function useFileRefSignedUrl(recordId, variant, enabled) {

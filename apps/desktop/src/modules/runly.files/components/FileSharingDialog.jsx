@@ -21,7 +21,7 @@ import {
   UserPickerItem,
   UserListSkeleton,
 } from "../../runly.chat/components/UserPicker";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { filesError } from "../lib/files-error";
 
 const ROLES = [

@@ -31,13 +31,13 @@ Usage guideline:
 
 Required baseline files:
 
-- `atlas-erp_app_icon.png`
-- `atlas-erp_primary_logo.png`
-- `atlas-erp_horizontal_logo.png`
-- `atlas-erp_vertical_logo.png`
-- `atlas-erp_isotype_only.png`
-- `atlas-erp_monochrome_light.png`
-- `atlas-erp_monochrome_dark.png`
+- `runly-erp_app_icon.png`
+- `runly-erp_primary_logo.png`
+- `runly-erp_horizontal_logo.png`
+- `runly-erp_vertical_logo.png`
+- `runly-erp_isotype_only.png`
+- `runly-erp_monochrome_light.png`
+- `runly-erp_monochrome_dark.png`
 
 ## Build command
 
@@ -49,7 +49,7 @@ pnpm brand:build
 
 What it does:
 
-1. Runs `pnpm tauri icon` using `identity/atlas-erp_app_icon.png`.
+1. Runs `pnpm tauri icon` using `identity/runly-erp_app_icon.png`.
 2. Regenerates platform icons in `apps/desktop/src-tauri/icons`.
 3. Rebuilds transparent brand PNGs in `apps/desktop/public/brand` from `identity/`.
 4. Copies normalized static files to `apps/desktop/public` for browser metadata.
@@ -59,7 +59,7 @@ What it does:
 
 ### Native Android host
 
-`pnpm brand:native` uses the installed Tauri icon CLI and the vector master `identity/atlas-erp_isotype.svg`. It separates the master's background, preserves the logo paths/colors, and uses the official `#E6EAF0` surface. Adaptive foregrounds include padding for circular masks; Android 13 themed icons use a monochrome silhouette.
+`pnpm brand:native` uses the installed Tauri icon CLI and the vector master `identity/runly-erp_isotype.svg`. It separates the master's background, preserves the logo paths/colors, and uses the official `#E6EAF0` surface. Adaptive foregrounds include padding for circular masks; Android 13 themed icons use a monochrome silhouette.
 
 The command updates the initialized Android project's launcher resources and the bundled recovery logo. Intermediate platform exports go to ignored `.tmp/native-brand/`. Native builds run this command automatically, and `brand:build` runs it last so its legacy raster generation cannot overwrite mobile branding. Keep the Android resources used by the APK in version control; do not add the temporary exports.
 
@@ -79,12 +79,12 @@ References: [Tauri icon generator](https://v2.tauri.app/develop/icons/) and [And
 
 `apps/desktop/public/brand`:
 
-- `atlas-logo-primary.png`
-- `atlas-logo-horizontal.png`
-- `atlas-logo-vertical.png`
-- `atlas-logo-isotype.png`
-- `atlas-logo-monochrome-light.png`
-- `atlas-logo-monochrome-dark.png`
+- `runly-logo-primary.png`
+- `runly-logo-horizontal.png`
+- `runly-logo-vertical.png`
+- `runly-logo-isotype.png`
+- `runly-logo-monochrome-light.png`
+- `runly-logo-monochrome-dark.png`
 
 ## Metadata wiring
 

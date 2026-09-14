@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { runly } from '../lib/atlas'
+import { runly } from '../lib/runly'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { RunlyOfflineDatabase, SessionVault } from '@runly/offline'
 import { isSessionFresh } from './sessionFreshness.js'

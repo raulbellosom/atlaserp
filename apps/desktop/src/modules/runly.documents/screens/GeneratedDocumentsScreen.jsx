@@ -12,7 +12,7 @@ import { Download, Files } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
-import { runly } from "../../../lib/atlas.js";
+import { runly } from "../../../lib/runly.js";
 
 function formatDate(value) {
   if (!value) return "Pendiente";

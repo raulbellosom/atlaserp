@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../auth/AuthProvider";
 import { useActiveCompany } from "../company/ActiveCompanyProvider";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 
 // System-admin only (enforced server-side too — see POST /companies).
 // Creates a brand-new tenant with the current user as its first admin, then

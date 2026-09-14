@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
-import { runly } from '../../../lib/atlas'
+import { runly } from '../../../lib/runly'
 
 function useToken() {
   const { session } = useAuth()

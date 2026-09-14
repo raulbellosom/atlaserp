@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { native } from '../../../native/index.js';
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import {
   requestDesktopAttention,
   showSystemNotification,

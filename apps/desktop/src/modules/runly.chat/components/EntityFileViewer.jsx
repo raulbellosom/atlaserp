@@ -10,7 +10,7 @@
 import { useCallback, useRef } from "react";
 import { useOfficeActions } from "@runly/ui";
 import { AdvancedFileViewer } from "../../runly.files/components/AdvancedFileViewer";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 
 export function EntityFileViewer({ open, onOpenChange, files, activeIndex = 0, onIndexChange, onOpenInOffice = null, canOpenInOffice = null }) {

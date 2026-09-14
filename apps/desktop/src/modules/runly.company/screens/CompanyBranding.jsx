@@ -4,7 +4,7 @@ import { Button, Card, DistDropZone, ErrorState, FileViewer, PageHeader, Skeleto
 import { Palette, Upload, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { applyBrandTheme } from "../../../lib/brandTheme";
 import { useBrandingStore } from "../../../stores/branding.js";
 

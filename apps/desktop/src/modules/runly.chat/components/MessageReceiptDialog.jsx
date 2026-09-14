@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Skeleton, ErrorState } from "@runly/ui";
 import { Check, CheckCheck } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { AvatarCircle } from "./AvatarCircle";
 
 function formatFull(iso) {

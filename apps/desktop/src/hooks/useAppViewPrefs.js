@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
-import { runly } from "../lib/atlas";
+import { runly } from "../lib/runly";
 import { DEFAULTS } from "./appViewPrefsDefaults";
 
 export { DEFAULTS };

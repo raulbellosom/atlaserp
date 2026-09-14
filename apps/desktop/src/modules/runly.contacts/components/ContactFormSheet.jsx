@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@runly/ui";
-import { runly } from "../../../lib/atlas";
+import { runly } from "../../../lib/runly";
 import { TYPE_OPTIONS, CONTACTS_BLUEPRINT_FALLBACK } from "../constants";
 
 function withNotesField(blueprint) {
