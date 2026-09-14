@@ -22,7 +22,7 @@ export const TENANT_ERROR = {
 // memberships: the ACTIVE (role.enabled) memberships already loaded by
 // _loadUserContext, each shaped like
 //   { companyId, company: { id, enabled }, role: { key, permissions: [{ permission: { key } }] } }
-// requestedCompanyId: value of the X-Atlas-Company-Id header, or null.
+// requestedCompanyId: value of the X-Runly-Company-Id header (X-Atlas-Company-Id fallback), or null.
 // strict: when true (the default — used for actual business-data routes),
 //   multiple memberships with no header is a 400. When false (used for
 //   bootstrap endpoints called before the frontend may have chosen a company

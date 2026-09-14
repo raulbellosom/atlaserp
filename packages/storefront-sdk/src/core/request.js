@@ -11,7 +11,7 @@ export function createRequestCore({ baseUrl, company, getSession, fetchFn = fetc
   return async function _request(method, path, body = null, options = {}) {
     const session = getSession()
     const headers = {
-      'X-Atlas-Company': company,
+      'X-Runly-Company': company,
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       ...(options.headers ?? {}),
     }

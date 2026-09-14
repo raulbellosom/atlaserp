@@ -426,6 +426,10 @@
     return Object.assign(
       {
         'Content-Type': 'application/json',
+        'X-Runly-Company': COMPANY,
+        'X-Runly-Site': SITE_ID,
+        // Sent alongside the canonical X-Runly-* pair so a browser holding
+        // this file cached across the atlas->runly rename still authenticates.
         'X-Atlas-Company': COMPANY,
         'X-Atlas-Site': SITE_ID,
       },

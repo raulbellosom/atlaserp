@@ -16,7 +16,7 @@ export { StorefrontError }
 /**
  * @param {object} options
  * @param {string} options.baseUrl        - Atlas ERP instance URL
- * @param {string} options.company        - Company slug (sent as X-Atlas-Company on every request)
+ * @param {string} options.company        - Company slug (sent as X-Runly-Company on every request)
  * @param {string} options.supabaseUrl    - Supabase project URL (window.ATLAS_CONFIG.supabaseUrl in production)
  * @param {string} options.supabaseAnonKey - Supabase anon key (window.ATLAS_CONFIG.supabaseAnonKey in production)
  * @param {string} [options.siteId]       - Website site ID for analytics and public forms

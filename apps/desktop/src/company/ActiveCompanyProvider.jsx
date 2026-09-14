@@ -125,7 +125,7 @@ export function useActiveCompany() {
 // Blocks rendering of the authenticated shell until the active company is
 // resolved — mirrors the existing brandReady gate in AppEntry.jsx. Prevents
 // module screens from firing tenant-scoped queries with no
-// X-Atlas-Company-Id header during the brief window before resolution.
+// X-Runly-Company-Id header during the brief window before resolution.
 export function ActiveCompanyGate({ children }) {
   const { isLoading } = useActiveCompany()
   if (isLoading) return <AppLoader />

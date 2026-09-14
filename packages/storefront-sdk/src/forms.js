@@ -17,7 +17,7 @@ export function createFormsNamespace({
   analytics = null,
   randomId = defaultRandomId,
 }) {
-  const siteHeaders = siteId ? { 'X-Atlas-Site': siteId } : {}
+  const siteHeaders = siteId ? { 'X-Runly-Site': siteId } : {}
 
   async function get(formId) {
     const response = await request(

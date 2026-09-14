@@ -11,7 +11,7 @@ function makeFetch(status = 200) {
 }
 
 describe("atlas SDK — active company header", () => {
-  it("sends X-Atlas-Company-Id when getActiveCompanyId returns an id", async () => {
+  it("sends X-Runly-Company-Id when getActiveCompanyId returns an id", async () => {
     const fetchMock = makeFetch();
     const { createAtlasClient } = await import("../index.js");
     const client = createAtlasClient({
@@ -22,7 +22,7 @@ describe("atlas SDK — active company header", () => {
     await client.profile.me("tok");
     const [, opts] = fetchMock.mock.calls[0].arguments;
     assert.equal(opts.headers.Authorization, "Bearer tok");
-    assert.equal(opts.headers["X-Atlas-Company-Id"], "company-a");
+    assert.equal(opts.headers["X-Runly-Company-Id"], "company-a");
     fetchMock.mock.restore();
   });
 
@@ -36,7 +36,7 @@ describe("atlas SDK — active company header", () => {
     globalThis.fetch = fetchMock;
     await client.profile.me("tok");
     const [, opts] = fetchMock.mock.calls[0].arguments;
-    assert.equal("X-Atlas-Company-Id" in opts.headers, false);
+    assert.equal("X-Runly-Company-Id" in opts.headers, false);
     fetchMock.mock.restore();
   });
 
@@ -47,7 +47,7 @@ describe("atlas SDK — active company header", () => {
     globalThis.fetch = fetchMock;
     await client.profile.me("tok");
     const [, opts] = fetchMock.mock.calls[0].arguments;
-    assert.equal("X-Atlas-Company-Id" in opts.headers, false);
+    assert.equal("X-Runly-Company-Id" in opts.headers, false);
     fetchMock.mock.restore();
   });
 
@@ -65,8 +65,8 @@ describe("atlas SDK — active company header", () => {
     await client.profile.me("tok");
     const [, firstOpts] = fetchMock.mock.calls[0].arguments;
     const [, secondOpts] = fetchMock.mock.calls[1].arguments;
-    assert.equal(firstOpts.headers["X-Atlas-Company-Id"], "company-a");
-    assert.equal(secondOpts.headers["X-Atlas-Company-Id"], "company-b");
+    assert.equal(firstOpts.headers["X-Runly-Company-Id"], "company-a");
+    assert.equal(secondOpts.headers["X-Runly-Company-Id"], "company-b");
     fetchMock.mock.restore();
   });
 });

@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
+import { getCompanySlugHeader } from '../../lib/public-request-headers.js'
 
 export function createStorefrontAuthRoutes({ authService, storefrontAuthMiddleware, anyAuthMiddleware }) {
   const app = new Hono()
 
   app.post('/register', async (c) => {
-    const companySlug = c.req.header('X-Atlas-Company')
-    if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+    const companySlug = getCompanySlugHeader(c)
+    if (!companySlug) return c.json({ error: 'Cabecera X-Runly-Company requerida' }, 400)
 
     let body
     try { body = await c.req.json() } catch { return c.json({ error: 'Body JSON inválido' }, 400) }
@@ -24,8 +25,8 @@ export function createStorefrontAuthRoutes({ authService, storefrontAuthMiddlewa
   })
 
   app.post('/login', async (c) => {
-    const companySlug = c.req.header('X-Atlas-Company')
-    if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+    const companySlug = getCompanySlugHeader(c)
+    if (!companySlug) return c.json({ error: 'Cabecera X-Runly-Company requerida' }, 400)
 
     let body
     try { body = await c.req.json() } catch { return c.json({ error: 'Body JSON inválido' }, 400) }

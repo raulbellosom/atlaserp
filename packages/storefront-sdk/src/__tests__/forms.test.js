@@ -18,7 +18,7 @@ describe('createFormsNamespace', () => {
     assert.deepEqual(await forms.get('form-1'), { id: 'form-1', fields: [] })
     assert.equal(calls[0][0], 'GET')
     assert.equal(calls[0][1], '/public/storefront/v1/forms/form-1')
-    assert.equal(calls[0][3].headers['X-Atlas-Site'], 'site-1')
+    assert.equal(calls[0][3].headers['X-Runly-Site'], 'site-1')
   })
 
   it('submits with idempotency and analytics identifiers', async () => {

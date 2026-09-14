@@ -73,7 +73,7 @@ describe('createRequestCore', () => {
     assert.equal(capturedHeaders['Authorization'], 'Bearer my-jwt')
   })
 
-  it('injects X-Atlas-Company header on every request', async () => {
+  it('injects X-Runly-Company header on every request', async () => {
     let capturedHeaders = {}
     const req = createRequestCore({
       baseUrl: 'https://example.com',
@@ -85,7 +85,7 @@ describe('createRequestCore', () => {
       },
     })
     await req('GET', '/anything')
-    assert.equal(capturedHeaders['X-Atlas-Company'], 'myco')
+    assert.equal(capturedHeaders['X-Runly-Company'], 'myco')
   })
 
   it('supports empty 202 responses and forwards request options', async () => {

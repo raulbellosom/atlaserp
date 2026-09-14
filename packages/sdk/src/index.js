@@ -12,7 +12,7 @@ export function createAtlasClient({ baseUrl, getActiveCompanyId } = {}) {
   function withAuthHeaders(token, headers = {}) {
     const merged = token ? { ...headers, Authorization: `Bearer ${token}` } : { ...headers };
     const companyId = typeof getActiveCompanyId === "function" ? getActiveCompanyId() : null;
-    if (companyId) merged["X-Atlas-Company-Id"] = companyId;
+    if (companyId) merged["X-Runly-Company-Id"] = companyId;
     return merged;
   }
 

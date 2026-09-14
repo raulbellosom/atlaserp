@@ -8,6 +8,7 @@ import { createStorefrontAuthService } from '../../services/storefront-auth-serv
 import { createStorefrontFilesService } from '../../services/storefront-files-service.js'
 import { StorefrontCaptureError, createStorefrontCaptureService } from '../../services/storefront-capture-service.js'
 import { createNotificationService } from '../../services/notification-service.js'
+import { getCompanySlugHeader } from '../../lib/public-request-headers.js'
 
 export function createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon }) {
   const app = new Hono()
@@ -31,7 +32,7 @@ export function createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon }) 
       throw new StorefrontCaptureError('invalid_token', 'Token invalido o expirado.', 401)
     }
 
-    const companySlug = c.req.header('X-Atlas-Company')
+    const companySlug = getCompanySlugHeader(c)
     if (!companySlug) return null
     const profile = await prisma.userProfile.findFirst({
       where: {

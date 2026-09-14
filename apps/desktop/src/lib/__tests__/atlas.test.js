@@ -23,7 +23,7 @@ test('initAtlasClient binds SDK requests to the runtime URL', async () => {
   }
 })
 
-test('setActiveCompanyId makes subsequent SDK requests carry X-Atlas-Company-Id', async () => {
+test('setActiveCompanyId makes subsequent SDK requests carry X-Runly-Company-Id', async () => {
   const originalFetch = globalThis.fetch
   const seenHeaders = []
 
@@ -38,15 +38,15 @@ test('setActiveCompanyId makes subsequent SDK requests carry X-Atlas-Company-Id'
 
     setActiveCompanyId('company-a')
     await getAtlasClient().profile.me('tok')
-    assert.equal(seenHeaders[0]['X-Atlas-Company-Id'], 'company-a')
+    assert.equal(seenHeaders[0]['X-Runly-Company-Id'], 'company-a')
 
     setActiveCompanyId('company-b')
     await getAtlasClient().profile.me('tok')
-    assert.equal(seenHeaders[1]['X-Atlas-Company-Id'], 'company-b')
+    assert.equal(seenHeaders[1]['X-Runly-Company-Id'], 'company-b')
 
     setActiveCompanyId(null)
     await getAtlasClient().profile.me('tok')
-    assert.equal('X-Atlas-Company-Id' in seenHeaders[2], false)
+    assert.equal('X-Runly-Company-Id' in seenHeaders[2], false)
   } finally {
     globalThis.fetch = originalFetch
     setActiveCompanyId(null)

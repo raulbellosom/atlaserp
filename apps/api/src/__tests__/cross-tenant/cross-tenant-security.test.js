@@ -69,7 +69,7 @@ describe("cross-tenant security", { skip: !RUN && "set RUN_CROSS_TENANT_TESTS=1 
   async function callApi({ authUserId, companyId, method = "GET", path, body }) {
     const headers = {};
     if (authUserId) headers.Authorization = `Bearer ${mintTestJwt(authUserId, jwtSecret)}`;
-    if (companyId) headers["X-Atlas-Company-Id"] = companyId;
+    if (companyId) headers["X-Runly-Company-Id"] = companyId;
     if (body !== undefined) headers["Content-Type"] = "application/json";
     const res = await app.request(path, {
       method,
@@ -157,7 +157,7 @@ describe("cross-tenant security", { skip: !RUN && "set RUN_CROSS_TENANT_TESTS=1 
     assert.equal(status, 404);
   });
 
-  it("rejects X-Atlas-Company-Id for a company the caller is not a member of", async () => {
+  it("rejects X-Runly-Company-Id for a company the caller is not a member of", async () => {
     const { status, json } = await callApi({
       authUserId: fixture.userB.authUserId,
       companyId: fixture.companyA.id,
@@ -197,7 +197,7 @@ describe("cross-tenant security", { skip: !RUN && "set RUN_CROSS_TENANT_TESTS=1 
     // deliberately creates User AB's Company A membership AFTER Company B's
     // — code that derives "the current company" via
     // membership.findFirst({ orderBy: { createdAt: "desc" } }) instead of
-    // the validated X-Atlas-Company-Id header would silently resolve to A
+    // the validated X-Runly-Company-Id header would silently resolve to A
     // here even though this request explicitly activates B.
     const { status } = await callApi({
       authUserId: fixture.userAB.authUserId,

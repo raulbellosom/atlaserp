@@ -359,7 +359,7 @@ export function createAnalyticsNamespace({
         '/public/storefront/v1/events/batch',
         batch.body,
         {
-          headers: siteId ? { 'X-Atlas-Site': siteId } : {},
+          headers: siteId ? { 'X-Runly-Site': siteId } : {},
           keepalive: true,
           credentials: 'omit',
         },
@@ -421,7 +421,7 @@ export function createAnalyticsNamespace({
       'GET',
       '/public/storefront/v1/config',
       null,
-      { headers: siteId ? { 'X-Atlas-Site': siteId } : {} },
+      { headers: siteId ? { 'X-Runly-Site': siteId } : {} },
     )
     config = response?.data ?? response
     siteId = config?.siteId ?? siteId

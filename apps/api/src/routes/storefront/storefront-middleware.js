@@ -1,3 +1,5 @@
+import { getCompanySlugHeader } from '../../lib/public-request-headers.js'
+
 export function createStorefrontMiddleware({ prisma, supabaseAdmin }) {
   async function getRegistrableRoles() {
     const config = await prisma.instanceConfig.findUnique({
@@ -19,9 +21,9 @@ export function createStorefrontMiddleware({ prisma, supabaseAdmin }) {
       return c.json({ error: 'Token inválido o expirado' }, 401)
     }
 
-    const companySlug = c.req.header('X-Atlas-Company')
+    const companySlug = getCompanySlugHeader(c)
     if (!companySlug) {
-      return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+      return c.json({ error: 'Cabecera X-Runly-Company requerida' }, 400)
     }
 
     const profile = await prisma.userProfile.findUnique({

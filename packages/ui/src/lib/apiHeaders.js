@@ -17,6 +17,6 @@
 export function buildApiHeaders(token, companyId, extra = {}) {
   const headers = { ...extra };
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (companyId) headers["X-Atlas-Company-Id"] = companyId;
+  if (companyId) headers["X-Runly-Company-Id"] = companyId;
   return headers;
 }

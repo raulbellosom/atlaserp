@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { createSyncService, SyncServiceError } from '../services/sync-service.js'
 import { createSyncPushService } from '../services/sync-push-service.js'
 
-// resolveTenantContext: the same X-Atlas-Company-Id-validating resolver
+// resolveTenantContext: the same X-Runly-Company-Id-validating resolver
 // requirePermission/requireAnyPermission use, injected rather than imported
 // (index.js imports this router — importing back from index.js would be
 // circular). None of these routes carry a single natural permission gate

@@ -432,8 +432,10 @@ async function getOrLoadUserContext(c) {
 }
 
 // Resolves the single active company for THIS request from the
-// X-Atlas-Company-Id header, validated against the caller's own memberships,
-// and computes permissions scoped to only that company. See
+// X-Runly-Company-Id header (X-Atlas-Company-Id accepted as a legacy
+// fallback for callers still on an older SDK/cached bundle), validated
+// against the caller's own memberships, and computes permissions scoped to
+// only that company. See
 // docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
 //
 // strict=true (default): ambiguous multi-company requests with no header are
@@ -444,7 +446,8 @@ async function getOrLoadUserContext(c) {
 // /blueprints, /user/me) that must stay reachable before the frontend has
 // necessarily chosen a company yet.
 export async function resolveTenantContext(c, context, { strict = true } = {}) {
-  const requestedCompanyId = c.req.header("X-Atlas-Company-Id") || null;
+  const requestedCompanyId =
+    c.req.header("X-Runly-Company-Id") || c.req.header("X-Atlas-Company-Id") || null;
   const result = resolveActiveMembership({
     memberships: context.memberships,
     requestedCompanyId,
@@ -991,9 +994,18 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Atlas-Company", "X-Atlas-Company-Id"],
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Runly-Company",
+      "X-Runly-Company-Id",
+      "X-Runly-Site",
+      "X-Atlas-Company",
+      "X-Atlas-Company-Id",
+      "X-Atlas-Site",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["X-Atlas-Company", "X-Atlas-Company-Id"],
+    exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Atlas-Company", "X-Atlas-Company-Id"],
   }),
 );
 
@@ -3732,7 +3744,7 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/site/*",                         auth: "none",       description: "Serve the compiled static website" },
     ],
     auth: {
-      storefront: "Bearer <token> obtained from /public/storefront/auth/login, plus header X-Atlas-Company: <company-slug>",
+      storefront: "Bearer <token> obtained from /public/storefront/auth/login, plus header X-Runly-Company: <company-slug> (X-Atlas-Company also accepted)",
     },
   });
 });

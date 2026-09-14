@@ -67,8 +67,8 @@ function createCaptureService(overrides = {}) {
 function headers(extra = {}) {
   return {
     "Content-Type": "application/json",
-    "X-Atlas-Company": "acme",
-    "X-Atlas-Site": SITE_ID,
+    "X-Runly-Company": "acme",
+    "X-Runly-Site": SITE_ID,
     Origin: "https://shop.example.com",
     ...extra,
   };

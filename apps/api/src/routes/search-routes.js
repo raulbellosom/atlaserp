@@ -12,7 +12,7 @@ function clampLimit(raw) {
   return Math.min(parsed, MAX_LIMIT);
 }
 
-// resolveTenantContext: the same X-Atlas-Company-Id-validating resolver
+// resolveTenantContext: the same X-Runly-Company-Id-validating resolver
 // requirePermission/requireAnyPermission use, injected rather than imported
 // (index.js imports this router — importing back from index.js would be
 // circular). See

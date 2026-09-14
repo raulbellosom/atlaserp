@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
+import { getCompanySlugHeader } from '../../lib/public-request-headers.js'
 
 export function createStorefrontConfigRoutes({ prisma }) {
   const app = new Hono()
 
   app.get('/realtime-config', async (c) => {
-    const companySlug = c.req.header('X-Atlas-Company')
-    if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+    const companySlug = getCompanySlugHeader(c)
+    if (!companySlug) return c.json({ error: 'Cabecera X-Runly-Company requerida' }, 400)
 
     const company = await prisma.company.findUnique({ where: { slug: companySlug } })
     if (!company) return c.json({ error: 'Empresa no encontrada' }, 404)
@@ -20,8 +21,8 @@ export function createStorefrontConfigRoutes({ prisma }) {
   })
 
   app.get('/chat/availability', async (c) => {
-    const companySlug = c.req.header('X-Atlas-Company')
-    if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+    const companySlug = getCompanySlugHeader(c)
+    if (!companySlug) return c.json({ error: 'Cabecera X-Runly-Company requerida' }, 400)
 
     const company = await prisma.company.findUnique({ where: { slug: companySlug } })
     if (!company) return c.json({ error: 'Empresa no encontrada' }, 404)
@@ -37,8 +38,8 @@ export function createStorefrontConfigRoutes({ prisma }) {
   })
 
   app.get('/config', async (c) => {
-    const companySlug = c.req.header('X-Atlas-Company')
-    if (!companySlug) return c.json({ error: 'Cabecera X-Atlas-Company requerida' }, 400)
+    const companySlug = getCompanySlugHeader(c)
+    if (!companySlug) return c.json({ error: 'Cabecera X-Runly-Company requerida' }, 400)
 
     const company = await prisma.company.findUnique({
       where: { slug: companySlug },

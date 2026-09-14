@@ -35,7 +35,7 @@ function readPersistedCompanyId() {
 // re-runs this top-level code with a fresh `let`, wiping the in-memory value
 // while ActiveCompanyProvider's React state (and its effect that would
 // normally call setActiveCompanyId again) is untouched and never refires.
-// That silently dropped X-Atlas-Company-Id from every request until a full
+// That silently dropped X-Runly-Company-Id from every request until a full
 // reload or a company switch, surfacing as random company_required errors.
 // Reading the persisted value back on every module (re-)eval self-heals it.
 let _activeCompanyId = readPersistedCompanyId()

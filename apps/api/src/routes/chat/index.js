@@ -32,6 +32,7 @@ import { createMessageForwardRoutes } from "./message-forward-routes.js";
 import { createMessageReceiptRoutes } from "./message-receipt-routes.js";
 import { createChatOfficeRoutes } from "./chat-office-routes.js";
 import { createGuestChatService, GuestChatServiceError, mintGuestRealtimeToken } from "./guest-service.js";
+import { getCompanySlugHeader } from "../../lib/public-request-headers.js";
 import { createChatTemplateService } from "./template-service.js";
 import { expireStaleGuestSessions } from "./session-expiry-job.js";
 import { createChatPermissionsService, ChatPermissionsError } from "./chat-permissions-service.js";
@@ -927,9 +928,9 @@ export function createChatRouter({ prisma, supabaseAdmin, authMiddleware, requir
       const body = await c.req.json();
       const data = chatGuestSessionSchema.parse(body);
 
-      // Resolve companyId from X-Atlas-Company header for assignment + lead capture
+      // Resolve companyId from X-Runly-Company header for assignment + lead capture
       let companyId = null;
-      const companySlug = c.req.header("X-Atlas-Company");
+      const companySlug = getCompanySlugHeader(c);
       if (companySlug) {
         const company = await prisma.company.findUnique({ where: { slug: companySlug }, select: { id: true } });
         companyId = company?.id ?? null;

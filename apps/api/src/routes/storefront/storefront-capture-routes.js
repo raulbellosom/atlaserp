@@ -2,6 +2,7 @@ import { Hono } from "hono";
 
 import { decryptPassword } from "../../services/smtp-service.js";
 import { StorefrontCaptureError } from "../../services/storefront-capture-service.js";
+import { getCompanySlugHeader, getSiteIdHeader } from "../../lib/public-request-headers.js";
 
 const DEFAULT_BODY_LIMIT = 64 * 1024;
 const DEFAULT_MAX_LIMITER_ENTRIES = 10_000;
@@ -102,10 +103,10 @@ export function createTurnstileVerifier({
 function requestScope(c, { allowQuery = false } = {}) {
   return {
     companySlug:
-      c.req.header("X-Atlas-Company") ||
+      getCompanySlugHeader(c) ||
       (allowQuery ? c.req.query("company") : undefined),
     siteId:
-      c.req.header("X-Atlas-Site") ||
+      getSiteIdHeader(c) ||
       (allowQuery ? c.req.query("siteId") : undefined),
     origin: c.req.header("Origin") || undefined,
   };
@@ -121,9 +122,9 @@ function clientAddress(c) {
 
 function limiterKey(c, kind) {
   const company =
-    c.req.header("X-Atlas-Company") || c.req.query("company") || "unknown";
+    getCompanySlugHeader(c) || c.req.query("company") || "unknown";
   const site =
-    c.req.header("X-Atlas-Site") || c.req.query("siteId") || "default";
+    getSiteIdHeader(c) || c.req.query("siteId") || "default";
   return `${kind}:${company}:${site}:${clientAddress(c)}`;
 }
 
