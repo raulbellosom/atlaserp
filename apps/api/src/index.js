@@ -906,22 +906,33 @@ async function uploadIdentityAvatar({ profileId, file }) {
 }
 
 async function ensureBuckets() {
-  await supabaseAdmin.storage
-    .createBucket(STORAGE_BUCKET_NAME, { public: false })
-    .catch(() => {});
-  await supabaseAdmin.storage
-    .createBucket(STOREFRONT_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'] })
-    .catch(() => {});
-  await supabaseAdmin.storage.createBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: [] }).catch(() => {});
-  // updateBucket with allowedMimeTypes:null is rejected by self-hosted Supabase Storage — use SQL directly
-  await prisma.$executeRaw`
-    UPDATE storage.buckets
-    SET public = TRUE, allowed_mime_types = NULL, file_size_limit = 104857600
-    WHERE id = ${WEBSITE_BUCKET_NAME}
-  `.catch((e) => console.error('[ensureBuckets] SQL update failed:', e.message));
-  await supabaseAdmin.storage
-    .createBucket("atlas-chat", { public: false, fileSizeLimit: 52428800 }) // 50 MB
-    .catch(() => {});
+  // Self-hosted Supabase Storage has been observed to silently reject
+  // createBucket calls that pass `public: true` (and/or a non-null
+  // allowedMimeTypes) up front — the request never creates the bucket at
+  // all, and since every call site here is wrapped in .catch(() => {}), that
+  // failure was previously invisible. createBucket() with only the minimal,
+  // always-accepted { public: false } shape is what has actually been
+  // proven to work end-to-end; every bucket is created that way first, then
+  // its real desired config (public/size/mime types) is applied via a
+  // direct SQL UPDATE against storage.buckets — the same workaround this
+  // function already needed for WEBSITE_BUCKET_NAME's allowedMimeTypes:null
+  // case, now applied uniformly instead of only where it was first noticed.
+  async function ensureBucket(name, { public: isPublic, fileSizeLimit = null, allowedMimeTypes = null } = {}) {
+    await supabaseAdmin.storage.createBucket(name, { public: false }).catch(() => {});
+    await prisma.$executeRaw`
+      UPDATE storage.buckets
+      SET public = ${isPublic}, allowed_mime_types = ${allowedMimeTypes}::text[], file_size_limit = ${fileSizeLimit}
+      WHERE id = ${name}
+    `.catch((e) => console.error(`[ensureBuckets] SQL update failed for ${name}:`, e.message));
+  }
+  await ensureBucket(STORAGE_BUCKET_NAME, { public: false });
+  await ensureBucket(STOREFRONT_BUCKET_NAME, {
+    public: true,
+    fileSizeLimit: 104857600,
+    allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'],
+  });
+  await ensureBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: null });
+  await ensureBucket("atlas-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
 }
 
 function serializeModulesForResponse(modules, context, options = {}) {
