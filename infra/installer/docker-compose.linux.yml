@@ -9,25 +9,25 @@
 # Manual usage on Linux:
 #   docker compose -f docker-compose.yml -f docker-compose.linux.yml --profile local up -d
 
-name: atlaserp
+name: runlyerp
 
 services:
   collabora:
     extra_hosts:
       - "host.docker.internal:host-gateway"
-  atlas-api-local:
+  runly-api-local:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  atlas-worker-local:
+  runly-worker-local:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  atlas-api-external:
+  runly-api-external:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  atlas-worker-external:
+  runly-worker-external:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

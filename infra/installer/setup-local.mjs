@@ -350,7 +350,7 @@ async function validateLiveKitRuntime(config) {
     let redis = { ok: false, output: "Redis is not ready." };
     for (let attempt = 1; attempt <= 24; attempt += 1) {
       redis = tryCapture("docker", [
-        "exec", "atlas-livekit-redis", "redis-cli", "-p", redisPort, "ping",
+        "exec", "runly-livekit-redis", "redis-cli", "-p", redisPort, "ping",
       ]);
       if (redis.ok && /PONG/i.test(redis.output)) break;
       await new Promise((resolve) => setTimeout(resolve, 2_500));
@@ -365,7 +365,7 @@ async function validateLiveKitRuntime(config) {
   for (let attempt = 1; attempt <= 24; attempt += 1) {
     smokeResult = tryCapture("docker", [
       "exec",
-      "atlas-api-local",
+      "runly-api-local",
       "node",
       "apps/api/src/scripts/livekit-smoke.js",
     ]);
@@ -634,7 +634,7 @@ async function main() {
   const liveKitProfiles = getLiveKitComposeProfiles(liveKit)
     .flatMap((profile) => ["--profile", profile]);
   // Limit forced restarts to Atlas/Calls: an unchanged editor must keep its sessions.
-  const services = ["atlas-api-local", "atlas-worker-local", "atlas-web-local",
+  const services = ["runly-api-local", "runly-worker-local", "runly-web-local",
     ...(liveKit.mode === "embedded" ? ["livekit-redis", "livekit", ...(liveKit.managedTls ? ["livekit-caddy"] : [])] : [])];
   run(
     "docker",

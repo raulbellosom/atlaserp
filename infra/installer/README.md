@@ -348,9 +348,9 @@ Reglas importantes:
   reinstalar el modulo para regenerar el bundle.
 - Si cambias el runtime compartido del host en `apps/desktop`
   (por ejemplo `src/shims/*`, importmap, externals) debes publicar una nueva imagen
-  `web` y recrear `atlas-web-local`.
+  `web` y recrear `runly-web-local`.
 - Si cambias CORS o autenticacion cross-origin en `apps/api`, debes publicar una nueva
-  imagen `api` y recrear `atlas-api-local`.
+  imagen `api` y recrear `runly-api-local`.
 
 Forzar recompilacion del bundle tras editar componentes:
 
@@ -366,7 +366,7 @@ curl http://localhost:4010/modules/custom.mymodule/bundle.js
 
 - `The requested module 'react/jsx-runtime' does not provide an export named 'jsx'`
   - La imagen `web` publicada no trae el shim/runtime correcto.
-  - Solucion: publicar nueva imagen `web`, hacer `docker compose pull atlas-web-local`
+  - Solucion: publicar nueva imagen `web`, hacer `docker compose pull runly-web-local`
     y recrear el contenedor.
 - `Cannot read properties of null (reading 'useContext')`
   - El host esta resolviendo externals por rutas inconsistentes y termina cargando
@@ -375,7 +375,7 @@ curl http://localhost:4010/modules/custom.mymodule/bundle.js
     base path del host y limpiar datos del sitio en el navegador.
 - `blocked by CORS policy` con `credentials mode is 'include'`
   - La API responde sin `Access-Control-Allow-Credentials: true`.
-  - Solucion: publicar nueva imagen `api`, hacer `docker compose pull atlas-api-local`
+  - Solucion: publicar nueva imagen `api`, hacer `docker compose pull runly-api-local`
     y recrear el contenedor.
 
 Empieza aqui:

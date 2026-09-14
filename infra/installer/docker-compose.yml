@@ -1,4 +1,4 @@
-name: atlaserp
+name: runlyerp
 
 services:
   collabora:
@@ -18,9 +18,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  atlas-api-external:
+  runly-api-external:
     image: ${RUNLY_API_IMAGE-${ATLAS_API_IMAGE:-raulbellosom/runlyerp:api-latest}}
-    container_name: atlas-api-external
+    container_name: runly-api-external
     profiles: ["external"]
     env_file:
       - ./.env.external
@@ -40,9 +40,9 @@ services:
           - api
     restart: unless-stopped
 
-  atlas-worker-external:
+  runly-worker-external:
     image: ${RUNLY_WORKER_IMAGE-${ATLAS_WORKER_IMAGE:-raulbellosom/runlyerp:worker-latest}}
-    container_name: atlas-worker-external
+    container_name: runly-worker-external
     profiles: ["external"]
     env_file:
       - ./.env.external
@@ -54,9 +54,9 @@ services:
       - ./.secrets/firebase:/run/secrets/firebase:ro
     restart: unless-stopped
 
-  atlas-web-external:
+  runly-web-external:
     image: ${RUNLY_WEB_EXTERNAL_IMAGE-${ATLAS_WEB_EXTERNAL_IMAGE:-raulbellosom/runlyerp:web-latest}}
-    container_name: atlas-web-external
+    container_name: runly-web-external
     profiles: ["external"]
     environment:
       RUNLY_API_URL: ${RUNLY_API_URL-${ATLAS_API_URL:-}}
@@ -66,12 +66,12 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - atlas-api-external
+      - runly-api-external
     restart: unless-stopped
 
-  atlas-api-local:
+  runly-api-local:
     image: ${RUNLY_API_LOCAL_IMAGE-${ATLAS_API_LOCAL_IMAGE:-raulbellosom/runlyerp:api-latest}}
-    container_name: atlas-api-local
+    container_name: runly-api-local
     profiles: ["local"]
     env_file:
       - ./.env.local
@@ -91,9 +91,9 @@ services:
           - api
     restart: unless-stopped
 
-  atlas-worker-local:
+  runly-worker-local:
     image: ${RUNLY_WORKER_LOCAL_IMAGE-${ATLAS_WORKER_LOCAL_IMAGE:-raulbellosom/runlyerp:worker-latest}}
-    container_name: atlas-worker-local
+    container_name: runly-worker-local
     profiles: ["local"]
     env_file:
       - ./.env.local
@@ -105,9 +105,9 @@ services:
       - ./.secrets/firebase:/run/secrets/firebase:ro
     restart: unless-stopped
 
-  atlas-web-local:
+  runly-web-local:
     image: ${RUNLY_WEB_LOCAL_IMAGE-${ATLAS_WEB_LOCAL_IMAGE:-raulbellosom/runlyerp:web-latest}}
-    container_name: atlas-web-local
+    container_name: runly-web-local
     profiles: ["local"]
     environment:
       RUNLY_API_URL: ${RUNLY_API_URL-${ATLAS_API_URL:-http://localhost:4010}}
@@ -117,12 +117,12 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - atlas-api-local
+      - runly-api-local
     restart: unless-stopped
 
   livekit-redis:
     image: ${LIVEKIT_REDIS_IMAGE:-redis:7-alpine}
-    container_name: atlas-livekit-redis
+    container_name: runly-livekit-redis
     profiles: ["livekit"]
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     expose:
@@ -136,7 +136,7 @@ services:
 
   livekit:
     image: ${LIVEKIT_IMAGE:-livekit/livekit-server:v1.12.0}
-    container_name: atlas-livekit
+    container_name: runly-livekit
     profiles: ["livekit"]
     command: ["--config", "/etc/livekit/livekit.yaml"]
     depends_on:
@@ -159,7 +159,7 @@ services:
   #   docker compose --profile livekit --profile livekit-egress up -d
   egress:
     image: ${LIVEKIT_EGRESS_IMAGE:-livekit/egress:v1.9.0}
-    container_name: atlas-livekit-egress
+    container_name: runly-livekit-egress
     profiles: ["livekit-egress"]
     restart: unless-stopped
     environment:
@@ -175,7 +175,7 @@ services:
 
   livekit-caddy:
     image: ${LIVEKIT_CADDY_IMAGE:-caddy:2-alpine}
-    container_name: atlas-livekit-caddy
+    container_name: runly-livekit-caddy
     profiles: ["livekit-tls"]
     depends_on:
       - livekit

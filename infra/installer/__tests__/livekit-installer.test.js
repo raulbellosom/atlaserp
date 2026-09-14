@@ -123,7 +123,7 @@ describe("LiveKit installer contract", () => {
     assert.match(linux, /livekit-caddy:\s+network_mode: host\s+ports: !reset \[\]/s);
     assert.match(linux, /livekit-redis:\s+network_mode: host/s);
     assert.match(linux, /--bind", "127\.0\.0\.1"/);
-    assert.match(linux, /atlas-api-external:[\s\S]*host\.docker\.internal:host-gateway/);
+    assert.match(linux, /runly-api-external:[\s\S]*host\.docker\.internal:host-gateway/);
   });
 
   it("documents all variables and enables embedded by default", async () => {
