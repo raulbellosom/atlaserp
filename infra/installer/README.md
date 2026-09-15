@@ -196,6 +196,9 @@ CORS_ORIGIN=http://localhost:5173
 
 ## Runly Calls / LiveKit
 
+> Checklist completo de subdominios (RTC, Office, Supabase, app principal) en
+> [docs/deployment/dns-subdomains.md](../../docs/deployment/dns-subdomains.md).
+
 La configuración principal vive en `.env.local` o `.env.external`. Los scripts no
 solicitan datos que ya estén definidos ahí y persisten las claves generadas para
 que una actualización no invalide instalaciones existentes:

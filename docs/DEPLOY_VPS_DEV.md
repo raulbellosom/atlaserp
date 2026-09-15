@@ -5,6 +5,9 @@
 
 ---
 
+> Checklist completo de subdominios requeridos (app, Supabase, RTC, Office) en
+> [docs/deployment/dns-subdomains.md](deployment/dns-subdomains.md).
+
 ## Arquitectura
 
 ```

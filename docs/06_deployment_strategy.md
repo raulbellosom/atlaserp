@@ -91,6 +91,13 @@ pnpm tauri dev     # native window with hot-reload
 
 Requires Rust toolchain + Windows SDK. Not available inside Docker containers.
 
+## DNS & subdomains
+
+Production installs need several DNS subdomains (main app, Supabase API/Studio,
+LiveKit RTC when Calls is enabled, Collabora Office when enabled). See
+[docs/deployment/dns-subdomains.md](deployment/dns-subdomains.md) for the full
+checklist, required ports, and which env var each domain feeds.
+
 ## Multi-tenant model
 
 Runly ERP is a true multi-tenant application: one API/database/instance can securely serve multiple companies at once. `Company` is the tenant root and `Membership` is the join to `UserProfile`; the active company for a request is resolved server-side (never trusted from the client) via the `X-Runly-Company-Id` header, validated against the caller's memberships by `resolveTenantContext` (`apps/api/src/index.js`). Effective permissions are a pure function of `(User, ActiveCompany)` — a user who is admin in one company and a viewer (or non-member) in another never gets admin rights when the other company is active. See `docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md` for the full design and `apps/api/src/__tests__/cross-tenant/` for the opt-in live cross-tenant security suite (`RUN_CROSS_TENANT_TESTS=1`) that verifies this end-to-end.
